@@ -1,0 +1,14 @@
+# هرچه در ایمیج لازم نیست، وارد context هم نشود.
+# context کوچک‌تر = بیلد سریع‌تر (فصل ۴ داکر)
+.git
+.gitignore
+node_modules
+tools
+*.md
+!docs-fa/**/*.md
+.vscode
+.idea
+Dockerfile
+.dockerignore
+compose.yml
+prompt.md

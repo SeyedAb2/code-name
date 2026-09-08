@@ -1,0 +1,21 @@
+# سیستم‌عامل
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# ویرایشگر
+.vscode/
+.idea/
+*.swp
+*~
+
+# Node — فقط برای ابزار نویسنده لازم است، نه برای خواننده
+node_modules/
+npm-debug.log*
+package-lock.json
+
+# موقت
+*.log
+*.tmp
+/tmp/
+/scratch/

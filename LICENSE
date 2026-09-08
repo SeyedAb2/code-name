@@ -1,0 +1,55 @@
+پروانهٔ محتوای کدنامه
+Content licence for Codenameh
+
+Copyright (c) 2026 Seyed Abbas Mousavi Asl <abbas.mossavi1378@gmail.com>
+
+────────────────────────────────────────────────────────────────────────────
+
+محتوای آموزشی این مخزن — متن فصل‌ها، تمرین‌ها، پاسخ‌ها، نمودارها و
+پروژه‌ها — تحت پروانهٔ زیر منتشر شده است:
+
+    Creative Commons Attribution-ShareAlike 4.0 International
+    (CC BY-SA 4.0)
+
+متن کامل پروانه:
+    https://creativecommons.org/licenses/by-sa/4.0/legalcode
+خلاصهٔ خوانا:
+    https://creativecommons.org/licenses/by-sa/4.0/deed.fa
+
+یعنی آزادی که:
+
+  • این محتوا را کپی و بازنشر کنی، در هر قالب و هر رسانه‌ای
+  • تغییرش بدهی، رویش بسازی، و حتی تجاری استفاده‌اش کنی
+
+به شرط اینکه:
+
+  • ذکر منبع (Attribution) — نام پدیدآورنده و لینک به مخزن اصلی را بیاوری،
+    و بگویی اگر تغییری داده‌ای.
+  • همان پروانه (ShareAlike) — اگر تغییرش دادی، اثر تازه را هم با همین
+    پروانه منتشر کنی.
+
+────────────────────────────────────────────────────────────────────────────
+
+استثناها:
+
+  • کد پروژه (docs-fa/assets/theme.css، docs-fa/assets/app.js،
+    docs-fa/assets/courses.js، tools/، deploy/، Dockerfile، compose.yml)
+    تحت پروانهٔ MIT است — فایل LICENSE-CODE را ببین.
+
+  • فونت‌ها متعلق به پدیدآورندگان خودشان‌اند و پروانهٔ خودشان را دارند:
+      Vazirmatn      — SIL Open Font License 1.1
+      JetBrains Mono — SIL Open Font License 1.1
+
+  • نام‌ها و نشان‌های تجاری که در محتوا از آن‌ها نام برده شده
+    (Docker، Nginx، Kubernetes، PostgreSQL و…) متعلق به صاحبان خودشان‌اند.
+    استفاده از آن‌ها در این مجموعه صرفاً اشاره‌ای و آموزشی است و هیچ
+    وابستگی یا تأییدی را نمی‌رساند.
+
+────────────────────────────────────────────────────────────────────────────
+
+The educational content of this repository — chapter text, exercises,
+solutions, diagrams and projects — is licensed under
+Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0).
+
+The project's source code is MIT licensed; see LICENSE-CODE.
+Bundled fonts retain their own SIL Open Font Licence.

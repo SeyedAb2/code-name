@@ -1,0 +1,2761 @@
+<!doctype html>
+<html lang="fa" dir="rtl" data-lang="fa">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>فصل ۱ — مسئله‌ای که داکر حل می‌کند | داکر | کدنامه</title>
+<meta name="description" content="درد واقعی محیط‌های ناهمگون، تفاوت کانتینر با ماشین مجازی، و مدل ذهنی درست از image، container، layer و volume.">
+<link rel="stylesheet" href="../../assets/theme.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%232496ED'/><g fill='white'><rect x='6' y='14' width='5' height='5' rx='1'/><rect x='12' y='14' width='5' height='5' rx='1'/><rect x='12' y='8' width='5' height='5' rx='1'/><rect x='18' y='14' width='5' height='5' rx='1'/></g></svg>">
+</head>
+<body data-page="chapter" data-course="01-docker" data-chapter="01">
+
+<div class="loader" aria-hidden="true">
+  <div class="loader-in">
+    <span class="loader-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+<path d="M3.6 4.8A1.8 1.8 0 0 1 5.4 3H20v18H5.4a1.8 1.8 0 0 1-1.8-1.8z"/>
+<path d="M7.6 18.2H20"/><path d="m10.4 8.6-2.3 2.9 2.3 2.9M14.4 8.6l2.3 2.9-2.3 2.9"/></svg></span>
+    <span class="loader-name">کدنامه<i>Codenameh</i></span>
+    <span class="loader-bar"><i></i></span>
+  </div>
+</div>
+
+<div class="readbar" aria-hidden="true"></div>
+
+<!-- ═══════════════════════════════ نوار بالا ═══════════════════════════════ -->
+<header class="topbar">
+  <a class="brand" href="../../index.html">
+    <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+<path d="M3.6 4.8A1.8 1.8 0 0 1 5.4 3H20v18H5.4a1.8 1.8 0 0 1-1.8-1.8z"/>
+<path d="M7.6 18.2H20"/><path d="m10.4 8.6-2.3 2.9 2.3 2.9M14.4 8.6l2.3 2.9-2.3 2.9"/></svg></span>
+    <span class="brand-txt">کدنامه<i lang="fa">مرجع‌های مهندسی نرم‌افزار، به فارسی</i><i lang="en">Software engineering references, in Persian</i></span>
+  </a>
+
+  <nav class="crumbs" aria-label="مسیر">
+    <a href="../../index.html"><span lang="fa">خانه</span><span lang="en">Home</span></a>
+    <span class="sep">/</span>
+    <a href="../index.html"><span lang="fa">داکر</span><span lang="en">Docker</span></a>
+    <span class="sep">/</span>
+    <span class="cur"><span lang="fa">فصل ۱</span><span lang="en">Chapter 1</span></span>
+  </nav>
+
+  <div class="bar-tools">
+    <button class="ibtn js-search" type="button" aria-label="جستجو">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/>
+      </svg>
+    </button>
+    <div class="lang-sw" role="group" aria-label="زبان">
+      <button type="button" data-l="fa" aria-pressed="true">FA</button>
+      <button type="button" data-l="en" aria-pressed="false">EN</button>
+    </div>
+    <button class="ibtn js-theme" type="button" aria-label="تغییر تم">
+      <svg class="ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      <svg class="ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="shell shell-grid">
+
+<!-- ═══════════════════════════════ ستون کناری ═══════════════════════════════ -->
+<aside class="rail">
+  <button class="rail-toggle" type="button" aria-expanded="false">
+    <span class="js-t" data-t="menu">فهرست مطالب</span>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+  </button>
+  <div class="rail-body"><!-- app.js پرش می‌کند --></div>
+</aside>
+
+<!-- ═══════════════════════════════ محتوا ═══════════════════════════════ -->
+<main class="content">
+
+<div class="masthead">
+  <span class="eyebrow"><span class="dot"></span>
+    <span lang="fa">داکر · فصل ۱</span><span lang="en">Docker · Chapter 1</span>
+  </span>
+  <h1 lang="fa">مسئله‌ای که داکر حل می‌کند</h1>
+  <h1 lang="en">The problem Docker solves</h1>
+  <p class="sub" lang="fa">
+    قبل از اینکه یک دستور بزنیم، باید بدانیم داریم چه دردی را درمان می‌کنیم. این فصل
+    ابزار یاد نمی‌دهد؛ مدل ذهنی می‌سازد. اگر این فصل را درست بفهمی، چهارده فصل بعدی
+    فقط جزئیات است.
+  </p>
+  <p class="sub" lang="en">
+    Before typing a single command, we need to know which pain we are treating. This chapter
+    does not teach a tool; it builds a mental model. Get this chapter right and the next fourteen
+    are just details.
+  </p>
+  <div class="facts">
+    <div class="fact"><b>۵۵</b><span lang="fa">دقیقه مطالعه</span><span lang="en">minutes to read</span></div>
+    <div class="fact"><b>۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></div>
+    <div class="fact"><b>۳</b><span lang="fa">نمودار</span><span lang="en">diagrams</span></div>
+    <div class="fact"><b>۰</b><span lang="fa">پیش‌نیاز داکری</span><span lang="en">Docker prerequisites</span></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════ ۱ ══════════════════════════ -->
+<section id="pain">
+  <h2><span lang="fa">دردی که داکر درمان می‌کند</span><span lang="en">The pain Docker treats</span></h2>
+
+  <p class="lede" lang="fa">
+    داستان همیشه یکی است. برنامه‌ات روی لپ‌تاپ خودت اجرا می‌شود. آن را به یک نفر دیگر می‌دهی
+    و اجرا نمی‌شود. این جمله را می‌گویی: «روی سیستم من که کار می‌کرد.» و راست هم می‌گویی.
+  </p>
+  <p class="lede" lang="en">
+    The story is always the same. Your program runs on your laptop. You hand it to someone else
+    and it does not run. You say the sentence: “it worked on my machine.” And you are telling the truth.
+  </p>
+
+  <p lang="fa">
+    فرض کن یک برنامهٔ کوچک پایتون نوشته‌ای که از یک پایگاه‌دادهٔ PostgreSQL می‌خواند و یک گزارش
+    می‌سازد. روی لپ‌تاپ خودت بی‌عیب کار می‌کند. فایل را برای همکارت می‌فرستی. ده دقیقه بعد این
+    عکس صفحه را می‌فرستد:
+  </p>
+  <p lang="en">
+    Say you wrote a small Python program that reads from a PostgreSQL database and produces a report.
+    It works flawlessly on your laptop. You send the file to a colleague. Ten minutes later they send
+    you this screenshot:
+  </p>
+
+  <div class="term">
+    <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">colleague@laptop</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="k">python</span> report.py
+<span class="w">Traceback (most recent call last):</span>
+<span class="s">  File "report.py", line 3, in &lt;module&gt;
+    import psycopg2
+ModuleNotFoundError: No module named 'psycopg2'</span></pre>
+  </div>
+
+  <p lang="fa">
+    می‌گویی: «نصبش کن.» نصب می‌کند. حالا این می‌آید:
+  </p>
+  <p lang="en">
+    You say: “install it.” They do. Now this shows up:
+  </p>
+
+  <div class="term">
+    <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">colleague@laptop</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="k">pip</span> install psycopg2
+<span class="s">  Error: pg_config executable not found.</span>
+<span class="s">  pg_config is required to build psycopg2 from source.</span></pre>
+  </div>
+
+  <p lang="fa">
+    حالا معلوم می‌شود که کتابخانهٔ پایتون به یک کتابخانهٔ <em>سیستمی</em> نیاز دارد که روی ماشین تو
+    سال‌ها پیش موقع یک کار دیگر نصب شده بود و اصلاً یادت نیست. این دقیقاً همان چیزی است که
+    آدم‌ها به آن می‌گویند «درد محیط» (<code>environment drift</code>): تفاوت بی‌سروصدا میان
+    ماشین‌ها که تا لحظهٔ خراب شدن دیده نمی‌شود.
+  </p>
+  <p lang="en">
+    It turns out the Python library needs a <em>system</em> library that was installed on your machine
+    years ago for something unrelated and that you have long forgotten. This is exactly what people
+    mean by <code>environment drift</code>: the silent difference between machines that stays invisible
+    until it breaks.
+  </p>
+
+  <h3 lang="fa">سه لایه‌ای که فرق می‌کنند</h3>
+  <h3 lang="en">The three layers that differ</h3>
+
+  <p lang="fa">
+    وقتی دو ماشین «یکسان» نیستند، تفاوت تقریباً همیشه در یکی از این سه لایه است:
+  </p>
+  <p lang="en">
+    When two machines are not “the same”, the difference is almost always in one of three layers:
+  </p>
+
+  <ol class="ranked">
+    <li>
+      <b lang="fa">نسخهٔ زبان و کتابخانه‌های آن</b>
+      <b lang="en">Language runtime and its libraries</b>
+      <p lang="fa">
+        تو <code>Python 3.12</code> داری، او <code>3.9</code>. کدی که با نحو جدید نوشته‌ای، آنجا
+        خطای نحوی می‌دهد. یا <code>Node 22</code> در برابر <code>Node 18</code>، که یک تابع
+        در یکی هست و در دیگری نیست.
+      </p>
+      <p lang="en">
+        You have <code>Python 3.12</code>, they have <code>3.9</code>. Code written with newer syntax
+        is a syntax error over there. Or <code>Node 22</code> versus <code>Node 18</code>, where a
+        function exists in one and not the other.
+      </p>
+    </li>
+    <li>
+      <b lang="fa">کتابخانه‌های سیستمی</b>
+      <b lang="en">System libraries</b>
+      <p lang="fa">
+        همان <code>libpq</code>، <code>libssl</code>، <code>ImageMagick</code> و امثالش. اینها
+        بخشی از پروژهٔ تو نیستند، پس در فایل‌های پروژه هم ثبت نشده‌اند. نامرئی‌اند تا وقتی که غایب باشند.
+      </p>
+      <p lang="en">
+        Things like <code>libpq</code>, <code>libssl</code>, <code>ImageMagick</code>. They are not part
+        of your project, so they are not recorded in your project files. Invisible until absent.
+      </p>
+    </li>
+    <li>
+      <b lang="fa">پیکربندی و مسیرها</b>
+      <b lang="en">Configuration and paths</b>
+      <p lang="fa">
+        متغیر محیطی که فقط در فایل <code>.bashrc</code> تو هست. مسیری که روی ویندوز
+        <code>C:\data</code> است و روی لینوکس <code>/var/data</code>. سرویسی که روی پورت
+        ۵۴۳۲ بالا است چون تو دستی بالا آورده‌ای.
+      </p>
+      <p lang="en">
+        An environment variable that lives only in your <code>.bashrc</code>. A path that is
+        <code>C:\data</code> on Windows and <code>/var/data</code> on Linux. A service listening on
+        port 5432 because you started it by hand.
+      </p>
+    </li>
+  </ol>
+
+  <h3 lang="fa">راه‌حل‌های قبلی و اینکه چرا کافی نبودند</h3>
+  <h3 lang="en">Earlier answers, and why they fell short</h3>
+
+  <p lang="fa">
+    این مسئله جدید نیست و آدم‌ها قبلاً سه جواب برایش داشتند. هر سه جواب کار می‌کنند، فقط
+    هزینهٔ متفاوتی دارند.
+  </p>
+  <p lang="en">
+    This is not a new problem, and people had three answers for it. All three work; they just
+    cost different amounts.
+  </p>
+
+  <div class="cards">
+    <div class="card w">
+      <span class="card-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v13H4z"/><path d="M9 21h6M12 17v4"/></svg></span>
+      <h3 lang="fa">فایل «راهنمای نصب»</h3><h3 lang="en">An install README</h3>
+      <p lang="fa">
+        بیست خط دستور که باید به ترتیب اجرا شوند. مشکل: این فایل هیچ‌وقت به‌روز نمی‌ماند.
+        سه ماه بعد یک نسخه عوض می‌شود و راهنما دروغ می‌گوید — بدون اینکه کسی بفهمد.
+      </p>
+      <p lang="en">
+        Twenty commands to run in order. The problem: it never stays current. Three months later a
+        version changes and the README is lying — and nobody notices.
+      </p>
+    </div>
+    <div class="card w">
+      <span class="card-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><rect x="6.5" y="7" width="11" height="8" rx="1"/></svg></span>
+      <h3 lang="fa">ماشین مجازی</h3><h3 lang="en">A virtual machine</h3>
+      <p lang="fa">
+        واقعاً جواب می‌دهد: یک سیستم‌عامل کامل با همه‌چیزش. اما فایلش چند گیگابایت است، بالا
+        آمدنش ده‌ها ثانیه طول می‌کشد، و برای هر سرویس یکی لازم داری. برای ۵ سرویس، ۵ سیستم‌عامل.
+      </p>
+      <p lang="en">
+        It genuinely works: a whole operating system with everything in it. But the file is gigabytes,
+        booting takes tens of seconds, and you need one per service. Five services, five operating systems.
+      </p>
+    </div>
+    <div class="card w">
+      <span class="card-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><circle cx="12" cy="12" r="4"/></svg></span>
+      <h3 lang="fa">ابزار پیکربندی</h3><h3 lang="en">Configuration management</h3>
+      <p lang="fa">
+        ابزارهایی مثل <code>Ansible</code> که نصب را خودکار می‌کنند. بهتر از راهنمای دستی است، اما
+        هنوز روی سیستم‌عاملِ <em>موجود</em> کار می‌کند؛ پس تفاوت‌های آن سیستم‌عامل سر جایش می‌ماند.
+      </p>
+      <p lang="en">
+        Tools like <code>Ansible</code> that automate the install. Better than a manual README, but they
+        still act on the operating system that is <em>already there</em>, so its differences remain.
+      </p>
+    </div>
+  </div>
+
+  <p lang="fa">
+    جواب داکر از جنس دیگری است: <strong>به‌جای اینکه توضیح بدهی برنامه به چه چیزهایی نیاز دارد،
+    آن چیزها را کنار خود برنامه بسته‌بندی کن و همه را با هم تحویل بده.</strong> نه یک راهنما، نه
+    یک اسکریپت، بلکه یک بستهٔ آماده که همه‌جا یکسان باز می‌شود.
+  </p>
+  <p lang="en">
+    Docker's answer is of a different kind: <strong>instead of describing what your program needs,
+    package those things next to the program and ship them together.</strong> Not a README, not a
+    script — a ready-made bundle that opens the same way everywhere.
+  </p>
+
+  <div class="note">
+    <div class="note-t">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/></svg>
+      <span lang="fa">اسم از کجا آمده</span><span lang="en">Where the name comes from</span>
+    </div>
+    <p lang="fa">
+      قبل از کانتینرهای باربری، هر محموله را جداگانه در انبار کشتی می‌چیدند: بشکه، گونی، جعبه،
+      هرکدام شکل خودش. بارگیری یک کشتی چند روز طول می‌کشید. کانتینر فولادی این را عوض کرد — نه
+      چون هوشمند بود، بلکه چون <em>استاندارد</em> بود: جرثقیل، کامیون، قطار و کشتی همه با یک
+      اندازه کار می‌کردند و دیگر مهم نبود داخلش چیست. داکر همین کار را با نرم‌افزار می‌کند.
+      محتوای کانتینر تو می‌تواند پایتون باشد یا جاوا؛ ابزار بیرونی یکی است.
+    </p>
+    <p lang="en">
+      Before shipping containers, cargo was loaded piece by piece: barrels, sacks, crates, each its own
+      shape. Loading one ship took days. The steel container changed that — not because it was clever
+      but because it was <em>standard</em>: cranes, trucks, trains and ships all agreed on one size and
+      stopped caring what was inside. Docker does the same for software. Your container may hold Python
+      or Java; the tooling outside is identical.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════════════════ ۲ ══════════════════════════ -->
+<section id="what">
+  <h2><span lang="fa">داکر دقیقاً چیست</span><span lang="en">What Docker actually is</span></h2>
+
+  <p class="lede" lang="fa">
+    دو جمله، بدون تعارف: داکر ابزاری است که برنامه‌ات را همراه با تمام وابستگی‌هایش در یک بستهٔ
+    استاندارد و تغییرناپذیر به نام <code>image</code> (ایمیج) بسته‌بندی می‌کند. سپس آن بسته را
+    به‌صورت یک پروسهٔ ایزوله روی هستهٔ لینوکس ماشین میزبان اجرا می‌کند؛ به آن پروسهٔ در حال اجرا
+    می‌گوییم <code>container</code> (کانتینر).
+  </p>
+  <p class="lede" lang="en">
+    Two sentences, no ceremony: Docker packages your program together with every dependency into a
+    standard, immutable bundle called an <code>image</code>. It then runs that bundle as an isolated
+    process on the host machine's Linux kernel; that running process is a <code>container</code>.
+  </p>
+
+  <p lang="fa">
+    این تعریف دو کلمهٔ مهم دارد که باید رویشان مکث کنی.
+  </p>
+  <p lang="en">
+    That definition has two words worth pausing on.
+  </p>
+
+  <p lang="fa">
+    <strong>تغییرناپذیر (<code>immutable</code>)</strong> یعنی ایمیج بعد از ساخته‌شدن عوض نمی‌شود.
+    اگر بخواهی چیزی را تغییر بدهی، ایمیج جدید می‌سازی. این محدودیت به نظر آزاردهنده می‌رسد، اما
+    دقیقاً همان چیزی است که تضمین می‌کند ایمیجی که امروز تست کرده‌ای، فردا روی سرور همان رفتار
+    را دارد. هر چیزی که بتواند بی‌سروصدا عوض شود، بالاخره بی‌سروصدا عوض می‌شود.
+  </p>
+  <p lang="en">
+    <strong>Immutable</strong> means an image does not change after it is built. To change something,
+    you build a new image. The constraint sounds annoying, but it is exactly what guarantees that the
+    image you tested today behaves the same on the server tomorrow. Anything that can change quietly
+    eventually does.
+  </p>
+
+  <p lang="fa">
+    <strong>روی هستهٔ ماشین میزبان</strong> یعنی کانتینر سیستم‌عامل خودش را ندارد. با ماشین میزبان
+    یک هسته (<code>kernel</code>) مشترک دارد و فقط فایل‌سیستم و دیدش جدا است. این تفاوت اصلی با
+    ماشین مجازی است و در بخش بعد کاملاً بازش می‌کنیم.
+  </p>
+  <p lang="en">
+    <strong>On the host's kernel</strong> means a container has no operating system of its own. It
+    shares one <code>kernel</code> with the host and only its filesystem and its view are separate.
+    That is the key difference from a virtual machine, and the next section unpacks it fully.
+  </p>
+
+  <h3 lang="fa">داکر چه چیزی <em>نیست</em></h3>
+  <h3 lang="en">What Docker is <em>not</em></h3>
+
+  <p lang="fa">
+    این فهرست به اندازهٔ تعریف مهم است، چون بیشتر سردرگمی‌های ماه اول از همین‌ها می‌آید.
+  </p>
+  <p lang="en">
+    This list matters as much as the definition; most first-month confusion comes from these.
+  </p>
+
+  <div class="cards">
+    <div class="card">
+      <span class="card-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></span>
+      <h3 lang="fa">ماشین مجازی نیست</h3><h3 lang="en">Not a virtual machine</h3>
+      <p lang="fa">هستهٔ جداگانه ندارد. برای همین چند میلی‌ثانیه‌ای بالا می‌آید و برای همین هم
+        ایزولاسیونش از ماشین مجازی ضعیف‌تر است.</p>
+      <p lang="en">It has no separate kernel. That is why it starts in milliseconds — and also why its
+        isolation is weaker than a VM's.</p>
+    </div>
+    <div class="card">
+      <span class="card-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></span>
+      <h3 lang="fa">برنامه‌ات را سریع‌تر نمی‌کند</h3><h3 lang="en">Not a speed-up</h3>
+      <p lang="fa">کد کند، داخل کانتینر هم کند است. داکر سربار محاسباتی تقریباً صفر دارد، اما
+        جادو هم نمی‌کند.</p>
+      <p lang="en">Slow code is slow inside a container too. Docker's compute overhead is near zero,
+        but it performs no magic.</p>
+    </div>
+    <div class="card">
+      <span class="card-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></span>
+      <h3 lang="fa">جای معماری خوب را نمی‌گیرد</h3><h3 lang="en">Not a substitute for design</h3>
+      <p lang="fa">یک برنامهٔ به‌هم‌ریخته، داخل کانتینر می‌شود یک برنامهٔ به‌هم‌ریختهٔ قابل‌حمل.
+        قابل‌حمل بودن ارزش دارد، ولی مسئلهٔ دیگری را حل می‌کند.</p>
+      <p lang="en">A tangled application becomes a portable tangled application. Portability is worth
+        something, but it solves a different problem.</p>
+    </div>
+    <div class="card">
+      <span class="card-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></span>
+      <h3 lang="fa">به‌تنهایی امن نیست</h3><h3 lang="en">Not secure by itself</h3>
+      <p lang="fa">پیش‌فرض‌های داکر برای راحتی تنظیم شده‌اند، نه برای امنیت. فصل ۱۳ کامل به این
+        می‌پردازد.</p>
+      <p lang="en">Docker's defaults are tuned for convenience, not safety. Chapter 13 is devoted to this.</p>
+    </div>
+  </div>
+
+  <h3 lang="fa">سه قطعه‌ای که باید از هم تشخیص بدهی</h3>
+  <h3 lang="en">Three pieces you must tell apart</h3>
+
+  <p lang="fa">
+    وقتی می‌گوییم «داکر»، در واقع سه چیز جدا را با یک اسم صدا می‌زنیم. تشخیص ندادنشان باعث
+    می‌شود خطاها بی‌معنی به نظر برسند.
+  </p>
+  <p lang="en">
+    When we say “Docker” we are calling three separate things by one name. Not telling them apart is
+    what makes error messages look meaningless.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th><span lang="fa">قطعه</span><span lang="en">Piece</span></th>
+          <th><span lang="fa">چیست</span><span lang="en">What it is</span></th>
+          <th><span lang="fa">کجا می‌بینی‌اش</span><span lang="en">Where you meet it</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>docker</code> <span lang="fa">(CLI)</span></td>
+          <td><span lang="fa">دستوری که تو تایپ می‌کنی. خودش کاری نمی‌کند؛ فقط درخواست را می‌فرستد.</span>
+              <span lang="en">The command you type. It does nothing itself; it forwards the request.</span></td>
+          <td><span lang="fa">ترمینال</span><span lang="en">Your terminal</span></td>
+        </tr>
+        <tr>
+          <td><code>dockerd</code> <span lang="fa">(daemon)</span></td>
+          <td><span lang="fa">سرویسی که در پس‌زمینه اجرا است و واقعاً کانتینرها را می‌سازد و می‌گرداند.</span>
+              <span lang="en">The background service that actually creates and runs containers.</span></td>
+          <td><span lang="fa">خطای «daemon در دسترس نیست» از اینجا می‌آید</span>
+              <span lang="en">The “cannot connect to the daemon” error comes from here</span></td>
+        </tr>
+        <tr>
+          <td><span lang="fa">رجیستری</span><span lang="en">Registry</span></td>
+          <td><span lang="fa">انبار ایمیج‌ها. پیش‌فرض <code>Docker Hub</code> است.</span>
+              <span lang="en">The image warehouse. <code>Docker Hub</code> by default.</span></td>
+          <td><span lang="fa">وقتی <code>Pulling from…</code> می‌بینی</span>
+              <span lang="en">When you see <code>Pulling from…</code></span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p lang="fa">
+    این معماری یعنی <code>docker</code> فقط یک پیام‌رسان است. وقتی این خطا را می‌بینی:
+  </p>
+  <p lang="en">
+    This architecture means <code>docker</code> is only a messenger. When you see this error:
+  </p>
+
+  <div class="term">
+    <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="k">docker</span> ps
+<span class="w">Cannot connect to the Docker daemon at unix:///var/run/docker.sock.</span>
+<span class="w">Is the docker daemon running?</span></pre>
+  </div>
+
+  <p lang="fa">
+    مشکل «داکر نصب نیست» نیست. دستور <code>docker</code> کاملاً سالم اجرا شده و پیامش را
+    فرستاده؛ کسی آن طرف خط جواب نداده. یعنی سرویس پس‌زمینه بالا نیست. درمانش در فصل ۲ است.
+  </p>
+  <p lang="en">
+    The problem is not “Docker is not installed”. The <code>docker</code> command ran perfectly and sent
+    its message; nobody answered on the other end. The background service is not up. The cure is in chapter 2.
+  </p>
+</section>
+
+<!-- ══════════════════════════ ۳ ══════════════════════════ -->
+<section id="vm">
+  <h2><span lang="fa">ماشین مجازی یا کانتینر؟</span><span lang="en">Virtual machine or container?</span></h2>
+
+  <p class="lede" lang="fa">
+    این مقایسه مهم‌ترین نمودار این فصل است. تفاوت در یک چیز خلاصه می‌شود: کانتینر هستهٔ
+    سیستم‌عامل را <em>قرض می‌گیرد</em>، ماشین مجازی هستهٔ خودش را <em>می‌آورد</em>.
+  </p>
+  <p class="lede" lang="en">
+    This comparison is the most important diagram in the chapter. The difference reduces to one thing:
+    a container <em>borrows</em> the operating system kernel; a virtual machine <em>brings its own</em>.
+  </p>
+
+  <figure>
+    <div class="diagram">
+      <svg viewBox="0 0 700 330" role="img" aria-labelledby="d1t">
+        <title id="d1t">مقایسهٔ ماشین مجازی و کانتینر</title>
+
+        <!-- ستون چپ: ماشین مجازی -->
+        <rect class="dg-fill dg-stroke" x="20" y="46" width="310" height="260" rx="10"/>
+        <text class="dg-t" x="175" y="34" text-anchor="middle" lang="fa">ماشین مجازی</text>
+        <text class="dg-t" x="175" y="34" text-anchor="middle" lang="en">Virtual machines</text>
+
+        <rect class="dg-fill-w dg-stroke-w" x="34" y="264" width="282" height="30" rx="6"/>
+        <text class="dg-ts" x="175" y="284" text-anchor="middle" lang="fa">سخت‌افزار میزبان</text>
+        <text class="dg-ts" x="175" y="284" text-anchor="middle" lang="en">Host hardware</text>
+
+        <rect class="dg-fill dg-stroke" x="34" y="228" width="282" height="30" rx="6"/>
+        <text class="dg-ts" x="175" y="248" text-anchor="middle" lang="fa">سیستم‌عامل میزبان</text>
+        <text class="dg-ts" x="175" y="248" text-anchor="middle" lang="en">Host operating system</text>
+
+        <rect class="dg-fill-v dg-stroke-v" x="34" y="192" width="282" height="30" rx="6"/>
+        <text class="dg-tm" x="175" y="212" text-anchor="middle">Hypervisor</text>
+
+        <!-- سه VM -->
+        <g>
+          <rect class="dg-fill dg-stroke" x="34" y="66" width="88" height="120" rx="7"/>
+          <rect class="dg-fill-b dg-stroke-b" x="42" y="74" width="72" height="24" rx="4"/>
+          <text class="dg-tb" x="78" y="90" text-anchor="middle">App</text>
+          <rect class="dg-fill dg-stroke" x="42" y="102" width="72" height="24" rx="4"/>
+          <text class="dg-tm" x="78" y="118" text-anchor="middle">Libs</text>
+          <rect class="dg-fill-w dg-stroke-w" x="42" y="130" width="72" height="48" rx="4"/>
+          <text class="dg-tm" x="78" y="150" text-anchor="middle">Guest OS</text>
+          <text class="dg-tm" x="78" y="166" text-anchor="middle">+ kernel</text>
+        </g>
+        <g>
+          <rect class="dg-fill dg-stroke" x="131" y="66" width="88" height="120" rx="7"/>
+          <rect class="dg-fill-b dg-stroke-b" x="139" y="74" width="72" height="24" rx="4"/>
+          <text class="dg-tb" x="175" y="90" text-anchor="middle">App</text>
+          <rect class="dg-fill dg-stroke" x="139" y="102" width="72" height="24" rx="4"/>
+          <text class="dg-tm" x="175" y="118" text-anchor="middle">Libs</text>
+          <rect class="dg-fill-w dg-stroke-w" x="139" y="130" width="72" height="48" rx="4"/>
+          <text class="dg-tm" x="175" y="150" text-anchor="middle">Guest OS</text>
+          <text class="dg-tm" x="175" y="166" text-anchor="middle">+ kernel</text>
+        </g>
+        <g>
+          <rect class="dg-fill dg-stroke" x="228" y="66" width="88" height="120" rx="7"/>
+          <rect class="dg-fill-b dg-stroke-b" x="236" y="74" width="72" height="24" rx="4"/>
+          <text class="dg-tb" x="272" y="90" text-anchor="middle">App</text>
+          <rect class="dg-fill dg-stroke" x="236" y="102" width="72" height="24" rx="4"/>
+          <text class="dg-tm" x="272" y="118" text-anchor="middle">Libs</text>
+          <rect class="dg-fill-w dg-stroke-w" x="236" y="130" width="72" height="48" rx="4"/>
+          <text class="dg-tm" x="272" y="150" text-anchor="middle">Guest OS</text>
+          <text class="dg-tm" x="272" y="166" text-anchor="middle">+ kernel</text>
+        </g>
+
+        <!-- ستون راست: کانتینر -->
+        <rect class="dg-fill dg-stroke" x="370" y="46" width="310" height="260" rx="10"/>
+        <text class="dg-t" x="525" y="34" text-anchor="middle" lang="fa">کانتینر</text>
+        <text class="dg-t" x="525" y="34" text-anchor="middle" lang="en">Containers</text>
+
+        <rect class="dg-fill-w dg-stroke-w" x="384" y="264" width="282" height="30" rx="6"/>
+        <text class="dg-ts" x="525" y="284" text-anchor="middle" lang="fa">سخت‌افزار میزبان</text>
+        <text class="dg-ts" x="525" y="284" text-anchor="middle" lang="en">Host hardware</text>
+
+        <rect class="dg-fill-g dg-stroke-g" x="384" y="222" width="282" height="36" rx="6"/>
+        <text class="dg-ts" x="525" y="238" text-anchor="middle" lang="fa">سیستم‌عامل میزبان — یک هستهٔ مشترک</text>
+        <text class="dg-ts" x="525" y="238" text-anchor="middle" lang="en">Host OS — one shared kernel</text>
+        <text class="dg-tm" x="525" y="252" text-anchor="middle">namespaces + cgroups</text>
+
+        <rect class="dg-fill-v dg-stroke-v" x="384" y="186" width="282" height="30" rx="6"/>
+        <text class="dg-tm" x="525" y="206" text-anchor="middle">Docker Engine</text>
+
+        <g>
+          <rect class="dg-fill dg-stroke" x="384" y="98" width="88" height="80" rx="7"/>
+          <rect class="dg-fill-b dg-stroke-b" x="392" y="108" width="72" height="26" rx="4"/>
+          <text class="dg-tb" x="428" y="125" text-anchor="middle">App</text>
+          <rect class="dg-fill dg-stroke" x="392" y="140" width="72" height="28" rx="4"/>
+          <text class="dg-tm" x="428" y="158" text-anchor="middle">Libs</text>
+        </g>
+        <g>
+          <rect class="dg-fill dg-stroke" x="481" y="98" width="88" height="80" rx="7"/>
+          <rect class="dg-fill-b dg-stroke-b" x="489" y="108" width="72" height="26" rx="4"/>
+          <text class="dg-tb" x="525" y="125" text-anchor="middle">App</text>
+          <rect class="dg-fill dg-stroke" x="489" y="140" width="72" height="28" rx="4"/>
+          <text class="dg-tm" x="525" y="158" text-anchor="middle">Libs</text>
+        </g>
+        <g>
+          <rect class="dg-fill dg-stroke" x="578" y="98" width="88" height="80" rx="7"/>
+          <rect class="dg-fill-b dg-stroke-b" x="586" y="108" width="72" height="26" rx="4"/>
+          <text class="dg-tb" x="622" y="125" text-anchor="middle">App</text>
+          <rect class="dg-fill dg-stroke" x="586" y="140" width="72" height="28" rx="4"/>
+          <text class="dg-tm" x="622" y="158" text-anchor="middle">Libs</text>
+        </g>
+
+        <text class="dg-ts" x="525" y="80" text-anchor="middle" lang="fa">بدون Guest OS — همین‌جا صرفه‌جویی می‌شود</text>
+        <text class="dg-ts" x="525" y="80" text-anchor="middle" lang="en">No guest OS — this is where the saving is</text>
+      </svg>
+    </div>
+    <figcaption>
+      <span lang="fa">در سمت ماشین مجازی، لایهٔ نارنجی سه بار تکرار شده است. در سمت کانتینر، یک بار.</span>
+      <span lang="en">On the VM side the orange layer is repeated three times. On the container side, once.</span>
+    </figcaption>
+  </figure>
+
+  <p lang="fa">
+    آن لایهٔ تکراری همان چیزی است که هزینه دارد. یک سیستم‌عامل کامل یعنی صدها مگابایت فایل،
+    یک هستهٔ جدا در حافظه، و یک فرایند بوت کامل هر بار که روشنش می‌کنی. سه ماشین مجازی یعنی
+    سه بار همهٔ اینها — حتی اگر هر سه دقیقاً یک اوبونتوی یکسان باشند.
+  </p>
+  <p lang="en">
+    That repeated layer is what costs. A full operating system means hundreds of megabytes of files,
+    a separate kernel in memory, and a complete boot sequence every time you start it. Three VMs mean
+    three of all that — even if all three are the identical Ubuntu.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th></th>
+          <th><span lang="fa">ماشین مجازی</span><span lang="en">Virtual machine</span></th>
+          <th><span lang="fa">کانتینر</span><span lang="en">Container</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span lang="fa">هسته</span><span lang="en">Kernel</span></td>
+          <td><span lang="fa">مال خودش</span><span lang="en">Its own</span></td>
+          <td><span lang="fa">مشترک با میزبان</span><span lang="en">Shared with the host</span></td>
+        </tr>
+        <tr>
+          <td><span lang="fa">زمان بالا آمدن</span><span lang="en">Start time</span></td>
+          <td><span lang="fa">ده‌ها ثانیه (بوت کامل)</span><span lang="en">Tens of seconds (full boot)</span></td>
+          <td><span lang="fa">کسری از ثانیه (فقط اجرای یک پروسه)</span><span lang="en">A fraction of a second (just a process)</span></td>
+        </tr>
+        <tr>
+          <td><span lang="fa">حجم روی دیسک</span><span lang="en">Disk footprint</span></td>
+          <td><span lang="fa">معمولاً گیگابایت</span><span lang="en">Typically gigabytes</span></td>
+          <td><span lang="fa">معمولاً ده‌ها تا صدها مگابایت</span><span lang="en">Typically tens to hundreds of MB</span></td>
+        </tr>
+        <tr>
+          <td><span lang="fa">قدرت ایزولاسیون</span><span lang="en">Isolation strength</span></td>
+          <td class="yes"><span lang="fa">قوی — مرز سخت‌افزاری</span><span lang="en">Strong — hardware boundary</span></td>
+          <td class="no"><span lang="fa">ضعیف‌تر — مرز نرم‌افزاری هسته</span><span lang="en">Weaker — kernel software boundary</span></td>
+        </tr>
+        <tr>
+          <td><span lang="fa">سیستم‌عامل متفاوت</span><span lang="en">Different OS</span></td>
+          <td class="yes"><span lang="fa">می‌شود (ویندوز روی لینوکس)</span><span lang="en">Possible (Windows on Linux)</span></td>
+          <td class="no"><span lang="fa">نمی‌شود — هسته یکی است</span><span lang="en">Not possible — one kernel</span></td>
+        </tr>
+        <tr>
+          <td><span lang="fa">مناسب برای</span><span lang="en">Good for</span></td>
+          <td><span lang="fa">اجرای کد نامطمئن، سیستم‌عامل متفاوت، جداسازی سخت</span>
+              <span lang="en">Untrusted code, a different OS, hard separation</span></td>
+          <td><span lang="fa">بسته‌بندی و اجرای سرویس‌های خودت</span>
+              <span lang="en">Packaging and running your own services</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note warn">
+    <div class="note-t">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.3 3.9 1.9 18a2 2 0 0 0 1.7 3h16.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17v.01"/></svg>
+      <span lang="fa">نتیجهٔ عملی این تفاوت</span><span lang="en">The practical consequence</span></div>
+    <p lang="fa">
+      چون هسته مشترک است، کانتینر لینوکسی فقط روی هستهٔ لینوکس اجرا می‌شود. اگر روی ویندوز یا مک
+      کار می‌کنی، داکر پشت پرده یک ماشین مجازی سبک لینوکسی بالا آورده و کانتینرها داخل آن اجرا
+      می‌شوند. این را بدان، چون بعداً وقتی دنبال پروسهٔ کانتینر روی سیستم خودت می‌گردی و پیدایش
+      نمی‌کنی، جوابش همین است.
+    </p>
+    <p lang="en">
+      Because the kernel is shared, a Linux container only runs on a Linux kernel. On Windows or macOS,
+      Docker quietly runs a lightweight Linux VM and your containers live inside it. Remember this —
+      later, when you go looking for the container's process on your own system and cannot find it,
+      this is the answer.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════════════════ ۴ ══════════════════════════ -->
+<section id="parts">
+  <h2><span lang="fa">چهار قطعه‌ای که همه‌چیز از آنها ساخته می‌شود</span><span lang="en">The four pieces everything is built from</span></h2>
+
+  <p class="lede" lang="fa">
+    اگر فقط چهار کلمه از این فصل یادت بماند، همین‌ها باشند: <code>image</code>،
+    <code>container</code>، <code>volume</code>، <code>registry</code>. هر خطایی که در
+    شش ماه آینده می‌بینی، دربارهٔ یکی از این چهارتاست.
+  </p>
+  <p class="lede" lang="en">
+    If only four words survive this chapter, make them these: <code>image</code>, <code>container</code>,
+    <code>volume</code>, <code>registry</code>. Every error you meet in the next six months is about one of them.
+  </p>
+
+  <div class="cards">
+    <div class="card">
+      <span class="card-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M12 3 21 7.5v9L12 21 3 16.5v-9z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/></svg></span>
+      <h3><span lang="fa">ایمیج</span><span lang="en">Image</span> <code>image</code></h3>
+      <p lang="fa">
+        یک فایل‌سیستم آمادهٔ فقط‌خواندنی، بسته‌بندی‌شده و تغییرناپذیر. همهٔ فایل‌هایی که برنامه‌ات
+        برای اجرا لازم دارد داخلش هست: خود برنامه، کتابخانه‌ها، و حتی ابزارهای پایهٔ لینوکس.
+      </p>
+      <p lang="en">
+        A ready-made, read-only, immutable filesystem bundle. Everything your program needs to run is
+        inside: the program, its libraries, even the base Linux tools.
+      </p>
+    </div>
+    <div class="card v">
+      <span class="card-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10v4M11 10v4M15 10v4"/></svg></span>
+      <h3><span lang="fa">کانتینر</span><span lang="en">Container</span> <code>container</code></h3>
+      <p lang="fa">
+        یک ایمیج که در حال اجراست، به‌اضافهٔ یک لایهٔ نوشتنی نازک روی آن. فناپذیر است: می‌سازی‌اش،
+        کار می‌کند، حذفش می‌کنی — و آن لایهٔ نوشتنی با آن می‌رود.
+      </p>
+      <p lang="en">
+        An image that is running, plus a thin writable layer on top. Disposable by design: you create
+        it, it works, you delete it — and the writable layer goes with it.
+      </p>
+    </div>
+    <div class="card g">
+      <span class="card-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><ellipse cx="12" cy="6.5" rx="7.5" ry="3"/><path d="M4.5 6.5v11c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-11"/></svg></span>
+      <h3><span lang="fa">والیوم</span><span lang="en">Volume</span> <code>volume</code></h3>
+      <p lang="fa">
+        فضای ذخیره‌سازی که <em>بیرون</em> از کانتینر زندگی می‌کند و به آن وصل می‌شود. کانتینر را
+        حذف کن، والیوم سر جایش می‌ماند. اینجا جای دادهٔ پایگاه‌داده و فایل‌های آپلودی است.
+      </p>
+      <p lang="en">
+        Storage that lives <em>outside</em> the container and is attached to it. Delete the container and
+        the volume stays. This is where database data and uploaded files belong.
+      </p>
+    </div>
+    <div class="card w">
+      <span class="card-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h16v11H4z"/><path d="M4 8 6.5 4h11L20 8M12 4v4M9 12h6"/></svg></span>
+      <h3><span lang="fa">رجیستری</span><span lang="en">Registry</span> <code>registry</code></h3>
+      <p lang="fa">
+        انباری که ایمیج‌ها در آن نگهداری و به اشتراک گذاشته می‌شوند. پیش‌فرض <code>Docker Hub</code>
+        است. رابطه‌اش با ایمیج، مثل رابطهٔ یک مخزن Git با پروژهٔ توست.
+      </p>
+      <p lang="en">
+        The warehouse where images are stored and shared. <code>Docker Hub</code> by default. Its relation
+        to an image is like a Git remote's relation to your project.
+      </p>
+    </div>
+  </div>
+
+  <h3 lang="fa">رابطهٔ ایمیج و کانتینر</h3>
+  <h3 lang="en">How image and container relate</h3>
+
+  <p lang="fa">
+    این مهم‌ترین رابطه در کل داکر است و بیشتر آدم‌ها اولش قاطی‌اش می‌کنند. ساده‌ترین تشبیهی که
+    درست از آب درمی‌آید این است:
+  </p>
+  <p lang="en">
+    This is the most important relationship in all of Docker, and most people confuse it at first.
+    The simplest analogy that actually holds up:
+  </p>
+
+  <p lang="fa">
+    <strong>ایمیج مثل فایل نصب یک برنامه است؛ کانتینر مثل آن برنامه وقتی بازش کرده‌ای.</strong>
+    یک فایل نصب داری، اما می‌توانی برنامه را سه بار همزمان باز کنی. هر پنجره وضعیت خودش را دارد
+    و بستن یکی به دو تای دیگر کاری ندارد. فایل نصب هم با باز و بسته کردن پنجره‌ها تغییر نمی‌کند.
+  </p>
+  <p lang="en">
+    <strong>An image is like an installer; a container is like the program once you have opened it.</strong>
+    You have one installer, but you can open the program three times at once. Each window has its own
+    state, and closing one does nothing to the others. The installer itself never changes.
+  </p>
+
+  <p lang="fa">
+    برای کسانی که برنامه‌نویسی شیءگرا بلدند، تشبیه دقیق‌تر این است: ایمیج <code>class</code> است
+    و کانتینر <code>instance</code>. از یک کلاس، هر تعداد شیء که بخواهی می‌سازی.
+  </p>
+  <p lang="en">
+    If you know object-oriented programming, the tighter analogy is: the image is a <code>class</code>
+    and the container is an <code>instance</code>. One class, as many instances as you like.
+  </p>
+
+  <figure>
+    <div class="diagram">
+      <svg viewBox="0 0 700 300" role="img" aria-labelledby="d2t">
+        <title id="d2t">از Dockerfile تا کانتینرهای در حال اجرا</title>
+
+        <!-- رجیستری -->
+        <rect class="dg-fill-w dg-stroke-w" x="270" y="14" width="160" height="42" rx="8"/>
+        <text class="dg-tm" x="350" y="33" text-anchor="middle">Registry</text>
+        <text class="dg-ts" x="350" y="48" text-anchor="middle" lang="fa">انبار ایمیج‌ها</text>
+        <text class="dg-ts" x="350" y="48" text-anchor="middle" lang="en">image warehouse</text>
+
+        <!-- Dockerfile -->
+        <rect class="dg-fill dg-stroke" x="20" y="112" width="130" height="60" rx="8"/>
+        <text class="dg-tm" x="85" y="137" text-anchor="middle">Dockerfile</text>
+        <text class="dg-ts" x="85" y="154" text-anchor="middle" lang="fa">دستور ساخت</text>
+        <text class="dg-ts" x="85" y="154" text-anchor="middle" lang="en">build recipe</text>
+
+        <!-- فلش build -->
+        <path class="dg-stroke-b" d="M154 142h56" stroke-width="1.6"/>
+        <path class="dg-arrow-b" d="M210 142 200 137v10z"/>
+        <text class="dg-tb" x="182" y="132" text-anchor="middle">build</text>
+
+        <!-- ایمیج -->
+        <rect class="dg-fill-b dg-stroke-b" x="216" y="100" width="150" height="84" rx="8"/>
+        <text class="dg-tm" x="291" y="122" text-anchor="middle">Image</text>
+        <rect class="dg-fill dg-stroke" x="230" y="132" width="122" height="13" rx="3"/>
+        <rect class="dg-fill dg-stroke" x="230" y="149" width="122" height="13" rx="3"/>
+        <rect class="dg-fill dg-stroke" x="230" y="166" width="122" height="13" rx="3"/>
+        <text class="dg-ts" x="291" y="196" text-anchor="middle" lang="fa">فقط‌خواندنی · لایه‌لایه</text>
+        <text class="dg-ts" x="291" y="196" text-anchor="middle" lang="en">read-only · layered</text>
+
+        <!-- push/pull -->
+        <path class="dg-stroke-w" d="M300 96V62" stroke-width="1.6" stroke-dasharray="4 3"/>
+        <path class="dg-arrow" d="M300 58l-5 10h10z"/>
+        <text class="dg-tm" x="272" y="82" text-anchor="middle">push</text>
+        <path class="dg-stroke-w" d="M340 62v34" stroke-width="1.6" stroke-dasharray="4 3"/>
+        <path class="dg-arrow" d="M340 100l-5-10h10z"/>
+        <text class="dg-tm" x="368" y="82" text-anchor="middle">pull</text>
+
+        <!-- فلش run -->
+        <path class="dg-stroke-b" d="M370 142h50" stroke-width="1.6"/>
+        <path class="dg-arrow-b" d="M420 142 410 137v10z"/>
+        <text class="dg-tb" x="395" y="132" text-anchor="middle">run</text>
+
+        <!-- کانتینرها -->
+        <g>
+          <rect class="dg-fill-g dg-stroke-g" x="428" y="72" width="120" height="46" rx="7"/>
+          <text class="dg-tm" x="488" y="92" text-anchor="middle">container A</text>
+          <text class="dg-ts" x="488" y="108" text-anchor="middle" lang="fa">پورت ۸۰۸۰</text>
+          <text class="dg-ts" x="488" y="108" text-anchor="middle" lang="en">port 8080</text>
+        </g>
+        <g>
+          <rect class="dg-fill-g dg-stroke-g" x="428" y="126" width="120" height="46" rx="7"/>
+          <text class="dg-tm" x="488" y="146" text-anchor="middle">container B</text>
+          <text class="dg-ts" x="488" y="162" text-anchor="middle" lang="fa">پورت ۸۰۸۱</text>
+          <text class="dg-ts" x="488" y="162" text-anchor="middle" lang="en">port 8081</text>
+        </g>
+        <g>
+          <rect class="dg-fill-g dg-stroke-g" x="428" y="180" width="120" height="46" rx="7"/>
+          <text class="dg-tm" x="488" y="200" text-anchor="middle">container C</text>
+          <text class="dg-ts" x="488" y="216" text-anchor="middle" lang="fa">پورت ۸۰۸۲</text>
+          <text class="dg-ts" x="488" y="216" text-anchor="middle" lang="en">port 8082</text>
+        </g>
+
+        <!-- والیوم -->
+        <path class="dg-stroke-g" d="M552 149h44" stroke-width="1.6"/>
+        <path class="dg-arrow" d="M596 149l-10-5v10z"/>
+        <rect class="dg-fill-g dg-stroke-g" x="600" y="120" width="82" height="58" rx="8"/>
+        <text class="dg-tm" x="641" y="143" text-anchor="middle">volume</text>
+        <text class="dg-ts" x="641" y="160" text-anchor="middle" lang="fa">دادهٔ ماندگار</text>
+        <text class="dg-ts" x="641" y="160" text-anchor="middle" lang="en">persistent</text>
+
+        <text class="dg-ts" x="488" y="252" text-anchor="middle" lang="fa">یک ایمیج ← هر تعداد کانتینر</text>
+        <text class="dg-ts" x="488" y="252" text-anchor="middle" lang="en">one image → any number of containers</text>
+        <text class="dg-ts" x="291" y="252" text-anchor="middle" lang="fa">ساخته می‌شود، عوض نمی‌شود</text>
+        <text class="dg-ts" x="291" y="252" text-anchor="middle" lang="en">built once, never modified</text>
+      </svg>
+    </div>
+    <figcaption>
+      <span lang="fa">جریان کامل: از دستور ساخت تا چند کانتینر همزمان. فصل ۴ سمت چپ این نمودار را باز می‌کند.</span>
+      <span lang="en">The full flow: from build recipe to several running containers. Chapter 4 opens up the left half.</span>
+    </figcaption>
+  </figure>
+</section>
+
+<!-- ══════════════════════════ ۵ ══════════════════════════ -->
+<section id="layers">
+  <h2><span lang="fa">لایه‌ها: چرا ایمیج شبیه کیک است</span><span lang="en">Layers: why an image is like a cake</span></h2>
+
+  <p class="lede" lang="fa">
+    ایمیج یک فایل یکپارچه نیست. مجموعه‌ای از لایه‌های روی‌هم‌چیده‌شده است که هرکدام فقط
+    <em>تفاوت</em> خودش با لایهٔ زیرین را نگه می‌دارد. این جزئیات پیاده‌سازی به نظر می‌رسد،
+    اما نیست: نصف رفتارهای عجیبی که در ماه اول می‌بینی از همین می‌آید.
+  </p>
+  <p class="lede" lang="en">
+    An image is not one solid file. It is a stack of layers, each holding only its <em>difference</em>
+    from the one below. This sounds like an implementation detail. It is not: half the odd behaviour
+    you meet in your first month comes from it.
+  </p>
+
+  <p lang="fa">
+    فرض کن ایمیجی می‌سازی که بر پایهٔ اوبونتو است، بعد پایتون نصب می‌کند، بعد کتابخانه‌های
+    پروژه را نصب می‌کند، و آخر کد خودت را کپی می‌کند. نتیجه چهار لایه است که روی هم چیده شده‌اند.
+    داکر این را به تو نشان می‌دهد:
+  </p>
+  <p lang="en">
+    Say you build an image based on Ubuntu, then install Python, then install project libraries, then
+    copy in your own code. The result is four stacked layers. Docker will show them to you:
+  </p>
+
+  <div class="term">
+    <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="c"># تاریخچهٔ لایه‌های یک ایمیج آماده را ببین</span>
+<span class="k">docker</span> image history nginx:1.27-alpine
+
+<span class="s">IMAGE          CREATED       CREATED BY                                      SIZE
+&lt;image id&gt;     3 weeks ago   CMD ["nginx" "-g" "daemon off;"]                0B
+&lt;missing&gt;      3 weeks ago   STOPSIGNAL SIGQUIT                              0B
+&lt;missing&gt;      3 weeks ago   EXPOSE map[80/tcp:{}]                           0B
+&lt;missing&gt;      3 weeks ago   ENTRYPOINT ["/docker-entrypoint.sh"]            0B
+&lt;missing&gt;      3 weeks ago   COPY docker-entrypoint.sh / # buildkit          1.62kB
+&lt;missing&gt;      3 weeks ago   RUN /bin/sh -c set -x &amp;&amp; addgroup ...           41.2MB
+&lt;missing&gt;      3 weeks ago   ENV NGINX_VERSION=1.27.3                        0B
+&lt;missing&gt;      4 weeks ago   ADD alpine-minirootfs.tar.gz / # buildkit       8.42MB</span></pre>
+  </div>
+
+  <p lang="fa">
+    از پایین به بالا بخوانش. پایین‌ترین لایه فایل‌سیستم پایهٔ آلپاین است. رویش لایه‌ای که خود
+    Nginx را نصب کرده. بالاتر لایه‌هایی که فقط تنظیمات‌اند و صفر بایت حجم دارند، چون هیچ فایلی
+    اضافه نکرده‌اند — فقط ابرداده‌اند.
+  </p>
+  <p lang="en">
+    Read it bottom-up. The bottom layer is the Alpine base filesystem. Above it, the layer that installed
+    Nginx itself. Higher up, layers that are pure configuration and take zero bytes, because they add no
+    files — they are only metadata.
+  </p>
+
+  <div class="note">
+    <div class="note-t">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/></svg>
+      <span lang="fa">عددها روی سیستم تو فرق خواهند کرد</span><span lang="en">The numbers will differ on your machine</span></div>
+    <p lang="fa">
+      حجم‌ها و تاریخ‌ها به نسخهٔ ایمیج و معماری پردازنده‌ات بستگی دارند. آنچه باید یکسان باشد
+      <em>ساختار</em> است: لایه‌های پایین بزرگ و لایه‌های تنظیماتی صفربایت.
+      در همهٔ خروجی‌های این مرجع، به شکل خروجی نگاه کن نه به عددها.
+    </p>
+    <p lang="en">
+      Sizes and dates depend on the image version and your CPU architecture. What should match is the
+      <em>shape</em>: large layers at the bottom, zero-byte configuration layers on top. Throughout this
+      reference, read outputs for their shape, not their numbers.
+    </p>
+  </div>
+
+  <h3 lang="fa">چرا این طراحی؟ دو دلیل محکم</h3>
+  <h3 lang="en">Why this design? Two solid reasons</h3>
+
+  <p lang="fa">
+    <strong>یک: اشتراک‌گذاری روی دیسک.</strong> اگر ده ایمیج مختلف همه بر پایهٔ همان آلپاین باشند،
+    آن لایهٔ پایه فقط <em>یک بار</em> روی دیسک ذخیره می‌شود. ده ایمیج ولی یک نسخه از پایه. برای
+    همین است که ایمیج دوم و سوم خیلی سریع‌تر دانلود می‌شوند از اولی.
+  </p>
+  <p lang="en">
+    <strong>One: sharing on disk.</strong> If ten different images all sit on that same Alpine base, the
+    base layer is stored on disk exactly <em>once</em>. Ten images, one copy of the base. That is why the
+    second and third image download far faster than the first.
+  </p>
+
+  <p lang="fa">
+    <strong>دو: کش هنگام ساخت.</strong> وقتی ایمیجت را دوباره می‌سازی و فقط کد خودت عوض شده،
+    داکر لایه‌های پایینی را دست‌نخورده برمی‌دارد و فقط لایهٔ آخر را از نو می‌سازد. تفاوتش
+    بین بیلد دو ثانیه‌ای و بیلد دو دقیقه‌ای است. فصل ۴ کاملاً روی همین سوار است.
+  </p>
+  <p lang="en">
+    <strong>Two: build cache.</strong> When you rebuild and only your own code changed, Docker reuses the
+    lower layers untouched and rebuilds only the last one. That is the difference between a two-second and
+    a two-minute build. Chapter 4 is built entirely on this.
+  </p>
+
+  <h3 lang="fa">لایهٔ نوشتنی — و اولین دام بزرگ</h3>
+  <h3 lang="en">The writable layer — and the first big trap</h3>
+
+  <p lang="fa">
+    لایه‌های ایمیج فقط‌خواندنی‌اند. پس وقتی کانتینر اجرا می‌شود و برنامه می‌خواهد فایلی بنویسد،
+    چه اتفاقی می‌افتد؟ داکر یک لایهٔ نازک و <em>نوشتنی</em> روی همهٔ لایه‌های ایمیج اضافه می‌کند.
+    هر تغییری — فایل جدید، ویرایش، حذف — فقط در آن لایه ثبت می‌شود.
+  </p>
+  <p lang="en">
+    Image layers are read-only. So when a container runs and the program wants to write a file, what
+    happens? Docker adds a thin <em>writable</em> layer on top of all the image layers. Every change —
+    a new file, an edit, a deletion — is recorded only in that layer.
+  </p>
+
+  <figure>
+    <div class="diagram">
+      <svg viewBox="0 0 620 250" role="img" aria-labelledby="d3t">
+        <title id="d3t">لایه‌های ایمیج و لایهٔ نوشتنی کانتینر</title>
+
+        <rect class="dg-fill-g dg-stroke-g" x="150" y="20" width="320" height="38" rx="6" stroke-dasharray="5 3"/>
+        <text class="dg-tm" x="310" y="38" text-anchor="middle">writable layer</text>
+        <text class="dg-ts" x="310" y="52" text-anchor="middle" lang="fa">با حذف کانتینر از بین می‌رود</text>
+        <text class="dg-ts" x="310" y="52" text-anchor="middle" lang="en">dies with the container</text>
+
+        <rect class="dg-fill-b dg-stroke-b" x="150" y="66" width="320" height="30" rx="4"/>
+        <text class="dg-tm" x="310" y="85" text-anchor="middle">COPY ./app  →  4.1 MB</text>
+
+        <rect class="dg-fill-b dg-stroke-b" x="150" y="100" width="320" height="30" rx="4"/>
+        <text class="dg-tm" x="310" y="119" text-anchor="middle">RUN pip install  →  86 MB</text>
+
+        <rect class="dg-fill-b dg-stroke-b" x="150" y="134" width="320" height="30" rx="4"/>
+        <text class="dg-tm" x="310" y="153" text-anchor="middle">RUN apt install python3  →  52 MB</text>
+
+        <rect class="dg-fill dg-stroke" x="150" y="168" width="320" height="30" rx="4"/>
+        <text class="dg-tm" x="310" y="187" text-anchor="middle">FROM ubuntu:24.04  →  78 MB</text>
+
+        <!-- برچسب سمت -->
+        <path class="dg-stroke-b" d="M138 66v132" stroke-width="1.6"/>
+        <path class="dg-stroke-b" d="M138 66h8M138 198h8" stroke-width="1.6"/>
+        <text class="dg-ts" x="126" y="128" text-anchor="end" lang="fa">ایمیج — فقط‌خواندنی</text>
+        <text class="dg-ts" x="126" y="128" text-anchor="end" lang="en">image — read only</text>
+
+        <path class="dg-stroke-g" d="M482 20v38" stroke-width="1.6"/>
+        <path class="dg-stroke-g" d="M482 20h-8M482 58h-8" stroke-width="1.6"/>
+        <text class="dg-ts" x="494" y="44" lang="fa">کانتینر</text>
+        <text class="dg-ts" x="494" y="44" lang="en">container</text>
+
+        <text class="dg-ts" x="310" y="224" text-anchor="middle" lang="fa">هر فایلی که برنامه بنویسد، فقط در لایهٔ سبز ثبت می‌شود</text>
+        <text class="dg-ts" x="310" y="224" text-anchor="middle" lang="en">every file the program writes lands only in the green layer</text>
+      </svg>
+    </div>
+    <figcaption>
+      <span lang="fa">لایه‌های آبی بین همهٔ کانتینرهای ساخته‌شده از این ایمیج مشترک‌اند؛ لایهٔ سبز مخصوص هر کانتینر است.</span>
+      <span lang="en">The blue layers are shared by every container of this image; the green layer belongs to one container alone.</span>
+    </figcaption>
+  </figure>
+
+  <div class="note danger">
+    <div class="note-t">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.3 3.9 1.9 18a2 2 0 0 0 1.7 3h16.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17v.01"/></svg>
+      <span lang="fa">این جمله را حفظ کن</span><span lang="en">Memorise this sentence</span></div>
+    <p lang="fa">
+      <strong>وقتی کانتینر را حذف می‌کنی، لایهٔ نوشتنی‌اش هم حذف می‌شود و هر چیزی که داخلش
+      نوشته شده بود از بین می‌رود.</strong> اگر پایگاه‌داده‌ای را داخل کانتینر بالا آورده باشی
+      و بدون <code>volume</code> کانتینر را <code>rm</code> کنی، تمام رکوردها رفته‌اند. برگشتی هم
+      ندارد. راه‌حل درست در فصل ۶ است؛ فعلاً فقط بدان که این خطر وجود دارد.
+    </p>
+    <p lang="en">
+      <strong>When you delete a container, its writable layer is deleted with it, and everything written
+      there is gone.</strong> If you ran a database inside a container without a <code>volume</code> and
+      then <code>rm</code> the container, every record is gone. There is no undo. The correct solution is
+      chapter 6; for now, just know the danger exists.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════════════════ ۶ ══════════════════════════ -->
+<section id="first">
+  <h2><span lang="fa">اولین اجرا</span><span lang="en">Your first run</span></h2>
+
+  <p class="lede" lang="fa">
+    تا اینجا حرف زدیم. حالا دست به کار شویم. برای این بخش داکر باید نصب باشد؛ اگر نیست،
+    فصل ۲ را ببین و برگرد. هیچ‌کدام از این دستورها به سیستم تو آسیب نمی‌زنند.
+  </p>
+  <p class="lede" lang="en">
+    Enough talk. Hands on the keyboard. This section needs Docker installed; if it is not, see chapter 2
+    and come back. None of these commands can hurt your system.
+  </p>
+
+  <p lang="fa">
+    اول مطمئن شو که همه‌چیز سر جایش است:
+  </p>
+  <p lang="en">
+    First, confirm everything is in place:
+  </p>
+
+  <div class="term">
+    <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="k">docker</span> <span class="f">--version</span>
+<span class="s">Docker version 27.3.1, build ce12230</span>
+
+<span class="c"># این یکی مهم‌تر است: نشان می‌دهد سرویس پس‌زمینه هم جواب می‌دهد</span>
+<span class="k">docker</span> info <span class="f">--format</span> <span class="p">'{{.ServerVersion}}'</span>
+<span class="s">27.3.1</span></pre>
+  </div>
+
+  <p lang="fa">
+    اگر دستور دوم خطای <code>Cannot connect to the Docker daemon</code> داد، یعنی CLI سالم است
+    ولی سرویس بالا نیست — برگرد به جدول بخش دوم.
+  </p>
+  <p lang="en">
+    If the second command gives <code>Cannot connect to the Docker daemon</code>, the CLI is fine but the
+    service is down — go back to the table in section two.
+  </p>
+
+  <h3 lang="fa">اجرای اول: <code>hello-world</code></h3>
+  <h3 lang="en">First run: <code>hello-world</code></h3>
+
+  <div class="term">
+    <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="k">docker</span> run hello-world</pre>
+  </div>
+
+  <p lang="fa">
+    بار اول خروجی چیزی شبیه این است:
+  </p>
+  <p lang="en">
+    The first time, the output looks something like this:
+  </p>
+
+  <div class="term">
+    <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">output</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="s">Unable to find image 'hello-world:latest' locally
+latest: Pulling from library/hello-world
+c1ec31eb5944: Pull complete
+Digest: sha256:305243c73…
+Status: Downloaded newer image for hello-world:latest
+
+Hello from Docker!
+This message shows that your installation appears to be working correctly.</span></pre>
+  </div>
+
+  <p lang="fa">
+    این پنج خط اول، تمام معماری داکر را در خودش دارد. بیایید خط‌به‌خط بخوانیمش:
+  </p>
+  <p lang="en">
+    Those first five lines contain the whole architecture. Let us read them line by line:
+  </p>
+
+  <ol class="ranked">
+    <li>
+      <b><code>Unable to find image … locally</code></b>
+      <p lang="fa">داکر اول انبار محلی خودت را نگاه کرد. ایمیج آنجا نبود. توجه کن که این
+        <em>خطا</em> نیست، فقط گزارش است.</p>
+      <p lang="en">Docker looked in your local store first. The image was not there. Note that this is not
+        an <em>error</em>, only a report.</p>
+    </li>
+    <li>
+      <b><code>Pulling from library/hello-world</code></b>
+      <p lang="fa">پس رفت سراغ رجیستری پیش‌فرض. <code>library</code> یعنی این ایمیج «رسمی» است و
+        صاحب مشخصی ندارد؛ ایمیج‌های شخصی به شکل <code>username/image</code> هستند.</p>
+      <p lang="en">So it went to the default registry. <code>library</code> means this is an “official”
+        image with no individual owner; personal images look like <code>username/image</code>.</p>
+    </li>
+    <li>
+      <b><code>c1ec31eb5944: Pull complete</code></b>
+      <p lang="fa">این عدد شناسهٔ یک <em>لایه</em> است. ایمیج‌های بزرگ‌تر اینجا چند خط دارند —
+        هر خط یک لایه، و همه به‌صورت موازی دانلود می‌شوند.</p>
+      <p lang="en">That identifier is a <em>layer</em>. Larger images show several lines here — one per
+        layer, all downloading in parallel.</p>
+    </li>
+    <li>
+      <b><code>Digest: sha256:…</code></b>
+      <p lang="fa">اثر انگشت رمزنگاری‌شدهٔ دقیقاً همین ایمیج. برچسب (<code>tag</code>) ممکن است
+        فردا به ایمیج دیگری اشاره کند، اما این عدد هرگز عوض نمی‌شود. فصل ۱۱ رویش کار می‌کند.</p>
+      <p lang="en">The cryptographic fingerprint of exactly this image. A <code>tag</code> may point
+        somewhere else tomorrow; this number never changes. Chapter 11 works with it.</p>
+    </li>
+    <li>
+      <b lang="fa">و بعد برنامه اجرا شد و تمام شد</b>
+      <b lang="en">and then the program ran and finished</b>
+      <p lang="fa">کانتینر پیامش را چاپ کرد و پروسه‌اش تمام شد. <strong>کانتینر تا وقتی زنده است
+        که پروسهٔ اصلی‌اش زنده باشد.</strong> این جمله را هم حفظ کن.</p>
+      <p lang="en">The container printed its message and its process ended. <strong>A container lives
+        exactly as long as its main process.</strong> Memorise this one too.</p>
+    </li>
+  </ol>
+
+  <p lang="fa">
+    حالا همان دستور را دوباره بزن. این بار پنج خط اول نیست، چون ایمیج دیگر محلی است:
+  </p>
+  <p lang="en">
+    Now run the same command again. This time the first five lines are gone, because the image is local:
+  </p>
+
+  <div class="term">
+    <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="k">docker</span> run hello-world
+<span class="s">Hello from Docker!
+This message shows that your installation appears to be working correctly.</span></pre>
+  </div>
+
+  <h3 lang="fa">اجرای دوم: وارد یک لینوکس کامل شو</h3>
+  <h3 lang="en">Second run: step inside a whole Linux</h3>
+
+  <p lang="fa">
+    این تمرین بیشتر از هر توضیحی مفهوم کانتینر را جا می‌اندازد. با یک دستور، وارد یک سیستم
+    لینوکسی مستقل می‌شوی:
+  </p>
+  <p lang="en">
+    This exercise lands the concept better than any explanation. One command drops you inside a separate
+    Linux system:
+  </p>
+
+  <div class="term">
+    <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="k">docker</span> run <span class="f">-it --rm</span> alpine:3.20 sh</pre>
+  </div>
+
+  <p lang="fa">
+    سه سوئیچ اینجا هست که باید بشناسی‌شان:
+  </p>
+  <p lang="en">
+    Three flags here are worth knowing:
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th><span lang="fa">سوئیچ</span><span lang="en">Flag</span></th>
+          <th><span lang="fa">کامل</span><span lang="en">Long form</span></th>
+          <th><span lang="fa">چه می‌کند</span><span lang="en">What it does</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>-i</code></td><td><code>--interactive</code></td>
+          <td><span lang="fa">ورودی استاندارد را باز نگه می‌دارد تا بتوانی تایپ کنی.</span>
+              <span lang="en">Keeps standard input open so you can type.</span></td>
+        </tr>
+        <tr>
+          <td><code>-t</code></td><td><code>--tty</code></td>
+          <td><span lang="fa">یک ترمینال مجازی می‌سازد؛ بدون این، پرامپت و رنگ نداری.</span>
+              <span lang="en">Allocates a pseudo-terminal; without it you get no prompt and no colours.</span></td>
+        </tr>
+        <tr>
+          <td><code>--rm</code></td><td>—</td>
+          <td><span lang="fa">به‌محض خروج، کانتینر را حذف می‌کند. برای آزمایش‌های موقت حتماً بگذارش.</span>
+              <span lang="en">Deletes the container as soon as it exits. Always use it for throwaway experiments.</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p lang="fa">
+    حالا داخل کانتینری. این‌ها را امتحان کن:
+  </p>
+  <p lang="en">
+    You are inside the container now. Try these:
+  </p>
+
+  <div class="term">
+    <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">alpine container</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="d">/ # </span><span class="k">cat</span> /etc/os-release
+<span class="s">NAME="Alpine Linux"
+ID=alpine
+VERSION_ID=3.20.3
+PRETTY_NAME="Alpine Linux v3.20"</span>
+
+<span class="d">/ # </span><span class="k">ls</span> /
+<span class="s">bin    dev    etc    home   lib    media  mnt    opt    proc   root
+run    sbin   srv    sys    tmp    usr    var</span>
+
+<span class="d">/ # </span><span class="k">ps</span> aux
+<span class="s">PID   USER     TIME  COMMAND
+    1 root      0:00 sh
+    7 root      0:00 ps aux</span>
+
+<span class="d">/ # </span><span class="k">whoami</span>
+<span class="s">root</span>
+
+<span class="d">/ # </span><span class="k">exit</span></pre>
+  </div>
+
+  <p lang="fa">
+    سه چیز در این خروجی باید توجهت را جلب کند.
+  </p>
+  <p lang="en">
+    Three things in that output deserve your attention.
+  </p>
+
+  <p lang="fa">
+    <strong>اول:</strong> یک فایل‌سیستم لینوکسی کامل داری، در حالی که شاید سیستم‌عامل خودت
+    اصلاً اوبونتو یا آلپاین نباشد. اگر روی ویندوز هستی، همین الان داخل یک آلپاین لینوکس ایستاده‌ای.
+  </p>
+  <p lang="en">
+    <strong>First:</strong> you have a complete Linux filesystem, even though your own OS may be neither
+    Ubuntu nor Alpine. If you are on Windows, you are standing inside an Alpine Linux right now.
+  </p>
+
+  <p lang="fa">
+    <strong>دوم:</strong> خروجی <code>ps aux</code> فقط دو پروسه دارد. روی سیستم واقعی تو
+    الان صدها پروسه در حال اجراست، اما این کانتینر آنها را نمی‌بیند. این همان
+    <code>namespace</code> است — بخش هشتم بازش می‌کند.
+  </p>
+  <p lang="en">
+    <strong>Second:</strong> <code>ps aux</code> shows just two processes. Your real system is running
+    hundreds right now, but this container cannot see them. That is a <code>namespace</code> — section
+    eight unpacks it.
+  </p>
+
+  <p lang="fa">
+    <strong>سوم:</strong> تو <code>root</code> هستی. داخل کانتینر، پیش‌فرض داکر کاربر روت است.
+    این راحت است و خطرناک — دقیقاً موضوع فصل ۱۳.
+  </p>
+  <p lang="en">
+    <strong>Third:</strong> you are <code>root</code>. Inside a container, Docker's default user is root.
+    That is convenient and dangerous — precisely the subject of chapter 13.
+  </p>
+
+  <h3 lang="fa">اجرای سوم: یک وب‌سرور واقعی</h3>
+  <h3 lang="en">Third run: a real web server</h3>
+
+  <p lang="fa">
+    حالا کاری کنیم که واقعاً به درد بخورد. یک وب‌سرور Nginx بالا می‌آوریم، بدون اینکه چیزی
+    روی سیستم نصب کنیم:
+  </p>
+  <p lang="en">
+    Now something genuinely useful. We will start an Nginx web server without installing anything on
+    your system:
+  </p>
+
+  <div class="term">
+    <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="k">docker</span> run <span class="f">-d</span> <span class="f">--name</span> web <span class="f">-p</span> 8080:80 nginx:1.27-alpine
+<span class="s">4f2a9c1b7e3d5a8f0c6b2d4e9a1f3c7b5d8e0a2c4f6b9d1e3a5c7f9b1d3e5a7c</span></pre>
+  </div>
+
+  <p lang="fa">
+    آن رشتهٔ طولانی شناسهٔ کانتینر است. دو سوئیچ جدید:
+  </p>
+  <p lang="en">
+    That long string is the container ID. Two new flags:
+  </p>
+
+  <ul>
+    <li lang="fa"><code>-d</code> یا <code>--detach</code>: کانتینر را در پس‌زمینه اجرا کن و
+      ترمینال را به من برگردان. بدون این، ترمینالت تا وقتی Nginx زنده است قفل می‌ماند.</li>
+    <li lang="en"><code>-d</code> or <code>--detach</code>: run in the background and give me my terminal
+      back. Without it, your terminal stays occupied for as long as Nginx runs.</li>
+    <li lang="fa"><code>-p 8080:80</code>: پورت ۸۰۸۰ <em>روی ماشین خودم</em> را به پورت ۸۰
+      <em>داخل کانتینر</em> وصل کن. ترتیب مهم است و همیشه <code>میزبان:کانتینر</code> است.</li>
+    <li lang="en"><code>-p 8080:80</code>: connect port 8080 <em>on my machine</em> to port 80
+      <em>inside the container</em>. The order matters and is always <code>host:container</code>.</li>
+  </ul>
+
+  <p lang="fa">
+    ببینیم زنده است:
+  </p>
+  <p lang="en">
+    Let us check that it is alive:
+  </p>
+
+  <div class="term">
+    <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="k">docker</span> ps
+<span class="s">CONTAINER ID   IMAGE                COMMAND                  STATUS         PORTS                  NAMES
+4f2a9c1b7e3d   nginx:1.27-alpine    "/docker-entrypoint.…"   Up 12 seconds  0.0.0.0:8080->80/tcp   web</span></pre>
+  </div>
+
+  <p lang="fa">
+    ستون <code>PORTS</code> دقیقاً همان نگاشتی است که خواستیم. حالا از سیستم خودت صدایش کن:
+  </p>
+  <p lang="en">
+    The <code>PORTS</code> column is exactly the mapping we asked for. Now call it from your own system:
+  </p>
+
+  <div class="term">
+    <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="k">curl</span> <span class="f">-I</span> http://localhost:8080
+<span class="s">HTTP/1.1 200 OK
+Server: nginx/1.27.3
+Content-Type: text/html
+Content-Length: 615
+Connection: keep-alive</span></pre>
+  </div>
+
+  <div class="term">
+    <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">PowerShell</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="c"># همان کار روی ویندوز، بدون curl</span>
+<span class="k">Invoke-WebRequest</span> <span class="f">-Uri</span> <span class="p">http://localhost:8080</span> <span class="f">-Method</span> Head <span class="f">|</span> <span class="k">Select-Object</span> StatusCode</pre>
+  </div>
+
+  <p lang="fa">
+    مرورگر را هم باز کن و <code>http://localhost:8080</code> را ببین. صفحهٔ خوش‌آمد Nginx
+    آنجاست. حالا لاگ‌ها را نگاه کن — درخواست خودت را می‌بینی:
+  </p>
+  <p lang="en">
+    Open a browser at <code>http://localhost:8080</code> too. The Nginx welcome page is there. Now look at
+    the logs — your own request is in them:
+  </p>
+
+  <div class="term">
+    <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="k">docker</span> logs web
+<span class="s">172.17.0.1 - - [08/Sep/2026:09:12:44 +0000] "HEAD / HTTP/1.1" 200 0 "-" "curl/8.5.0" "-"
+172.17.0.1 - - [08/Sep/2026:09:13:02 +0000] "GET / HTTP/1.1" 200 615 "-" "Mozilla/5.0 …" "-"</span>
+
+<span class="c"># دنبال کردن زنده — مثل tail -f ؛ با Ctrl+C خارج شو</span>
+<span class="k">docker</span> logs <span class="f">-f</span> web</pre>
+  </div>
+
+  <p lang="fa">
+    و برای اینکه داخل همین کانتینرِ در حال اجرا یک شل باز کنی:
+  </p>
+  <p lang="en">
+    And to open a shell inside that same running container:
+  </p>
+
+  <div class="term">
+    <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="k">docker</span> exec <span class="f">-it</span> web sh
+<span class="d">/ # </span><span class="k">nginx</span> <span class="f">-v</span>
+<span class="s">nginx version: nginx/1.27.3</span>
+<span class="d">/ # </span><span class="k">ls</span> /usr/share/nginx/html
+<span class="s">50x.html    index.html</span>
+<span class="d">/ # </span><span class="k">exit</span></pre>
+  </div>
+
+  <div class="note safe">
+    <div class="note-t">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4.5 4.5L19 7"/></svg>
+      <span lang="fa">تفاوت <code>run</code> و <code>exec</code></span>
+      <span lang="en"><code>run</code> versus <code>exec</code></span></div>
+    <p lang="fa">
+      <code>docker run</code> کانتینر <em>جدید</em> می‌سازد. <code>docker exec</code> در کانتینری که
+      <em>همین الان اجرا است</em> یک دستور اضافه اجرا می‌کند. اگر می‌خواهی ببینی داخل سرویسِ در حال
+      کار چه خبر است، همیشه <code>exec</code> است، نه <code>run</code>.
+    </p>
+    <p lang="en">
+      <code>docker run</code> creates a <em>new</em> container. <code>docker exec</code> runs an extra
+      command in one that is <em>already running</em>. To look inside a working service, it is always
+      <code>exec</code>, never <code>run</code>.
+    </p>
+  </div>
+
+  <p lang="fa">
+    و در پایان، تمیزکاری. توجه کن که <code>stop</code> و <code>rm</code> دو کار متفاوت‌اند:
+  </p>
+  <p lang="en">
+    Finally, cleaning up. Note that <code>stop</code> and <code>rm</code> are two different things:
+  </p>
+
+  <div class="term">
+    <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="c"># متوقف کن — کانتینر هست، فقط خاموش است</span>
+<span class="k">docker</span> stop web
+<span class="s">web</span>
+
+<span class="c"># ps خالی است، اما ps -a هنوز نشانش می‌دهد</span>
+<span class="k">docker</span> ps
+<span class="k">docker</span> ps <span class="f">-a</span>
+<span class="s">CONTAINER ID   IMAGE               STATUS                     NAMES
+4f2a9c1b7e3d   nginx:1.27-alpine   Exited (0) 8 seconds ago   web</span>
+
+<span class="c"># دوباره روشنش کن — همان کانتینر، نه یکی جدید</span>
+<span class="k">docker</span> start web
+
+<span class="c"># حالا واقعاً حذفش کن</span>
+<span class="k">docker</span> stop web
+<span class="k">docker</span> rm web
+<span class="s">web</span></pre>
+  </div>
+
+  <p lang="fa">
+    و ایمیج‌هایی که تا الان دانلود شده‌اند هنوز روی دیسک‌اند:
+  </p>
+  <p lang="en">
+    And the images downloaded so far are still on disk:
+  </p>
+
+  <div class="term">
+    <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="k">docker</span> images
+<span class="s">REPOSITORY    TAG           IMAGE ID       CREATED        SIZE
+nginx         1.27-alpine   1ff4bb4faebc   3 weeks ago    52.5MB
+alpine        3.20          63b790fccc9f   2 months ago   7.83MB
+hello-world   latest        d2c94e258dcb   8 months ago   13.3kB</span>
+
+<span class="c"># داکر روی دیسک چقدر جا گرفته؟</span>
+<span class="k">docker</span> system df
+<span class="s">TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE
+Images          3         0         60.4MB    60.4MB (100%)
+Containers      0         0         0B        0B
+Local Volumes   0         0         0B        0B
+Build Cache     0         0         0B        0B</span></pre>
+  </div>
+
+  <p lang="fa">
+    به حجم‌ها نگاه کن: کل Nginx با سیستم‌عامل پایه‌اش حدود ۵۰ مگابایت است. یک ماشین مجازی
+    اوبونتو برای همین کار، چند گیگابایت می‌شد. این همان صرفه‌جویی نمودار بخش سوم است، به عدد.
+  </p>
+  <p lang="en">
+    Look at the sizes: all of Nginx with its base OS is around 50 MB. A Ubuntu VM for the same job would
+    be several gigabytes. That is the saving from the section-three diagram, in numbers.
+  </p>
+</section>
+
+<!-- ══════════════════════════ ۷ ══════════════════════════ -->
+<section id="lifecycle">
+  <h2><span lang="fa">چرخهٔ عمر یک کانتینر</span><span lang="en">A container's life cycle</span></h2>
+
+  <p class="lede" lang="fa">
+    کانتینر همیشه در یکی از چند حالت مشخص است. اگر این نمودار را در ذهن داشته باشی، دیگر
+    گیج نمی‌شوی که چرا <code>docker ps</code> کانتینرت را نشان نمی‌دهد ولی اسمش «اشغال» است.
+  </p>
+  <p class="lede" lang="en">
+    A container is always in one of a few defined states. Keep this diagram in mind and you will stop
+    being puzzled by why <code>docker ps</code> shows nothing yet the name is “taken”.
+  </p>
+
+  <figure>
+    <div class="diagram">
+      <svg viewBox="0 0 700 250" role="img" aria-labelledby="d4t">
+        <title id="d4t">حالت‌های کانتینر و دستورهای انتقال</title>
+
+        <!-- created -->
+        <rect class="dg-fill dg-stroke" x="20" y="90" width="110" height="52" rx="9"/>
+        <text class="dg-tm" x="75" y="114" text-anchor="middle">created</text>
+        <text class="dg-ts" x="75" y="130" text-anchor="middle" lang="fa">ساخته، نرفته</text>
+        <text class="dg-ts" x="75" y="130" text-anchor="middle" lang="en">made, idle</text>
+
+        <path class="dg-stroke-b" d="M134 116h56" stroke-width="1.6"/>
+        <path class="dg-arrow-b" d="M190 116l-10-5v10z"/>
+        <text class="dg-tb" x="162" y="106" text-anchor="middle">start</text>
+
+        <!-- running -->
+        <rect class="dg-fill-g dg-stroke-g" x="196" y="82" width="130" height="68" rx="9"/>
+        <text class="dg-tm" x="261" y="108" text-anchor="middle">running</text>
+        <text class="dg-ts" x="261" y="126" text-anchor="middle" lang="fa">پروسهٔ اصلی زنده</text>
+        <text class="dg-ts" x="261" y="126" text-anchor="middle" lang="en">main process alive</text>
+        <text class="dg-ts" x="261" y="141" text-anchor="middle" lang="fa">در <tspan class="dg-tm">docker ps</tspan> دیده می‌شود</text>
+        <text class="dg-ts" x="261" y="141" text-anchor="middle" lang="en">visible in <tspan class="dg-tm">docker ps</tspan></text>
+
+        <!-- paused -->
+        <rect class="dg-fill-v dg-stroke-v" x="216" y="16" width="94" height="42" rx="9"/>
+        <text class="dg-tm" x="263" y="42" text-anchor="middle">paused</text>
+        <path class="dg-stroke-v" d="M240 78V62" stroke-width="1.5" stroke-dasharray="4 3"/>
+        <path class="dg-arrow" d="M240 58l-4 9h8z"/>
+        <text class="dg-tm" x="212" y="74" text-anchor="middle">pause</text>
+        <path class="dg-stroke-v" d="M292 62v16" stroke-width="1.5" stroke-dasharray="4 3"/>
+        <path class="dg-arrow" d="M292 82l-4-9h8z"/>
+        <text class="dg-tm" x="326" y="74" text-anchor="middle">unpause</text>
+
+        <path class="dg-stroke-b" d="M330 116h56" stroke-width="1.6"/>
+        <path class="dg-arrow-b" d="M386 116l-10-5v10z"/>
+        <text class="dg-tb" x="358" y="106" text-anchor="middle">stop</text>
+        <text class="dg-ts" x="358" y="136" text-anchor="middle" lang="fa">یا پایان پروسه</text>
+        <text class="dg-ts" x="358" y="136" text-anchor="middle" lang="en">or process ends</text>
+
+        <!-- exited -->
+        <rect class="dg-fill-w dg-stroke-w" x="392" y="82" width="130" height="68" rx="9"/>
+        <text class="dg-tm" x="457" y="108" text-anchor="middle">exited</text>
+        <text class="dg-ts" x="457" y="126" text-anchor="middle" lang="fa">خاموش ولی موجود</text>
+        <text class="dg-ts" x="457" y="126" text-anchor="middle" lang="en">stopped but present</text>
+        <text class="dg-ts" x="457" y="141" text-anchor="middle" lang="fa">فقط با <tspan class="dg-tm">ps -a</tspan></text>
+        <text class="dg-ts" x="457" y="141" text-anchor="middle" lang="en">only via <tspan class="dg-tm">ps -a</tspan></text>
+
+        <!-- بازگشت start -->
+        <path class="dg-stroke-b" d="M457 78V62c0-6-5-10-11-10H272c-6 0-11 4-11 10v16" stroke-width="1.5" fill="none"/>
+        <path class="dg-arrow-b" d="M261 82l-5-10h10z"/>
+        <text class="dg-tb" x="370" y="46" text-anchor="middle">start</text>
+
+        <path class="dg-stroke-w" d="M526 116h50" stroke-width="1.6"/>
+        <path class="dg-arrow" d="M576 116l-10-5v10z"/>
+        <text class="dg-tm" x="551" y="106" text-anchor="middle">rm</text>
+
+        <!-- removed -->
+        <rect class="dg-fill dg-stroke" x="582" y="90" width="100" height="52" rx="9" stroke-dasharray="5 4"/>
+        <text class="dg-tm" x="632" y="112" text-anchor="middle">removed</text>
+        <text class="dg-ts" x="632" y="130" text-anchor="middle" lang="fa">داده رفت</text>
+        <text class="dg-ts" x="632" y="130" text-anchor="middle" lang="en">data gone</text>
+
+        <text class="dg-ts" x="350" y="196" text-anchor="middle" lang="fa">‏<tspan class="dg-tm">docker run</tspan> یعنی create و start با هم · <tspan class="dg-tm">--rm</tspan> یعنی موقع exit مستقیم به removed برو</text>
+        <text class="dg-ts" x="350" y="196" text-anchor="middle" lang="en"><tspan class="dg-tm">docker run</tspan> is create + start in one · <tspan class="dg-tm">--rm</tspan> jumps from exit straight to removed</text>
+        <text class="dg-ts" x="350" y="218" text-anchor="middle" lang="fa">تا وقتی به removed نرسیده‌ای، نامش اشغال است</text>
+        <text class="dg-ts" x="350" y="218" text-anchor="middle" lang="en">until it reaches removed, its name stays taken</text>
+      </svg>
+    </div>
+    <figcaption>
+      <span lang="fa">بیشتر سردرگمی‌های روز اول از فاصلهٔ بین <code>exited</code> و <code>removed</code> می‌آید.</span>
+      <span lang="en">Most day-one confusion lives in the gap between <code>exited</code> and <code>removed</code>.</span>
+    </figcaption>
+  </figure>
+
+  <p lang="fa">
+    نکتهٔ کلیدی این است: <strong>کانتینر متوقف‌شده هنوز وجود دارد.</strong> فضای دیسکش را گرفته،
+    اسمش رزرو است، و لایهٔ نوشتنی‌اش دست‌نخورده باقی مانده. برای همین است که این دستور خطا می‌دهد:
+  </p>
+  <p lang="en">
+    The key point: <strong>a stopped container still exists.</strong> It occupies disk, reserves its name,
+    and its writable layer is intact. That is why this command fails:
+  </p>
+
+  <div class="term">
+    <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="k">docker</span> run <span class="f">-d</span> <span class="f">--name</span> web <span class="f">-p</span> 8080:80 nginx:1.27-alpine
+<span class="k">docker</span> stop web
+<span class="k">docker</span> run <span class="f">-d</span> <span class="f">--name</span> web <span class="f">-p</span> 8080:80 nginx:1.27-alpine
+<span class="w">docker: Error response from daemon: Conflict. The container name "/web" is
+already in use by container "4f2a9c1b7e3d". You have to remove (or rename)
+that container to be able to reuse that name.</span></pre>
+  </div>
+
+  <p lang="fa">
+    داکر دقیقاً می‌گوید چه کار کن. یا کانتینر قدیمی را حذف کن، یا دوباره روشنش کن:
+  </p>
+  <p lang="en">
+    Docker tells you exactly what to do. Either delete the old container, or start it again:
+  </p>
+
+  <div class="term">
+    <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="c">راه اول: کانتینر قبلی را روشن کن (همان دادهٔ قبلی سر جایش است)</span>
+<span class="k">docker</span> start web
+
+<span class="c">راه دوم: قبلی را حذف کن و از نو بساز (لایهٔ نوشتنی قبلی از بین می‌رود)</span>
+<span class="k">docker</span> rm web
+<span class="k">docker</span> run <span class="f">-d</span> <span class="f">--name</span> web <span class="f">-p</span> 8080:80 nginx:1.27-alpine</pre>
+  </div>
+
+  <p lang="fa">
+    و برای پاک کردن انبوه کانتینرهای متوقف‌شده‌ای که در طول تمرین جمع شده‌اند:
+  </p>
+  <p lang="en">
+    And to clear out the pile of stopped containers you accumulate while practising:
+  </p>
+
+  <div class="term">
+    <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="c"># اول ببین چه چیزی قرار است حذف شود</span>
+<span class="k">docker</span> ps <span class="f">-a</span> <span class="f">--filter</span> <span class="p">status=exited</span>
+
+<span class="c"># بعد حذف کن — تأیید می‌خواهد</span>
+<span class="k">docker</span> container prune</pre>
+  </div>
+
+  <div class="note danger">
+    <div class="note-t">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.3 3.9 1.9 18a2 2 0 0 0 1.7 3h16.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17v.01"/></svg>
+      <span lang="fa">دستوری که نباید بی‌فکر بزنی</span><span lang="en">A command not to type casually</span></div>
+    <p lang="fa">
+      <code>docker system prune -a --volumes</code> همه‌چیز را پاک می‌کند: تمام کانتینرهای متوقف،
+      تمام ایمیج‌هایی که کانتینر فعالی ندارند، تمام شبکه‌های بلااستفاده، <em>و تمام والیوم‌ها</em>.
+      آن سوئیچ آخر یعنی دادهٔ پایگاه‌داده‌ات هم می‌رود. روی ماشین توسعه بی‌خطر است، روی سروری که
+      چیزی رویش زنده است فاجعه. اگر شک داری، بدون <code>--volumes</code> بزنش.
+    </p>
+    <p lang="en">
+      <code>docker system prune -a --volumes</code> wipes everything: all stopped containers, every image
+      without a running container, all unused networks, <em>and all volumes</em>. That last flag means your
+      database data goes too. Harmless on a dev machine, a catastrophe on a server with anything live on it.
+      When in doubt, run it without <code>--volumes</code>.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════════════════ ۸ ══════════════════════════ -->
+<section id="inside">
+  <h2><span lang="fa">زیر کاپوت: کانتینر فقط یک پروسه است</span><span lang="en">Under the hood: a container is just a process</span></h2>
+
+  <p class="lede" lang="fa">
+    این بخش برای عیب‌یابی است، نه برای حفظ کردن. اگر بدانی کانتینر واقعاً چیست، خطاهای عجیب
+    دیگر عجیب نیستند.
+  </p>
+  <p class="lede" lang="en">
+    This section is for debugging, not memorisation. Once you know what a container really is, strange
+    errors stop being strange.
+  </p>
+
+  <p lang="fa">
+    حقیقت ساده این است: <strong>کانتینر یک پروسهٔ معمولی روی ماشین میزبان است که هسته چند
+    محدودیت رویش گذاشته.</strong> نه بیشتر. اگر روی لینوکس کار می‌کنی، همین الان می‌توانی ببینی‌اش:
+  </p>
+  <p lang="en">
+    The plain truth: <strong>a container is an ordinary process on the host machine with a few kernel
+    restrictions applied to it.</strong> Nothing more. If you are on Linux, you can see it right now:
+  </p>
+
+  <div class="term">
+    <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash — host</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="k">docker</span> run <span class="f">-d</span> <span class="f">--name</span> web <span class="f">-p</span> 8080:80 nginx:1.27-alpine
+
+<span class="c"># روی خودِ ماشین میزبان، نه داخل کانتینر</span>
+<span class="k">ps</span> <span class="f">-ef</span> <span class="f">|</span> <span class="k">grep</span> <span class="f">-m2</span> <span class="p">nginx</span>
+<span class="s">root      284915  284893  0 09:31 ?  00:00:00 nginx: master process nginx -g daemon off;
+101       284962  284915  0 09:31 ?  00:00:00 nginx: worker process</span></pre>
+  </div>
+
+  <p lang="fa">
+    آنجاست. یک پروسهٔ کاملاً عادی با یک <code>PID</code> عادی، در فهرست پروسه‌های سیستم خودت.
+    اما داخل کانتینر، همان پروسه خودش را با شمارهٔ <code>1</code> می‌بیند:
+  </p>
+  <p lang="en">
+    There it is. A perfectly ordinary process with an ordinary <code>PID</code>, in your own system's
+    process list. But from inside the container, that same process sees itself as number <code>1</code>:
+  </p>
+
+  <div class="term">
+    <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="k">docker</span> exec web ps <span class="f">-ef</span>
+<span class="s">PID   USER     TIME  COMMAND
+    1 root      0:00 nginx: master process nginx -g daemon off;
+   30 nginx     0:00 nginx: worker process
+   38 root      0:00 ps -ef</span></pre>
+  </div>
+
+  <p lang="fa">
+    یک پروسه، دو شماره، دو دیدگاه. این هستهٔ کل ماجراست و اسمش <code>namespace</code>
+    (فضای نام) است.
+  </p>
+  <p lang="en">
+    One process, two numbers, two points of view. This is the heart of the whole thing, and it is called
+    a <code>namespace</code>.
+  </p>
+
+  <h3 lang="fa">دو مکانیزمی که همه‌چیز را می‌سازند</h3>
+  <h3 lang="en">The two mechanisms behind everything</h3>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th><span lang="fa">مکانیزم</span><span lang="en">Mechanism</span></th>
+          <th><span lang="fa">چه می‌کند</span><span lang="en">What it does</span></th>
+          <th><span lang="fa">اثری که می‌بینی</span><span lang="en">The effect you see</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>namespaces</code></td>
+          <td><span lang="fa">دید پروسه را محدود می‌کند. جدا برای پروسه‌ها، شبکه، فایل‌سیستم، نام میزبان، کاربر.</span>
+              <span lang="en">Restricts what a process can see: separately for processes, network, filesystem, hostname, users.</span></td>
+          <td><span lang="fa"><code>ps</code> فقط دو خط · <code>localhost</code> داخل کانتینر خودِ کانتینر است</span>
+              <span lang="en"><code>ps</code> shows two lines · <code>localhost</code> inside means the container itself</span></td>
+        </tr>
+        <tr>
+          <td><code>cgroups</code></td>
+          <td><span lang="fa">مصرف منابع را محدود می‌کند: حافظه، پردازنده، ورودی/خروجی دیسک.</span>
+              <span lang="en">Caps resource use: memory, CPU, disk I/O.</span></td>
+          <td><span lang="fa">کانتینری که از سقف حافظه رد شود، با کد ۱۳۷ کشته می‌شود</span>
+              <span lang="en">A container over its memory cap is killed with code 137</span></td>
+        </tr>
+        <tr>
+          <td><code>union filesystem</code></td>
+          <td><span lang="fa">لایه‌های فقط‌خواندنی را با لایهٔ نوشتنی ترکیب می‌کند و یکی نشان می‌دهد.</span>
+              <span lang="en">Merges the read-only layers with the writable one into a single view.</span></td>
+          <td><span lang="fa">اشتراک لایه‌ها روی دیسک · از بین رفتن داده با <code>rm</code></span>
+              <span lang="en">Layer sharing on disk · data loss on <code>rm</code></span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p lang="fa">
+    هر سهٔ اینها قابلیت‌های <em>هستهٔ لینوکس</em> هستند، نه اختراع داکر. داکر آنها را بسته‌بندی
+    کرده و پشت چند دستور ساده گذاشته. برای همین است که کانتینر سربار محاسباتی ندارد: چیزی
+    شبیه‌سازی نمی‌شود، فقط هسته چند قانون اضافه اعمال می‌کند.
+  </p>
+  <p lang="en">
+    All three are <em>Linux kernel</em> features, not Docker inventions. Docker packaged them behind a few
+    simple commands. That is why containers carry no compute overhead: nothing is emulated, the kernel
+    simply applies a few extra rules.
+  </p>
+
+  <p lang="fa">
+    و از همین‌جا یک نتیجهٔ امنیتی مهم درمی‌آید: چون هسته مشترک است، اگر کسی از داخل کانتینر
+    بتواند از یک آسیب‌پذیری هسته استفاده کند، به کل ماشین دسترسی دارد. ماشین مجازی این مرز
+    را در سخت‌افزار می‌کشد و شکستنش سخت‌تر است. پس <strong>کد نامطمئن دیگران را داخل کانتینر
+    ساده اجرا نکن</strong> و فرض نکن ایزوله است.
+  </p>
+  <p lang="en">
+    From which follows an important security consequence: because the kernel is shared, anyone who can
+    exploit a kernel vulnerability from inside a container reaches the whole machine. A VM draws that
+    boundary in hardware and it is harder to break. So <strong>do not run other people's untrusted code
+    in a plain container</strong> and assume it is isolated.
+  </p>
+
+  <div class="note warn">
+    <div class="note-t">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.3 3.9 1.9 18a2 2 0 0 0 1.7 3h16.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17v.01"/></svg>
+      <span lang="fa">اگر روی ویندوز یا مک هستی</span><span lang="en">If you are on Windows or macOS</span></div>
+    <p lang="fa">
+      دستور <code>ps -ef | grep nginx</code> روی ترمینال ویندوز چیزی پیدا نمی‌کند و این طبیعی
+      است. پروسهٔ کانتینر داخل آن ماشین مجازی لینوکسی است که داکر بالا آورده. برای دیدنش باید
+      وارد همان محیط شوی — روی WSL2 کافی است ترمینال WSL را باز کنی و همان دستور را آنجا بزنی.
+    </p>
+    <p lang="en">
+      Running <code>ps -ef | grep nginx</code> in a Windows terminal finds nothing, and that is correct.
+      The container process lives inside the Linux VM that Docker runs. To see it you must be in that
+      environment — on WSL2, just open a WSL terminal and run the same command there.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════════════════ ۹ ══════════════════════════ -->
+<section id="pitfalls">
+  <h2><span lang="fa">کجا خراب می‌شود</span><span lang="en">Where it breaks</span></h2>
+
+  <p class="lede" lang="fa">
+    پنج خطایی که تقریباً همه در هفتهٔ اول می‌بینند. پیام خطا را دقیق آورده‌ایم تا وقتی
+    همان را دیدی، بشناسی‌اش.
+  </p>
+  <p class="lede" lang="en">
+    The five errors nearly everyone meets in their first week. The exact messages are here so you
+    recognise them when they show up.
+  </p>
+
+  <div class="pitfalls">
+
+    <div class="pit">
+      <code class="pit-e">docker: Error response from daemon: Conflict. The container name "/web" is already in use by container "4f2a9c1b7e3d". You have to remove (or rename) that container to be able to reuse that name.</code>
+      <dl>
+        <dt lang="fa">علت</dt><dt lang="en">Cause</dt>
+        <dd lang="fa">فکر می‌کنی <code>docker run</code> کانتینر را «دوباره راه می‌اندازد». نمی‌اندازد؛
+          هر بار یک کانتینر <em>جدید</em> می‌سازد. کانتینر قبلی هنوز وجود دارد، فقط خاموش است، و اسم را گرفته.</dd>
+        <dd lang="en">You assume <code>docker run</code> “restarts” the container. It does not; it creates a
+          <em>new</em> one every time. The old one still exists, merely stopped, and holds the name.</dd>
+        <dt lang="fa">درمان</dt><dt lang="en">Fix</dt>
+        <dd lang="fa">اگر دادهٔ قبلی را می‌خواهی: <code>docker start web</code>. اگر از نو می‌خواهی:
+          <code>docker rm web</code> و بعد <code>run</code>. برای آزمایش‌های موقت از اول <code>--rm</code> بگذار.</dd>
+        <dd lang="en">To keep the old state: <code>docker start web</code>. To start clean:
+          <code>docker rm web</code> then <code>run</code>. For throwaway tests, use <code>--rm</code> from the start.</dd>
+      </dl>
+    </div>
+
+    <div class="pit">
+      <code class="pit-e">docker: Error response from daemon: driver failed programming external connectivity on endpoint web: Bind for 0.0.0.0:8080 failed: port is already allocated.</code>
+      <dl>
+        <dt lang="fa">علت</dt><dt lang="en">Cause</dt>
+        <dd lang="fa">پورت ۸۰۸۰ روی ماشین میزبان قبلاً اشغال شده — یا با کانتینر دیگری، یا با
+          برنامه‌ای که خودت بالا آورده‌ای. یک پورت میزبان فقط یک صاحب دارد.</dd>
+        <dd lang="en">Host port 8080 is already taken — by another container, or by something you started
+          yourself. A host port has exactly one owner.</dd>
+        <dt lang="fa">درمان</dt><dt lang="en">Fix</dt>
+        <dd lang="fa">ببین چه کسی گرفتتش: <code>docker ps</code> و بعد <code>ss -ltnp | grep 8080</code>
+          روی لینوکس یا <code>netstat -ano | findstr 8080</code> روی ویندوز. یا فقط پورت میزبان را عوض کن:
+          <code>-p 8081:80</code>. پورت <em>داخل</em> کانتینر همیشه می‌تواند ۸۰ بماند.</dd>
+        <dd lang="en">Find the owner: <code>docker ps</code>, then <code>ss -ltnp | grep 8080</code> on Linux or
+          <code>netstat -ano | findstr 8080</code> on Windows. Or simply change the host port:
+          <code>-p 8081:80</code>. The port <em>inside</em> the container can always stay 80.</dd>
+      </dl>
+    </div>
+
+    <div class="pit">
+      <code class="pit-e">curl: (7) Failed to connect to localhost port 8080 after 0 ms: Connection refused</code>
+      <dl>
+        <dt lang="fa">علت</dt><dt lang="en">Cause</dt>
+        <dd lang="fa">سه احتمال، به همین ترتیب بررسی‌شان کن: (۱) کانتینر اصلاً بالا نیست —
+          <code>docker ps -a</code> بزن و ستون <code>STATUS</code> را ببین؛ (۲) سوئیچ <code>-p</code>
+          را جا انداخته‌ای، پس پورت اصلاً منتشر نشده؛ (۳) ترتیب را برعکس نوشته‌ای:
+          <code>-p 80:8080</code> به‌جای <code>-p 8080:80</code>.</dd>
+        <dd lang="en">Three possibilities, check in this order: (1) the container is not up —
+          run <code>docker ps -a</code> and read <code>STATUS</code>; (2) you omitted <code>-p</code>, so
+          nothing was published; (3) you reversed the order: <code>-p 80:8080</code> instead of
+          <code>-p 8080:80</code>.</dd>
+        <dt lang="fa">درمان</dt><dt lang="en">Fix</dt>
+        <dd lang="fa">همیشه <code>میزبان:کانتینر</code>. عدد سمت راست همان پورتی است که سرویس
+          <em>داخل</em> ایمیج رویش گوش می‌دهد و تو انتخابش نکرده‌ای — مستندات ایمیج گفته.</dd>
+        <dd lang="en">Always <code>host:container</code>. The right-hand number is the port the service
+          <em>inside</em> the image listens on; you do not choose it, the image documents it.</dd>
+      </dl>
+    </div>
+
+    <div class="pit">
+      <code class="pit-e">psql: error: connection to server at "localhost" (127.0.0.1), port 5432 failed: Connection refused</code>
+      <dl>
+        <dt lang="fa">علت</dt><dt lang="en">Cause</dt>
+        <dd lang="fa">این را از <em>داخل</em> یک کانتینر زده‌ای و انتظار داری به پایگاه‌دادهٔ کانتینر
+          دیگر وصل شود. اما <code>localhost</code> داخل هر کانتینر یعنی <em>خودِ همان کانتینر</em>،
+          نه ماشین تو و نه کانتینر کناری. این مستقیماً نتیجهٔ network namespace است.</dd>
+        <dd lang="en">You ran this from <em>inside</em> a container expecting to reach a database in another
+          one. But <code>localhost</code> inside any container means <em>that container itself</em> — not your
+          machine and not the neighbouring container. A direct consequence of the network namespace.</dd>
+        <dt lang="fa">درمان</dt><dt lang="en">Fix</dt>
+        <dd lang="fa">کانتینرها باید در یک شبکهٔ مشترک باشند و همدیگر را با <em>نام</em> صدا بزنند،
+          نه با <code>localhost</code>. فصل ۷ کاملاً به این می‌پردازد.</dd>
+        <dd lang="en">Containers must share a network and address each other by <em>name</em>, not by
+          <code>localhost</code>. Chapter 7 is devoted to this.</dd>
+      </dl>
+    </div>
+
+    <div class="pit">
+      <code class="pit-e">Error response from daemon: pull access denied for myapp, repository does not exist or may require 'docker login'</code>
+      <dl>
+        <dt lang="fa">علت</dt><dt lang="en">Cause</dt>
+        <dd lang="fa">ایمیجی که خواسته‌ای در رجیستری پیش‌فرض وجود ندارد. معمولاً غلط املایی در اسم
+          یا برچسب است. نکتهٔ ظریف: اگر برچسب ننویسی، داکر <code>:latest</code> فرض می‌کند —
+          و خیلی ایمیج‌ها اصلاً برچسبی به این نام ندارند.</dd>
+        <dd lang="en">The image you asked for does not exist in the default registry. Usually a typo in the
+          name or tag. The subtle part: with no tag, Docker assumes <code>:latest</code> — and plenty of
+          images have no such tag at all.</dd>
+        <dt lang="fa">درمان</dt><dt lang="en">Fix</dt>
+        <dd lang="fa">اسم دقیق و برچسب را بررسی کن. و بدان که <code>latest</code> هیچ معنای «جدیدترین»
+          ندارد؛ فقط یک نام پیش‌فرض است که ممکن است ماه‌ها قدیمی باشد. در کار جدی همیشه نسخهٔ صریح
+          بنویس: <code>nginx:1.27-alpine</code> نه <code>nginx</code>.</dd>
+        <dd lang="en">Check the exact name and tag. And know that <code>latest</code> carries no meaning of
+          “newest”; it is just a default name that may be months old. In serious work always pin a version:
+          <code>nginx:1.27-alpine</code>, not <code>nginx</code>.</dd>
+      </dl>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════ ۱۰ ══════════════════════════ -->
+<section id="cheat">
+  <h2><span lang="fa">مرجع سریع این فصل</span><span lang="en">Quick reference</span></h2>
+
+  <p class="lede" lang="fa">
+    همهٔ دستورهایی که در این فصل دیدی، یک‌جا. این جدول را نگه دار؛ ۹۰ درصد کار روزمره همین‌هاست.
+  </p>
+  <p class="lede" lang="en">
+    Every command from this chapter in one place. Keep this table; it covers 90% of daily work.
+  </p>
+
+  <div class="cheat">
+    <div class="cheat-h">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/></svg>
+      <span lang="fa">دستورهای فصل ۱</span><span lang="en">Chapter 1 commands</span>
+    </div>
+    <table>
+      <tr><td><code>docker --version</code></td>
+          <td><span lang="fa">نسخهٔ CLI</span><span lang="en">CLI version</span></td></tr>
+      <tr><td><code>docker info</code></td>
+          <td><span lang="fa">وضعیت کامل — اگر جواب داد یعنی سرویس پس‌زمینه سالم است</span>
+              <span lang="en">Full status — a reply means the daemon is healthy</span></td></tr>
+      <tr><td><code>docker run IMAGE</code></td>
+          <td><span lang="fa">کانتینر جدید بساز و اجرا کن</span><span lang="en">Create and start a new container</span></td></tr>
+      <tr><td><code>docker run -it --rm IMAGE sh</code></td>
+          <td><span lang="fa">شل تعاملی موقت؛ با خروج حذف می‌شود</span>
+              <span lang="en">A throwaway interactive shell; deleted on exit</span></td></tr>
+      <tr><td><code>docker run -d --name N -p H:C IMAGE</code></td>
+          <td><span lang="fa">اجرای پس‌زمینه با نام و نگاشت پورت <code>میزبان:کانتینر</code></span>
+              <span lang="en">Background run with a name and <code>host:container</code> port mapping</span></td></tr>
+      <tr><td><code>docker ps</code></td>
+          <td><span lang="fa">کانتینرهای در حال اجرا</span><span lang="en">Running containers</span></td></tr>
+      <tr><td><code>docker ps -a</code></td>
+          <td><span lang="fa">همه، شامل متوقف‌شده‌ها</span><span lang="en">All of them, including stopped</span></td></tr>
+      <tr><td><code>docker logs -f NAME</code></td>
+          <td><span lang="fa">لاگ کانتینر، به‌صورت زنده</span><span lang="en">Container logs, followed live</span></td></tr>
+      <tr><td><code>docker exec -it NAME sh</code></td>
+          <td><span lang="fa">شل داخل کانتینری که <em>الان</em> اجراست</span>
+              <span lang="en">A shell inside an <em>already running</em> container</span></td></tr>
+      <tr><td><code>docker stop NAME</code></td>
+          <td><span lang="fa">توقف نرم — کانتینر باقی می‌ماند</span><span lang="en">Graceful stop — the container remains</span></td></tr>
+      <tr><td><code>docker start NAME</code></td>
+          <td><span lang="fa">روشن کردن دوبارهٔ همان کانتینر</span><span lang="en">Start that same container again</span></td></tr>
+      <tr><td><code>docker rm NAME</code></td>
+          <td><span lang="fa">حذف کانتینر و لایهٔ نوشتنی‌اش</span><span lang="en">Delete the container and its writable layer</span></td></tr>
+      <tr><td><code>docker images</code></td>
+          <td><span lang="fa">ایمیج‌های محلی</span><span lang="en">Local images</span></td></tr>
+      <tr><td><code>docker image history IMAGE</code></td>
+          <td><span lang="fa">لایه‌های ایمیج و حجم هرکدام</span><span lang="en">An image's layers and their sizes</span></td></tr>
+      <tr><td><code>docker pull IMAGE:TAG</code></td>
+          <td><span lang="fa">دانلود بدون اجرا</span><span lang="en">Download without running</span></td></tr>
+      <tr><td><code>docker system df</code></td>
+          <td><span lang="fa">مصرف دیسک به تفکیک</span><span lang="en">Disk usage, broken down</span></td></tr>
+      <tr><td><code>docker container prune</code></td>
+          <td><span lang="fa">حذف همهٔ کانتینرهای متوقف‌شده</span><span lang="en">Remove all stopped containers</span></td></tr>
+      <tr><td><code>docker inspect NAME</code></td>
+          <td><span lang="fa">همهٔ جزئیات به‌صورت JSON</span><span lang="en">Every detail, as JSON</span></td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════════════ ۱۱ ══════════════════════════ -->
+<section id="exercises">
+  <h2><span lang="fa">تمرین‌ها</span><span lang="en">Exercises</span></h2>
+
+  <p class="lede" lang="fa">
+    هشت تمرین، از ساده به سخت. همه پاسخ کامل دارند — اما اول خودت انجامش بده. بعد از هر
+    تمرین، تیک «انجام شد» را بزن تا نوار پیشرفت جلو برود.
+  </p>
+  <p class="lede" lang="en">
+    Eight exercises, easy to hard. All have full solutions — but do them yourself first. Tick “Done”
+    after each one to move the progress bar.
+  </p>
+
+  <div class="ex-stat">
+    <span lang="fa">تمرین‌های حل‌شده</span><span lang="en">Solved</span>
+    <b>۰ / ۸</b>
+    <div class="pbar"><i></i></div>
+  </div>
+
+  <!-- ───────── تمرین ۱٫۱ ───────── -->
+  <div class="ex" id="ex-1-1">
+    <div class="ex-h">
+      <span class="ex-n"><span lang="fa">تمرین ۱٫۱</span><span lang="en">Exercise 1.1</span></span>
+      <span class="ex-lvl lvl-1"><span lang="fa">مبتدی</span><span lang="en">Beginner</span></span>
+      <span class="ex-time"><span lang="fa">۵ دقیقه</span><span lang="en">5 min</span></span>
+    </div>
+    <p lang="fa">
+      داکر را اجرا کن و ثابت کن که هم CLI و هم سرویس پس‌زمینه سالم‌اند. سپس ایمیج
+      <code>hello-world</code> را اجرا کن و بگو چند لایه دانلود شد.
+    </p>
+    <p lang="en">
+      Run Docker and prove that both the CLI and the daemon are healthy. Then run the
+      <code>hello-world</code> image and say how many layers were downloaded.
+    </p>
+    <p class="ex-goal" lang="fa">معیار موفقیت: عبارت <code>Hello from Docker!</code> در خروجی دیده شود.</p>
+    <p class="ex-goal" lang="en">Success criterion: <code>Hello from Docker!</code> appears in the output.</p>
+
+    <details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary>
+      <p lang="fa">برای بخش دوم، خط‌هایی که به <code>Pull complete</code> ختم می‌شوند را بشمار.
+        هر خط یک لایه است. اگر ایمیج را قبلاً دانلود کرده‌ای، اول <code>docker rmi hello-world</code>
+        بزن تا خروجی کامل را ببینی.</p>
+      <p lang="en">For the second part, count the lines ending in <code>Pull complete</code>. Each line is one
+        layer. If you already have the image, run <code>docker rmi hello-world</code> first to see the full output.</p>
+    </details>
+
+    <details class="ex-sol"><summary><span lang="fa">پاسخ و توضیح</span><span lang="en">Solution</span></summary>
+      <div class="term">
+        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="c"># ۱) سلامت CLI</span>
+<span class="k">docker</span> <span class="f">--version</span>
+
+<span class="c"># ۲) سلامت سرویس پس‌زمینه — این مهم‌ترین بخش است</span>
+<span class="k">docker</span> info <span class="f">--format</span> <span class="p">'{{.ServerVersion}}'</span>
+
+<span class="c"># ۳) اگر ایمیج را از قبل داری، حذفش کن تا خروجی کامل را ببینی</span>
+<span class="k">docker</span> rmi hello-world
+
+<span class="c"># ۴) اجرا</span>
+<span class="k">docker</span> run hello-world</pre>
+      </div>
+      <p lang="fa">
+        <strong>چرا این‌طور:</strong> <code>docker --version</code> فقط نسخهٔ برنامهٔ خط فرمان را چاپ
+        می‌کند و حتی وقتی سرویس پس‌زمینه خاموش است هم جواب می‌دهد. برای همین به‌تنهایی سلامت را ثابت
+        نمی‌کند. اما <code>docker info</code> مجبور است با <code>dockerd</code> حرف بزند، پس اگر
+        <code>ServerVersion</code> برگشت، هر دو طرف سالم‌اند.
+      </p>
+      <p lang="en">
+        <strong>Why this way:</strong> <code>docker --version</code> only prints the CLI's own version and
+        answers even when the daemon is down, so on its own it proves nothing. <code>docker info</code>, by
+        contrast, must talk to <code>dockerd</code>; if <code>ServerVersion</code> comes back, both halves are healthy.
+      </p>
+      <p lang="fa">
+        <strong>تعداد لایه:</strong> یک لایه. <code>hello-world</code> کوچک‌ترین ایمیج ممکن است —
+        فقط یک فایل اجرایی که یک متن چاپ می‌کند و تمام. برای همین در خروجی فقط یک خط
+        <code>Pull complete</code> می‌بینی.
+      </p>
+      <p lang="en">
+        <strong>Layer count:</strong> one. <code>hello-world</code> is about the smallest possible image —
+        a single executable that prints a message. Hence exactly one <code>Pull complete</code> line.
+      </p>
+    </details>
+  </div>
+
+  <!-- ───────── تمرین ۱٫۲ ───────── -->
+  <div class="ex" id="ex-1-2">
+    <div class="ex-h">
+      <span class="ex-n"><span lang="fa">تمرین ۱٫۲</span><span lang="en">Exercise 1.2</span></span>
+      <span class="ex-lvl lvl-1"><span lang="fa">مبتدی</span><span lang="en">Beginner</span></span>
+      <span class="ex-time"><span lang="fa">۱۰ دقیقه</span><span lang="en">10 min</span></span>
+    </div>
+    <p lang="fa">
+      بدون نصب هیچ‌چیزی روی سیستمت، وارد یک اوبونتو ۲۴٫۰۴ شو، نسخهٔ دقیق سیستم‌عاملش را
+      پیدا کن، یک فایل بساز، و بیرون بیا. بعد ثابت کن که آن کانتینر دیگر وجود ندارد.
+    </p>
+    <p lang="en">
+      Without installing anything on your system, step into an Ubuntu 24.04, find its exact OS version,
+      create a file, and exit. Then prove that container no longer exists.
+    </p>
+    <p class="ex-goal" lang="fa">معیار موفقیت: <code>VERSION_ID="24.04"</code> را ببینی، و بعد از خروج
+      <code>docker ps -a</code> آن کانتینر را نشان ندهد.</p>
+    <p class="ex-goal" lang="en">Success criterion: you see <code>VERSION_ID="24.04"</code>, and after exiting,
+      <code>docker ps -a</code> does not list that container.</p>
+
+    <details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary>
+      <p lang="fa">به سه سوئیچ نیاز داری: یکی برای باز نگه‌داشتن ورودی، یکی برای ساختن ترمینال،
+        و یکی برای اینکه بعد از خروج خودش پاک شود. اوبونتو شل <code>bash</code> دارد، برخلاف
+        آلپاین که فقط <code>sh</code> دارد.</p>
+      <p lang="en">You need three flags: one to keep input open, one to allocate a terminal, and one to make
+        it clean up after itself. Ubuntu ships <code>bash</code>, unlike Alpine which only has <code>sh</code>.</p>
+    </details>
+
+    <details class="ex-sol"><summary><span lang="fa">پاسخ و توضیح</span><span lang="en">Solution</span></summary>
+      <div class="term">
+        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="k">docker</span> run <span class="f">-it --rm</span> ubuntu:24.04 bash</pre>
+      </div>
+      <div class="term">
+        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">ubuntu container</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="d">root@8f21c4d90b7e:/# </span><span class="k">cat</span> /etc/os-release
+<span class="s">PRETTY_NAME="Ubuntu 24.04.1 LTS"
+NAME="Ubuntu"
+VERSION_ID="24.04"
+VERSION="24.04.1 LTS (Noble Numbat)"</span>
+
+<span class="d">root@8f21c4d90b7e:/# </span><span class="k">echo</span> <span class="p">"سلام از داخل کانتینر"</span> &gt; /tmp/note.txt
+<span class="d">root@8f21c4d90b7e:/# </span><span class="k">cat</span> /tmp/note.txt
+<span class="s">سلام از داخل کانتینر</span>
+
+<span class="d">root@8f21c4d90b7e:/# </span><span class="k">exit</span></pre>
+      </div>
+      <div class="term">
+        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="c"># هیچ کانتینر اوبونتویی باقی نمانده است</span>
+<span class="k">docker</span> ps <span class="f">-a</span> <span class="f">--filter</span> <span class="p">ancestor=ubuntu:24.04</span>
+<span class="s">CONTAINER ID   IMAGE   COMMAND   CREATED   STATUS   PORTS   NAMES</span></pre>
+      </div>
+      <p lang="fa">
+        <strong>چرا این‌طور:</strong> آن رشتهٔ <code>8f21c4d90b7e</code> در پرامپت، نام میزبان کانتینر است
+        و برابر با دوازده رقم اول شناسهٔ آن. این خودش نمونه‌ای از <code>UTS namespace</code> است:
+        کانتینر نام میزبان جداگانه‌ای دارد.
+      </p>
+      <p lang="en">
+        <strong>Why this way:</strong> the <code>8f21c4d90b7e</code> in the prompt is the container's hostname,
+        equal to the first twelve characters of its ID. That is itself an example of the <code>UTS namespace</code>:
+        the container gets its own hostname.
+      </p>
+      <p lang="fa">
+        <strong>سرنوشت فایل:</strong> <code>/tmp/note.txt</code> در لایهٔ نوشتنی همان کانتینر ساخته شد.
+        سوئیچ <code>--rm</code> باعث شد کانتینر و آن لایه با هم حذف شوند. فایل دیگر هیچ‌جا نیست —
+        نه در ایمیج، نه روی سیستم تو. این همان چیزی است که بخش پنجم دربارهٔ آن هشدار داد.
+      </p>
+      <p lang="en">
+        <strong>The file's fate:</strong> <code>/tmp/note.txt</code> was created in that container's writable
+        layer. <code>--rm</code> deleted the container and that layer together. The file is nowhere now —
+        not in the image, not on your system. Exactly what section five warned about.
+      </p>
+    </details>
+  </div>
+
+  <!-- ───────── تمرین ۱٫۳ ───────── -->
+  <div class="ex" id="ex-1-3">
+    <div class="ex-h">
+      <span class="ex-n"><span lang="fa">تمرین ۱٫۳</span><span lang="en">Exercise 1.3</span></span>
+      <span class="ex-lvl lvl-1"><span lang="fa">مبتدی</span><span lang="en">Beginner</span></span>
+      <span class="ex-time"><span lang="fa">۱۰ دقیقه</span><span lang="en">10 min</span></span>
+    </div>
+    <p lang="fa">
+      یک وب‌سرور Nginx با نام <code>lab-web</code> روی پورت ۹۰۹۰ بالا بیاور. با یک دستور
+      ثابت کن که کد وضعیت ۲۰۰ برمی‌گرداند. لاگ‌ها را ببین و درخواست خودت را در آن پیدا کن.
+      در پایان، کاملاً تمیزش کن.
+    </p>
+    <p lang="en">
+      Start an Nginx web server named <code>lab-web</code> on port 9090. Prove with one command that it
+      returns status 200. Look at the logs and find your own request in them. Then clean it up completely.
+    </p>
+    <p class="ex-goal" lang="fa">معیار موفقیت: خروجی شامل <code>200 OK</code> باشد، و در پایان
+      <code>docker ps -a</code> هیچ کانتینری با نام <code>lab-web</code> نداشته باشد.</p>
+    <p class="ex-goal" lang="en">Success criterion: the output contains <code>200 OK</code>, and at the end
+      <code>docker ps -a</code> lists no container named <code>lab-web</code>.</p>
+
+    <details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary>
+      <p lang="fa">«تمیز کردن کامل» یعنی دو دستور، نه یکی. کانتینر متوقف‌شده هنوز وجود دارد.
+        اگر <code>curl</code> نداری، مرورگر هم قبول است — لاگ همان را نشان می‌دهد.</p>
+      <p lang="en">“Completely” means two commands, not one. A stopped container still exists. If you have no
+        <code>curl</code>, a browser works too — the log will show it.</p>
+    </details>
+
+    <details class="ex-sol"><summary><span lang="fa">پاسخ و توضیح</span><span lang="en">Solution</span></summary>
+      <div class="term">
+        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="c"># ۱) بالا آوردن</span>
+<span class="k">docker</span> run <span class="f">-d</span> <span class="f">--name</span> lab-web <span class="f">-p</span> 9090:80 nginx:1.27-alpine
+
+<span class="c"># ۲) بررسی — سوئیچ -I فقط هدر را می‌گیرد</span>
+<span class="k">curl</span> <span class="f">-I</span> http://localhost:9090
+<span class="s">HTTP/1.1 200 OK
+Server: nginx/1.27.3</span>
+
+<span class="c"># ۳) لاگ</span>
+<span class="k">docker</span> logs lab-web
+<span class="s">172.17.0.1 - - [08/Sep/2026:09:44:10 +0000] "HEAD / HTTP/1.1" 200 0 "-" "curl/8.5.0" "-"</span>
+
+<span class="c"># ۴) تمیزکاری — هر دو دستور لازم است</span>
+<span class="k">docker</span> stop lab-web
+<span class="k">docker</span> rm lab-web
+
+<span class="c"># ۵) تأیید</span>
+<span class="k">docker</span> ps <span class="f">-a</span> <span class="f">--filter</span> <span class="p">name=lab-web</span></pre>
+      </div>
+      <p lang="fa">
+        <strong>چرا دو دستور برای تمیزکاری:</strong> <code>stop</code> فقط پروسهٔ داخل کانتینر را
+        می‌بندد و کانتینر را به حالت <code>exited</code> می‌برد. <code>rm</code> است که خود کانتینر و
+        لایهٔ نوشتنی‌اش را حذف می‌کند. اگر فقط <code>stop</code> بزنی، نام <code>lab-web</code> همچنان
+        اشغال می‌ماند.
+      </p>
+      <p lang="en">
+        <strong>Why two commands:</strong> <code>stop</code> only ends the process inside and moves the
+        container to <code>exited</code>. <code>rm</code> is what deletes the container and its writable layer.
+        With <code>stop</code> alone, the name <code>lab-web</code> stays taken.
+      </p>
+      <div class="note safe">
+        <div class="note-t"><span lang="fa">میان‌بر</span><span lang="en">Shortcut</span></div>
+        <p lang="fa">
+          <code>docker rm -f lab-web</code> هر دو کار را با هم انجام می‌دهد. اما <code>-f</code>
+          یعنی «بی‌مقدمه بکش»؛ برنامه فرصت بستن تمیز فایل‌ها و اتصال‌ها را نمی‌گیرد. روی وب‌سرور
+          آزمایشی اشکالی ندارد، روی پایگاه‌داده می‌تواند داده را خراب کند.
+        </p>
+        <p lang="en">
+          <code>docker rm -f lab-web</code> does both at once. But <code>-f</code> means “kill it now”; the
+          program gets no chance to close files and connections cleanly. Fine for a test web server, risky
+          for a database.
+        </p>
+      </div>
+    </details>
+  </div>
+
+  <!-- ───────── تمرین ۱٫۴ ───────── -->
+  <div class="ex" id="ex-1-4">
+    <div class="ex-h">
+      <span class="ex-n"><span lang="fa">تمرین ۱٫۴</span><span lang="en">Exercise 1.4</span></span>
+      <span class="ex-lvl lvl-2"><span lang="fa">متوسط</span><span lang="en">Intermediate</span></span>
+      <span class="ex-time"><span lang="fa">۱۵ دقیقه</span><span lang="en">15 min</span></span>
+    </div>
+    <p lang="fa">
+      از <em>یک</em> ایمیج، سه وب‌سرور مستقل روی پورت‌های ۸۰۸۱، ۸۰۸۲ و ۸۰۸۳ بالا بیاور.
+      بعد با <code>docker system df</code> نشان بده که این سه کانتینر تقریباً هیچ فضای اضافه‌ای
+      روی دیسک نگرفته‌اند و توضیح بده چرا.
+    </p>
+    <p lang="en">
+      From <em>one</em> image, start three independent web servers on ports 8081, 8082 and 8083. Then use
+      <code>docker system df</code> to show that these three containers took almost no extra disk space,
+      and explain why.
+    </p>
+    <p class="ex-goal" lang="fa">معیار موفقیت: هر سه پورت جواب ۲۰۰ بدهند، و ستون <code>SIZE</code>
+      برای <code>Containers</code> در حد چند کیلوبایت باشد، نه سه برابر حجم ایمیج.</p>
+    <p class="ex-goal" lang="en">Success criterion: all three ports answer 200, and the <code>SIZE</code>
+      column for <code>Containers</code> is a few kilobytes, not three times the image size.</p>
+
+    <details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary>
+      <p lang="fa">هر کانتینر باید نام یکتا و پورت میزبان یکتا داشته باشد، ولی پورت داخل کانتینر
+        هر سه بار همان ۸۰ می‌ماند. جواب «چرا» را در بخش لایه‌ها پیدا می‌کنی.</p>
+      <p lang="en">Each container needs a unique name and a unique host port, but the container-side port stays
+        80 all three times. The answer to “why” is in the layers section.</p>
+    </details>
+
+    <details class="ex-sol"><summary><span lang="fa">پاسخ و توضیح</span><span lang="en">Solution</span></summary>
+      <div class="term">
+        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="k">docker</span> run <span class="f">-d</span> <span class="f">--name</span> w1 <span class="f">-p</span> 8081:80 nginx:1.27-alpine
+<span class="k">docker</span> run <span class="f">-d</span> <span class="f">--name</span> w2 <span class="f">-p</span> 8082:80 nginx:1.27-alpine
+<span class="k">docker</span> run <span class="f">-d</span> <span class="f">--name</span> w3 <span class="f">-p</span> 8083:80 nginx:1.27-alpine
+
+<span class="k">curl</span> <span class="f">-s -o</span> /dev/null <span class="f">-w</span> <span class="p">"%{http_code}\n"</span> http://localhost:8081
+<span class="k">curl</span> <span class="f">-s -o</span> /dev/null <span class="f">-w</span> <span class="p">"%{http_code}\n"</span> http://localhost:8082
+<span class="k">curl</span> <span class="f">-s -o</span> /dev/null <span class="f">-w</span> <span class="p">"%{http_code}\n"</span> http://localhost:8083
+<span class="s">200
+200
+200</span></pre>
+      </div>
+      <div class="term">
+        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="k">docker</span> system df
+<span class="s">TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE
+Images          1         1         52.5MB    0B (0%)
+Containers      3         3         3.27kB    0B (0%)
+Local Volumes   0         0         0B        0B</span></pre>
+      </div>
+      <p lang="fa">
+        <strong>چرا:</strong> هر سه کانتینر همان لایه‌های فقط‌خواندنیِ یک ایمیج را می‌بینند. آن
+        ۵۲ مگابایت <em>یک بار</em> روی دیسک است و بین هر سه به اشتراک گذاشته شده. چیزی که برای هر
+        کانتینر جداگانه ذخیره می‌شود فقط لایهٔ نوشتنی نازک آن است — و چون Nginx تازه بالا آمده و
+        هنوز چیز زیادی ننوشته، آن لایه در حد چند کیلوبایت است.
+      </p>
+      <p lang="en">
+        <strong>Why:</strong> all three containers see the same read-only layers of one image. Those 52 MB
+        exist on disk <em>once</em> and are shared between all three. What is stored per container is only its
+        thin writable layer — and since Nginx has just started and written little, that layer is a few kilobytes.
+      </p>
+      <p lang="fa">
+        همین ویژگی است که باعث می‌شود روی یک سرور متوسط بتوانی ده‌ها کانتینر اجرا کنی، در حالی که
+        با ماشین مجازی به چند تا محدود بودی.
+      </p>
+      <p lang="en">
+        This is precisely what lets you run dozens of containers on a modest server where virtual machines
+        would have limited you to a handful.
+      </p>
+      <div class="term">
+        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="c"># تمیزکاری — چند کانتینر را می‌شود با هم داد</span>
+<span class="k">docker</span> rm <span class="f">-f</span> w1 w2 w3</pre>
+      </div>
+    </details>
+  </div>
+
+  <!-- ───────── تمرین ۱٫۵ ───────── -->
+  <div class="ex" id="ex-1-5">
+    <div class="ex-h">
+      <span class="ex-n"><span lang="fa">تمرین ۱٫۵</span><span lang="en">Exercise 1.5</span></span>
+      <span class="ex-lvl lvl-2"><span lang="fa">متوسط</span><span lang="en">Intermediate</span></span>
+      <span class="ex-time"><span lang="fa">۲۰ دقیقه</span><span lang="en">20 min</span></span>
+    </div>
+    <p lang="fa">
+      ثابت کن که دادهٔ نوشته‌شده داخل کانتینر با <code>docker rm</code> از بین می‌رود، ولی با
+      <code>docker stop</code> نه. یک کانتینر آلپاین بساز (بدون <code>--rm</code>)، فایلی در آن
+      بنویس، متوقفش کن، دوباره روشنش کن و ببین فایل هست. بعد حذفش کن و کانتینر جدیدی از همان
+      ایمیج بساز و نشان بده فایل نیست.
+    </p>
+    <p lang="en">
+      Prove that data written inside a container is destroyed by <code>docker rm</code> but survives
+      <code>docker stop</code>. Create an Alpine container (without <code>--rm</code>), write a file in it,
+      stop it, start it again and see the file is there. Then delete it, create a new container from the
+      same image and show the file is gone.
+    </p>
+    <p class="ex-goal" lang="fa">معیار موفقیت: بعد از <code>start</code> محتوای فایل چاپ شود؛ در
+      کانتینر جدید خطای <code>No such file or directory</code> بگیری.</p>
+    <p class="ex-goal" lang="en">Success criterion: after <code>start</code> the file's contents print; in the
+      new container you get <code>No such file or directory</code>.</p>
+
+    <details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary>
+      <p lang="fa">کانتینری که پروسهٔ اصلی‌اش تمام شود، می‌میرد. برای اینکه آلپاین زنده بماند
+        به آن کاری بده که تمام نشود — مثلاً <code>sleep</code> با عددی بزرگ، یا
+        <code>tail -f /dev/null</code>. بعد با <code>exec</code> واردش شو.</p>
+      <p lang="en">A container whose main process ends, dies. To keep Alpine alive, give it work that does not
+        finish — a long <code>sleep</code>, or <code>tail -f /dev/null</code>. Then get in with <code>exec</code>.</p>
+    </details>
+
+    <details class="ex-sol"><summary><span lang="fa">پاسخ و توضیح</span><span lang="en">Solution</span></summary>
+      <div class="term">
+        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="c"># ۱) کانتینری که زنده می‌ماند — بدون --rm</span>
+<span class="k">docker</span> run <span class="f">-d</span> <span class="f">--name</span> box alpine:3.20 sleep infinity
+
+<span class="c"># ۲) فایل بنویس</span>
+<span class="k">docker</span> exec box sh <span class="f">-c</span> <span class="p">'echo "داده مهم" > /data.txt'</span>
+<span class="k">docker</span> exec box cat /data.txt
+<span class="s">داده مهم</span>
+
+<span class="c"># ۳) توقف و روشن کردن دوباره</span>
+<span class="k">docker</span> stop box
+<span class="k">docker</span> start box
+<span class="k">docker</span> exec box cat /data.txt
+<span class="s">داده مهم        ← فایل سر جایش است</span>
+
+<span class="c"># ۴) حالا حذف کامل و ساخت یک کانتینر تازه از همان ایمیج</span>
+<span class="k">docker</span> rm <span class="f">-f</span> box
+<span class="k">docker</span> run <span class="f">-d</span> <span class="f">--name</span> box alpine:3.20 sleep infinity
+<span class="k">docker</span> exec box cat /data.txt
+<span class="w">cat: can't open '/data.txt': No such file or directory</span>
+
+<span class="k">docker</span> rm <span class="f">-f</span> box</pre>
+      </div>
+      <p lang="fa">
+        <strong>چرا این‌طور:</strong> فایل <code>/data.txt</code> هرگز وارد ایمیج نشد. فقط در لایهٔ
+        نوشتنیِ کانتینر <em>اول</em> ثبت شد. <code>stop</code> آن لایه را دست نمی‌زند — پروسه می‌میرد،
+        فایل‌سیستم می‌ماند. اما <code>rm</code> کل لایه را با کانتینر پاک می‌کند. کانتینر دوم لایهٔ
+        نوشتنیِ خالی و تازه‌ای دارد، پس فایل را نمی‌بیند.
+      </p>
+      <p lang="en">
+        <strong>Why this way:</strong> <code>/data.txt</code> never entered the image. It was recorded only in
+        the <em>first</em> container's writable layer. <code>stop</code> does not touch that layer — the process
+        dies, the filesystem stays. But <code>rm</code> erases the whole layer along with the container. The
+        second container gets a fresh, empty writable layer and cannot see the file.
+      </p>
+      <p lang="fa">
+        <strong>چرا <code>sleep infinity</code>:</strong> اگر می‌نوشتی <code>docker run -d alpine</code>،
+        کانتینر بلافاصله می‌مرد. چون ایمیج آلپاین دستور پیش‌فرضش <code>/bin/sh</code> است و شلی که
+        ورودی تعاملی نداشته باشد فوراً تمام می‌شود — و با تمام شدن پروسهٔ اصلی، کانتینر هم تمام می‌شود.
+      </p>
+      <p lang="en">
+        <strong>Why <code>sleep infinity</code>:</strong> had you written <code>docker run -d alpine</code>, the
+        container would have died at once. The Alpine image's default command is <code>/bin/sh</code>, and a
+        shell with no interactive input exits immediately — and when the main process ends, so does the container.
+      </p>
+      <div class="note">
+        <div class="note-t"><span lang="fa">راه درست چیست؟</span><span lang="en">What is the right way?</span></div>
+        <p lang="fa">اینکه دادهٔ مهم را در لایهٔ نوشتنی بگذاری اشتباه است، نه یک ترفند. راه درست
+          <code>volume</code> است که کل فصل ۶ به آن اختصاص دارد.</p>
+        <p lang="en">Putting important data in the writable layer is a mistake, not a trick. The correct answer is
+          a <code>volume</code>, and all of chapter 6 is about it.</p>
+      </div>
+    </details>
+  </div>
+
+  <!-- ───────── تمرین ۱٫۶ ───────── -->
+  <div class="ex" id="ex-1-6">
+    <div class="ex-h">
+      <span class="ex-n"><span lang="fa">تمرین ۱٫۶</span><span lang="en">Exercise 1.6</span></span>
+      <span class="ex-lvl lvl-2"><span lang="fa">متوسط</span><span lang="en">Intermediate</span></span>
+      <span class="ex-time"><span lang="fa">۱۵ دقیقه</span><span lang="en">15 min</span></span>
+    </div>
+    <p lang="fa">
+      دو ایمیج <code>python:3.12-alpine</code> و <code>node:22-alpine</code> را دانلود کن.
+      نشان بده که این دو، لایهٔ پایهٔ مشترکی دارند و بگو این اشتراک چقدر فضا صرفه‌جویی کرده است.
+    </p>
+    <p lang="en">
+      Pull the images <code>python:3.12-alpine</code> and <code>node:22-alpine</code>. Show that the two
+      share a base layer, and say how much space that sharing saved.
+    </p>
+    <p class="ex-goal" lang="fa">معیار موفقیت: شناسهٔ لایهٔ پایهٔ هر دو ایمیج یکسان باشد، و بتوانی
+      تفاوت «مجموع حجم ایمیج‌ها» با «فضای واقعی روی دیسک» را نشان بدهی.</p>
+    <p class="ex-goal" lang="en">Success criterion: the base layer ID is identical for both images, and you can
+      show the gap between “sum of image sizes” and “actual disk used”.</p>
+
+    <details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary>
+      <p lang="fa">دستور <code>docker image inspect</code> با قالب <code>{{.RootFS.Layers}}</code>
+        فهرست شناسهٔ لایه‌ها را می‌دهد. اولین عضو این فهرست، لایهٔ پایه است. برای بخش دوم،
+        عددهای <code>docker images</code> و <code>docker system df</code> را مقایسه کن.</p>
+      <p lang="en"><code>docker image inspect</code> with the format <code>{{.RootFS.Layers}}</code> lists layer
+        IDs; the first entry is the base layer. For the second part, compare the numbers from
+        <code>docker images</code> and <code>docker system df</code>.</p>
+    </details>
+
+    <details class="ex-sol"><summary><span lang="fa">پاسخ و توضیح</span><span lang="en">Solution</span></summary>
+      <div class="term">
+        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="k">docker</span> pull python:3.12-alpine
+<span class="k">docker</span> pull node:22-alpine
+
+<span class="c"># اولین لایهٔ هر ایمیج را جدا بگیر</span>
+<span class="k">docker</span> image inspect python:3.12-alpine <span class="f">--format</span> <span class="p">'{{index .RootFS.Layers 0}}'</span>
+<span class="s">sha256:4a2c4e35d0e5a2c8b6f9d1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b3d5f7a9c1e3</span>
+
+<span class="k">docker</span> image inspect node:22-alpine <span class="f">--format</span> <span class="p">'{{index .RootFS.Layers 0}}'</span>
+<span class="s">sha256:4a2c4e35d0e5a2c8b6f9d1a3c5e7b9d1f3a5c7e9b1d3f5a7c9e1b3d5f7a9c1e3</span>
+
+<span class="c">↑ دقیقاً یکی — هر دو روی همان آلپاین ساخته شده‌اند</span></pre>
+      </div>
+      <div class="term">
+        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="k">docker</span> images <span class="f">--filter</span> <span class="p">reference=python</span> <span class="f">--filter</span> <span class="p">reference=node</span>
+<span class="s">REPOSITORY   TAG           IMAGE ID       SIZE
+python       3.12-alpine   f4a1c9e02b73   58.1MB
+node         22-alpine     8b3d7f1c4e90   152MB</span>
+
+<span class="c"># مجموع سادهٔ ستون SIZE ≈ ۲۱۰ مگابایت — اما روی دیسک:</span>
+<span class="k">docker</span> system df
+<span class="s">TYPE      TOTAL   ACTIVE   SIZE      RECLAIMABLE
+Images    2       0        202MB     202MB (100%)</span></pre>
+      </div>
+      <p lang="fa">
+        <strong>چرا این‌طور:</strong> شناسهٔ لایه در داکر از روی <em>محتوای</em> لایه محاسبه می‌شود
+        (به این می‌گویند <code>content-addressable</code>). دو لایه با محتوای یکسان، ناگزیر شناسهٔ
+        یکسان دارند و داکر فقط یک نسخه از آن را نگه می‌دارد. ستون <code>SIZE</code> در
+        <code>docker images</code> حجم <em>کاملِ</em> هر ایمیج را نشان می‌دهد و لایه‌های مشترک را
+        در هر دو ردیف حساب می‌کند؛ اما <code>docker system df</code> فضای واقعی دیسک را می‌گوید.
+        اختلاف این دو عدد، همان صرفه‌جویی است.
+      </p>
+      <p lang="en">
+        <strong>Why this way:</strong> a layer's ID is derived from the layer's <em>content</em> (this is called
+        <code>content-addressable</code> storage). Two layers with identical content necessarily have the same ID,
+        and Docker keeps exactly one copy. The <code>SIZE</code> column in <code>docker images</code> reports each
+        image's <em>full</em> size and counts shared layers in both rows; <code>docker system df</code> reports the
+        real disk usage. The gap between the two numbers is the saving.
+      </p>
+      <p lang="fa">
+        روی سیستم تو عددها فرق می‌کنند و ممکن است اختلاف کوچک باشد — چون آلپاین به‌خودی‌خود کوچک است.
+        همین آزمایش را با دو ایمیج مبتنی بر <code>debian</code> تکرار کن تا اختلاف چشمگیر شود.
+      </p>
+      <p lang="en">
+        Your numbers will differ and the gap may be small — Alpine is tiny to begin with. Repeat the experiment
+        with two <code>debian</code>-based images to see a dramatic difference.
+      </p>
+    </details>
+  </div>
+
+  <!-- ───────── تمرین ۱٫۷ ───────── -->
+  <div class="ex" id="ex-1-7">
+    <div class="ex-h">
+      <span class="ex-n"><span lang="fa">تمرین ۱٫۷</span><span lang="en">Exercise 1.7</span></span>
+      <span class="ex-lvl lvl-3"><span lang="fa">پیشرفته</span><span lang="en">Advanced</span></span>
+      <span class="ex-time"><span lang="fa">۲۵ دقیقه</span><span lang="en">25 min</span></span>
+    </div>
+    <p lang="fa">
+      ثابت کن که کانتینر واقعاً فقط یک پروسه روی میزبان است. یک کانتینر بالا بیاور، شناسهٔ
+      پروسه‌اش <em>روی میزبان</em> را پیدا کن، و نشان بده همان پروسه <em>داخل</em> کانتینر
+      شمارهٔ ۱ است. سپس با یک سقف حافظه، <code>cgroups</code> را در عمل ببین.
+    </p>
+    <p lang="en">
+      Prove that a container really is just a process on the host. Start a container, find its process ID
+      <em>on the host</em>, and show that the same process is number 1 <em>inside</em> the container. Then
+      set a memory cap and watch <code>cgroups</code> act.
+    </p>
+    <p class="ex-goal" lang="fa">معیار موفقیت: دو عدد متفاوت برای یک پروسه به دست بیاوری، و کانتینر
+      دوم با کد خروج <code>137</code> کشته شود.</p>
+    <p class="ex-goal" lang="en">Success criterion: you obtain two different numbers for one process, and the
+      second container is killed with exit code <code>137</code>.</p>
+
+    <details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary>
+      <p lang="fa"><code>docker inspect</code> با قالب <code>{{.State.Pid}}</code> مستقیماً شناسهٔ
+        پروسه روی میزبان را می‌دهد. برای سقف حافظه از <code>--memory</code> استفاده کن و برنامه‌ای
+        اجرا کن که عمداً بیشتر از آن حافظه بگیرد. اگر روی ویندوز یا مکی، بخش اول را در ترمینال WSL
+        یا با <code>docker run --pid=host</code> امتحان کن.</p>
+      <p lang="en"><code>docker inspect</code> with <code>{{.State.Pid}}</code> gives the host-side PID directly.
+        For the memory cap use <code>--memory</code> and run something that deliberately allocates more than
+        that. On Windows or macOS, do the first part in a WSL terminal or via <code>docker run --pid=host</code>.</p>
+    </details>
+
+    <details class="ex-sol"><summary><span lang="fa">پاسخ و توضیح</span><span lang="en">Solution</span></summary>
+      <div class="term">
+        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash — host</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="k">docker</span> run <span class="f">-d</span> <span class="f">--name</span> probe alpine:3.20 sleep infinity
+
+<span class="c"># ۱) شناسهٔ پروسه از دید میزبان</span>
+<span class="k">docker</span> inspect probe <span class="f">--format</span> <span class="p">'{{.State.Pid}}'</span>
+<span class="s">291744</span>
+
+<span class="c"># ۲) همان پروسه در فهرست پروسه‌های میزبان</span>
+<span class="k">ps</span> <span class="f">-p</span> 291744 <span class="f">-o</span> <span class="p">pid,ppid,cmd</span>
+<span class="s">    PID    PPID CMD
+ 291744  291721 sleep infinity</span>
+
+<span class="c"># ۳) همان پروسه از دید داخل کانتینر</span>
+<span class="k">docker</span> exec probe ps <span class="f">-ef</span>
+<span class="s">PID   USER     TIME  COMMAND
+    1 root      0:00 sleep infinity
+   14 root      0:00 ps -ef</span>
+
+<span class="k">docker</span> rm <span class="f">-f</span> probe</pre>
+      </div>
+      <p lang="fa">
+        <strong>چه دیدیم:</strong> یک پروسهٔ <code>sleep infinity</code> وجود دارد، نه دوتا. میزبان
+        آن را <code>291744</code> می‌بیند و کانتینر <code>1</code>. این تنها یک تغییر <em>دید</em> است
+        که <code>PID namespace</code> ایجاد کرده. اگر روی میزبان <code>kill 291744</code> بزنی،
+        کانتینر می‌میرد — چون واقعاً همان پروسه است.
+      </p>
+      <p lang="en">
+        <strong>What we saw:</strong> there is one <code>sleep infinity</code> process, not two. The host calls
+        it <code>291744</code>, the container calls it <code>1</code>. That is purely a change of <em>view</em>
+        created by the <code>PID namespace</code>. Run <code>kill 291744</code> on the host and the container dies —
+        because it genuinely is the same process.
+      </p>
+      <div class="term">
+        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="c"># بخش دوم: سقف حافظه ۲۰ مگابایت، و تلاش برای گرفتن ۲۰۰ مگابایت</span>
+<span class="k">docker</span> run <span class="f">--name</span> hog <span class="f">--memory</span> <span class="p">20m</span> alpine:3.20 \
+  sh <span class="f">-c</span> <span class="p">'dd if=/dev/zero of=/dev/shm/fill bs=1M count=200'</span>
+
+<span class="c"># کد خروج را بخوان</span>
+<span class="k">docker</span> inspect hog <span class="f">--format</span> <span class="p">'{{.State.ExitCode}} {{.State.OOMKilled}}'</span>
+<span class="s">137 true</span>
+
+<span class="k">docker</span> rm hog</pre>
+      </div>
+      <p lang="fa">
+        <strong>کد ۱۳۷ یعنی چه:</strong> کد خروج ۱۳۷ برابر است با ۱۲۸ به‌علاوهٔ ۹، و ۹ شمارهٔ
+        سیگنال <code>SIGKILL</code> است. یعنی پروسه خودش تمام نشد؛ هسته آن را کشت. فیلد
+        <code>OOMKilled: true</code> علتش را تأیید می‌کند: از سقف حافظه‌ای که <code>cgroups</code>
+        برایش گذاشته بود عبور کرد.
+      </p>
+      <p lang="en">
+        <strong>What 137 means:</strong> exit code 137 is 128 plus 9, and 9 is the <code>SIGKILL</code> signal
+        number. The process did not finish on its own; the kernel killed it. The <code>OOMKilled: true</code>
+        field confirms why: it exceeded the memory ceiling that <code>cgroups</code> had set.
+      </p>
+      <p lang="fa">
+        این دقیقاً همان خطایی است که در محیط واقعی می‌بینی وقتی کانتینری بی‌دلیل «ناپدید» می‌شود.
+        فصل ۱۲ روش سیستماتیک تشخیصش را می‌دهد.
+      </p>
+      <p lang="en">
+        This is exactly the failure you meet in production when a container “vanishes” for no visible reason.
+        Chapter 12 gives the systematic way to diagnose it.
+      </p>
+    </details>
+  </div>
+
+  <!-- ───────── تمرین ۱٫۸ ───────── -->
+  <div class="ex" id="ex-1-8">
+    <div class="ex-h">
+      <span class="ex-n"><span lang="fa">تمرین ۱٫۸</span><span lang="en">Exercise 1.8</span></span>
+      <span class="ex-lvl lvl-3"><span lang="fa">پیشرفته</span><span lang="en">Advanced</span></span>
+      <span class="ex-time"><span lang="fa">۲۵ دقیقه</span><span lang="en">25 min</span></span>
+    </div>
+    <p lang="fa">
+      بدون ساختن هیچ ایمیجی، کاری کن که وب‌سرور Nginx به‌جای صفحهٔ پیش‌فرض، صفحهٔ HTML خودت
+      را نشان بدهد. بعد توضیح بده چرا این روش برای کار جدی نامناسب است و چه چیزی جایش را می‌گیرد.
+    </p>
+    <p lang="en">
+      Without building any image, make Nginx serve your own HTML page instead of the default one. Then explain
+      why this approach is unsuitable for real work and what replaces it.
+    </p>
+    <p class="ex-goal" lang="fa">معیار موفقیت: خروجی <code>curl http://localhost:8080</code> متن خودت
+      باشد، و بتوانی بگویی این تغییر کجا ذخیره شده است.</p>
+    <p class="ex-goal" lang="en">Success criterion: <code>curl http://localhost:8080</code> returns your own text,
+      and you can say where that change is stored.</p>
+
+    <details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary>
+      <p lang="fa">دستور <code>docker cp</code> فایل را بین میزبان و کانتینر جابه‌جا می‌کند و نحوش
+        شبیه <code>cp</code> معمولی است، با این تفاوت که یک طرف <code>نام‌کانتینر:/مسیر</code> است.
+        از تمرین ۶ می‌دانی Nginx فایل‌هایش را کجا نگه می‌دارد.</p>
+      <p lang="en"><code>docker cp</code> moves files between host and container with a syntax like ordinary
+        <code>cp</code>, except one side is <code>container:/path</code>. You know from earlier where Nginx
+        keeps its files.</p>
+    </details>
+
+    <details class="ex-sol"><summary><span lang="fa">پاسخ و توضیح</span><span lang="en">Solution</span></summary>
+      <div class="term">
+        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="c"># ۱) صفحهٔ خودت را بساز</span>
+<span class="k">cat</span> &gt; index.html <span class="p">&lt;&lt;'HTML'</span>
+<span class="s">&lt;!doctype html&gt;
+&lt;html lang="fa" dir="rtl"&gt;&lt;meta charset="utf-8"&gt;
+&lt;title&gt;اولین کانتینر من&lt;/title&gt;
+&lt;h1&gt;این صفحه از داخل یک کانتینر می‌آید&lt;/h1&gt;</span>
+<span class="p">HTML</span>
+
+<span class="c"># ۲) کانتینر را بالا بیاور</span>
+<span class="k">docker</span> run <span class="f">-d</span> <span class="f">--name</span> myweb <span class="f">-p</span> 8080:80 nginx:1.27-alpine
+
+<span class="c"># ۳) فایل را داخلش کپی کن</span>
+<span class="k">docker</span> cp index.html myweb:/usr/share/nginx/html/index.html
+
+<span class="c"># ۴) بررسی</span>
+<span class="k">curl</span> <span class="f">-s</span> http://localhost:8080 <span class="f">|</span> <span class="k">head</span> <span class="f">-n</span> 3
+<span class="s">&lt;!doctype html&gt;
+&lt;html lang="fa" dir="rtl"&gt;&lt;meta charset="utf-8"&gt;
+&lt;title&gt;اولین کانتینر من&lt;/title&gt;</span></pre>
+      </div>
+      <p lang="fa">
+        <strong>این تغییر کجا ذخیره شد:</strong> در لایهٔ نوشتنی کانتینر <code>myweb</code>. ایمیج
+        <code>nginx:1.27-alpine</code> ذره‌ای عوض نشده — می‌توانی با <code>docker diff</code> دقیقاً
+        ببینی چه چیزی نسبت به ایمیج تغییر کرده:
+      </p>
+      <p lang="en">
+        <strong>Where the change lives:</strong> in <code>myweb</code>'s writable layer. The image
+        <code>nginx:1.27-alpine</code> has not changed by a byte — <code>docker diff</code> shows exactly
+        what differs from the image:
+      </p>
+      <div class="term">
+        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="k">docker</span> diff myweb
+<span class="s">C /usr/share/nginx/html
+C /usr/share/nginx/html/index.html</span>
+
+<span class="c"># C یعنی Changed ، A یعنی Added ، D یعنی Deleted</span></pre>
+      </div>
+      <p lang="fa">
+        <strong>چرا این روش برای کار جدی بد است:</strong> سه دلیل، به ترتیب اهمیت.
+      </p>
+      <p lang="en">
+        <strong>Why this is bad for real work:</strong> three reasons, in order of importance.
+      </p>
+      <ol>
+        <li lang="fa"><strong>تکرارپذیر نیست.</strong> برای بالا آوردن همین سرویس روی سرور دیگر باید
+          یادت باشد که بعد از <code>run</code> یک <code>cp</code> هم بزنی. این دقیقاً همان «راهنمای
+          نصبی» است که در بخش اول گفتیم منسوخ می‌شود.</li>
+        <li lang="en"><strong>It is not reproducible.</strong> To bring the same service up elsewhere you must
+          remember to run a <code>cp</code> after <code>run</code>. That is exactly the “install README” that
+          section one said always rots.</li>
+        <li lang="fa"><strong>فناپذیر است.</strong> اگر کانتینر را <code>rm</code> کنی، صفحه‌ات می‌رود.
+          کانتینر باید دورانداختنی باشد؛ اگر چیز باارزشی فقط داخل آن باشد، دیگر نیست.</li>
+        <li lang="en"><strong>It is fragile.</strong> <code>rm</code> the container and your page is gone. A
+          container should be disposable; if something valuable exists only inside it, it no longer is.</li>
+        <li lang="fa"><strong>قابل بازبینی نیست.</strong> این تغییر در هیچ فایلی ثبت نشده، پس در Git
+          نیست و کسی نمی‌تواند رویش review بزند.</li>
+        <li lang="en"><strong>It is not reviewable.</strong> The change is recorded in no file, so it is not in
+          Git and nobody can review it.</li>
+      </ol>
+      <p lang="fa">
+        <strong>جایگزین درست:</strong> دو راه، بسته به اینکه محتوا بخشی از برنامه است یا داده.
+        اگر بخشی از برنامه است، یک <code>Dockerfile</code> بنویس که آن را داخل ایمیج
+        <code>COPY</code> کند — فصل ۴. اگر داده است و باید بعد از ساخت ایمیج هم قابل تغییر باشد،
+        از <code>bind mount</code> یا <code>volume</code> استفاده کن — فصل ۶.
+      </p>
+      <p lang="en">
+        <strong>The right replacement:</strong> two options, depending on whether the content is part of the
+        program or is data. If it is part of the program, write a <code>Dockerfile</code> that
+        <code>COPY</code>s it into the image — chapter 4. If it is data that must stay changeable after the
+        image is built, use a <code>bind mount</code> or a <code>volume</code> — chapter 6.
+      </p>
+      <div class="term">
+        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="k">docker</span> rm <span class="f">-f</span> myweb</pre>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- ══════════════════════════ ۱۲ ══════════════════════════ -->
+<section id="project">
+  <h2><span lang="fa">پروژهٔ پایان فصل</span><span lang="en">End-of-chapter project</span></h2>
+
+  <div class="capsule">
+    <span class="tagline">
+      <span lang="fa">پروژهٔ کوچک · حدود ۳۰ دقیقه</span><span lang="en">Mini project · about 30 minutes</span>
+    </span>
+    <h3 lang="fa">دفترچهٔ اولین کانتینر</h3>
+    <h3 lang="en">Your first container logbook</h3>
+
+    <p lang="fa">
+      هدف: یک وب‌سایت شخصی کوچک را با Nginx سرو کنی، رفتارش را زیر نظر بگیری، و در پایان
+      یک «دفترچه» بنویسی که هر کسی بتواند با آن دقیقاً همان کار را تکرار کند. فایل‌های آماده
+      در پوشهٔ <code>lab/ch01/</code> کنار همین مرجع هستند.
+    </p>
+    <p lang="en">
+      The goal: serve a small personal site with Nginx, observe how it behaves, and finish by writing a
+      “logbook” that lets anyone reproduce exactly what you did. Starter files live in
+      <code>lab/ch01/</code> next to this reference.
+    </p>
+
+    <h4 lang="fa">مراحل</h4>
+    <h4 lang="en">Steps</h4>
+    <ol class="ranked">
+      <li>
+        <b lang="fa">صفحه را آماده کن</b><b lang="en">Prepare the page</b>
+        <p lang="fa">فایل <code>lab/ch01/site/index.html</code> را باز کن و اسم خودت را در آن بگذار.
+          می‌توانی صفحهٔ خودت را هم از صفر بنویسی.</p>
+        <p lang="en">Open <code>lab/ch01/site/index.html</code> and put your own name in it. Writing your own
+          page from scratch is fine too.</p>
+      </li>
+      <li>
+        <b lang="fa">سرویس را بالا بیاور</b><b lang="en">Bring the service up</b>
+        <p lang="fa">با نام <code>ch01-site</code> و روی پورت ۸۰۸۰. صفحه را با <code>docker cp</code>
+          داخلش بگذار و در مرورگر ببین.</p>
+        <p lang="en">Named <code>ch01-site</code>, on port 8080. Put the page in with <code>docker cp</code> and
+          view it in a browser.</p>
+      </li>
+      <li>
+        <b lang="fa">رفتارش را ثبت کن</b><b lang="en">Record its behaviour</b>
+        <p lang="fa">سه بار صفحه را در مرورگر رفرش کن، بعد لاگ را بگیر. یک آدرس ناموجود مثل
+          <code>/nothing</code> را هم صدا بزن و ببین در لاگ چه کد وضعیتی ثبت می‌شود.</p>
+        <p lang="en">Refresh the page three times, then read the logs. Also request a missing path like
+          <code>/nothing</code> and see which status code appears in the log.</p>
+      </li>
+      <li>
+        <b lang="fa">مقاومتش را بسنج</b><b lang="en">Test its resilience</b>
+        <p lang="fa">کانتینر را <code>stop</code> و دوباره <code>start</code> کن. آیا صفحه‌ات هنوز
+          هست؟ بعد <code>rm</code> کن و از نو بساز. حالا چه؟ جواب هر دو را بنویس.</p>
+        <p lang="en"><code>stop</code> then <code>start</code> the container. Is your page still there? Then
+          <code>rm</code> it and rebuild. Now what? Write down both answers.</p>
+      </li>
+      <li>
+        <b lang="fa">دفترچه را بنویس</b><b lang="en">Write the logbook</b>
+        <p lang="fa">در <code>lab/ch01/logbook.md</code> این‌ها را ثبت کن: تمام دستورهایی که زدی،
+          خروجی هرکدام در یک خط، پاسخ سؤال مرحلهٔ ۴، و یک خط دربارهٔ اینکه اگر می‌خواستی این
+          سرویس همیشه بالا بماند چه چیزی کم داری.</p>
+        <p lang="en">In <code>lab/ch01/logbook.md</code> record: every command you ran, a one-line summary of each
+          output, your answers from step 4, and one line on what is missing if you wanted this service to stay
+          up permanently.</p>
+      </li>
+    </ol>
+
+    <details class="ex-sol" style="margin-top:16px">
+      <summary><span lang="fa">پاسخ مرجع — بعد از انجام دادن خودت باز کن</span>
+        <span lang="en">Reference answer — open after you have done it</span></summary>
+      <div class="term">
+        <div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash</span><button class="copy">کپی</button></div>
+<pre dir="ltr"><span class="c"># ۲) بالا آوردن و قرار دادن صفحه</span>
+<span class="k">docker</span> run <span class="f">-d</span> <span class="f">--name</span> ch01-site <span class="f">-p</span> 8080:80 nginx:1.27-alpine
+<span class="k">docker</span> cp site/index.html ch01-site:/usr/share/nginx/html/index.html
+
+<span class="c"># ۳) ثبت رفتار</span>
+<span class="k">curl</span> <span class="f">-s -o</span> /dev/null http://localhost:8080
+<span class="k">curl</span> <span class="f">-s -o</span> /dev/null http://localhost:8080/nothing
+<span class="k">docker</span> logs ch01-site
+<span class="s">172.17.0.1 - - [...] "GET / HTTP/1.1" 200 412 "-" "curl/8.5.0" "-"
+172.17.0.1 - - [...] "GET /nothing HTTP/1.1" 404 153 "-" "curl/8.5.0" "-"
+2026/09/08 10:02:31 [error] 30#30: *3 open() "/usr/share/nginx/html/nothing"
+  failed (2: No such file or directory), client: 172.17.0.1, request: "GET /nothing HTTP/1.1"</span>
+
+<span class="c"># ۴) آزمون مقاومت</span>
+<span class="k">docker</span> stop ch01-site
+<span class="k">docker</span> start ch01-site
+<span class="k">curl</span> <span class="f">-s</span> http://localhost:8080 <span class="f">|</span> <span class="k">head</span> <span class="f">-n</span> 1
+<span class="s">&lt;!doctype html&gt;        ← صفحه هست</span>
+
+<span class="k">docker</span> rm <span class="f">-f</span> ch01-site
+<span class="k">docker</span> run <span class="f">-d</span> <span class="f">--name</span> ch01-site <span class="f">-p</span> 8080:80 nginx:1.27-alpine
+<span class="k">curl</span> <span class="f">-s</span> http://localhost:8080 <span class="f">|</span> <span class="k">grep</span> <span class="f">-o</span> <span class="p">'&lt;title&gt;.*&lt;/title&gt;'</span>
+<span class="s">&lt;title&gt;Welcome to nginx!&lt;/title&gt;        ← صفحهٔ خودت رفت</span>
+
+<span class="k">docker</span> rm <span class="f">-f</span> ch01-site</pre>
+      </div>
+      <p lang="fa">
+        <strong>پاسخ مرحلهٔ ۴:</strong> بعد از <code>stop</code> و <code>start</code> صفحه سر جایش
+        است، چون لایهٔ نوشتنی همان کانتینر دست‌نخورده باقی مانده. بعد از <code>rm</code> و ساخت
+        دوباره، صفحهٔ پیش‌فرض Nginx برگشته، چون کانتینر جدید لایهٔ نوشتنی تازه‌ای دارد و
+        <code>docker cp</code> هرگز چیزی به ایمیج اضافه نکرده بود.
+      </p>
+      <p lang="en">
+        <strong>Answer to step 4:</strong> after <code>stop</code> and <code>start</code> the page is still there,
+        because that container's writable layer is untouched. After <code>rm</code> and a rebuild, Nginx's default
+        page is back, because the new container has a fresh writable layer and <code>docker cp</code> never added
+        anything to the image.
+      </p>
+      <p lang="fa">
+        <strong>چه چیزی کم داری:</strong> سه چیز. اول، راهی برای اینکه صفحه‌ات بخشی از خودِ ایمیج
+        شود تا با ساخت دوبارهٔ کانتینر از بین نرود (فصل ۴). دوم، سیاست ری‌استارت تا بعد از ریبوت
+        سرور خودش بالا بیاید (فصل ۱۰). سوم، اگر داده‌ای در کار باشد، یک <code>volume</code> (فصل ۶).
+      </p>
+      <p lang="en">
+        <strong>What is missing:</strong> three things. First, a way to make the page part of the image itself so
+        it survives rebuilding the container (chapter 4). Second, a restart policy so it comes back after a server
+        reboot (chapter 10). Third, if any data is involved, a <code>volume</code> (chapter 6).
+      </p>
+    </details>
+  </div>
+
+  <div class="note safe">
+    <div class="note-t">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4.5 4.5L19 7"/></svg>
+      <span lang="fa">در پایان این فصل باید بتوانی</span><span lang="en">By the end of this chapter you should be able to</span></div>
+    <ul>
+      <li lang="fa">به زبان خودت بگویی داکر چه مشکلی را حل می‌کند و چرا ماشین مجازی جواب کاملی نبود.</li>
+      <li lang="en">Say in your own words what problem Docker solves and why a VM was not a complete answer.</li>
+      <li lang="fa">تفاوت <code>image</code> و <code>container</code> را بدون مکث توضیح دهی.</li>
+      <li lang="en">Explain the difference between an <code>image</code> and a <code>container</code> without pausing.</li>
+      <li lang="fa">یک سرویس آماده را بالا بیاوری، لاگش را ببینی، واردش شوی و تمیز حذفش کنی.</li>
+      <li lang="en">Start a packaged service, read its logs, get inside it and remove it cleanly.</li>
+      <li lang="fa">بگویی وقتی کانتینر را حذف می‌کنی دقیقاً چه چیزی از بین می‌رود.</li>
+      <li lang="en">Say exactly what is destroyed when you delete a container.</li>
+      <li lang="fa">وقتی خطای «نام اشغال است» یا «پورت اشغال است» دیدی، بدون جستجو حلش کنی.</li>
+      <li lang="en">Fix “name already in use” or “port already allocated” without searching for it.</li>
+    </ul>
+  </div>
+</section>
+
+<div class="pager"><!-- app.js پرش می‌کند --></div>
+
+</main>
+</div>
+
+<div class="sdim" role="dialog" aria-modal="true" aria-label="جستجو">
+  <div class="sbox">
+    <input type="search" placeholder="جستجو در همهٔ دوره‌ها…" autocomplete="off" spellcheck="false">
+    <div class="sres"></div>
+    <div class="sfoot">
+      <span><kbd>↑</kbd> <kbd>↓</kbd> <span lang="fa">حرکت</span><span lang="en">navigate</span></span>
+      <span><kbd>Enter</kbd> <span lang="fa">باز کردن</span><span lang="en">open</span></span>
+      <span><kbd>Esc</kbd> <span lang="fa">بستن</span><span lang="en">close</span></span>
+    </div>
+  </div>
+</div>
+
+<footer class="foot">
+  <div class="foot-in">
+    <span><a href="../index.html"><span lang="fa">← فهرست فصل‌های داکر</span><span lang="en">← Docker chapter list</span></a></span>
+    <span><span lang="fa">ساختهٔ سیدعباس موسوی اصل</span><span lang="en">Built by Seyed Abbas Mousavi Asl</span> · <kbd>Ctrl</kbd>+<kbd>K</kbd></span>
+  </div>
+</footer>
+
+<script src="../../assets/courses.js"></script>
+<script src="../../assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,673 @@
+<!doctype html>
+<html lang="fa" dir="rtl" data-lang="fa">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>کدنامه — مرجع‌های مهندسی نرم‌افزار، به فارسی</title>
+<meta name="description" content="مرجع‌های آموزشی فارسی برای مهندسی نرم‌افزار: داکر، کوبرنتیز، معماری، میکروسرویس، ‎C#‎، پایتون، ری‌اکت، فلاتر و بیشتر.">
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="assets/theme.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Crect%20width%3D%2224%22%20height%3D%2224%22%20rx%3D%226%22%20fill%3D%22%234F6BF5%22%2F%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23fff%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20transform%3D%22translate(2.4%202.4)%20scale(.8)%22%3E%3Cpath%20d%3D%22M3.6%204.8A1.8%201.8%200%200%201%205.4%203H20v18H5.4a1.8%201.8%200%200%201-1.8-1.8z%22%2F%3E%3Cpath%20d%3D%22M7.6%2018.2H20%22%2F%3E%3Cpath%20d%3D%22m10.4%208.6-2.3%202.9%202.3%202.9M14.4%208.6l2.3%202.9-2.3%202.9%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E">
+</head>
+<body data-page="home">
+
+<div class="loader" aria-hidden="true">
+  <div class="loader-in">
+    <span class="loader-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+<path d="M3.6 4.8A1.8 1.8 0 0 1 5.4 3H20v18H5.4a1.8 1.8 0 0 1-1.8-1.8z"/>
+<path d="M7.6 18.2H20"/><path d="m10.4 8.6-2.3 2.9 2.3 2.9M14.4 8.6l2.3 2.9-2.3 2.9"/></svg></span>
+    <span class="loader-name">کدنامه<i>Codenameh</i></span>
+    <span class="loader-bar"><i></i></span>
+  </div>
+</div>
+<div class="readbar" aria-hidden="true"></div>
+
+<header class="topbar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+<path d="M3.6 4.8A1.8 1.8 0 0 1 5.4 3H20v18H5.4a1.8 1.8 0 0 1-1.8-1.8z"/>
+<path d="M7.6 18.2H20"/><path d="m10.4 8.6-2.3 2.9 2.3 2.9M14.4 8.6l2.3 2.9-2.3 2.9"/></svg></span>
+    <span class="brand-txt">کدنامه<i lang="fa">مرجع‌های مهندسی نرم‌افزار، به فارسی</i><i lang="en">Software engineering references, in Persian</i></span>
+  </a>
+
+  <div class="bar-tools">
+    <button class="ibtn js-search" type="button" aria-label="جستجو"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg><span lang="fa">جستجو</span><span lang="en">Search</span></button>
+    <div class="lang-sw" role="group" aria-label="زبان">
+      <button type="button" data-l="fa" aria-pressed="true">FA</button>
+      <button type="button" data-l="en" aria-pressed="false">EN</button>
+    </div>
+    <button class="ibtn js-theme" type="button" aria-label="تغییر تم"><svg class="ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+  </div>
+</header>
+
+<main>
+<section class="hero">
+  <div class="shell">
+    <span class="eyebrow"><span class="dot"></span>
+      <span lang="fa">متن‌باز · بدون سرور · بدون ردیابی</span><span lang="en">Open source · no server · no tracking</span>
+    </span>
+    <h1 lang="fa">از <em>هیچ‌چی نمی‌دانم</em> تا سروری که<br>خودت نگهش می‌داری</h1>
+    <h1 lang="en">From <em>knowing nothing</em> to running<br>the server yourself</h1>
+    <p lang="fa">این‌ها دورهٔ ویدیویی نیستند. مستند مرجع‌اند — مثل صفحه‌های راهنمای رسمی، اما فارسی، با مثال خودمانی، تمرین با پاسخ کامل، و سه پروژهٔ واقعی در پایان هر مسیر.</p>
+    <p lang="en">These are not video courses. They are reference documents — like official manuals, but in plain language, with worked examples, exercises that ship with full solutions, and three real projects at the end of every track.</p>
+    <div class="hero-stats">
+      <div><b data-stat-tracks>۰</b><span lang="fa">مسیر یادگیری</span><span lang="en">tracks</span></div>
+      <div><b data-stat-chapters>۰</b><span lang="fa">فصل در نقشهٔ راه</span><span lang="en">chapters mapped</span></div>
+      <div><b data-stat-ready>۰</b><span lang="fa">فصل آمادهٔ مطالعه</span><span lang="en">ready to read</span></div>
+      <div><b data-stat-ex>۰</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></div>
+    </div>
+  </div>
+</section>
+
+<div class="shell">
+  <div class="cat-block">
+    <div class="cat">
+      <h2 lang="fa">زیرساخت و عملیات</h2><h2 lang="en">Infrastructure & operations</h2>
+      <span class="n">۶</span>
+      <span class="line"></span>
+    </div>
+    <div class="grid-courses">
+      <div class="course" style="--lb:#2496ED22">
+        
+        <div class="course-top">
+          <span class="logo-box" style="color:#2496ED" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3" y="10.5" width="4" height="3.6" rx=".6"/><rect x="8" y="10.5" width="4" height="3.6" rx=".6"/><rect x="13" y="10.5" width="4" height="3.6" rx=".6"/><rect x="8" y="6.2" width="4" height="3.6" rx=".6"/><path d="M2 15.4c1.6 0 2.4-.5 2.4-.5h14.2c1.6 0 2.9-.6 3.4-1.6-1.2-.6-2.6-.3-2.6-.3s.3-1.6-1.4-2.4c-.9 1-.7 2.7-.7 2.7" stroke-linecap="round"/><path d="M2.6 15.4c.6 2.9 3 4.6 6.4 4.6 4.7 0 8.5-2 10.3-6.2" stroke-linecap="round"/></svg>
+          </span>
+          <div>
+            <span class="course-id">۰۱</span>
+            <h2><a href="01-docker/index.html"><span lang="fa">داکر</span><span lang="en">Docker</span></a></h2>
+            <span class="en-name" lang="fa">Docker</span>
+          </div>
+        </div>
+        <p class="desc" lang="fa">از «روی سیستم من کار می‌کرد» تا استقرار واقعی روی سرور: ایمیج، کانتینر، شبکه، دیتا، Compose و امنیت.</p>
+        <p class="desc" lang="en">From “it works on my machine” to a real deployment: images, containers, networking, data, Compose and hardening.</p>
+        <div class="course-meta">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg><span lang="fa"><span data-cstat="01-docker:chapters">۱۷</span> فصل</span><span lang="en"><span data-cstat="01-docker:chapters">17</span> ch.</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span lang="fa">≈ <span data-cstat="01-docker:hours">۱۷</span> ساعت</span><span lang="en">≈ <span data-cstat="01-docker:hours">17</span> h</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg><span lang="fa"><span data-cstat="01-docker:ex">۱۸۹</span> تمرین</span><span lang="en"><span data-cstat="01-docker:ex">189</span> ex.</span></span>
+        </div>
+        <div class="course-prog" data-prog-course="01-docker"><div class="pbar"><i></i></div><b>۰٪</b></div>
+        <div class="course-cta" data-resume="01-docker"></div>
+      </div>
+      <div class="course" style="--lb:#00963922">
+        <span class="badge-soon"><span lang="fa">در نوبت نوشتن</span><span lang="en">Planned</span></span>
+        <div class="course-top">
+          <span class="logo-box" style="color:#009639" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 2.4 20.5 7v10L12 21.6 3.5 17V7z"/><path d="M9 16V9l6 6.4V9" stroke-linecap="round"/></svg>
+          </span>
+          <div>
+            <span class="course-id">۰۲</span>
+            <h2><a href="02-nginx/index.html"><span lang="fa">انجین‌ایکس</span><span lang="en">Nginx</span></a></h2>
+            <span class="en-name" lang="fa">Nginx</span>
+          </div>
+        </div>
+        <p class="desc" lang="fa">از سرو کردن یک فایل استاتیک تا gateway کامل: منطق location، reverse proxy، TLS، کش و rate limiting.</p>
+        <p class="desc" lang="en">From serving one static file to a full gateway: location matching, reverse proxy, TLS, caching and rate limiting.</p>
+        <div class="course-meta">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg><span lang="fa"><span data-cstat="02-nginx:chapters">۱۶</span> فصل</span><span lang="en"><span data-cstat="02-nginx:chapters">16</span> ch.</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span lang="fa">≈ <span data-cstat="02-nginx:hours">۱۵</span> ساعت</span><span lang="en">≈ <span data-cstat="02-nginx:hours">15</span> h</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg><span lang="fa"><span data-cstat="02-nginx:ex">۱۷۷</span> تمرین</span><span lang="en"><span data-cstat="02-nginx:ex">177</span> ex.</span></span>
+        </div>
+        <div class="course-prog" data-prog-course="02-nginx"><div class="pbar"><i></i></div><b>۰٪</b></div>
+        <div class="course-cta" data-resume="02-nginx"></div>
+      </div>
+      <div class="course" style="--lb:#B4530922">
+        <span class="badge-soon"><span lang="fa">در نوبت نوشتن</span><span lang="en">Planned</span></span>
+        <div class="course-top">
+          <span class="logo-box" style="color:#B45309" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="16" rx="3"/><path d="m7 10 2.6 2.2L7 14.4M12.4 15h4.4" stroke-linecap="round"/></svg>
+          </span>
+          <div>
+            <span class="course-id">۰۳</span>
+            <h2><a href="03-linux-network/index.html"><span lang="fa">لینوکس برای شبکه</span><span lang="en">Linux for networking</span></a></h2>
+            <span class="en-name" lang="fa">Linux for networking</span>
+          </div>
+        </div>
+        <p class="desc" lang="fa">شل، مجوز، سرویس، فایروال، SSH و عیب‌یابی شبکه — همان چیزی که برای زنده نگه‌داشتن یک سرور لازم است.</p>
+        <p class="desc" lang="en">Shell, permissions, services, firewall, SSH and network debugging — what it takes to keep a server alive.</p>
+        <div class="course-meta">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg><span lang="fa"><span data-cstat="03-linux-network:chapters">۱۷</span> فصل</span><span lang="en"><span data-cstat="03-linux-network:chapters">17</span> ch.</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span lang="fa">≈ <span data-cstat="03-linux-network:hours">۱۷</span> ساعت</span><span lang="en">≈ <span data-cstat="03-linux-network:hours">17</span> h</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg><span lang="fa"><span data-cstat="03-linux-network:ex">۱۸۹</span> تمرین</span><span lang="en"><span data-cstat="03-linux-network:ex">189</span> ex.</span></span>
+        </div>
+        <div class="course-prog" data-prog-course="03-linux-network"><div class="pbar"><i></i></div><b>۰٪</b></div>
+        <div class="course-cta" data-resume="03-linux-network"></div>
+      </div>
+      <div class="course" style="--lb:#8B5CF622">
+        <span class="badge-soon"><span lang="fa">در نوبت نوشتن</span><span lang="en">Planned</span></span>
+        <div class="course-top">
+          <span class="logo-box" style="color:#8B5CF6" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M8.2 12c0 2.2-1.5 4-3.3 4S1.5 14.2 1.5 12s1.5-4 3.4-4c2.7 0 4.2 8 6.9 8 1.9 0 3.4-1.8 3.4-4s-1.5-4-3.4-4c-1.3 0-2.4.9-3 2.2" stroke-linecap="round"/><path d="M18 8h4.5M20.2 5.8V10" stroke-linecap="round" opacity=".85"/></svg>
+          </span>
+          <div>
+            <span class="course-id">۰۴</span>
+            <h2><a href="04-devops/index.html"><span lang="fa">دواپس و CI/CD</span><span lang="en">DevOps & CI/CD</span></a></h2>
+            <span class="en-name" lang="fa">DevOps & CI/CD</span>
+          </div>
+        </div>
+        <p class="desc" lang="fa">Git، CI/CD، Terraform، Ansible، Prometheus و انتشار بدون قطعی — و postmortem وقتی خراب شد.</p>
+        <p class="desc" lang="en">Git, CI/CD, Terraform, Ansible, Prometheus and zero-downtime releases — plus the postmortem when it breaks.</p>
+        <div class="course-meta">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg><span lang="fa"><span data-cstat="04-devops:chapters">۱۷</span> فصل</span><span lang="en"><span data-cstat="04-devops:chapters">17</span> ch.</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span lang="fa">≈ <span data-cstat="04-devops:hours">۱۸</span> ساعت</span><span lang="en">≈ <span data-cstat="04-devops:hours">18</span> h</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg><span lang="fa"><span data-cstat="04-devops:ex">۱۸۹</span> تمرین</span><span lang="en"><span data-cstat="04-devops:ex">189</span> ex.</span></span>
+        </div>
+        <div class="course-prog" data-prog-course="04-devops"><div class="pbar"><i></i></div><b>۰٪</b></div>
+        <div class="course-cta" data-resume="04-devops"></div>
+      </div>
+      <div class="course" style="--lb:#326CE522">
+        <span class="badge-soon"><span lang="fa">در نوبت نوشتن</span><span lang="en">Planned</span></span>
+        <div class="course-top">
+          <span class="logo-box" style="color:#326CE5" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 2.6 20 7v10l-8 4.4L4 17V7z"/><circle cx="12" cy="12" r="2.6"/><path d="M12 4.6v4.8M12 14.6v4.8M6.4 8.8l4 2.2M13.6 13l4 2.2M17.6 8.8l-4 2.2M10.4 13l-4 2.2" stroke-linecap="round"/></svg>
+          </span>
+          <div>
+            <span class="course-id">۰۶</span>
+            <h2><a href="06-kubernetes/index.html"><span lang="fa">کوبرنتیز</span><span lang="en">Kubernetes</span></a></h2>
+            <span class="en-name" lang="fa">Kubernetes</span>
+          </div>
+        </div>
+        <p class="desc" lang="fa">وقتی چند کانتینر روی چند سرور می‌شوند: Pod، Deployment، Service، Ingress، مقیاس‌پذیری و عیب‌یابی.</p>
+        <p class="desc" lang="en">When containers become many across many servers: Pods, Deployments, Services, Ingress, scaling and debugging.</p>
+        <div class="course-meta">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg><span lang="fa"><span data-cstat="06-kubernetes:chapters">۱۹</span> فصل</span><span lang="en"><span data-cstat="06-kubernetes:chapters">19</span> ch.</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span lang="fa">≈ <span data-cstat="06-kubernetes:hours">۲۰</span> ساعت</span><span lang="en">≈ <span data-cstat="06-kubernetes:hours">20</span> h</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg><span lang="fa"><span data-cstat="06-kubernetes:ex">۲۱۳</span> تمرین</span><span lang="en"><span data-cstat="06-kubernetes:ex">213</span> ex.</span></span>
+        </div>
+        <div class="course-prog" data-prog-course="06-kubernetes"><div class="pbar"><i></i></div><b>۰٪</b></div>
+        <div class="course-cta" data-resume="06-kubernetes"></div>
+      </div>
+      <div class="course" style="--lb:#0891B222">
+        <span class="badge-soon"><span lang="fa">در نوبت نوشتن</span><span lang="en">Planned</span></span>
+        <div class="course-top">
+          <span class="logo-box" style="color:#0891B2" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="2.6" y="8.5" width="7" height="7" rx="1.6"/><rect x="14.4" y="8.5" width="7" height="7" rx="1.6"/><path d="M9.6 12h4.8" stroke-linecap="round"/><path d="M12 9.6v4.8" stroke-linecap="round" opacity=".5"/></svg>
+          </span>
+          <div>
+            <span class="course-id">۲۱</span>
+            <h2><a href="21-proxy-vpn/index.html"><span lang="fa">پروکسی و VPN</span><span lang="en">Proxies & VPNs</span></a></h2>
+            <span class="en-name" lang="fa">Proxies & VPNs</span>
+          </div>
+        </div>
+        <p class="desc" lang="fa">مهندسی شبکه در عمل: forward و reverse proxy، SOCKS5، تونل، WireGuard و OpenVPN.</p>
+        <p class="desc" lang="en">Practical network engineering: forward and reverse proxies, SOCKS5, tunnels, WireGuard and OpenVPN.</p>
+        <div class="course-meta">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg><span lang="fa"><span data-cstat="21-proxy-vpn:chapters">۱۷</span> فصل</span><span lang="en"><span data-cstat="21-proxy-vpn:chapters">17</span> ch.</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span lang="fa">≈ <span data-cstat="21-proxy-vpn:hours">۱۹</span> ساعت</span><span lang="en">≈ <span data-cstat="21-proxy-vpn:hours">19</span> h</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg><span lang="fa"><span data-cstat="21-proxy-vpn:ex">۱۸۹</span> تمرین</span><span lang="en"><span data-cstat="21-proxy-vpn:ex">189</span> ex.</span></span>
+        </div>
+        <div class="course-prog" data-prog-course="21-proxy-vpn"><div class="pbar"><i></i></div><b>۰٪</b></div>
+        <div class="course-cta" data-resume="21-proxy-vpn"></div>
+      </div>
+    </div>
+  </div>
+  <div class="cat-block">
+    <div class="cat">
+      <h2 lang="fa">معماری و مهندسی</h2><h2 lang="en">Architecture & engineering</h2>
+      <span class="n">۲</span>
+      <span class="line"></span>
+    </div>
+    <div class="grid-courses">
+      <div class="course" style="--lb:#0EA5A522">
+        <span class="badge-soon"><span lang="fa">در نوبت نوشتن</span><span lang="en">Planned</span></span>
+        <div class="course-top">
+          <span class="logo-box" style="color:#0EA5A5" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M3 20h18M5 20V9l7-5 7 5v11"/><path d="M9.5 20v-5.5h5V20"/><path d="M9.5 11h5" stroke-linecap="round"/></svg>
+          </span>
+          <div>
+            <span class="course-id">۰۷</span>
+            <h2><a href="07-architecture/index.html"><span lang="fa">معماری نرم‌افزار و تحلیل سیستم</span><span lang="en">Software architecture & system analysis</span></a></h2>
+            <span class="en-name" lang="fa">Software architecture & system analysis</span>
+          </div>
+        </div>
+        <p class="desc" lang="fa">SOLID، الگوهای طراحی، معماری لایه‌ای، شش‌ضلعی و Clean، DDD مقدماتی و هرم تست — با مثال در چند زبان.</p>
+        <p class="desc" lang="en">SOLID, design patterns, layered/hexagonal/clean architecture, introductory DDD and the test pyramid — with examples in several languages.</p>
+        <div class="course-meta">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg><span lang="fa"><span data-cstat="07-architecture:chapters">۲۳</span> فصل</span><span lang="en"><span data-cstat="07-architecture:chapters">23</span> ch.</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span lang="fa">≈ <span data-cstat="07-architecture:hours">۲۶</span> ساعت</span><span lang="en">≈ <span data-cstat="07-architecture:hours">26</span> h</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg><span lang="fa"><span data-cstat="07-architecture:ex">۲۶۱</span> تمرین</span><span lang="en"><span data-cstat="07-architecture:ex">261</span> ex.</span></span>
+        </div>
+        <div class="course-prog" data-prog-course="07-architecture"><div class="pbar"><i></i></div><b>۰٪</b></div>
+        <div class="course-cta" data-resume="07-architecture"></div>
+      </div>
+      <div class="course" style="--lb:#E11D7422">
+        <span class="badge-soon"><span lang="fa">در نوبت نوشتن</span><span lang="en">Planned</span></span>
+        <div class="course-top">
+          <span class="logo-box" style="color:#E11D74" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><circle cx="12" cy="5" r="2.6"/><circle cx="5" cy="18" r="2.6"/><circle cx="19" cy="18" r="2.6"/><path d="M10.4 7.1 6.4 15.6M13.6 7.1l4 8.5M7.6 18h8.8" stroke-linecap="round"/></svg>
+          </span>
+          <div>
+            <span class="course-id">۰۸</span>
+            <h2><a href="08-microservices/index.html"><span lang="fa">میکروسرویس و میکروفرانت‌اند</span><span lang="en">Microservices & micro-frontends</span></a></h2>
+            <span class="en-name" lang="fa">Microservices & micro-frontends</span>
+          </div>
+        </div>
+        <p class="desc" lang="fa">مرزبندی سرویس، REST و gRPC، صف و رویداد، Saga، تاب‌آوری، مشاهده‌پذیری و میکروفرانت‌اند.</p>
+        <p class="desc" lang="en">Service boundaries, REST and gRPC, queues and events, Saga, resilience, observability and micro-frontends.</p>
+        <div class="course-meta">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg><span lang="fa"><span data-cstat="08-microservices:chapters">۲۱</span> فصل</span><span lang="en"><span data-cstat="08-microservices:chapters">21</span> ch.</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span lang="fa">≈ <span data-cstat="08-microservices:hours">۲۴</span> ساعت</span><span lang="en">≈ <span data-cstat="08-microservices:hours">24</span> h</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg><span lang="fa"><span data-cstat="08-microservices:ex">۲۳۷</span> تمرین</span><span lang="en"><span data-cstat="08-microservices:ex">237</span> ex.</span></span>
+        </div>
+        <div class="course-prog" data-prog-course="08-microservices"><div class="pbar"><i></i></div><b>۰٪</b></div>
+        <div class="course-cta" data-resume="08-microservices"></div>
+      </div>
+    </div>
+  </div>
+  <div class="cat-block">
+    <div class="cat">
+      <h2 lang="fa">بک‌اند</h2><h2 lang="en">Backend</h2>
+      <span class="n">۶</span>
+      <span class="line"></span>
+    </div>
+    <div class="grid-courses">
+      <div class="course" style="--lb:#68217A22">
+        <span class="badge-soon"><span lang="fa">در نوبت نوشتن</span><span lang="en">Planned</span></span>
+        <div class="course-top">
+          <span class="logo-box" style="color:#68217A" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M9.5 3.5 7.5 20.5M16.5 3.5l-2 17M4 8.6h16M3 15.4h16" stroke-linecap="round"/></svg>
+          </span>
+          <div>
+            <span class="course-id">۰۹</span>
+            <h2><a href="09-csharp/index.html"><span lang="fa">زبان ‎C#‎</span><span lang="en">C#</span></a></h2>
+            <span class="en-name" lang="fa">C#</span>
+          </div>
+        </div>
+        <p class="desc" lang="fa">از نوع‌ها و LINQ تا async/await، کارایی و تست — جامع، از مقدماتی تا پیشرفته.</p>
+        <p class="desc" lang="en">From types and LINQ to async/await, performance and testing — comprehensive, beginner to advanced.</p>
+        <div class="course-meta">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg><span lang="fa"><span data-cstat="09-csharp:chapters">۲۳</span> فصل</span><span lang="en"><span data-cstat="09-csharp:chapters">23</span> ch.</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span lang="fa">≈ <span data-cstat="09-csharp:hours">۲۴</span> ساعت</span><span lang="en">≈ <span data-cstat="09-csharp:hours">24</span> h</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg><span lang="fa"><span data-cstat="09-csharp:ex">۲۶۱</span> تمرین</span><span lang="en"><span data-cstat="09-csharp:ex">261</span> ex.</span></span>
+        </div>
+        <div class="course-prog" data-prog-course="09-csharp"><div class="pbar"><i></i></div><b>۰٪</b></div>
+        <div class="course-cta" data-resume="09-csharp"></div>
+      </div>
+      <div class="course" style="--lb:#512BD422">
+        <span class="badge-soon"><span lang="fa">در نوبت نوشتن</span><span lang="en">Planned</span></span>
+        <div class="course-top">
+          <span class="logo-box" style="color:#512BD4" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3.2 9.5h17.6M3.2 14.5h17.6"/><path d="M12 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18z"/></svg>
+          </span>
+          <div>
+            <span class="course-id">۱۰</span>
+            <h2><a href="10-aspnet-core/index.html"><span lang="fa">ASP.NET Core</span><span lang="en">ASP.NET Core</span></a></h2>
+            <span class="en-name" lang="fa">ASP.NET Core</span>
+          </div>
+        </div>
+        <p class="desc" lang="fa">از pipeline و DI تا EF Core، احراز هویت، SignalR، تست و استقرار روی لینوکس.</p>
+        <p class="desc" lang="en">From the pipeline and DI to EF Core, authentication, SignalR, testing and deploying on Linux.</p>
+        <div class="course-meta">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg><span lang="fa"><span data-cstat="10-aspnet-core:chapters">۲۳</span> فصل</span><span lang="en"><span data-cstat="10-aspnet-core:chapters">23</span> ch.</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span lang="fa">≈ <span data-cstat="10-aspnet-core:hours">۲۶</span> ساعت</span><span lang="en">≈ <span data-cstat="10-aspnet-core:hours">26</span> h</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg><span lang="fa"><span data-cstat="10-aspnet-core:ex">۲۶۱</span> تمرین</span><span lang="en"><span data-cstat="10-aspnet-core:ex">261</span> ex.</span></span>
+        </div>
+        <div class="course-prog" data-prog-course="10-aspnet-core"><div class="pbar"><i></i></div><b>۰٪</b></div>
+        <div class="course-cta" data-resume="10-aspnet-core"></div>
+      </div>
+      <div class="course" style="--lb:#00ADD822">
+        <span class="badge-soon"><span lang="fa">در نوبت نوشتن</span><span lang="en">Planned</span></span>
+        <div class="course-top">
+          <span class="logo-box" style="color:#00ADD8" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M7.5 10.5h4M6 13.5h4" stroke-linecap="round"/><circle cx="15.5" cy="12" r="2.8"/></svg>
+          </span>
+          <div>
+            <span class="course-id">۱۱</span>
+            <h2><a href="11-go/index.html"><span lang="fa">زبان Go</span><span lang="en">Go</span></a></h2>
+            <span class="en-name" lang="fa">Go</span>
+          </div>
+        </div>
+        <p class="desc" lang="fa">همروندی، interface، خطا به‌عنوان مقدار، و باینری تک‌فایلی که هرجا اجرا می‌شود.</p>
+        <p class="desc" lang="en">Concurrency, interfaces, errors as values, and a single binary that runs anywhere.</p>
+        <div class="course-meta">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg><span lang="fa"><span data-cstat="11-go:chapters">۱۹</span> فصل</span><span lang="en"><span data-cstat="11-go:chapters">19</span> ch.</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span lang="fa">≈ <span data-cstat="11-go:hours">۲۰</span> ساعت</span><span lang="en">≈ <span data-cstat="11-go:hours">20</span> h</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg><span lang="fa"><span data-cstat="11-go:ex">۲۱۳</span> تمرین</span><span lang="en"><span data-cstat="11-go:ex">213</span> ex.</span></span>
+        </div>
+        <div class="course-prog" data-prog-course="11-go"><div class="pbar"><i></i></div><b>۰٪</b></div>
+        <div class="course-cta" data-resume="11-go"></div>
+      </div>
+      <div class="course" style="--lb:#3776AB22">
+        <span class="badge-soon"><span lang="fa">در نوبت نوشتن</span><span lang="en">Planned</span></span>
+        <div class="course-top">
+          <span class="logo-box" style="color:#3776AB" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3c-3 0-4.5 1.2-4.5 3v2.5h4.6M12 3c3 0 4.5 1.2 4.5 3v4c0 1.8-1.5 3-4.5 3H9c-2.5 0-4.5 1.4-4.5 3.5V18c0 1.8 1.5 3 4.5 3"/><path d="M12 21c3 0 4.5-1.2 4.5-3v-2.5h-4.6" /><circle cx="9.6" cy="6.2" r=".6" fill="currentColor"/><circle cx="14.4" cy="17.8" r=".6" fill="currentColor"/></svg>
+          </span>
+          <div>
+            <span class="course-id">۱۲</span>
+            <h2><a href="12-python/index.html"><span lang="fa">پایتون</span><span lang="en">Python</span></a></h2>
+            <span class="en-name" lang="fa">Python</span>
+          </div>
+        </div>
+        <p class="desc" lang="fa">از محیط مجازی و ساختمان داده تا generator، decorator، type hint و تست.</p>
+        <p class="desc" lang="en">From virtual environments and data structures to generators, decorators, type hints and testing.</p>
+        <div class="course-meta">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg><span lang="fa"><span data-cstat="12-python:chapters">۱۹</span> فصل</span><span lang="en"><span data-cstat="12-python:chapters">19</span> ch.</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span lang="fa">≈ <span data-cstat="12-python:hours">۲۰</span> ساعت</span><span lang="en">≈ <span data-cstat="12-python:hours">20</span> h</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg><span lang="fa"><span data-cstat="12-python:ex">۲۱۳</span> تمرین</span><span lang="en"><span data-cstat="12-python:ex">213</span> ex.</span></span>
+        </div>
+        <div class="course-prog" data-prog-course="12-python"><div class="pbar"><i></i></div><b>۰٪</b></div>
+        <div class="course-cta" data-resume="12-python"></div>
+      </div>
+      <div class="course" style="--lb:#0C4B3322">
+        <span class="badge-soon"><span lang="fa">در نوبت نوشتن</span><span lang="en">Planned</span></span>
+        <div class="course-top">
+          <span class="logo-box" style="color:#0C4B33" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M13.5 3v14.5c0 2-1.6 3.2-4 3.2-3 0-5-2.4-5-6s2-6 5-6c.8 0 1.5.1 2 .4"/><path d="M17.8 8v9M17.8 3.6v1.6" stroke-linecap="round"/></svg>
+          </span>
+          <div>
+            <span class="course-id">۱۳</span>
+            <h2><a href="13-django/index.html"><span lang="fa">جنگو</span><span lang="en">Django</span></a></h2>
+            <span class="en-name" lang="fa">Django</span>
+          </div>
+        </div>
+        <p class="desc" lang="fa">ORM، admin، احراز هویت و REST Framework — از پروژهٔ خالی تا استقرار.</p>
+        <p class="desc" lang="en">The ORM, admin, authentication and REST Framework — from an empty project to deployment.</p>
+        <div class="course-meta">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg><span lang="fa"><span data-cstat="13-django:chapters">۱۹</span> فصل</span><span lang="en"><span data-cstat="13-django:chapters">19</span> ch.</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span lang="fa">≈ <span data-cstat="13-django:hours">۲۱</span> ساعت</span><span lang="en">≈ <span data-cstat="13-django:hours">21</span> h</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg><span lang="fa"><span data-cstat="13-django:ex">۲۱۳</span> تمرین</span><span lang="en"><span data-cstat="13-django:ex">213</span> ex.</span></span>
+        </div>
+        <div class="course-prog" data-prog-course="13-django"><div class="pbar"><i></i></div><b>۰٪</b></div>
+        <div class="course-cta" data-resume="13-django"></div>
+      </div>
+      <div class="course" style="--lb:#5C5C5C22">
+        <span class="badge-soon"><span lang="fa">در نوبت نوشتن</span><span lang="en">Planned</span></span>
+        <div class="course-top">
+          <span class="logo-box" style="color:#5C5C5C" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M10 3h4M12 3v5.5L7 18.5c-.8 1.5.2 2.5 1.6 2.5h6.8c1.4 0 2.4-1 1.6-2.5L12 8.5"/><path d="M8.6 14h6.8" stroke-linecap="round"/></svg>
+          </span>
+          <div>
+            <span class="course-id">۱۴</span>
+            <h2><a href="14-flask/index.html"><span lang="fa">فلسک</span><span lang="en">Flask</span></a></h2>
+            <span class="en-name" lang="fa">Flask</span>
+          </div>
+        </div>
+        <p class="desc" lang="fa">میکروفریم‌ورک: blueprint، SQLAlchemy، JWT و ساختاری که با پروژه بزرگ شود.</p>
+        <p class="desc" lang="en">The micro-framework: blueprints, SQLAlchemy, JWT and a structure that grows with the project.</p>
+        <div class="course-meta">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg><span lang="fa"><span data-cstat="14-flask:chapters">۱۷</span> فصل</span><span lang="en"><span data-cstat="14-flask:chapters">17</span> ch.</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span lang="fa">≈ <span data-cstat="14-flask:hours">۱۸</span> ساعت</span><span lang="en">≈ <span data-cstat="14-flask:hours">18</span> h</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg><span lang="fa"><span data-cstat="14-flask:ex">۱۸۹</span> تمرین</span><span lang="en"><span data-cstat="14-flask:ex">189</span> ex.</span></span>
+        </div>
+        <div class="course-prog" data-prog-course="14-flask"><div class="pbar"><i></i></div><b>۰٪</b></div>
+        <div class="course-cta" data-resume="14-flask"></div>
+      </div>
+    </div>
+  </div>
+  <div class="cat-block">
+    <div class="cat">
+      <h2 lang="fa">فرانت‌اند و موبایل</h2><h2 lang="en">Frontend & mobile</h2>
+      <span class="n">۴</span>
+      <span class="line"></span>
+    </div>
+    <div class="grid-courses">
+      <div class="course" style="--lb:#61DAFB22">
+        <span class="badge-soon"><span lang="fa">در نوبت نوشتن</span><span lang="en">Planned</span></span>
+        <div class="course-top">
+          <span class="logo-box" style="color:#61DAFB" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><circle cx="12" cy="12" r="2.1"/><ellipse cx="12" cy="12" rx="9.5" ry="3.8"/><ellipse cx="12" cy="12" rx="9.5" ry="3.8" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="9.5" ry="3.8" transform="rotate(120 12 12)"/></svg>
+          </span>
+          <div>
+            <span class="course-id">۱۵</span>
+            <h2><a href="15-react/index.html"><span lang="fa">ری‌اکت</span><span lang="en">React</span></a></h2>
+            <span class="en-name" lang="fa">React</span>
+          </div>
+        </div>
+        <p class="desc" lang="fa">UI به‌عنوان تابعی از state: هوک‌ها، رندر مجدد، مدیریت state، دریافت داده و کارایی.</p>
+        <p class="desc" lang="en">UI as a function of state: hooks, re-renders, state management, data fetching and performance.</p>
+        <div class="course-meta">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg><span lang="fa"><span data-cstat="15-react:chapters">۲۱</span> فصل</span><span lang="en"><span data-cstat="15-react:chapters">21</span> ch.</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span lang="fa">≈ <span data-cstat="15-react:hours">۲۳</span> ساعت</span><span lang="en">≈ <span data-cstat="15-react:hours">23</span> h</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg><span lang="fa"><span data-cstat="15-react:ex">۲۳۷</span> تمرین</span><span lang="en"><span data-cstat="15-react:ex">237</span> ex.</span></span>
+        </div>
+        <div class="course-prog" data-prog-course="15-react"><div class="pbar"><i></i></div><b>۰٪</b></div>
+        <div class="course-cta" data-resume="15-react"></div>
+      </div>
+      <div class="course" style="--lb:#11182722">
+        <span class="badge-soon"><span lang="fa">در نوبت نوشتن</span><span lang="en">Planned</span></span>
+        <div class="course-top">
+          <span class="logo-box" style="color:#111827" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 16V9l7.5 9.6M15.2 9v6" stroke-linecap="round"/></svg>
+          </span>
+          <div>
+            <span class="course-id">۱۶</span>
+            <h2><a href="16-nextjs/index.html"><span lang="fa">Next.js</span><span lang="en">Next.js</span></a></h2>
+            <span class="en-name" lang="fa">Next.js</span>
+          </div>
+        </div>
+        <p class="desc" lang="fa">App Router، Server Component، رندر سمت سرور، Server Action و استقرار خودمیزبان.</p>
+        <p class="desc" lang="en">App Router, Server Components, server rendering, Server Actions and self-hosted deployment.</p>
+        <div class="course-meta">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg><span lang="fa"><span data-cstat="16-nextjs:chapters">۱۹</span> فصل</span><span lang="en"><span data-cstat="16-nextjs:chapters">19</span> ch.</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span lang="fa">≈ <span data-cstat="16-nextjs:hours">۲۲</span> ساعت</span><span lang="en">≈ <span data-cstat="16-nextjs:hours">22</span> h</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg><span lang="fa"><span data-cstat="16-nextjs:ex">۲۱۳</span> تمرین</span><span lang="en"><span data-cstat="16-nextjs:ex">213</span> ex.</span></span>
+        </div>
+        <div class="course-prog" data-prog-course="16-nextjs"><div class="pbar"><i></i></div><b>۰٪</b></div>
+        <div class="course-cta" data-resume="16-nextjs"></div>
+      </div>
+      <div class="course" style="--lb:#DD003122">
+        <span class="badge-soon"><span lang="fa">در نوبت نوشتن</span><span lang="en">Planned</span></span>
+        <div class="course-top">
+          <span class="logo-box" style="color:#DD0031" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 2.6 21 5.8l-1.4 12L12 21.4 4.4 17.8 3 5.8z"/><path d="m8.8 15 3.2-7.6L15.2 15M9.9 12.6h4.2" stroke-linecap="round"/></svg>
+          </span>
+          <div>
+            <span class="course-id">۱۷</span>
+            <h2><a href="17-angular/index.html"><span lang="fa">انگولار</span><span lang="en">Angular</span></a></h2>
+            <span class="en-name" lang="fa">Angular</span>
+          </div>
+        </div>
+        <p class="desc" lang="fa">کامپوننت، DI، RxJS، signal، فرم reactive و مدیریت state — فریم‌ورک کامل، با ساختار.</p>
+        <p class="desc" lang="en">Components, DI, RxJS, signals, reactive forms and state management — a complete, structured framework.</p>
+        <div class="course-meta">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg><span lang="fa"><span data-cstat="17-angular:chapters">۲۱</span> فصل</span><span lang="en"><span data-cstat="17-angular:chapters">21</span> ch.</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span lang="fa">≈ <span data-cstat="17-angular:hours">۲۳</span> ساعت</span><span lang="en">≈ <span data-cstat="17-angular:hours">23</span> h</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg><span lang="fa"><span data-cstat="17-angular:ex">۲۳۷</span> تمرین</span><span lang="en"><span data-cstat="17-angular:ex">237</span> ex.</span></span>
+        </div>
+        <div class="course-prog" data-prog-course="17-angular"><div class="pbar"><i></i></div><b>۰٪</b></div>
+        <div class="course-cta" data-resume="17-angular"></div>
+      </div>
+      <div class="course" style="--lb:#02569B22">
+        <span class="badge-soon"><span lang="fa">در نوبت نوشتن</span><span lang="en">Planned</span></span>
+        <div class="course-top">
+          <span class="logo-box" style="color:#02569B" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M14.6 2.6 5 12.2l3 3 12.6-12.6z"/><path d="m14.6 11.4-4.5 4.5 4.5 4.5h5.5l-4.5-4.5 4.5-4.5z"/></svg>
+          </span>
+          <div>
+            <span class="course-id">۱۸</span>
+            <h2><a href="18-flutter/index.html"><span lang="fa">فلاتر</span><span lang="en">Flutter</span></a></h2>
+            <span class="en-name" lang="fa">Flutter</span>
+          </div>
+        </div>
+        <p class="desc" lang="fa">از Dart تا انتشار: widget، چیدمان، مدیریت state، شبکه و اپ راست‌به‌چپ فارسی.</p>
+        <p class="desc" lang="en">From Dart to release: widgets, layout, state management, networking and right-to-left Persian apps.</p>
+        <div class="course-meta">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg><span lang="fa"><span data-cstat="18-flutter:chapters">۲۱</span> فصل</span><span lang="en"><span data-cstat="18-flutter:chapters">21</span> ch.</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span lang="fa">≈ <span data-cstat="18-flutter:hours">۲۴</span> ساعت</span><span lang="en">≈ <span data-cstat="18-flutter:hours">24</span> h</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg><span lang="fa"><span data-cstat="18-flutter:ex">۲۳۷</span> تمرین</span><span lang="en"><span data-cstat="18-flutter:ex">237</span> ex.</span></span>
+        </div>
+        <div class="course-prog" data-prog-course="18-flutter"><div class="pbar"><i></i></div><b>۰٪</b></div>
+        <div class="course-cta" data-resume="18-flutter"></div>
+      </div>
+    </div>
+  </div>
+  <div class="cat-block">
+    <div class="cat">
+      <h2 lang="fa">داده و بی‌درنگ</h2><h2 lang="en">Data & real-time</h2>
+      <span class="n">۳</span>
+      <span class="line"></span>
+    </div>
+    <div class="grid-courses">
+      <div class="course" style="--lb:#DC262622">
+        <span class="badge-soon"><span lang="fa">در نوبت نوشتن</span><span lang="en">Planned</span></span>
+        <div class="course-top">
+          <span class="logo-box" style="color:#DC2626" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7.5" ry="3.2"/><path d="M4.5 6v6c0 1.8 3.4 3.2 7.5 3.2s7.5-1.4 7.5-3.2V6"/><path d="M4.5 12v6c0 1.8 3.4 3.2 7.5 3.2s7.5-1.4 7.5-3.2v-6"/></svg>
+          </span>
+          <div>
+            <span class="course-id">۰۵</span>
+            <h2><a href="05-sql/index.html"><span lang="fa">SQL و SQL Server</span><span lang="en">SQL & SQL Server</span></a></h2>
+            <span class="en-name" lang="fa">SQL & SQL Server</span>
+          </div>
+        </div>
+        <p class="desc" lang="fa">از SELECT تا خواندن execution plan و درمان کوئری کند — با تمرین روی دادهٔ واقعی.</p>
+        <p class="desc" lang="en">From SELECT to reading an execution plan and fixing a slow query — practised on real data.</p>
+        <div class="course-meta">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg><span lang="fa"><span data-cstat="05-sql:chapters">۲۰</span> فصل</span><span lang="en"><span data-cstat="05-sql:chapters">20</span> ch.</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span lang="fa">≈ <span data-cstat="05-sql:hours">۲۱</span> ساعت</span><span lang="en">≈ <span data-cstat="05-sql:hours">21</span> h</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg><span lang="fa"><span data-cstat="05-sql:ex">۲۲۵</span> تمرین</span><span lang="en"><span data-cstat="05-sql:ex">225</span> ex.</span></span>
+        </div>
+        <div class="course-prog" data-prog-course="05-sql"><div class="pbar"><i></i></div><b>۰٪</b></div>
+        <div class="course-cta" data-resume="05-sql"></div>
+      </div>
+      <div class="course" style="--lb:#00A9E522">
+        <span class="badge-soon"><span lang="fa">در نوبت نوشتن</span><span lang="en">Planned</span></span>
+        <div class="course-top">
+          <span class="logo-box" style="color:#00A9E5" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.4"/><path d="m15.2 15.2 5 5" stroke-linecap="round"/><path d="M7.6 9.4h5.8M7.6 12h4" stroke-linecap="round"/></svg>
+          </span>
+          <div>
+            <span class="course-id">۱۹</span>
+            <h2><a href="19-elasticsearch/index.html"><span lang="fa">الاستیک‌سرچ</span><span lang="en">Elasticsearch</span></a></h2>
+            <span class="en-name" lang="fa">Elasticsearch</span>
+          </div>
+        </div>
+        <p class="desc" lang="fa">جستجوی متنی واقعی: mapping، analyzer فارسی، query DSL، امتیازدهی و aggregation.</p>
+        <p class="desc" lang="en">Real text search: mappings, Persian analyzers, the query DSL, relevance scoring and aggregations.</p>
+        <div class="course-meta">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg><span lang="fa"><span data-cstat="19-elasticsearch:chapters">۱۷</span> فصل</span><span lang="en"><span data-cstat="19-elasticsearch:chapters">17</span> ch.</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span lang="fa">≈ <span data-cstat="19-elasticsearch:hours">۱۹</span> ساعت</span><span lang="en">≈ <span data-cstat="19-elasticsearch:hours">19</span> h</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg><span lang="fa"><span data-cstat="19-elasticsearch:ex">۱۸۹</span> تمرین</span><span lang="en"><span data-cstat="19-elasticsearch:ex">189</span> ex.</span></span>
+        </div>
+        <div class="course-prog" data-prog-course="19-elasticsearch"><div class="pbar"><i></i></div><b>۰٪</b></div>
+        <div class="course-cta" data-resume="19-elasticsearch"></div>
+      </div>
+      <div class="course" style="--lb:#F59E0B22">
+        <span class="badge-soon"><span lang="fa">در نوبت نوشتن</span><span lang="en">Planned</span></span>
+        <div class="course-top">
+          <span class="logo-box" style="color:#F59E0B" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 8-8M20 12a8 8 0 0 1-8 8" stroke-linecap="round"/><circle cx="12" cy="12" r="2.4"/><path d="M7.6 12a4.4 4.4 0 0 1 4.4-4.4M16.4 12a4.4 4.4 0 0 1-4.4 4.4" stroke-linecap="round"/></svg>
+          </span>
+          <div>
+            <span class="course-id">۲۰</span>
+            <h2><a href="20-realtime/index.html"><span lang="fa">WebSocket و ارتباط بی‌درنگ</span><span lang="en">WebSockets & real-time</span></a></h2>
+            <span class="en-name" lang="fa">WebSockets & real-time</span>
+          </div>
+        </div>
+        <p class="desc" lang="fa">از polling تا WebSocket و SSE — سمت سرور و سمت مرورگر، تا مقیاس افقی.</p>
+        <p class="desc" lang="en">From polling to WebSockets and SSE — server side and browser side, all the way to horizontal scale.</p>
+        <div class="course-meta">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg><span lang="fa"><span data-cstat="20-realtime:chapters">۱۷</span> فصل</span><span lang="en"><span data-cstat="20-realtime:chapters">17</span> ch.</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span lang="fa">≈ <span data-cstat="20-realtime:hours">۱۹</span> ساعت</span><span lang="en">≈ <span data-cstat="20-realtime:hours">19</span> h</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg><span lang="fa"><span data-cstat="20-realtime:ex">۱۸۹</span> تمرین</span><span lang="en"><span data-cstat="20-realtime:ex">189</span> ex.</span></span>
+        </div>
+        <div class="course-prog" data-prog-course="20-realtime"><div class="pbar"><i></i></div><b>۰٪</b></div>
+        <div class="course-cta" data-resume="20-realtime"></div>
+      </div>
+    </div>
+  </div>
+  <div class="cat-block">
+    <div class="cat">
+      <h2 lang="fa">مهارت و مسیر شغلی</h2><h2 lang="en">Skills & career</h2>
+      <span class="n">۱</span>
+      <span class="line"></span>
+    </div>
+    <div class="grid-courses">
+      <div class="course" style="--lb:#7C3AED22">
+        <span class="badge-soon"><span lang="fa">در نوبت نوشتن</span><span lang="en">Planned</span></span>
+        <div class="course-top">
+          <span class="logo-box" style="color:#7C3AED" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><circle cx="12" cy="7.5" r="3.4"/><path d="M4.5 20.5c0-3.6 3.4-6.2 7.5-6.2s7.5 2.6 7.5 6.2" stroke-linecap="round"/><path d="M18.5 4.5 20 6l3-3" stroke-linecap="round"/></svg>
+          </span>
+          <div>
+            <span class="course-id">۲۲</span>
+            <h2><a href="22-skills/index.html"><span lang="fa">مهارت‌های مهندس نرم‌افزار</span><span lang="en">Software engineering skills</span></a></h2>
+            <span class="en-name" lang="fa">Software engineering skills</span>
+          </div>
+        </div>
+        <p class="desc" lang="fa">خواندن کد دیگران، code review، تخمین، مستندنویسی، ارتباط، مصاحبه و رشد شغلی.</p>
+        <p class="desc" lang="en">Reading other people's code, code review, estimation, technical writing, communication, interviews and career growth.</p>
+        <div class="course-meta">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg><span lang="fa"><span data-cstat="22-skills:chapters">۱۷</span> فصل</span><span lang="en"><span data-cstat="22-skills:chapters">17</span> ch.</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span lang="fa">≈ <span data-cstat="22-skills:hours">۱۸</span> ساعت</span><span lang="en">≈ <span data-cstat="22-skills:hours">18</span> h</span></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg><span lang="fa"><span data-cstat="22-skills:ex">۱۸۹</span> تمرین</span><span lang="en"><span data-cstat="22-skills:ex">189</span> ex.</span></span>
+        </div>
+        <div class="course-prog" data-prog-course="22-skills"><div class="pbar"><i></i></div><b>۰٪</b></div>
+        <div class="course-cta" data-resume="22-skills"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dev">
+    <span class="dev-av">ab2</span>
+    <div class="dev-b">
+      <span class="role"><span lang="fa">توسعه‌دهنده</span><span lang="en">Developer</span></span>
+      <h3 lang="fa">سیدعباس موسوی اصل</h3>
+      <h3 lang="en">Seyed Abbas Mousavi Asl</h3>
+      <p lang="fa">این مجموعه را نوشتم چون خودم وقتی شروع کردم، چنین چیزی به فارسی نبود. متن‌باز است — اگر فصلی نوشتی یا غلطی دیدی، خوشحال می‌شوم مشارکت کنی.</p>
+      <p lang="en">I wrote this because when I started, nothing like it existed in Persian. It is open source — if you write a chapter or spot a mistake, contributions are welcome.</p>
+      <div class="dev-links">
+        <a href="mailto:abbas.mossavi1378@gmail.com"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="m3 7 9 6 9-6"/></svg><code>abbas.mossavi1378@gmail.com</code></a>
+        <a href="contributing.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 8-4 4 4 4M15 8l4 4-4 4"/></svg><span lang="fa">چطور مشارکت کنم</span><span lang="en">How to contribute</span></a>
+      </div>
+    </div>
+  </div>
+
+  <div class="donate">
+    <div class="donate-h"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 20.3 4.6 13a4.6 4.6 0 0 1 6.5-6.5l.9.9.9-.9A4.6 4.6 0 1 1 19.4 13z"/></svg>
+      <h3 lang="fa">حمایت از این پروژه</h3>
+      <h3 lang="en">Supporting this project</h3>
+    </div>
+    <p lang="fa">
+      کدنامه رایگان است و رایگان می‌ماند — نه تبلیغ دارد، نه اشتراک، نه ردیاب.
+      اگر به کارت آمد و خواستی حمایت کنی، فعلاً فقط کارت‌به‌کارت ممکن است؛
+      هنوز درگاه پرداخت ندارم. هیچ اجباری نیست و هیچ بخشی از محتوا پشت پرداخت نمی‌رود.
+    </p>
+    <p lang="en">
+      Codenameh is free and will stay free — no ads, no subscription, no tracking.
+      If it helped and you would like to support it, a direct card transfer is the only
+      option for now; there is no payment gateway yet. Nothing is required, and no content
+      is ever put behind a paywall.
+    </p>
+    <div class="card-row">
+      <span class="card-num">
+        <b>6219 8618 4472 9987</b>
+        <span class="card-bank">
+          <span lang="fa">بانک سامان</span><span lang="en">Saman Bank</span>
+          <span lang="fa">سیدعباس موسوی اصل</span><span lang="en">Seyed Abbas Mousavi Asl</span>
+        </span>
+      </span>
+      <button class="btn-copy-card" type="button" data-copy="6219861844729987">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="8.5" y="8.5" width="12" height="12" rx="2.4"/><path d="M15.5 8.5v-3a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/></svg>
+        <span class="cp-lbl"><span lang="fa">کپی شمارهٔ کارت</span><span lang="en">Copy card number</span></span>
+      </button>
+    </div>
+  </div>
+</div>
+</main>
+
+<div class="sdim" role="dialog" aria-modal="true" aria-label="جستجو">
+  <div class="sbox">
+    <input type="search" placeholder="جستجو در همهٔ دوره‌ها…" autocomplete="off" spellcheck="false">
+    <div class="sres"></div>
+    <div class="sfoot">
+      <span><kbd>↑</kbd> <kbd>↓</kbd> <span lang="fa">حرکت</span><span lang="en">navigate</span></span>
+      <span><kbd>Enter</kbd> <span lang="fa">باز کردن</span><span lang="en">open</span></span>
+      <span><kbd>Esc</kbd> <span lang="fa">بستن</span><span lang="en">close</span></span>
+    </div>
+  </div>
+</div>
+
+<footer class="foot">
+  <div class="foot-in">
+    <span><a href="index.html"><span lang="fa">کدنامه</span><span lang="en">Codenameh</span></a>
+      · <a href="contributing.html"><span lang="fa">راهنمای مشارکت</span><span lang="en">Contributing</span></a></span>
+    <span><span lang="fa">ساختهٔ سیدعباس موسوی اصل</span><span lang="en">Built by Seyed Abbas Mousavi Asl</span> · <kbd>Ctrl</kbd>+<kbd>K</kbd></span>
+  </div>
+</footer>
+
+<script src="assets/courses.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
