@@ -48,7 +48,7 @@ C.push({
 
 /* ═══════════════ ۰۲ — Nginx ═══════════════ */
 C.push({
-  id:"02-nginx", dir:"02-nginx", accent:"#009639", cat:"infra",
+  id:"02-nginx", dir:"02-nginx", accent:"#009639", cat:"infra", soft:["03-linux-network"],
   ico:'<path d="M12 2.4 20.5 7v10L12 21.6 3.5 17V7z"/><path d="M9 16V9l6 6.4V9" stroke-linecap="round"/>',
   fa:{name:"انجین‌ایکس", desc:"از سرو کردن یک فایل استاتیک تا gateway کامل: منطق location، reverse proxy، TLS، کش و rate limiting.",
       intro:"Nginx ساده به نظر می‌رسد تا وقتی اولین location را بنویسی و کار نکند. این مسیر منطق واقعی پیکربندی را باز می‌کند: چه چیزی به چه چیزی می‌رسد، با چه اولویتی، و آن ۵۰۲ از کجا می‌آید."},
@@ -103,7 +103,7 @@ C.push({
 
 /* ═══════════════ ۰۴ — دواپس ═══════════════ */
 C.push({
-  id:"04-devops", dir:"04-devops", accent:"#8B5CF6", cat:"infra",
+  id:"04-devops", dir:"04-devops", accent:"#8B5CF6", cat:"infra", pre:["28-git"], soft:["01-docker","03-linux-network"],
   ico:'<path d="M8.2 12c0 2.2-1.5 4-3.3 4S1.5 14.2 1.5 12s1.5-4 3.4-4c2.7 0 4.2 8 6.9 8 1.9 0 3.4-1.8 3.4-4s-1.5-4-3.4-4c-1.3 0-2.4.9-3 2.2" stroke-linecap="round"/><path d="M18 8h4.5M20.2 5.8V10" stroke-linecap="round" opacity=".85"/>',
   fa:{name:"دواپس و CI/CD", desc:"Git، CI/CD، Terraform، Ansible، Prometheus و انتشار بدون قطعی — و postmortem وقتی خراب شد.",
       intro:"این مسیر دربارهٔ ابزار نیست، دربارهٔ فاصلهٔ بین «کد نوشتم» و «کاربر دارد ازش استفاده می‌کند» است. هر فصل یک تکه از آن فاصله را خودکار می‌کند."},
@@ -134,42 +134,73 @@ C.push({
   id:"05-sql", dir:"05-sql", accent:"#DC2626", cat:"data",
   ico:'<ellipse cx="12" cy="6" rx="7.5" ry="3.2"/><path d="M4.5 6v6c0 1.8 3.4 3.2 7.5 3.2s7.5-1.4 7.5-3.2V6"/><path d="M4.5 12v6c0 1.8 3.4 3.2 7.5 3.2s7.5-1.4 7.5-3.2v-6"/>',
   fa:{name:"SQL و SQL Server", desc:"از SELECT تا خواندن execution plan و درمان کوئری کند — با تمرین روی دادهٔ واقعی.",
-      intro:"نوشتن کوئری که جواب بدهد آسان است. نوشتن کوئری که روی ده میلیون سطر هم جواب بدهد، مهارت دیگری است. این مسیر هر دو را می‌دهد و بیشتر وقتش را روی دومی می‌گذارد."},
+      intro:"نوشتن کوئری که جواب بدهد آسان است. نوشتن کوئری که روی ده میلیون سطر هم جواب بدهد، مهارت دیگری است. این مسیر هر دستور را با دلیلش می‌دهد: چرا بهینه‌ساز این نقشه را انتخاب کرد، چرا این ایندکس کمک می‌کند و آن یکی نه، و چرا این کوئری که درست به نظر می‌رسد سطرها را تکثیر می‌کند. کد کپی‌کردنی همه‌جا هست؛ چیزی که کم است، فهمیدن آن است."},
   en:{name:"SQL & SQL Server", desc:"From SELECT to reading an execution plan and fixing a slow query — practised on real data.",
       intro:"Writing a query that returns the right answer is easy. Writing one that still answers over ten million rows is a different skill. This track teaches both and spends most of its time on the second."},
   ch:[
-["01","01-relational.html",0,12,50,"مدل رابطه‌ای و نصب","جدول، سطر، کلید؛ نصب SQL Server و SSMS.","The relational model and setup","Tables, rows, keys; installing SQL Server and SSMS.","relational table row key install ssms"],
-["02","02-select.html",0,12,50,"SELECT، فیلتر، مرتب‌سازی","WHERE، ORDER BY، و NULL که همه‌چیز را خراب می‌کند.","SELECT, filtering, sorting","WHERE, ORDER BY, and the NULL that ruins everything.","select where order by null top offset"],
-["03","03-joins.html",0,12,60,"JOIN‌ها با نمودار","inner، left، و اشتباهی که سطرها را تکثیر می‌کند.","JOINs, with diagrams","Inner, left, and the mistake that multiplies your rows.","join inner left right full cross"],
-["04","04-aggregate.html",0,12,50,"تجمیع و GROUP BY","HAVING در برابر WHERE.","Aggregation and GROUP BY","HAVING versus WHERE.","group by having count sum avg"],
-["05","05-cte.html",0,12,50,"زیرکوئری و CTE","کوئری خوانا به‌جای کوئری تودرتو.","Subqueries and CTEs","Readable queries instead of nested ones.","cte subquery with recursive exists"],
-["06","06-window.html",0,12,60,"window function","رتبه، مجموع تجمعی، مقایسه با سطر قبل.","Window functions","Ranking, running totals, comparing to the previous row.","window over partition row_number lag lead"],
-["07","07-dml.html",0,12,50,"INSERT / UPDATE / DELETE / MERGE","تغییر داده بدون فاجعه.","INSERT / UPDATE / DELETE / MERGE","Changing data without a disaster.","insert update delete merge output"],
-["08","08-design.html",0,12,55,"طراحی جدول، نوع داده، constraint","نوع درست، کلید درست، از همان اول.","Table design, data types, constraints","The right type and the right key, from day one.","datatype primary key foreign check constraint identity"],
-["09","09-normalization.html",0,12,50,"نرمال‌سازی و کِی نقضش کنیم","سه فرم اول، و denormalization آگاهانه.","Normalisation and when to break it","The first three forms, and deliberate denormalisation.","normalization 1nf 2nf 3nf denormalization"],
-["10","10-index.html",0,12,60,"index: clustered، nonclustered، covering","چرا ایندکس اضافه کوئری را کند می‌کند.","Indexes: clustered, nonclustered, covering","Why an extra index can make a query slower.","index clustered nonclustered covering include fillfactor"],
-["11","11-plan.html",0,12,60,"خواندن execution plan","scan در برابر seek، و تخمین اشتباه.","Reading an execution plan","Scan versus seek, and bad estimates.","execution plan seek scan estimate statistics"],
-["12","12-transaction.html",0,12,55,"تراکنش، ایزوله، deadlock","ACID در عمل و باز کردن گره قفل.","Transactions, isolation, deadlocks","ACID in practice and untangling locks.","transaction isolation deadlock lock snapshot"],
-["13","13-procs.html",0,12,50,"stored procedure، function، trigger","کِی مفیدند و کِی دردسر.","Stored procedures, functions, triggers","When they help and when they hurt.","procedure function trigger scalar table-valued"],
-["14","14-tsql.html",0,12,50,"T-SQL: متغیر، حلقه، خطا","TRY/CATCH و برنامه‌نویسی داخل پایگاه‌داده.","T-SQL: variables, loops, errors","TRY/CATCH and programming inside the database.","tsql declare while try catch throw"],
-["15","15-backup.html",0,12,50,"backup/restore و نگهداری","full، differential، log و بازیابی نقطه‌ای.","Backup/restore and maintenance","Full, differential, log and point-in-time recovery.","backup restore recovery model maintenance"],
-["16","16-security.html",0,12,45,"امنیت و مجوز","login، user، role و اصل کمترین دسترسی.","Security and permissions","Logins, users, roles and least privilege.","login user role grant permission tde"],
-["17","17-tuning.html",0,12,60,"بهینه‌سازی کوئری کند","روش سیستماتیک: اندازه‌گیری، تشخیص، درمان.","Fixing a slow query","A systematic method: measure, diagnose, treat.","tuning slow query store wait stats"],
-["18","18-cap1.html",0,5,60,"پروژهٔ ۱ — طراحی یک شمای کوچک","از نیاز تا جدول، با کلید و constraint درست.","Project 1 — design a small schema","From requirements to tables, with the right keys and constraints.","capstone schema design",1],
-["19","19-cap2.html",0,7,100,"پروژهٔ ۲ — گزارش‌های تحلیلی","کوئری‌های تجمیعی و window روی دادهٔ واقعی.","Project 2 — analytical reports","Aggregate and window queries over real data.","capstone report analytics",2],
-["20","20-cap3.html",0,9,180,"پروژهٔ ۳ — پایگاه‌دادهٔ فروش با دادهٔ حجیم","طراحی، بارگذاری میلیون‌ها سطر، و بهینه‌سازی تا زیر یک ثانیه.","Project 3 — a sales database at scale","Design it, load millions of rows, and tune it to under a second.","capstone performance tuning",3]
+["01","01-relational.html",0,12,60,"مدل رابطه‌ای","چرا داده را در جدول می‌ریزیم و نه در فایل — و ایدهٔ ‎relation‎ از کجا آمد.","The relational model","Why we put data in tables rather than files — and where the idea of a relation came from.","relational codd table row tuple key"],
+["02","02-install.html",0,12,50,"نصب و ابزار","‏SQL Server با داکر، ‎SSMS‎ و ‎Azure Data Studio‎.","Installation and tooling","SQL Server on Docker, SSMS and Azure Data Studio.","install docker ssms azure data studio sqlcmd"],
+["03","03-select.html",0,12,55,"‏SELECT","ترتیب واقعی اجرا — چرا ‎WHERE‎ قبل از ‎SELECT‎ اجرا می‌شود.","SELECT","The real order of execution — why WHERE runs before SELECT.","select from where logical order projection"],
+["04","04-filtering.html",0,12,60,"فیلتر کردن","‏WHERE، ‎IN‎، ‎BETWEEN‎، ‎LIKE‎ و منطق سه‌مقداری.","Filtering","WHERE, IN, BETWEEN, LIKE and three-valued logic.","where in between like predicate"],
+["05","05-null.html",0,12,60,"‏NULL","نه صفر است نه رشتهٔ خالی — و چرا ‎= NULL‎ هیچ‌وقت درست نیست.","NULL","Neither zero nor empty string — and why = NULL is never right.","null is unknown three-valued coalesce isnull"],
+["06","06-sorting.html",0,12,50,"مرتب‌سازی و صفحه‌بندی","‏ORDER BY، ‎OFFSET/FETCH‎ و ‎collation‎ فارسی.","Sorting and paging","ORDER BY, OFFSET/FETCH and Persian collation.","order by offset fetch top collation"],
+["07","07-joins-1.html",0,12,70,"‏JOIN ۱","‏INNER و ‎LEFT‎ — با نمودار، و اینکه ‎ON‎ دقیقاً چه می‌کند.","JOINs 1","INNER and LEFT — with diagrams, and what ON really does.","join inner left on cartesian"],
+["08","08-joins-2.html",0,12,70,"‏JOIN ۲","‏RIGHT، ‎FULL‎، ‎CROSS‎، ‎self join‎ و تکثیر ناخواستهٔ سطرها.","JOINs 2","RIGHT, FULL, CROSS, self joins, and accidental row multiplication.","right full cross self join duplicate fanout"],
+["09","09-aggregate.html",0,12,65,"تجمیع","‏GROUP BY، ‎HAVING‎، و تفاوت آن با ‎WHERE‎.","Aggregation","GROUP BY, HAVING, and how it differs from WHERE.","group by having count sum avg min max"],
+["10","10-subqueries.html",0,12,65,"زیرکوئری","‏scalar، ‎IN‎، ‎EXISTS‎ و زیرکوئری همبسته.","Subqueries","Scalar, IN, EXISTS and correlated subqueries.","subquery correlated exists in any all"],
+["11","11-cte.html",0,12,65,"‏CTE","کوئری خوانا به‌جای تودرتو، و ‎CTE‎ بازگشتی.","CTEs","Readable queries instead of nested ones, plus recursive CTEs.","cte with recursive anchor readable"],
+["12","12-window-1.html",0,12,75,"‏window function ۱","‏OVER، ‎PARTITION BY‎ — تجمیع بدون از دست دادن سطرها.","Window functions 1","OVER and PARTITION BY — aggregating without losing rows.","over partition window rank row_number"],
+["13","13-window-2.html",0,12,75,"‏window function ۲","‏LAG، ‎LEAD‎، مجموع تجمعی و قاب پنجره.","Window functions 2","LAG, LEAD, running totals and window frames.","lag lead running total frame rows range"],
+["14","14-pivot.html",0,12,55,"‏PIVOT و شرط","چرخاندن سطر به ستون، و ‎CASE‎ در تجمیع.","PIVOT and conditionals","Turning rows into columns, and CASE inside aggregates.","pivot unpivot case conditional aggregate"],
+["15","15-set-ops.html",0,12,50,"عملگرهای مجموعه‌ای","‏UNION، ‎INTERSECT‎، ‎EXCEPT‎ و ‎UNION ALL‎.","Set operators","UNION, INTERSECT, EXCEPT and UNION ALL.","union intersect except all distinct"],
+["16","16-insert.html",0,12,55,"‏INSERT","درج تکی، انبوه، از روی ‎SELECT‎ و ‎IDENTITY‎.","INSERT","Single, bulk, from SELECT, and IDENTITY.","insert values select into identity bulk"],
+["17","17-update-delete.html",0,12,65,"‏UPDATE و ‎DELETE‎","تغییر داده بدون فاجعه — و چرا همیشه اول ‎SELECT‎.","UPDATE and DELETE","Changing data without disaster — and why you always SELECT first.","update delete truncate where safety transaction"],
+["18","18-merge.html",0,12,55,"‏MERGE و ‎OUTPUT‎","همگام‌سازی دو جدول، و گرفتن سطرهای تغییرکرده.","MERGE and OUTPUT","Synchronising two tables and capturing changed rows.","merge upsert output inserted deleted"],
+["19","19-datatypes.html",0,12,70,"نوع داده","‏VARCHAR در برابر ‎NVARCHAR‎، ‎DECIMAL‎ در برابر ‎FLOAT‎ — و فارسی.","Data types","VARCHAR versus NVARCHAR, DECIMAL versus FLOAT — and Persian text.","varchar nvarchar decimal float date unicode"],
+["20","20-constraints.html",0,12,65,"‏constraint","‏PRIMARY KEY، ‎FOREIGN KEY‎، ‎UNIQUE‎، ‎CHECK‎ و ‎DEFAULT‎.","Constraints","PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK and DEFAULT.","primary foreign unique check default cascade"],
+["21","21-design.html",0,12,70,"طراحی جدول","از نیاز تا شِما: کلید طبیعی یا مصنوعی، و نام‌گذاری.","Table design","From requirement to schema: natural or surrogate keys, and naming.","design schema surrogate natural key naming"],
+["22","22-normalization.html",0,12,70,"نرمال‌سازی","‏1NF تا ‎3NF‎ با مثال واقعی — و مشکلی که هر فرم حل می‌کند.","Normalisation","1NF to 3NF with a real example — and the problem each form solves.","normalization 1nf 2nf 3nf bcnf anomaly"],
+["23","23-denormalization.html",0,12,60,"‏denormalization آگاهانه","کِی عمداً قاعده را بشکنیم، و هزینه‌اش را بپذیریم.","Deliberate denormalisation","When to break the rule on purpose, and accept the cost.","denormalization redundancy tradeoff cache column"],
+["24","24-indexes-1.html",0,12,75,"ایندکس ۱","ساختار ‎B-tree‎، ‎clustered‎ در برابر ‎nonclustered‎.","Indexes 1","The B-tree structure, clustered versus nonclustered.","index btree clustered nonclustered heap"],
+["25","25-indexes-2.html",0,12,75,"ایندکس ۲","ترتیب ستون، ‎covering‎، ‎INCLUDE‎ و ایندکس فیلترشده.","Indexes 2","Column order, covering indexes, INCLUDE and filtered indexes.","covering include filtered column order selectivity"],
+["26","26-indexes-3.html",0,12,70,"ایندکس ۳","هزینهٔ ایندکس: کندی نوشتن، ‎fragmentation‎ و نگه‌داری.","Indexes 3","The cost of indexes: slower writes, fragmentation and maintenance.","fragmentation rebuild reorganize fillfactor cost"],
+["27","27-plan-1.html",0,12,80,"برنامهٔ اجرا ۱","خواندن نقشه: ‎scan‎ در برابر ‎seek‎، و جهت خواندن.","Execution plans 1","Reading the map: scan versus seek, and which way to read it.","execution plan scan seek estimated actual"],
+["28","28-plan-2.html",0,12,80,"برنامهٔ اجرا ۲","‏nested loop، ‎hash‎، ‎merge‎ — و تخمین اشتباه بهینه‌ساز.","Execution plans 2","Nested loops, hash and merge joins — and bad optimiser estimates.","nested loop hash merge cardinality estimate spill"],
+["29","29-statistics.html",0,12,60,"آمار","بهینه‌ساز از کجا می‌داند چند سطر برمی‌گردد.","Statistics","How the optimiser knows how many rows will come back.","statistics histogram cardinality update auto"],
+["30","30-transactions.html",0,12,70,"تراکنش","‏ACID در عمل، ‎COMMIT‎، ‎ROLLBACK‎ و تراکنش تودرتو.","Transactions","ACID in practice, COMMIT, ROLLBACK and nesting.","transaction acid commit rollback savepoint xact"],
+["31","31-isolation.html",0,12,75,"سطوح ایزوله","‏dirty read تا ‎serializable‎ — با آزمایش عملی هر کدام.","Isolation levels","From dirty reads to serializable — demonstrated for each.","isolation dirty phantom repeatable snapshot rcsi"],
+["32","32-locking.html",0,12,75,"قفل و ‎deadlock‎","چه چیزی قفل می‌شود، چرا، و باز کردن گره.","Locking and deadlocks","What gets locked, why, and how to untangle it.","lock escalation deadlock graph blocking wait"],
+["33","33-procedures.html",0,12,65,"‏stored procedure","پارامتر، خروجی، و ‎parameter sniffing‎.","Stored procedures","Parameters, output, and parameter sniffing.","procedure parameter sniffing recompile output"],
+["34","34-functions.html",0,12,60,"تابع","‏scalar در برابر ‎table-valued‎ — و چرا ‎scalar‎ کند است.","Functions","Scalar versus table-valued — and why scalar functions are slow.","function scalar inline table-valued udf"],
+["35","35-triggers.html",0,12,55,"‏trigger","قدرت پنهان، و اینکه چرا معمولاً بد است.","Triggers","Hidden power, and why it is usually a bad idea.","trigger after instead of inserted deleted"],
+["36","36-tsql-1.html",0,12,60,"‏T-SQL ۱","متغیر، شرط، حلقه و جدول موقت.","T-SQL 1","Variables, conditionals, loops and temp tables.","declare if while temp table variable"],
+["37","37-tsql-2.html",0,12,60,"‏T-SQL ۲","‏TRY/CATCH، ‎THROW‎ و مدیریت خطای تراکنشی.","T-SQL 2","TRY/CATCH, THROW and transactional error handling.","try catch throw error xact_abort"],
+["38","38-dynamic-sql.html",0,12,60,"‏SQL پویا","‏sp_executesql، و تزریق ‎SQL‎ در سمت پایگاه‌داده.","Dynamic SQL","sp_executesql, and SQL injection on the database side.","dynamic sql sp_executesql injection quotename"],
+["39","39-json-xml.html",0,12,55,"‏JSON و ‎XML‎","‏FOR JSON، ‎OPENJSON‎ و کِی داده را نیمه‌ساختاریافته نگه داریم.","JSON and XML","FOR JSON, OPENJSON, and when to keep data semi-structured.","json openjson for json xml semi-structured"],
+["40","40-partitioning.html",0,12,60,"پارتیشن‌بندی","جدول‌های خیلی بزرگ، و ‎partition switching‎.","Partitioning","Very large tables, and partition switching.","partition function scheme switching sliding window"],
+["41","41-security.html",0,12,65,"امنیت","‏login، ‎user‎، ‎role‎، ‎schema‎ و کمترین دسترسی.","Security","Logins, users, roles, schemas and least privilege.","login user role grant schema tde encryption"],
+["42","42-backup.html",0,12,70,"پشتیبان و بازیابی","‏full، ‎differential‎، ‎log‎ و بازیابی نقطه‌ای واقعی.","Backup and recovery","Full, differential, log backups and real point-in-time recovery.","backup restore recovery model log pitr"],
+["43","43-maintenance.html",0,12,60,"نگه‌داری","ایندکس، آمار، ‎DBCC‎ و کار زمان‌بندی‌شده.","Maintenance","Indexes, statistics, DBCC and scheduled jobs.","maintenance dbcc checkdb agent job rebuild"],
+["44","44-monitoring.html",0,12,70,"مانیتورینگ","‏DMV، ‎Query Store‎ و ‎wait statistics‎.","Monitoring","DMVs, the Query Store and wait statistics.","dmv query store wait stats extended events"],
+["45","45-tuning-1.html",0,12,80,"بهینه‌سازی ۱","روش سیستماتیک: اندازه‌گیری، تشخیص، درمان — نه حدس.","Tuning 1","A systematic method: measure, diagnose, treat — not guess.","tuning method measure bottleneck slow query"],
+["46","46-tuning-2.html",0,12,80,"بهینه‌سازی ۲","بازنویسی کوئری: ‎SARGable‎، ‎OR‎ و تابع روی ستون.","Tuning 2","Rewriting queries: SARGability, OR, and functions on columns.","sargable rewrite predicate function index usage"],
+["47","47-antipatterns.html",0,12,65,"ضدالگوها","‏SELECT *‎، ‎cursor‎، ‎NOLOCK‎ و بقیهٔ عادت‌های گران.","Anti-patterns","SELECT *, cursors, NOLOCK and other expensive habits.","antipattern select star cursor nolock eav"],
+["48","48-app-integration.html",0,12,60,"اتصال از اپ","‏connection pool، ‎ORM‎ و ‎N+1‎ از سمت پایگاه‌داده.","Connecting from an app","Connection pooling, ORMs and N+1 seen from the database side.","pool orm n+1 parameterized ado efcore"],
+["49","49-cap1.html",0,5,90,"پروژهٔ ۱ — طراحی شِما","از نیاز تا جدول، با کلید و ‎constraint‎ درست.","Project 1 — design a schema","From requirements to tables, with correct keys and constraints.","capstone schema design",1],
+["50","50-cap2.html",0,7,170,"پروژهٔ ۲ — گزارش تحلیلی","‏window، ‎CTE‎ و ‎PIVOT‎ روی دادهٔ واقعی.","Project 2 — analytical reporting","Windows, CTEs and PIVOT over real data.","capstone report analytics",2],
+["51","51-cap3.html",0,9,260,"پروژهٔ ۳ — پایگاه‌دادهٔ فروش با دادهٔ حجیم","بارگذاری میلیون‌ها سطر و رساندن کوئری به زیر یک ثانیه.","Project 3 — a sales database at scale","Load millions of rows and get the query under one second.","capstone performance tuning",3]
 ]});
 
 /* ═══════════════ ۰۶ — کوبرنتیز ═══════════════ */
 C.push({
-  id:"06-kubernetes", dir:"06-kubernetes", accent:"#326CE5", cat:"infra",
+  id:"06-kubernetes", dir:"06-kubernetes", accent:"#326CE5", cat:"infra", pre:["01-docker"], soft:["03-linux-network"],
   ico:'<path d="M12 2.6 20 7v10l-8 4.4L4 17V7z"/><circle cx="12" cy="12" r="2.6"/><path d="M12 4.6v4.8M12 14.6v4.8M6.4 8.8l4 2.2M13.6 13l4 2.2M17.6 8.8l-4 2.2M10.4 13l-4 2.2" stroke-linecap="round"/>',
   fa:{name:"کوبرنتیز", desc:"وقتی چند کانتینر روی چند سرور می‌شوند: Pod، Deployment، Service، Ingress، مقیاس‌پذیری و عیب‌یابی.",
       intro:"داکر به تو می‌گوید یک کانتینر را چطور اجرا کنی. کوبرنتیز جواب سؤال بعدی است: پنجاه کانتینر روی ده سرور را چه کسی زنده نگه می‌دارد، چه کسی جایگزینشان می‌کند وقتی می‌میرند، و چه کسی ترافیک را بینشان پخش می‌کند."},
   en:{name:"Kubernetes", desc:"When containers become many across many servers: Pods, Deployments, Services, Ingress, scaling and debugging.",
       intro:"Docker tells you how to run one container. Kubernetes answers the next question: who keeps fifty containers alive across ten servers, who replaces them when they die, and who spreads traffic between them."},
   ch:[
-["01","01-why.html",0,12,50,"چرا کوبرنتیز؛ مسئله‌ای که داکر تنها حل نمی‌کند","کِی لازم است و — مهم‌تر — کِی لازم نیست.","Why Kubernetes; what Docker alone cannot do","When you need it and — more importantly — when you do not.","kubernetes orchestration why scale"],
+["01","01-why.html",1,12,50,"چرا کوبرنتیز؛ مسئله‌ای که داکر تنها حل نمی‌کند","کِی لازم است و — مهم‌تر — کِی لازم نیست.","Why Kubernetes; what Docker alone cannot do","When you need it and — more importantly — when you do not.","kubernetes orchestration why scale"],
 ["02","02-architecture.html",0,12,55,"معماری کلاستر","control plane، node، etcd، scheduler و kubelet.","Cluster architecture","Control plane, nodes, etcd, scheduler and kubelet.","control plane etcd scheduler kubelet node"],
 ["03","03-pod.html",0,12,50,"Pod: کوچک‌ترین واحد","چرا واحد اجرا Pod است و نه کانتینر.","Pods: the smallest unit","Why the unit of execution is a Pod and not a container.","pod sidecar init container"],
 ["04","04-kubectl.html",0,12,50,"kubectl در عمل","get، describe، logs، exec، apply — و خواندن YAML.","kubectl in practice","get, describe, logs, exec, apply — and reading YAML.","kubectl apply describe logs context"],
@@ -192,41 +223,47 @@ C.push({
 
 /* ═══════════════ ۰۷ — معماری نرم‌افزار ═══════════════ */
 C.push({
-  id:"07-architecture", dir:"07-architecture", accent:"#0EA5A5", cat:"arch",
+  id:"07-architecture", dir:"07-architecture", accent:"#0EA5A5", cat:"arch", soft:["47-oop"],
   ico:'<path d="M3 20h18M5 20V9l7-5 7 5v11"/><path d="M9.5 20v-5.5h5V20"/><path d="M9.5 11h5" stroke-linecap="round"/>',
   fa:{name:"معماری نرم‌افزار و تحلیل سیستم", desc:"SOLID، الگوهای طراحی، معماری لایه‌ای، شش‌ضلعی و Clean، DDD مقدماتی و هرم تست — با مثال در چند زبان.",
       intro:"معماری یعنی تصمیم‌هایی که عوض کردنشان بعداً گران است. این مسیر یادت می‌دهد کدام تصمیم‌ها این‌طورند، چطور بگیری‌شان، و چطور کدی بنویسی که شش ماه بعد هم بشود عوضش کرد. مثال‌ها در ‎C#‎، پایتون، تایپ‌اسکریپت و Go می‌آیند."},
   en:{name:"Software architecture & system analysis", desc:"SOLID, design patterns, layered/hexagonal/clean architecture, introductory DDD and the test pyramid — with examples in several languages.",
       intro:"Architecture is the set of decisions that are expensive to change later. This track teaches you which decisions those are, how to make them, and how to write code you can still change in six months. Examples come in C#, Python, TypeScript and Go."},
   ch:[
-["01","01-what.html",0,12,50,"معماری چیست و کدام تصمیم معماری است","تفاوت تصمیم معماری با تصمیم پیاده‌سازی.","What architecture is, and which decisions count","Architectural decisions versus implementation decisions.","architecture decision significant tradeoff"],
-["02","02-analysis.html",0,12,60,"تحلیل سیستم: از نیاز تا مدل","استخراج نیاز، use case، و مدل دامنه.","System analysis: from requirement to model","Eliciting requirements, use cases, and a domain model.","analysis requirement usecase domain model"],
+["01","01-what.html",0,12,50,"معماری چیست و کدام تصمیم معماری است","تفاوت تصمیم معماری با تصمیم پیاده‌سازی، و معیار «گران برای تغییر».","What architecture is, and which decisions count","Architectural versus implementation decisions, and the “expensive to change” test.","architecture decision significant tradeoff"],
+["02","02-analysis.html",0,12,60,"تحلیل سیستم: از نیاز تا مدل","استخراج نیاز، ‎use case‎ و اولین مدل دامنه.","System analysis: from requirement to model","Eliciting requirements, use cases and a first domain model.","analysis requirement usecase domain model"],
 ["03","03-qualities.html",0,12,55,"کیفیت‌ها و trade-off","تغییرپذیری، تست‌پذیری، کارایی — نمی‌شود همه را با هم داشت.","Quality attributes and trade-offs","Changeability, testability, performance — you cannot have them all.","quality attribute tradeoff nfr"],
-["04","04-coupling.html",0,12,60,"وابستگی و جهت آن — قلب همه‌چیز","coupling، cohesion، و اینکه چرا جهت وابستگی مهم‌تر از وجودش است.","Coupling and its direction — the heart of it","Coupling, cohesion, and why the direction of a dependency matters more than its existence.","coupling cohesion dependency direction"],
-["05","05-solid-1.html",0,12,60,"SOLID ۱: SRP و OCP","با کد واقعی، نه مثال شکل و مربع.","SOLID 1: SRP and OCP","With real code, not shapes and squares.","solid srp ocp single responsibility open closed"],
-["06","06-solid-2.html",0,12,60,"SOLID ۲: LSP، ISP، DIP","و اینکه DIP چطور کل معماری را می‌چرخاند.","SOLID 2: LSP, ISP, DIP","And how DIP turns an entire architecture around.","solid lsp isp dip liskov inversion"],
-["07","07-layered.html",0,12,55,"معماری لایه‌ای کلاسیک","کجا جواب می‌دهد و کجا به گِل می‌نشیند.","Classic layered architecture","Where it works and where it sinks.","layered n-tier presentation domain data"],
-["08","08-hexagonal.html",0,12,60,"معماری شش‌ضلعی (ports & adapters)","دامنه در مرکز، همه‌چیز دیگر افزونه.","Hexagonal architecture (ports & adapters)","Domain at the centre, everything else a plug-in.","hexagonal ports adapters"],
-["09","09-clean.html",0,12,60,"Clean Architecture و Onion","قانون وابستگی، و هزینهٔ واقعی‌اش.","Clean and Onion architecture","The dependency rule, and what it really costs.","clean onion architecture usecase entity"],
-["10","10-creational.html",0,12,55,"الگوهای ساختنی","Factory، Builder، Prototype — و چرا Singleton معمولاً دام است.","Creational patterns","Factory, Builder, Prototype — and why Singleton is usually a trap.","factory builder singleton prototype pattern"],
-["11","11-structural.html",0,12,60,"الگوهای ساختاری","Adapter، Decorator، Facade، Proxy، Composite.","Structural patterns","Adapter, Decorator, Facade, Proxy, Composite.","adapter decorator facade proxy composite"],
-["12","12-behavioral-1.html",0,12,60,"الگوهای رفتاری ۱","Strategy، Observer، Command.","Behavioural patterns 1","Strategy, Observer, Command.","strategy observer command pattern"],
-["13","13-behavioral-2.html",0,12,60,"الگوهای رفتاری ۲","State، Template Method، Chain of Responsibility، Mediator.","Behavioural patterns 2","State, Template Method, Chain of Responsibility, Mediator.","state template method chain mediator"],
-["14","14-repository.html",0,12,55,"Repository و Unit of Work","کِی مفیدند و کِی فقط یک لایهٔ اضافه‌اند.","Repository and Unit of Work","When they help and when they are just another layer.","repository unit of work persistence"],
-["15","15-ddd.html",0,12,65,"DDD مقدماتی","entity، value object، aggregate و bounded context.","Introductory DDD","Entities, value objects, aggregates and bounded contexts.","ddd entity value object aggregate bounded context"],
-["16","16-cqrs.html",0,12,55,"CQRS و کِی واقعاً لازم است","جدا کردن خواندن از نوشتن، با هزینه‌هایش.","CQRS and when it is actually needed","Separating reads from writes, with its costs.","cqrs command query read model"],
-["17","17-events.html",0,12,55,"معماری رویدادمحور","event، message، و تفاوتشان با فراخوانی مستقیم.","Event-driven architecture","Events, messages, and how they differ from a direct call.","event driven message eventual consistency"],
-["18","18-testing.html",0,12,60,"هرم تست: unit، integration، contract","تستی که به تو اجازهٔ تغییر بدهد، نه تستی که جلویش را بگیرد.","The test pyramid: unit, integration, contract","Tests that let you change code, not tests that prevent it.","test pyramid unit integration contract mock"],
-["19","19-refactoring.html",0,12,60,"refactoring به‌سمت الگو","از کد موجود شروع کن، نه از دیاگرام.","Refactoring towards patterns","Start from the code you have, not from a diagram.","refactoring smell extract legacy"],
-["20","20-documenting.html",0,12,50,"مستندسازی معماری: C4 و ADR","تصمیم را بنویس، نه فقط نتیجه را.","Documenting architecture: C4 and ADR","Record the decision, not only the outcome.","c4 adr diagram documentation"],
-["21","21-cap1.html",0,5,80,"پروژهٔ ۱ — بازطراحی یک CRUD به لایه‌ای","از یک فایل هزارخطی به لایه‌های با مسئولیت روشن.","Project 1 — refactor a CRUD into layers","From one thousand-line file to layers with clear responsibilities.","capstone layered refactor",1],
-["22","22-cap2.html",0,7,120,"پروژهٔ ۲ — همان سیستم، شش‌ضلعی و تست‌پذیر","دامنه را از پایگاه‌داده و وب جدا کن و تست بنویس.","Project 2 — the same system, hexagonal and testable","Separate the domain from the database and the web, then test it.","capstone hexagonal test",2],
-["23","23-cap3.html",0,9,200,"پروژهٔ ۳ — سیستم رویدادمحور با CQRS","مدل خواندن و نوشتن جدا، رویدادها، و سازگاری نهایی.","Project 3 — an event-driven system with CQRS","Separate read and write models, events, and eventual consistency.","capstone cqrs event",3]
+["04","04-coupling.html",0,12,60,"وابستگی و جهت آن","‏coupling، cohesion، و اینکه چرا جهت وابستگی مهم‌تر از وجودش است.","Coupling and its direction","Coupling, cohesion, and why a dependency's direction matters more than its existence.","coupling cohesion dependency direction"],
+["05","05-solid-1.html",0,12,60,"‏SOLID ۱: SRP و OCP","با کد واقعی، نه مثال دایره و مربع.","SOLID 1: SRP and OCP","With real code, not shapes and squares.","solid srp ocp single responsibility open closed"],
+["06","06-solid-2.html",0,12,60,"‏SOLID ۲: LSP، ISP، DIP","و اینکه ‎DIP‎ چطور کل جهت معماری را برمی‌گرداند.","SOLID 2: LSP, ISP, DIP","And how DIP reverses the direction of an entire architecture.","solid lsp isp dip liskov inversion"],
+["07","07-layered.html",0,12,60,"معماری لایه‌ای کلاسیک","‏presentation، business، data — و جایی که به گِل می‌نشیند.","Classic layered architecture","Presentation, business, data — and where it sinks.","layered n-tier presentation domain data"],
+["08","08-layered-problems.html",0,12,60,"مشکل معماری لایه‌ای","چرا لایهٔ دامنه به پایگاه‌داده وابسته می‌شود و تست‌پذیری می‌میرد.","What goes wrong with layers","Why the domain layer ends up depending on the database, and testability dies.","anemic leaky layer transaction script"],
+["09","09-dip-inversion.html",0,12,65,"وارونگی وابستگی در عمل","همان کد لایه‌ای، با یک تغییر جهت — و اثرش بر تست.","Dependency inversion in practice","The same layered code with one direction reversed — and what it does to tests.","dip inversion interface port abstraction"],
+["10","10-hexagonal.html",0,12,70,"معماری شش‌ضلعی","‏port و adapter: دامنه در مرکز، همه‌چیز دیگر افزونه.","Hexagonal architecture","Ports and adapters: the domain at the centre, everything else a plug-in.","hexagonal ports adapters driving driven"],
+["11","11-hexagonal-build.html",0,12,70,"شش‌ضلعی، قدم‌به‌قدم","یک سرویس واقعی از صفر با ‎port‎ و ‎adapter‎، با کد کامل.","Building a hexagon, step by step","A real service from scratch with ports and adapters, in full.","hexagonal implementation adapter inmemory test"],
+["12","12-onion.html",0,12,65,"معماری Onion","لایه‌های هم‌مرکز، و قاعدهٔ وابستگی رو به مرکز.","Onion architecture","Concentric layers, and the dependency rule pointing inward.","onion layer concentric core infrastructure"],
+["13","13-clean.html",0,12,70,"‏Clean Architecture","‏entity، use case، adapter، framework — و قاعدهٔ وابستگی.","Clean Architecture","Entities, use cases, adapters, frameworks — and the dependency rule.","clean architecture usecase entity boundary"],
+["14","14-clean-build.html",0,12,75,"‏Clean، قدم‌به‌قدم","همان سرویس، این‌بار با ساختار Clean کامل و مرزهای صریح.","Clean, step by step","The same service, now with a full Clean structure and explicit boundaries.","clean implementation interactor presenter gateway"],
+["15","15-comparing.html",0,12,65,"لایه‌ای، شش‌ضلعی، Onion، Clean","چهار نام برای یک ایدهٔ مشترک — تفاوت‌های واقعی و ماتریس انتخاب.","Layered, hexagonal, onion, clean","Four names for one shared idea — the real differences, and a decision matrix.","comparison decision matrix architecture style"],
+["16","16-cost.html",0,12,60,"هزینهٔ معماری تمیز","کِی ارزشش را دارد و کِی فقط پوشه‌های خالی می‌سازی.","The cost of clean architecture","When it pays off and when you are just creating empty folders.","overengineering yagni pragmatic cost"],
+["17","17-creational.html",0,12,55,"الگوهای ساختنی","‏Factory، Builder، Prototype — و چرا ‎Singleton‎ معمولاً دام است.","Creational patterns","Factory, Builder, Prototype — and why Singleton is usually a trap.","factory builder singleton prototype"],
+["18","18-structural.html",0,12,60,"الگوهای ساختاری","‏Adapter، Decorator، Facade، Proxy، Composite.","Structural patterns","Adapter, Decorator, Facade, Proxy, Composite.","adapter decorator facade proxy composite"],
+["19","19-behavioral-1.html",0,12,60,"الگوهای رفتاری ۱","‏Strategy، Observer، Command.","Behavioural patterns 1","Strategy, Observer, Command.","strategy observer command"],
+["20","20-behavioral-2.html",0,12,60,"الگوهای رفتاری ۲","‏State، Template Method، Chain of Responsibility، Mediator.","Behavioural patterns 2","State, Template Method, Chain of Responsibility, Mediator.","state template chain mediator"],
+["21","21-repository.html",0,12,55,"‏Repository و Unit of Work","کِی مفیدند و کِی فقط یک لایهٔ اضافه‌اند.","Repository and Unit of Work","When they help and when they are just another layer.","repository unit of work persistence"],
+["22","22-cqrs.html",0,12,60,"‏CQRS","جدا کردن خواندن از نوشتن، با هزینه‌هایش.","CQRS","Separating reads from writes, with its costs.","cqrs command query read model"],
+["23","23-events.html",0,12,60,"معماری رویدادمحور","رویداد در برابر فراخوانی مستقیم، و سازگاری نهایی.","Event-driven architecture","Events versus direct calls, and eventual consistency.","event driven eventual consistency message"],
+["24","24-testing.html",0,12,65,"هرم تست","‏unit، integration، contract — تستی که اجازهٔ تغییر بدهد.","The test pyramid","Unit, integration, contract — tests that let you change code.","test pyramid unit integration contract"],
+["25","25-refactoring.html",0,12,60,"‏refactoring به‌سمت معماری","از کد موجود شروع کن، نه از دیاگرام.","Refactoring towards architecture","Start from the code you have, not from a diagram.","refactoring smell strangler legacy"],
+["26","26-documenting.html",0,12,55,"مستندسازی معماری","‏C4 و ‎ADR‎: تصمیم را ثبت کن، نه فقط نتیجه را.","Documenting architecture","C4 and ADRs: record the decision, not only the outcome.","c4 adr diagram documentation"],
+["27","27-cap1.html",0,5,90,"پروژهٔ ۱ — بازطراحی یک ‎CRUD‎ به لایه‌ای","از یک فایل هزارخطی به لایه‌هایی با مسئولیت روشن.","Project 1 — refactor a CRUD into layers","From one thousand-line file to layers with clear responsibilities.","capstone layered refactor",1],
+["28","28-cap2.html",0,7,150,"پروژهٔ ۲ — همان سیستم، شش‌ضلعی","دامنه را از پایگاه‌داده و وب جدا کن و تست کامل بنویس.","Project 2 — the same system, hexagonal","Separate the domain from the database and the web, then test it fully.","capstone hexagonal test",2],
+["29","29-cap3.html",0,9,220,"پروژهٔ ۳ — ‎Clean‎ با ‎CQRS‎ و رویداد","مرزهای صریح، مدل خواندن جدا، و سازگاری نهایی.","Project 3 — Clean with CQRS and events","Explicit boundaries, a separate read model, and eventual consistency.","capstone clean cqrs event",3]
 ]});
 
 /* ═══════════════ ۰۸ — میکروسرویس‌ها ═══════════════ */
 C.push({
-  id:"08-microservices", dir:"08-microservices", accent:"#E11D74", cat:"arch",
+  id:"08-microservices", dir:"08-microservices", accent:"#E11D74", cat:"arch", pre:["07-architecture"], soft:["01-docker"],
   ico:'<circle cx="12" cy="5" r="2.6"/><circle cx="5" cy="18" r="2.6"/><circle cx="19" cy="18" r="2.6"/><path d="M10.4 7.1 6.4 15.6M13.6 7.1l4 8.5M7.6 18h8.8" stroke-linecap="round"/>',
   fa:{name:"میکروسرویس و میکروفرانت‌اند", desc:"مرزبندی سرویس، REST و gRPC، صف و رویداد، Saga، تاب‌آوری، مشاهده‌پذیری و میکروفرانت‌اند.",
       intro:"میکروسرویس یک ارتقا نیست؛ یک معامله است. پیچیدگی داخل کد را کم می‌کنی و به شبکه منتقلش می‌کنی. این مسیر هر دو طرف معامله را نشان می‌دهد و بیشترین وقتش را روی سخت‌ترین بخش می‌گذارد: اینکه سرویس‌ها چطور با هم حرف بزنند."},
@@ -258,70 +295,114 @@ C.push({
 
 /* ═══════════════ ۰۹ — ‎C#‎ ═══════════════ */
 C.push({
-  id:"09-csharp", dir:"09-csharp", accent:"#68217A", cat:"backend",
+  id:"09-csharp", dir:"09-csharp", accent:'#68217A', accentDark:'#B77BCF', cat:"backend",
   ico:'<path d="M9.5 3.5 7.5 20.5M16.5 3.5l-2 17M4 8.6h16M3 15.4h16" stroke-linecap="round"/>',
   fa:{name:"زبان ‎C#‎", desc:"از نوع‌ها و LINQ تا async/await، کارایی و تست — جامع، از مقدماتی تا پیشرفته.",
       intro:"‎C#‎ زبان بزرگی است و بیشتر آموزش‌ها در سطح نحو متوقف می‌شوند. این مسیر تا جایی می‌رود که بدانی پشت async/await چه می‌گذرد، چرا آن LINQ کند است، و کِی struct به‌جای class."},
   en:{name:"C#", desc:"From types and LINQ to async/await, performance and testing — comprehensive, beginner to advanced.",
       intro:"C# is a large language and most tutorials stop at syntax. This track goes far enough that you know what happens behind async/await, why that LINQ query is slow, and when to reach for a struct."},
   ch:[
-["01","01-ecosystem.html",0,12,45,"اکوسیستم .NET و اولین برنامه","SDK، runtime، پروژه و ساختار فایل‌ها.","The .NET ecosystem and your first program","SDK, runtime, projects and file layout.","dotnet sdk runtime csproj cli"],
-["02","02-types.html",0,12,55,"نوع‌ها: value و reference","و nullable که نصف باگ‌ها را می‌گیرد.","Types: value and reference","And nullable reference types, which catch half your bugs.","value reference nullable stack heap"],
-["03","03-class-record.html",0,12,55,"کلاس، رکورد، struct — کدام کجا","سه انتخاب با سه رفتار متفاوت.","Class, record, struct — which and when","Three choices with three different behaviours.","class record struct immutable equality"],
-["04","04-oop.html",0,12,55,"وراثت، interface، polymorphism","و اینکه چرا ترکیب معمولاً بهتر از وراثت است.","Inheritance, interfaces, polymorphism","And why composition usually beats inheritance.","inheritance interface polymorphism composition"],
-["05","05-generics.html",0,12,55,"generic و constraint","نوع‌های عمومی بدون از دست دادن ایمنی.","Generics and constraints","Generic code without losing type safety.","generic constraint variance"],
-["06","06-collections.html",0,12,55,"مجموعه‌ها و انتخاب درست","List، Dictionary، HashSet — و هزینهٔ هرکدام.","Collections and choosing correctly","List, Dictionary, HashSet — and what each costs.","list dictionary hashset span complexity"],
-["07","07-linq-1.html",0,12,60,"LINQ ۱: مبانی و اجرای معوق","چرا کوئری تو هنوز اجرا نشده است.","LINQ 1: basics and deferred execution","Why your query has not run yet.","linq deferred lazy iterator"],
-["08","08-linq-2.html",0,12,60,"LINQ ۲: پیشرفته و کارایی","group، join، و دام‌های حافظه و تکرار.","LINQ 2: advanced and performance","Grouping, joining, and the memory and iteration traps.","linq group join performance allocation"],
-["09","09-delegates.html",0,12,50,"delegate، event، lambda","تابع به‌عنوان مقدار، و closure.","Delegates, events, lambdas","Functions as values, and closures.","delegate event lambda closure func action"],
-["10","10-async.html",0,12,65,"async/await — مدل ذهنی درست","async یعنی «منتظر نمان»، نه «سریع‌تر».","async/await — the correct mental model","async means “do not block”, not “faster”.","async await task deadlock synchronizationcontext"],
-["11","11-tasks.html",0,12,60,"Task، cancellation و موازی‌سازی","CancellationToken و Parallel، با هزینه‌هایشان.","Tasks, cancellation and parallelism","CancellationToken and Parallel, with their costs.","task cancellation parallel plinq"],
-["12","12-errors.html",0,12,50,"مدیریت خطا","exception، کِی بگیر و کِی نگیر، و نوع سفارشی.","Error handling","Exceptions, when to catch and when not, and custom types.","exception try catch finally custom"],
-["13","13-disposable.html",0,12,50,"IDisposable و مدیریت منابع","using، GC، و نشتی که GC نمی‌گیرد.","IDisposable and resource management","using, the GC, and the leaks the GC will not catch.","idisposable using gc finalizer leak"],
-["14","14-reflection.html",0,12,50,"reflection و attribute","قدرت زیاد، هزینهٔ زیاد.","Reflection and attributes","Much power, much cost.","reflection attribute metadata emit"],
-["15","15-performance.html",0,12,60,"کارایی: Span، Memory، تخصیص","اندازه‌گیری قبل از بهینه‌سازی.","Performance: Span, Memory, allocations","Measure before you optimise.","span memory allocation benchmark gc"],
-["16","16-pattern-matching.html",0,12,50,"pattern matching و switch expression","کد شرطی خواناتر.","Pattern matching and switch expressions","More readable conditional code.","pattern matching switch expression deconstruct"],
-["17","17-source-gen.html",0,12,55,"source generator","کد تولید کن به‌جای reflection در زمان اجرا.","Source generators","Generate code instead of reflecting at run time.","source generator roslyn analyzer"],
-["18","18-testing.html",0,12,55,"تست با xUnit","تست واحد، mock و تست‌های خوانا.","Testing with xUnit","Unit tests, mocking and readable assertions.","xunit moq fluentassertions test"],
-["19","19-packaging.html",0,12,45,"NuGet و ساختار پروژه","چند پروژه، وابستگی و انتشار بسته.","NuGet and project structure","Multiple projects, dependencies and publishing a package.","nuget solution project package"],
-["20","20-advanced.html",0,12,60,"نکات پیشرفته","ValueTask، pooling، DI دستی و مدیریت حافظه.","Advanced topics","ValueTask, pooling, hand-rolled DI and memory management.","valuetask pooling arraypool advanced"],
-["21","21-cap1.html",0,5,70,"پروژهٔ ۱ — ابزار خط فرمان","یک CLI واقعی با آرگومان، خطا و تست.","Project 1 — a command-line tool","A real CLI with arguments, error handling and tests.","capstone cli",1],
-["22","22-cap2.html",0,7,120,"پروژهٔ ۲ — کتابخانهٔ قابل انتشار","API تمیز، تست کامل و بستهٔ NuGet.","Project 2 — a publishable library","A clean API, full tests and a NuGet package.","capstone library nuget",2],
-["23","23-cap3.html",0,9,180,"پروژهٔ ۳ — پردازشگر همروند پرکار","async، cancellation، pooling و اندازه‌گیری کارایی.","Project 3 — a high-throughput concurrent processor","async, cancellation, pooling and measured performance.","capstone concurrency performance",3]
+["01","01-ecosystem.html",0,12,45,"اکوسیستم دات‌نت","‏SDK، runtime، پروژه، و اینکه dotnet build دقیقاً چه می‌کند.","The .NET ecosystem","SDK, runtime, projects, and what dotnet build actually does.","dotnet sdk runtime csproj cli msbuild"],
+["02","02-types.html",0,12,55,"نوع‌ها: value و reference","پشته و هیپ، کپی در برابر ارجاع، و boxing.","Types: value and reference","Stack and heap, copy versus reference, and boxing.","value reference stack heap boxing"],
+["03","03-nullable.html",0,12,60,"‏nullable reference types","کامپایلری که ‎NullReferenceException‎ را قبل از اجرا می‌گیرد.","Nullable reference types","A compiler that catches NullReferenceException before run time.","nullable annotation warning null-forgiving"],
+["04","04-class-record-struct.html",0,12,60,"کلاس، record و struct","سه انتخاب با سه معناشناسی متفاوت — و معیار انتخاب.","Class, record and struct","Three choices with three semantics — and how to pick.","class record struct readonly init"],
+["05","05-inheritance.html",0,12,55,"وراثت و interface","‏virtual، abstract، sealed و پیاده‌سازی پیش‌فرض interface.","Inheritance and interfaces","virtual, abstract, sealed, and default interface methods.","inheritance virtual abstract sealed interface"],
+["06","06-members.html",0,12,50,"عضو ایستا، const و readonly","تفاوت‌هایی که در زمان کامپایل و اجرا اثر دارند.","Static, const and readonly members","Differences that matter at compile time and at run time.","static const readonly field initializer"],
+["07","07-equality.html",0,12,60,"برابری و hash","‏Equals، GetHashCode، ‎==‎ و قرارداد‌هایی که شکستنشان گران است.","Equality and hashing","Equals, GetHashCode, ==, and contracts that are expensive to break.","equals gethashcode comparer icomparable"],
+["08","08-operators.html",0,12,50,"عملگر و تبدیل نوع","بارگذاری عملگر، ‎implicit‎ و ‎explicit‎.","Operators and conversions","Operator overloading, implicit and explicit conversions.","operator overload implicit explicit conversion"],
+["09","09-generics.html",0,12,60,"‏generic و constraint","نوع به‌عنوان پارامتر، بدون از دست دادن ایمنی یا کارایی.","Generics and constraints","Types as parameters, without losing safety or speed.","generic constraint where new class struct"],
+["10","10-variance.html",0,12,55,"‏variance: in و out","چرا ‎List<Derived>‎ یک ‎List<Base>‎ نیست.","Variance: in and out","Why a List<Derived> is not a List<Base>.","covariance contravariance in out variance"],
+["11","11-generic-math.html",0,12,55,"‏static abstract و ریاضی عمومی","عضو ایستای انتزاعی در interface — قابلیت تازهٔ زبان.","Static abstract members and generic math","Abstract static interface members — a recent language capability.","static abstract generic math inumber"],
+["12","12-collections.html",0,12,60,"مجموعه‌ها","‏List، Dictionary، HashSet، Queue — و پیچیدگی زمانی هرکدام.","Collections","List, Dictionary, HashSet, Queue — and each one's complexity.","list dictionary hashset queue complexity"],
+["13","13-iterators.html",0,12,55,"‏iterator و yield","تولید تنبل، و ماشین حالتی که کامپایلر می‌سازد.","Iterators and yield","Lazy sequences, and the state machine the compiler builds.","yield ienumerable iterator lazy state machine"],
+["14","14-linq-basics.html",0,12,60,"‏LINQ ۱: مبانی و اجرای معوق","چرا کوئری تو هنوز اجرا نشده است.","LINQ 1: basics and deferred execution","Why your query has not run yet.","linq deferred lazy enumerable query"],
+["15","15-linq-advanced.html",0,12,65,"‏LINQ ۲: عملگرهای پیشرفته","‏GroupBy، Join، SelectMany، Aggregate و دام‌های کارایی.","LINQ 2: advanced operators","GroupBy, Join, SelectMany, Aggregate and the performance traps.","groupby join selectmany aggregate performance"],
+["16","16-expression-trees.html",0,12,65,"‏expression tree","کد به‌عنوان داده — پایه‌ای که ‎EF Core‎ رویش ساخته شده.","Expression trees","Code as data — the foundation EF Core is built on.","expression tree lambda visitor compile"],
+["17","17-delegates.html",0,12,55,"‏delegate، event و lambda","تابع به‌عنوان مقدار، و الگوی رویداد.","Delegates, events and lambdas","Functions as values, and the event pattern.","delegate event func action lambda"],
+["18","18-closures.html",0,12,55,"‏closure و دام‌هایش","متغیر ربوده‌شده در حلقه — کلاسیک‌ترین باگ.","Closures and their traps","Captured loop variables — the classic bug.","closure capture loop variable allocation"],
+["19","19-pattern-matching.html",0,12,55,"‏pattern matching","‏switch expression، الگوی ویژگی، لیست و رابطه‌ای.","Pattern matching","Switch expressions, property, list and relational patterns.","pattern switch expression property list relational"],
+["20","20-exceptions.html",0,12,60,"خطا و exception","کِی بگیر، کِی نگیر، ‎filter‎ و خطای سفارشی.","Exceptions","When to catch, when not to, filters and custom exceptions.","exception filter custom rethrow stacktrace"],
+["21","21-disposable.html",0,12,55,"‏IDisposable و IAsyncDisposable","‏using، الگوی dispose و منابعی که GC نمی‌گیرد.","IDisposable and IAsyncDisposable","using, the dispose pattern, and resources the GC will not reclaim.","idisposable using finalizer safehandle"],
+["22","22-async-model.html",0,12,70,"‏async/await: مدل ذهنی","‏async یعنی «نخ را نگه ندار»، نه «سریع‌تر».","async/await: the mental model","async means “do not hold the thread”, not “faster”.","async await state machine continuation"],
+["23","23-tasks.html",0,12,65,"‏Task و cancellation","‏WhenAll، WhenAny، CancellationToken و مهلت.","Tasks and cancellation","WhenAll, WhenAny, CancellationToken and timeouts.","task whenall cancellation token timeout"],
+["24","24-async-pitfalls.html",0,12,65,"دام‌های async","‏async void، بن‌بست، ‎ConfigureAwait‎ و ‎sync over async‎.","Async pitfalls","async void, deadlocks, ConfigureAwait and sync-over-async.","deadlock async void configureawait sync over async"],
+["25","25-valuetask.html",0,12,55,"‏ValueTask و IAsyncEnumerable","جریان ناهمگام و کاهش تخصیص.","ValueTask and IAsyncEnumerable","Async streams and reducing allocations.","valuetask iasyncenumerable await foreach"],
+["26","26-channels.html",0,12,60,"‏Channel","تولیدکننده و مصرف‌کننده، با فشار برگشتی.","Channels","Producer/consumer with backpressure.","channel producer consumer backpressure bounded"],
+["27","27-threading.html",0,12,65,"نخ، قفل و atomic","‏lock، Interlocked، مدل حافظه و مسابقهٔ داده.","Threads, locks and atomics","lock, Interlocked, the memory model and data races.","thread lock interlocked volatile race"],
+["28","28-span.html",0,12,65,"‏Span و Memory","کار با حافظه بدون کپی و بدون تخصیص.","Span and Memory","Working with memory without copying or allocating.","span memory stackalloc slice arraypool"],
+["29","29-gc.html",0,12,60,"تخصیص و زباله‌روب","نسل‌ها، ‎LOH‎، و اینکه چرا کد تو مکث می‌کند.","Allocation and the GC","Generations, the LOH, and why your code pauses.","gc generation loh allocation pause server gc"],
+["30","30-json.html",0,12,60,"‏System.Text.Json","سریال‌سازی، تبدیل‌گر سفارشی و منبع تولید.","System.Text.Json","Serialisation, custom converters and source generation.","json serialize converter polymorphic sourcegen"],
+["31","31-datetime.html",0,12,55,"زمان و تاریخ","‏DateTimeOffset، TimeProvider، منطقهٔ زمانی و تقویم فارسی.","Dates and times","DateTimeOffset, TimeProvider, time zones and the Persian calendar.","datetime offset timezone timeprovider persian calendar"],
+["32","32-regex.html",0,12,50,"عبارت باقاعده","‏Regex، منبع تولید، و خطر بازگشت فاجعه‌بار.","Regular expressions","Regex, source generation, and catastrophic backtracking.","regex backtracking generated compiled"],
+["33","33-reflection.html",0,12,55,"‏reflection و attribute","قدرت زمان اجرا، و هزینه‌اش.","Reflection and attributes","Run-time power, and what it costs.","reflection attribute metadata activator"],
+["34","34-source-generators.html",0,12,65,"‏source generator","کد تولید کن به‌جای reflection — سریع‌تر و AOT-پسند.","Source generators","Generate code instead of reflecting — faster and AOT-friendly.","source generator roslyn incremental aot"],
+["35","35-analyzers.html",0,12,55,"‏analyzer و قواعد کد","قانون تیمی که کامپایلر اجرایش می‌کند.","Analyzers and code rules","Team rules the compiler enforces for you.","analyzer roslyn editorconfig warning as error"],
+["36","36-interop.html",0,12,55,"‏interop و P/Invoke","فراخوانی کد بومی و ‎LibraryImport‎.","Interop and P/Invoke","Calling native code and LibraryImport.","pinvoke interop marshal libraryimport native"],
+["37","37-testing.html",0,12,60,"تست با xUnit","‏fixture، تست پارامتری، mock و assertion خوانا.","Testing with xUnit","Fixtures, parameterised tests, mocking and readable assertions.","xunit theory fixture moq fluentassertions"],
+["38","38-benchmark.html",0,12,60,"‏benchmark","‏BenchmarkDotNet: اندازه‌گیری قبل از بهینه‌سازی.","Benchmarking","BenchmarkDotNet: measure before you optimise.","benchmarkdotnet memory diagnoser baseline"],
+["39","39-project.html",0,12,50,"ساختار پروژه و NuGet","چند پروژه، وابستگی مرکزی و انتشار بسته.","Project structure and NuGet","Multiple projects, central package management and publishing.","solution csproj nuget central package management"],
+["40","40-cap1.html",0,5,80,"پروژهٔ ۱ — ابزار خط فرمان","‏CLI واقعی با آرگومان، خطا، لاگ و تست.","Project 1 — a command-line tool","A real CLI with arguments, error handling, logging and tests.","capstone cli",1],
+["41","41-cap2.html",0,7,140,"پروژهٔ ۲ — کتابخانهٔ قابل انتشار","‏API تمیز، تست کامل، benchmark و بستهٔ NuGet.","Project 2 — a publishable library","A clean API, full tests, benchmarks and a NuGet package.","capstone library nuget",2],
+["42","42-cap3.html",0,9,200,"پروژهٔ ۳ — پردازشگر همروند پرکار","‏Channel، async، cancellation، pooling و کارایی اندازه‌گیری‌شده.","Project 3 — a high-throughput concurrent processor","Channels, async, cancellation, pooling and measured performance.","capstone concurrency performance",3]
 ]});
 
 /* ═══════════════ ۱۰ — ASP.NET Core ═══════════════ */
 C.push({
-  id:"10-aspnet-core", dir:"10-aspnet-core", accent:"#512BD4", cat:"backend",
+  id:"10-aspnet-core", dir:"10-aspnet-core", accent:"#512BD4", cat:"backend", pre:["09-csharp"], soft:["05-sql"],
   ico:'<circle cx="12" cy="12" r="9"/><path d="M3.2 9.5h17.6M3.2 14.5h17.6"/><path d="M12 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18z"/>',
   fa:{name:"ASP.NET Core", desc:"از pipeline و DI تا EF Core، احراز هویت، SignalR، تست و استقرار روی لینوکس.",
       intro:"این مسیر فرض می‌کند ‎C#‎ را می‌دانی و می‌خواهی با آن سرویس وب بنویسی — سرویسی که تست دارد، امن است، و روی یک سرور لینوکسی پشت Nginx کار می‌کند."},
   en:{name:"ASP.NET Core", desc:"From the pipeline and DI to EF Core, authentication, SignalR, testing and deploying on Linux.",
       intro:"This track assumes you know C# and want to build web services with it — services that are tested, secure, and running on a Linux server behind Nginx."},
   ch:[
-["01","01-mental-model.html",0,12,55,"مدل ذهنی: host، pipeline، DI","سه چیزی که اگر بفهمی، بقیه واضح می‌شود.","The mental model: host, pipeline, DI","Understand these three and the rest follows.","host pipeline middleware di startup"],
-["02","02-minimal-vs-mvc.html",0,12,50,"Minimal API در برابر Controller","کدام برای کدام پروژه.","Minimal APIs versus Controllers","Which one for which project.","minimal api controller mvc endpoint"],
-["03","03-routing.html",0,12,50,"مسیریابی","الگو، پارامتر، constraint و اولویت.","Routing","Patterns, parameters, constraints and precedence.","routing route constraint parameter"],
-["04","04-middleware.html",0,12,55,"middleware و ترتیبش","ترتیب اشتباه = خطای بی‌معنی.","Middleware and its order","The wrong order gives you a meaningless error.","middleware order pipeline usemiddleware"],
-["05","05-di.html",0,12,55,"Dependency Injection و طول عمر","singleton، scoped، transient — و باگ کلاسیک ترکیبشان.","Dependency Injection and lifetimes","Singleton, scoped, transient — and the classic captive-dependency bug.","di lifetime singleton scoped transient"],
-["06","06-config.html",0,12,45,"پیکربندی و محیط‌ها","appsettings، متغیر محیطی، secret و اولویت‌ها.","Configuration and environments","appsettings, environment variables, secrets and precedence.","configuration appsettings environment secret"],
-["07","07-binding.html",0,12,50,"model binding و اعتبارسنجی","از درخواست خام تا شیء معتبر.","Model binding and validation","From a raw request to a validated object.","model binding validation dataannotation fluentvalidation"],
-["08","08-efcore-1.html",0,12,60,"EF Core ۱: مدل و migration","DbContext، رابطه‌ها و مهاجرت‌ها.","EF Core 1: model and migrations","DbContext, relationships and migrations.","efcore dbcontext migration relationship"],
-["09","09-efcore-2.html",0,12,65,"EF Core ۲: کوئری و کارایی","N+1، tracking، و کوئری‌ای که ۳۰ ثانیه طول می‌کشد.","EF Core 2: querying and performance","N+1, change tracking, and the query that takes 30 seconds.","efcore n+1 tracking include split query"],
-["10","10-authn.html",0,12,60,"احراز هویت: cookie و JWT","چه کسی هستی — و اینکه توکن کجا باید بماند.","Authentication: cookies and JWT","Who you are — and where the token should live.","authentication jwt cookie identity token"],
-["11","11-authz.html",0,12,55,"مجوز: policy و role","اجازهٔ چه کاری را داری.","Authorisation: policies and roles","What you are allowed to do.","authorization policy role claim requirement"],
-["12","12-errors.html",0,12,50,"مدیریت خطای سراسری","ProblemDetails و پاسخ خطای یکدست.","Global error handling","ProblemDetails and consistent error responses.","exception handler problemdetails middleware"],
-["13","13-logging.html",0,12,50,"لاگ ساخت‌یافته","Serilog، scope و لاگی که بشود جستجو کرد.","Structured logging","Serilog, scopes and logs you can actually search.","serilog structured logging scope sink"],
-["14","14-caching.html",0,12,55,"کش: memory، توزیع‌شده، پاسخ","و مسئلهٔ باطل‌سازی.","Caching: memory, distributed, response","And the invalidation problem.","cache memorycache redis response output"],
-["15","15-background.html",0,12,50,"سرویس پس‌زمینه","BackgroundService، کار زمان‌بندی‌شده و صف.","Background services","BackgroundService, scheduled work and queues.","backgroundservice hostedservice worker channel"],
-["16","16-signalr.html",0,12,55,"SignalR","ارتباط بی‌درنگ در دات‌نت.","SignalR","Real-time communication in .NET.","signalr hub websocket realtime"],
-["17","17-testing.html",0,12,60,"تست: واحد و یکپارچه","WebApplicationFactory و تست روی پایگاه‌دادهٔ واقعی.","Testing: unit and integration","WebApplicationFactory and testing against a real database.","test webapplicationfactory testcontainers integration"],
-["18","18-security.html",0,12,60,"امنیت","CORS، HTTPS، rate limit، و ده مورد اول OWASP.","Security","CORS, HTTPS, rate limiting, and the OWASP top ten.","cors https ratelimit owasp antiforgery"],
-["19","19-performance.html",0,12,55,"کارایی و پروفایلینگ","اندازه‌گیری، گلوگاه و بهینه‌سازی واقعی.","Performance and profiling","Measure, find the bottleneck, then optimise.","performance profiling benchmark load test"],
-["20","20-deploy.html",0,12,60,"استقرار روی لینوکس","داکر، Nginx، systemd و پیکربندی production.","Deploying on Linux","Docker, Nginx, systemd and production configuration.","deploy linux docker nginx systemd kestrel"],
-["21","21-cap1.html",0,5,80,"پروژهٔ ۱ — API ساده با پایگاه‌داده","CRUD کامل با اعتبارسنجی و تست.","Project 1 — a simple API with a database","Full CRUD with validation and tests.","capstone crud api",1],
-["22","22-cap2.html",0,7,140,"پروژهٔ ۲ — API امن با احراز هویت","JWT، مجوز مبتنی بر policy، لاگ و کش.","Project 2 — a secured API with authentication","JWT, policy-based authorisation, logging and caching.","capstone jwt auth",2],
-["23","23-cap3.html",0,9,220,"پروژهٔ ۳ — سرویس production","تست یکپارچه، مشاهده‌پذیری، بی‌درنگ و استقرار خودکار.","Project 3 — a production service","Integration tests, observability, real-time features and automated deployment.","capstone production deploy",3]
+["01","01-mental-model.html",0,12,60,"مدل ذهنی: host، pipeline، DI","سه چیزی که اگر بفهمی، بقیه واضح می‌شود.","The mental model: host, pipeline, DI","Understand these three and the rest follows.","host builder pipeline middleware di"],
+["02","02-minimal-vs-mvc.html",0,12,55,"‏Minimal API در برابر Controller","کدام برای کدام پروژه، با معیار روشن.","Minimal APIs versus controllers","Which for which project, with clear criteria.","minimal api controller mvc endpoint"],
+["03","03-routing.html",0,12,55,"مسیریابی","الگو، پارامتر، constraint و اولویت تطبیق.","Routing","Patterns, parameters, constraints and match precedence.","routing route constraint parameter precedence"],
+["04","04-middleware.html",0,12,60,"‏middleware و ترتیبش","ترتیب اشتباه = خطای بی‌معنی. با نمودار جریان.","Middleware and its order","The wrong order gives a meaningless error. With a flow diagram.","middleware order use run map short-circuit"],
+["05","05-filters.html",0,12,55,"فیلتر و endpoint filter","منطق عرضی، بدون تکرار در هر اکشن.","Filters and endpoint filters","Cross-cutting logic without repeating it in every action.","filter action result exception endpoint filter"],
+["06","06-di.html",0,12,65,"‏DI و طول عمر","‏singleton، scoped، transient — و باگ وابستگی اسیر.","DI and lifetimes","Singleton, scoped, transient — and the captive dependency bug.","di lifetime singleton scoped transient captive"],
+["07","07-options.html",0,12,55,"الگوی Options","‏IOptions، IOptionsSnapshot، اعتبارسنجی پیکربندی.","The Options pattern","IOptions, IOptionsSnapshot and configuration validation.","options ioptions snapshot monitor validate"],
+["08","08-config.html",0,12,55,"پیکربندی، محیط و اسرار","‏appsettings، متغیر محیطی، user-secrets و اولویت‌ها.","Configuration, environments and secrets","appsettings, environment variables, user-secrets and precedence.","configuration environment secret keyvault precedence"],
+["09","09-binding.html",0,12,55,"‏model binding","از درخواست خام تا شیء — و جایی که بی‌صدا شکست می‌خورد.","Model binding","From raw request to object — and where it silently fails.","binding frombody fromquery custom binder"],
+["10","10-validation.html",0,12,55,"اعتبارسنجی با DataAnnotations","اعتبارسنجی داخلی و محدودیت‌هایش.","Validation with DataAnnotations","Built-in validation and its limits.","dataannotation validation modelstate required"],
+["11","11-fluentvalidation.html",0,12,65,"‏FluentValidation","قاعده‌های پیچیده، خوانا و تست‌پذیر — جدا از مدل.","FluentValidation","Complex rules, readable and testable — separate from the model.","fluentvalidation validator rule async cascade"],
+["12","12-mapping.html",0,12,55,"نگاشت شیء","‏AutoMapper، Mapperly و نگاشت دستی — کدام کِی.","Object mapping","AutoMapper, Mapperly and hand-written mapping — which when.","automapper mapperly dto projection mapping"],
+["13","13-efcore-model.html",0,12,65,"‏EF Core ۱: DbContext و مدل","‏entity، رابطه، پیکربندی fluent و قرارداد.","EF Core 1: DbContext and the model","Entities, relationships, fluent configuration and conventions.","efcore dbcontext entity fluent api relationship"],
+["14","14-efcore-migrations.html",0,12,60,"‏EF Core ۲: مهاجرت","تغییر شِما به‌صورت نسخه‌بندی‌شده، و مهاجرت در production.","EF Core 2: migrations","Versioned schema change, and migrating in production.","migration add-migration update-database idempotent script"],
+["15","15-efcore-query.html",0,12,70,"‏EF Core ۳: کوئری و بارگذاری","‏Include، projection، split query و کوئری سمت کلاینت.","EF Core 3: querying and loading","Include, projections, split queries and client-side evaluation.","include projection split query client evaluation"],
+["16","16-efcore-performance.html",0,12,70,"‏EF Core ۴: کارایی و ‎N+1‎","چرا صفحهٔ فهرست تو ۳۰ ثانیه طول می‌کشد.","EF Core 4: performance and N+1","Why your list page takes thirty seconds.","n+1 asnotracking compiled query batching profiling"],
+["17","17-efcore-tracking.html",0,12,65,"‏EF Core ۵: tracking، همزمانی، تراکنش","‏change tracker، همزمانی خوش‌بینانه و ‎SaveChanges‎.","EF Core 5: tracking, concurrency, transactions","The change tracker, optimistic concurrency and SaveChanges.","tracking concurrency rowversion transaction savechanges"],
+["18","18-efcore-advanced.html",0,12,65,"‏EF Core ۶: پیشرفته","‏SQL خام، view، interceptor، فیلتر سراسری و چند DbContext.","EF Core 6: advanced","Raw SQL, views, interceptors, global filters and multiple contexts.","raw sql interceptor global filter keyless owned"],
+["19","19-dapper-basics.html",0,12,60,"‏Dapper ۱: مبانی","‏micro-ORM: کوئری، پارامتر و نگاشت.","Dapper 1: the basics","A micro-ORM: queries, parameters and mapping.","dapper query parameter execute micro orm"],
+["20","20-dapper-advanced.html",0,12,65,"‏Dapper ۲: پیشرفته","نگاشت چندگانه، چند نتیجه، ‎bulk‎ و تراکنش.","Dapper 2: advanced","Multi-mapping, multiple result sets, bulk operations and transactions.","dapper multimap querymultiple bulk transaction"],
+["21","21-ef-vs-dapper.html",0,12,60,"‏EF Core یا Dapper؟","ماتریس تصمیم، و الگوی استفادهٔ همزمان.","EF Core or Dapper?","A decision matrix, and using both together.","comparison decision hybrid read write"],
+["22","22-repository.html",0,12,60,"‏Repository و Unit of Work","کِی لایهٔ مفیدی است و کِی فقط یک لایهٔ اضافه.","Repository and Unit of Work","When it is a useful layer and when it is just another one.","repository unit of work abstraction testability"],
+["23","23-cqrs-mediatr.html",0,12,65,"‏CQRS با MediatR","جدا کردن خواندن از نوشتن، و pipeline behavior.","CQRS with MediatR","Separating reads from writes, and pipeline behaviours.","mediatr cqrs handler behavior notification"],
+["24","24-openapi.html",0,12,55,"‏OpenAPI و Swagger","مستند زنده‌ای که با کد هماهنگ می‌ماند.","OpenAPI and Swagger","Living documentation that stays in step with the code.","openapi swagger swashbuckle schema example"],
+["25","25-versioning.html",0,12,55,"نسخه‌گذاری ‎API‎","تغییر بدون شکستن کلاینت‌های موجود.","API versioning","Changing without breaking existing clients.","versioning header url deprecation sunset"],
+["26","26-errors.html",0,12,60,"مدیریت خطای سراسری","‏ProblemDetails، ‎IExceptionHandler‎ و پاسخ یکدست.","Global error handling","ProblemDetails, IExceptionHandler and consistent responses.","problemdetails exception handler middleware rfc7807"],
+["27","27-logging.html",0,12,60,"لاگ ساخت‌یافته","‏Serilog، scope، enricher و لاگی که بشود جستجو کرد.","Structured logging","Serilog, scopes, enrichers and logs you can search.","serilog structured scope enricher sink"],
+["28","28-telemetry.html",0,12,65,"‏OpenTelemetry","‏trace، متریک و ردیابی یک درخواست در چند سرویس.","OpenTelemetry","Traces, metrics and following one request across services.","opentelemetry trace span metric exporter"],
+["29","29-healthchecks.html",0,12,50,"‏health check","تفاوت «بالا هست» و «آمادهٔ ترافیک است».","Health checks","The difference between “it is up” and “it is ready”.","healthcheck liveness readiness probe"],
+["30","30-caching.html",0,12,65,"کش","‏memory، distributed با Redis، ‎output cache‎ و باطل‌سازی.","Caching","In-memory, distributed with Redis, output caching and invalidation.","memorycache redis distributed output cache invalidation"],
+["31","31-ratelimit.html",0,12,55,"محدودیت نرخ","‏fixed، sliding، token bucket و concurrency.","Rate limiting","Fixed, sliding, token bucket and concurrency limiters.","ratelimit fixed sliding token bucket partition"],
+["32","32-authn.html",0,12,70,"احراز هویت: cookie و JWT","چه کسی هستی — و توکن کجا باید بماند.","Authentication: cookies and JWT","Who you are — and where the token should live.","authentication jwt cookie bearer refresh token"],
+["33","33-identity.html",0,12,70,"‏ASP.NET Core Identity","کاربر، رمز، تأیید ایمیل، ‎2FA‎ و قفل حساب.","ASP.NET Core Identity","Users, passwords, email confirmation, 2FA and lockout.","identity user password 2fa lockout claims"],
+["34","34-oauth-oidc.html",0,12,70,"‏OAuth2 و OIDC","ورود با ارائه‌دهندهٔ بیرونی، و جریان‌های استاندارد.","OAuth2 and OIDC","Logging in with an external provider, and the standard flows.","oauth oidc pkce authorization code identity server"],
+["35","35-authz.html",0,12,60,"مجوز","‏policy، role، claim و مجوز مبتنی بر منبع.","Authorisation","Policies, roles, claims and resource-based authorisation.","authorization policy role claim requirement handler"],
+["36","36-security.html",0,12,65,"امنیت","‏CORS، HTTPS، antiforgery، هدرهای امنیتی و ده مورد OWASP.","Security","CORS, HTTPS, antiforgery, security headers and the OWASP top ten.","cors https antiforgery csp owasp hsts"],
+["37","37-files.html",0,12,55,"آپلود فایل و استریم","فایل حجیم بدون پر کردن حافظه، و ذخیره‌سازی امن.","File uploads and streaming","Large files without filling memory, and safe storage.","upload multipart stream formfile antivirus"],
+["38","38-localization.html",0,12,60,"بومی‌سازی","چندزبانگی، منابع، قالب عدد و تاریخ فارسی.","Localisation","Multiple languages, resources, Persian number and date formats.","localization resx culture rtl persian"],
+["39","39-background.html",0,12,60,"سرویس پس‌زمینه","‏BackgroundService، صف کار و کار زمان‌بندی‌شده.","Background services","BackgroundService, work queues and scheduled jobs.","backgroundservice hostedservice queue hangfire quartz"],
+["40","40-signalr.html",0,12,60,"‏SignalR","ارتباط بی‌درنگ، گروه، و مقیاس افقی با backplane.","SignalR","Real-time communication, groups and scaling out with a backplane.","signalr hub group backplane websocket"],
+["41","41-grpc.html",0,12,60,"‏gRPC","قرارداد protobuf، استریم، و کِی از REST بهتر است.","gRPC","Protobuf contracts, streaming, and when it beats REST.","grpc protobuf streaming interceptor"],
+["42","42-testing-unit.html",0,12,60,"تست واحد","تست کنترلر، سرویس و اعتبارسنجی — بدون پایگاه‌داده.","Unit testing","Testing controllers, services and validators — without a database.","unit test moq xunit isolation"],
+["43","43-testing-integration.html",0,12,70,"تست یکپارچه","‏WebApplicationFactory و پایگاه‌دادهٔ واقعی با Testcontainers.","Integration testing","WebApplicationFactory and a real database with Testcontainers.","webapplicationfactory testcontainers integration respawn"],
+["44","44-performance.html",0,12,65,"کارایی و پروفایل","اندازه‌گیری، گلوگاه، تست بار و بهینه‌سازی واقعی.","Performance and profiling","Measure, find the bottleneck, load test, then optimise.","performance profiling load test k6 dotnet-counters"],
+["45","45-deploy.html",0,12,65,"استقرار روی لینوکس","داکر، Nginx، ‎systemd‎، health و پیکربندی production.","Deploying on Linux","Docker, Nginx, systemd, health checks and production configuration.","deploy docker nginx systemd kestrel reverse proxy"],
+["46","46-cap1.html",0,5,90,"پروژهٔ ۱ — ‎API‎ با پایگاه‌داده","‏CRUD کامل با EF Core، FluentValidation و تست.","Project 1 — an API with a database","Full CRUD with EF Core, FluentValidation and tests.","capstone crud efcore",1],
+["47","47-cap2.html",0,7,160,"پروژهٔ ۲ — ‎API‎ امن و لایه‌بندی‌شده","‏Identity، JWT، CQRS، کش، لاگ و تست یکپارچه.","Project 2 — a secured, layered API","Identity, JWT, CQRS, caching, logging and integration tests.","capstone identity cqrs",2],
+["48","48-cap3.html",0,9,240,"پروژهٔ ۳ — سرویس production","مشاهده‌پذیری، بی‌درنگ، صف، محدودیت نرخ و استقرار خودکار.","Project 3 — a production service","Observability, real-time features, queues, rate limiting and automated deployment.","capstone production observability",3]
 ]});
 
 /* ═══════════════ ۱۱ — Go ═══════════════ */
@@ -386,7 +467,7 @@ C.push({
 
 /* ═══════════════ ۱۳ — جنگو ═══════════════ */
 C.push({
-  id:"13-django", dir:"13-django", accent:"#0C4B33", cat:"backend",
+  id:"13-django", dir:"13-django", accent:'#0C4B33', accentDark:'#44B78B', cat:"backend", pre:["12-python"], soft:["53-mysql-mariadb"],
   ico:'<path d="M13.5 3v14.5c0 2-1.6 3.2-4 3.2-3 0-5-2.4-5-6s2-6 5-6c.8 0 1.5.1 2 .4"/><path d="M17.8 8v9M17.8 3.6v1.6" stroke-linecap="round"/>',
   fa:{name:"جنگو", desc:"ORM، admin، احراز هویت و REST Framework — از پروژهٔ خالی تا استقرار.",
       intro:"جنگو «باتری‌ها سرجایشان» است: admin، احراز هویت، ORM و migration را از قبل دارد. مهارت واقعی این است که بدانی کدام باتری را استفاده کنی و کِی کنارش بگذاری."},
@@ -416,7 +497,7 @@ C.push({
 
 /* ═══════════════ ۱۴ — فلسک ═══════════════ */
 C.push({
-  id:"14-flask", dir:"14-flask", accent:"#5C5C5C", cat:"backend",
+  id:"14-flask", dir:"14-flask", accent:"#5C5C5C", cat:"backend", pre:["12-python"],
   ico:'<path d="M10 3h4M12 3v5.5L7 18.5c-.8 1.5.2 2.5 1.6 2.5h6.8c1.4 0 2.4-1 1.6-2.5L12 8.5"/><path d="M8.6 14h6.8" stroke-linecap="round"/>',
   fa:{name:"فلسک", desc:"میکروفریم‌ورک: blueprint، SQLAlchemy، JWT و ساختاری که با پروژه بزرگ شود.",
       intro:"فلسک تقریباً هیچ تصمیمی برایت نمی‌گیرد. این هم آزادی است هم دام: باید خودت ساختار بسازی. این مسیر ساختاری می‌دهد که از یک فایل تا یک سرویس واقعی مقیاس بگیرد."},
@@ -444,7 +525,7 @@ C.push({
 
 /* ═══════════════ ۱۵ — ری‌اکت ═══════════════ */
 C.push({
-  id:"15-react", dir:"15-react", accent:"#61DAFB", cat:"frontend",
+  id:"15-react", dir:"15-react", accent:"#61DAFB", cat:"frontend", pre:["41-javascript"], soft:["66-html","67-css"],
   ico:'<circle cx="12" cy="12" r="2.1"/><ellipse cx="12" cy="12" rx="9.5" ry="3.8"/><ellipse cx="12" cy="12" rx="9.5" ry="3.8" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="9.5" ry="3.8" transform="rotate(120 12 12)"/>',
   fa:{name:"ری‌اکت", desc:"UI به‌عنوان تابعی از state: هوک‌ها، رندر مجدد، مدیریت state، دریافت داده و کارایی.",
       intro:"بیشتر مشکلات ری‌اکت از یک سوءتفاهم می‌آید: اینکه فکر کنی داری DOM را دستکاری می‌کنی. نمی‌کنی. داری توصیف می‌کنی که UI برای یک state مشخص چه شکلی است. این مسیر روی همان یک جمله بنا شده."},
@@ -469,44 +550,68 @@ C.push({
 ["16","16-testing.html",0,12,55,"تست","Testing Library و تست از دید کاربر.","Testing","Testing Library and testing from the user's point of view.","testing library user event vitest"],
 ["17","17-performance.html",0,12,60,"کارایی","پروفایلر، لیست بلند و رندر غیرضروری.","Performance","The profiler, long lists and needless renders.","profiler virtualization memo performance"],
 ["18","18-patterns.html",0,12,55,"الگوها و ضدالگوها","الگوهای کامپوننت که واقعاً کار می‌کنند.","Patterns and anti-patterns","Component patterns that actually hold up.","pattern compound render prop hook"],
-["19","19-cap1.html",0,5,80,"پروژهٔ ۱ — لیست کارها با state واقعی","کامپوننت، فرم، لیست و ماندگاری محلی.","Project 1 — a to-do app with real state","Components, forms, lists and local persistence.","capstone todo",1],
-["20","20-cap2.html",0,7,140,"پروژهٔ ۲ — داشبورد با داده از API","دریافت داده، کش، مسیریابی و وضعیت بارگذاری.","Project 2 — a dashboard fed by an API","Data fetching, caching, routing and loading states.","capstone dashboard",2],
-["21","21-cap3.html",0,9,200,"پروژهٔ ۳ — اپ کامل با احراز هویت","ورود، مسیر محافظت‌شده، تست و بهینه‌سازی کارایی.","Project 3 — a full app with authentication","Login, protected routes, tests and performance work.","capstone auth spa",3]
+["19","19-zustand-redux.html",0,12,65,"حالت سراسری: Zustand و Redux","دو رویکرد به یک مسئله، و معیار انتخاب بینشان.","Global state: Zustand and Redux","Two approaches to one problem, and how to choose.","zustand redux toolkit global store selector"],
+["20","20-custom-hooks.html",0,12,60,"‏hook سفارشی","استخراج منطق مشترک، بدون ساختن انتزاع نشتی.","Custom hooks","Extracting shared logic without a leaky abstraction.","custom hook reuse rules of hooks"],
+["21","21-concurrent.html",0,12,65,"‏React همروند","‏transition، ‎useDeferredValue‎ و رابطی که هنگام کار سنگین یخ نمی‌زند.","Concurrent React","Transitions, useDeferredValue and a UI that does not freeze under load.","concurrent transition deferred suspense"],
+["22","22-rsc.html",0,12,70,"‏Server Component","مرز سرور و کلاینت، و آنچه واقعاً به مرورگر می‌رود.","Server Components","The server/client boundary, and what actually ships to the browser.","rsc server component action boundary"],
+["23","23-a11y.html",0,12,60,"دسترس‌پذیری","مدیریت فوکوس، ‎ARIA‎ و کامپوننت قابل استفاده با کیبورد.","Accessibility","Focus management, ARIA and keyboard-usable components.","accessibility focus aria headless keyboard"],
+["24","24-forms-advanced.html",0,12,60,"فرم‌های پیچیده","‏react-hook-form، اعتبارسنجی طرح‌محور و فرم چندمرحله‌ای.","Advanced forms","react-hook-form, schema validation and multi-step forms.","react-hook-form zod validation wizard"],
+["25","25-cap1.html",0,5,80,"پروژهٔ ۱ — لیست کارها با state واقعی","کامپوننت، فرم، لیست و ماندگاری محلی.","Project 1 — a to-do app with real state","Components, forms, lists and local persistence.","capstone todo",1],
+["26","26-cap2.html",0,7,140,"پروژهٔ ۲ — داشبورد با داده از API","دریافت داده، کش، مسیریابی و وضعیت بارگذاری.","Project 2 — a dashboard fed by an API","Data fetching, caching, routing and loading states.","capstone dashboard",2],
+["27","27-cap3.html",0,9,200,"پروژهٔ ۳ — اپ کامل با احراز هویت","ورود، مسیر محافظت‌شده، تست و بهینه‌سازی کارایی.","Project 3 — a full app with authentication","Login, protected routes, tests and performance work.","capstone auth spa",3]
 ]});
 
 /* ═══════════════ ۱۶ — Next.js ═══════════════ */
 C.push({
-  id:"16-nextjs", dir:"16-nextjs", accent:"#111827", cat:"frontend",
-  ico:'<circle cx="12" cy="12" r="9"/><path d="M9 16V9l7.5 9.6M15.2 9v6" stroke-linecap="round"/>',
+  id:"16-nextjs", dir:"16-nextjs", accent:'#111827', accentDark:'#E6EAF2', cat:"frontend", pre:["15-react"], soft:["42-typescript"],
+  ico:'<circle cx="12" cy="12" r="9"/><path d="M9.2 15.8V8.2l5.6 7.6M14.8 8.2v7.6" stroke-linecap="round" stroke-linejoin="round"/>',
   fa:{name:"Next.js", desc:"App Router، Server Component، رندر سمت سرور، Server Action و استقرار خودمیزبان.",
       intro:"Next پاسخ این سؤال است: بخشی از UI را سرور بسازد یا مرورگر؟ App Router این تصمیم را برای هر کامپوننت جداگانه ممکن کرده — و همین، هم قدرتش است هم جایی که همه گیج می‌شوند."},
   en:{name:"Next.js", desc:"App Router, Server Components, server rendering, Server Actions and self-hosted deployment.",
       intro:"Next answers one question: should the server or the browser build this piece of UI? The App Router lets you decide per component — which is both its power and where everyone gets confused."},
   ch:[
-["01","01-why.html",0,12,50,"چرا Next؛ App Router","مسئله‌ای که SPA خالی حل نمی‌کند.","Why Next; the App Router","The problem a plain SPA does not solve.","nextjs app router why ssr"],
-["02","02-rendering.html",0,12,60,"مدل‌های رندر","SSR، SSG، ISR، CSR — و انتخاب درست.","Rendering models","SSR, SSG, ISR, CSR — and choosing correctly.","ssr ssg isr csr prerender"],
-["03","03-server-components.html",0,12,65,"Server Component در برابر Client Component","مرز بین این دو، و خطاهایی که از عبور از آن می‌آید.","Server versus Client Components","The boundary between them, and the errors crossing it causes.","server component client use client boundary"],
-["04","04-routing.html",0,12,55,"مسیریابی و layout","مسیر تودرتو، گروه و layout مشترک.","Routing and layouts","Nested routes, groups and shared layouts.","routing layout group dynamic segment"],
-["05","05-data.html",0,12,60,"دریافت داده و کش","fetch، revalidate و لایه‌های کش.","Data fetching and caching","fetch, revalidate and the caching layers.","fetch cache revalidate tag"],
-["06","06-actions.html",0,12,60,"Server Action و فرم","جهش داده بدون نوشتن API.","Server Actions and forms","Mutating data without writing an API.","server action form mutation revalidate"],
-["07","07-route-handlers.html",0,12,50,"Route Handler","وقتی واقعاً به یک endpoint نیاز داری.","Route handlers","When you genuinely need an endpoint.","route handler api rest"],
-["08","08-middleware.html",0,12,50,"middleware","تغییر مسیر، هدر و بررسی پیش از رندر.","Middleware","Redirects, headers and pre-render checks.","middleware edge redirect matcher"],
-["09","09-auth.html",0,12,60,"احراز هویت","session، کوکی و محافظت از مسیر.","Authentication","Sessions, cookies and protecting routes.","auth session cookie nextauth"],
-["10","10-assets.html",0,12,50,"تصویر، فونت و بهینه‌سازی","و فونت فارسی بدون درخواست بیرونی.","Images, fonts and optimisation","Including Persian fonts with no external request.","image font optimization lcp"],
-["11","11-seo.html",0,12,45,"SEO و متادیتا","متادیتای پویا و sitemap.","SEO and metadata","Dynamic metadata and sitemaps.","seo metadata opengraph sitemap"],
-["12","12-streaming.html",0,12,55,"استریم و loading","نمایش تدریجی به‌جای صفحهٔ سفید.","Streaming and loading states","Progressive rendering instead of a blank page.","streaming suspense loading skeleton"],
-["13","13-db.html",0,12,55,"اتصال به پایگاه‌داده","کوئری امن از Server Component.","Talking to a database","Querying safely from a Server Component.","database prisma drizzle orm"],
-["14","14-errors.html",0,12,45,"خطا و not-found","مرز خطا در هر سطح.","Errors and not-found","Error boundaries at every level.","error boundary notfound"],
-["15","15-testing.html",0,12,50,"تست","تست کامپوننت و تست end-to-end.","Testing","Component tests and end-to-end tests.","test playwright vitest e2e"],
-["16","16-deploy.html",0,12,60,"استقرار خودمیزبان","با داکر و Nginx، بدون وابستگی به یک ارائه‌دهنده.","Self-hosted deployment","With Docker and Nginx, tied to no single provider.","deploy docker standalone nginx"],
-["17","17-cap1.html",0,5,80,"پروژهٔ ۱ — سایت محتوایی استاتیک","مسیر پویا، متادیتا و بهینه‌سازی تصویر.","Project 1 — a static content site","Dynamic routes, metadata and image optimisation.","capstone static blog",1],
-["18","18-cap2.html",0,7,140,"پروژهٔ ۲ — اپ با پایگاه‌داده و فرم","Server Action، اعتبارسنجی و بازاعتبارسنجی کش.","Project 2 — an app with a database and forms","Server Actions, validation and cache revalidation.","capstone form database",2],
-["19","19-cap3.html",0,9,200,"پروژهٔ ۳ — اپ کامل با احراز هویت و استقرار","ورود، مسیر محافظت‌شده، استریم و استقرار با داکر.","Project 3 — a full app with auth and deployment","Login, protected routes, streaming and a Docker deployment.","capstone auth deploy",3]
+["01","01-why.html",0,12,50,"چرا Next و App Router","چه مسئله‌ای را حل می‌کند و چه پیچیدگی‌ای می‌آورد.","Why Next, and the App Router","What it solves and what complexity it brings.","nextjs app router pages router why"],
+["02","02-structure.html",0,12,55,"ساختار پروژه و مسیریابی فایل‌محور","پوشه = مسیر، و فایل‌های ویژه‌ای که معنا دارند.","Project structure and file routing","A folder is a route, and the special files that carry meaning.","app directory page layout file convention"],
+["03","03-layouts.html",0,12,60,"‏layout، template و route group","‏UI مشترک، و گروه‌بندی بدون اثر روی آدرس.","Layouts, templates and route groups","Shared UI, and grouping without affecting the URL.","layout template route group nested"],
+["04","04-dynamic-routes.html",0,12,55,"مسیرهای پویا","پارامتر، ‎catch-all‎ و ‎generateStaticParams‎.","Dynamic routes","Parameters, catch-all segments and generateStaticParams.","dynamic route slug catch-all generatestaticparams"],
+["05","05-rsc.html",0,12,70,"‏Server Component در برابر Client Component","مهم‌ترین مفهوم App Router — با نمودار مرز.","Server versus Client Components","The key App Router concept — with a boundary diagram.","rsc server client component boundary"],
+["06","06-use-client.html",0,12,65,"مرز ‎use client‎ و سریال‌سازی","چه چیزی می‌تواند از سرور به کلاینت رد شود و چه چیزی نه.","The use client boundary and serialisation","What can cross from server to client, and what cannot.","use client serializable props boundary bundle"],
+["07","07-data-fetching.html",0,12,65,"دریافت داده در Server Component","‏fetch روی سرور، بدون ‎useEffect‎ و بدون حالت بارگذاری.","Data fetching in Server Components","Fetching on the server, with no useEffect and no loading state.","fetch server async component data"],
+["08","08-caching.html",0,12,75,"چهار لایهٔ کش Next","‏request memoization، data cache، route cache و router cache.","The four caching layers","Request memoisation, data cache, full route cache and router cache.","cache memoization data cache route cache router cache"],
+["09","09-revalidation.html",0,12,65,"‏revalidate","زمان‌محور، تگ‌محور و بر حسب تقاضا.","Revalidation","Time-based, tag-based and on-demand.","revalidate revalidatetag revalidatepath isr"],
+["10","10-render-modes.html",0,12,65,"‏SSG، SSR و ISR در Next","انتخاب حالت رندر برای هر مسیر، جداگانه.","SSG, SSR and ISR in Next","Choosing a rendering mode per route.","static dynamic force-dynamic ssg ssr isr"],
+["11","11-streaming.html",0,12,65,"استریم و Suspense","فرستادن HTML تکه‌تکه، قبل از آماده شدن همهٔ داده.","Streaming and Suspense","Sending HTML in chunks before all the data is ready.","streaming suspense boundary partial prerender"],
+["12","12-loading.html",0,12,50,"‏loading و اسکلت","وضعیت بارگذاری که خودکار می‌آید.","Loading UI and skeletons","Loading states that arrive automatically.","loading skeleton suspense fallback"],
+["13","13-errors.html",0,12,60,"‏error، not-found و مرز خطا","خطا در سرور، خطا در کلاینت، و بازیابی.","Errors, not-found and error boundaries","Server errors, client errors and recovery.","error boundary not-found global-error reset"],
+["14","14-server-actions.html",0,12,70,"‏Server Action: مبانی","فراخوانی تابع سرور از کلاینت، بدون ساختن ‎API‎.","Server Actions: the basics","Calling a server function from the client without building an API.","server action use server mutation"],
+["15","15-forms.html",0,12,70,"فرم با Server Action","‏useActionState، اعتبارسنجی، به‌روزرسانی خوش‌بینانه.","Forms with Server Actions","useActionState, validation and optimistic updates.","form useactionstate useoptimistic zod validation"],
+["16","16-route-handlers.html",0,12,60,"‏Route Handler","وقتی واقعاً به یک ‎API‎ نیاز داری.","Route Handlers","When you genuinely need an API endpoint.","route handler request response rest webhook"],
+["17","17-middleware.html",0,12,60,"‏middleware","اجرا قبل از مسیریابی: تغییر مسیر، هدر و احراز هویت.","Middleware","Running before routing: redirects, headers and auth.","middleware matcher redirect rewrite edge"],
+["18","18-parallel-routes.html",0,12,65,"مسیرهای موازی و رهگیر","مودالی که آدرس خودش را دارد.","Parallel and intercepting routes","A modal that has its own URL.","parallel route intercepting slot modal"],
+["19","19-auth.html",0,12,70,"احراز هویت","‏Auth.js، ارائه‌دهنده و جریان ورود.","Authentication","Auth.js, providers and the login flow.","authjs nextauth provider oauth credentials"],
+["20","20-session.html",0,12,60,"نشست و محافظت از مسیر","کوکی، نشست سمت سرور و مسیر محافظت‌شده.","Sessions and protected routes","Cookies, server-side sessions and route protection.","session cookie jwt protect middleware"],
+["21","21-database.html",0,12,60,"اتصال به پایگاه‌داده","‏connection pooling در محیط serverless.","Connecting to a database","Connection pooling in a serverless environment.","database pool serverless connection"],
+["22","22-orm.html",0,12,65,"‏ORM: Prisma و Drizzle","مدل، مهاجرت و کوئری نوع‌دار.","ORMs: Prisma and Drizzle","Models, migrations and typed queries.","prisma drizzle schema migration typed"],
+["23","23-metadata-seo.html",0,12,65,"‏Metadata API و SEO","عنوان، توضیح، ‎canonical‎، ‎sitemap‎ و ‎robots‎.","The Metadata API and SEO","Titles, descriptions, canonicals, sitemaps and robots.","metadata seo sitemap robots canonical"],
+["24","24-og-images.html",0,12,55,"تولید تصویر ‎OG‎","تصویر اشتراک‌گذاری که خودکار ساخته می‌شود.","Generating OG images","Share images generated automatically.","opengraph image imageresponse satori twitter card"],
+["25","25-images.html",0,12,60,"بهینه‌سازی تصویر","‏next/image، اندازه، ‎placeholder‎ و ‎CLS‎.","Image optimisation","next/image, sizing, placeholders and CLS.","next image optimization lazy placeholder cls"],
+["26","26-fonts.html",0,12,50,"فونت","‏next/font، فونت فارسی و حذف ‎layout shift‎.","Fonts","next/font, Persian fonts and eliminating layout shift.","next font local google subset persian"],
+["27","27-i18n.html",0,12,65,"چندزبانگی و ‎RTL‎","مسیر زبان‌دار، ترجمه و راست‌چین فارسی.","Internationalisation and RTL","Locale routing, translations and Persian right-to-left.","i18n locale rtl translation middleware"],
+["28","28-styling.html",0,12,55,"استایل","‏CSS Module، Tailwind و ‎CSS-in-JS‎ در ‎RSC‎.","Styling","CSS Modules, Tailwind and CSS-in-JS under RSC.","css module tailwind styled rsc"],
+["29","29-client-state.html",0,12,60,"حالت سمت کلاینت","‏Zustand و React Query کنار ‎Server Component‎.","Client-side state","Zustand and React Query alongside Server Components.","zustand react query client state hydration"],
+["30","30-runtime.html",0,12,55,"‏runtime: Node یا Edge","تفاوت‌ها، محدودیت‌ها و معیار انتخاب.","Runtimes: Node or Edge","Differences, limits and how to choose.","edge runtime node serverless region"],
+["31","31-testing.html",0,12,60,"تست","تست کامپوننت سرور، اکشن و ‎e2e‎ با Playwright.","Testing","Testing server components, actions and e2e with Playwright.","test playwright vitest server component"],
+["32","32-performance.html",0,12,65,"کارایی","‏Core Web Vitals، تحلیل باندل و ‎RSC payload‎.","Performance","Core Web Vitals, bundle analysis and the RSC payload.","performance bundle analyzer lcp inp rsc payload"],
+["33","33-build.html",0,12,55,"بیلد و ابزار","‏Turbopack، خروجی standalone و متغیرهای محیطی.","Build and tooling","Turbopack, standalone output and environment variables.","turbopack build standalone env analyze"],
+["34","34-deploy.html",0,12,65,"استقرار خودمیزبان","داکر، ‎standalone‎، Nginx و کش — بدون Vercel.","Self-hosted deployment","Docker, standalone output, Nginx and caching — without Vercel.","docker standalone selfhost nginx deploy"],
+["35","35-cap1.html",0,5,90,"پروژهٔ ۱ — وبلاگ با ‎SSG‎","مسیر پویا، متادیتا، ‎sitemap‎ و ‎OG‎.","Project 1 — a static blog","Dynamic routes, metadata, sitemap and OG images.","capstone blog ssg seo",1],
+["36","36-cap2.html",0,7,160,"پروژهٔ ۲ — داشبورد با احراز هویت","‏Auth.js، Server Action، پایگاه‌داده و مسیر محافظت‌شده.","Project 2 — an authenticated dashboard","Auth.js, Server Actions, a database and protected routes.","capstone auth dashboard",2],
+["37","37-cap3.html",0,9,240,"پروژهٔ ۳ — فروشگاه کامل","‏ISR، سبد خرید، پرداخت، جستجو، ‎SEO‎ و استقرار با داکر.","Project 3 — a complete storefront","ISR, cart, checkout, search, SEO and Docker deployment.","capstone commerce isr production",3]
 ]});
 
 /* ═══════════════ ۱۷ — انگولار ═══════════════ */
 C.push({
-  id:"17-angular", dir:"17-angular", accent:"#DD0031", cat:"frontend",
+  id:"17-angular", dir:"17-angular", accent:"#DD0031", cat:"frontend", pre:["42-typescript"], soft:["67-css"],
   ico:'<path d="M12 2.6 21 5.8l-1.4 12L12 21.4 4.4 17.8 3 5.8z"/><path d="m8.8 15 3.2-7.6L15.2 15M9.9 12.6h4.2" stroke-linecap="round"/>',
   fa:{name:"انگولار", desc:"کامپوننت، DI، RxJS، signal، فرم reactive و مدیریت state — فریم‌ورک کامل، با ساختار.",
       intro:"انگولار برخلاف ری‌اکت یک فریم‌ورک کامل است: مسیریابی، فرم، HTTP و تزریق وابستگی همه در خودش هستند. سختی‌اش نحو نیست، RxJS است — و این مسیر وقت لازم را رویش می‌گذارد."},
@@ -598,7 +703,7 @@ C.push({
 
 /* ═══════════════ ۲۰ — ارتباط بی‌درنگ ═══════════════ */
 C.push({
-  id:"20-realtime", dir:"20-realtime", accent:"#F59E0B", cat:"data",
+  id:"20-realtime", dir:"20-realtime", accent:"#F59E0B", cat:"data", pre:["41-javascript"], soft:["29-nodejs"],
   ico:'<path d="M4 12a8 8 0 0 1 8-8M20 12a8 8 0 0 1-8 8" stroke-linecap="round"/><circle cx="12" cy="12" r="2.4"/><path d="M7.6 12a4.4 4.4 0 0 1 4.4-4.4M16.4 12a4.4 4.4 0 0 1-4.4 4.4" stroke-linecap="round"/>',
   fa:{name:"WebSocket و ارتباط بی‌درنگ", desc:"از polling تا WebSocket و SSE — سمت سرور و سمت مرورگر، تا مقیاس افقی.",
       intro:"HTTP برای «بپرس و جواب بگیر» ساخته شده. وقتی سرور باید بدون سؤال حرف بزند — چت، اعلان، قیمت زنده — به چیز دیگری نیاز داری. این مسیر هر دو سرِ ماجرا را می‌سازد: بک‌اند و فرانت‌اند."},
@@ -626,7 +731,7 @@ C.push({
 
 /* ═══════════════ ۲۱ — پروکسی و VPN ═══════════════ */
 C.push({
-  id:"21-proxy-vpn", dir:"21-proxy-vpn", accent:"#0891B2", cat:"infra",
+  id:"21-proxy-vpn", dir:"21-proxy-vpn", accent:"#0891B2", cat:"infra", pre:["25-network-foundations"], soft:["03-linux-network"],
   ico:'<rect x="2.6" y="8.5" width="7" height="7" rx="1.6"/><rect x="14.4" y="8.5" width="7" height="7" rx="1.6"/><path d="M9.6 12h4.8" stroke-linecap="round"/><path d="M12 9.6v4.8" stroke-linecap="round" opacity=".5"/>',
   fa:{name:"پروکسی و VPN", desc:"مهندسی شبکه در عمل: forward و reverse proxy، SOCKS5، تونل، WireGuard و OpenVPN.",
       intro:"پروکسی و VPN هر دو یک کار می‌کنند: ترافیک را از مسیر دیگری عبور می‌دهند. تفاوتشان در لایه‌ای است که در آن کار می‌کنند. این مسیر هر دو را از پایه می‌سازد — با کد، نه فقط با پیکربندی."},
@@ -678,6 +783,1409 @@ C.push({
 ["15","15-cap1.html",0,5,60,"پروژهٔ ۱ — مستندسازی یک پروژهٔ موجود","README، ADR و راهنمای شروع.","Project 1 — document an existing project","A README, an ADR and a getting-started guide.","capstone documentation",1],
 ["16","16-cap2.html",0,7,100,"پروژهٔ ۲ — review و بهبود کد دیگران","خواندن، نقد سازنده و refactor.","Project 2 — review and improve someone's code","Reading, constructive critique and refactoring.","capstone review refactor",2],
 ["17","17-cap3.html",0,9,150,"پروژهٔ ۳ — نمونه‌کار قابل ارائه","پروژه‌ای با مستند، تست، CI و توضیح تصمیم‌ها.","Project 3 — a portfolio piece","A project with docs, tests, CI and explained decisions.","capstone portfolio",3]
+]});
+
+/* ═══════════════ ۲۳ — تاریخچهٔ رایانش ═══════════════ */
+C.push({
+  id:"23-history-computing", dir:"23-history-computing", accent:"#A16207", cat:"roots",
+  ico:'<circle cx="12" cy="12" r="9"/><path d="M12 6.6V12l3.6 2.2" stroke-linecap="round"/><path d="M3.4 9.2h3M17.6 9.2h3" stroke-linecap="round" opacity=".5"/>',
+  fa:{name:"تاریخچهٔ رایانش", desc:"از چرتکه تا یادگیری ماشین: چرا هر تکنولوژی ساخته شد، چه دردی داشت، و چه چیزی را ممکن کرد.",
+      intro:"تاریخ برای حفظ کردن تاریخ نیست. هر ابزاری که امروز استفاده می‌کنی، جواب یک دردِ مشخص در یک زمانِ مشخص بوده. وقتی آن درد را بشناسی، دیگر لازم نیست قاعده‌ها را حفظ کنی — خودت می‌فهمی چرا این‌طورند. این مسیر خط زمانی کامل را با نمودار می‌سازد."},
+  en:{name:"A history of computing", desc:"From the abacus to machine learning: why each technology was built, what hurt before it, and what it made possible.",
+      intro:"History is not for memorising dates. Every tool you use today answered a specific pain at a specific time. Once you know the pain, you stop memorising rules and start understanding them. This track builds the full timeline, with diagrams."},
+  ch:[
+["01","01-before.html",0,12,50,"پیش از رایانه","چرتکه، لگاریتم، ماشین تفاضلی بابیج و ایدهٔ آدا لاولیس.","Before the computer","The abacus, logarithms, Babbage's difference engine and Ada Lovelace's idea.","abacus babbage lovelace mechanical تاریخچه"],
+["02","02-vacuum.html",0,12,55,"دههٔ ۱۹۴۰: لامپ خلأ و فون‌نویمان","ENIAC، معماری برنامهٔ ذخیره‌شده، و چرا هنوز همان معماری است.","The 1940s: vacuum tubes and von Neumann","ENIAC, the stored-program architecture, and why we still use it.","eniac von neumann vacuum tube architecture"],
+["03","03-transistor.html",0,12,50,"ترانزیستور و مدار مجتمع","از اتاقی به اندازهٔ خانه تا تراشه‌ای در کف دست.","The transistor and the integrated circuit","From a room-sized machine to a chip in your palm.","transistor integrated circuit bell labs moore"],
+["04","04-unix.html",0,12,55,"دههٔ ۶۰ و ۷۰: مِین‌فریم، یونیکس، C","فلسفه‌ای که هنوز روی هر سروری زنده است.","The 60s and 70s: mainframes, Unix, C","A philosophy still alive on every server today.","unix mainframe c language bell labs philosophy"],
+["05","05-pc.html",0,12,55,"انقلاب ریزپردازنده و رایانهٔ شخصی","وقتی رایانه از سازمان به خانه آمد.","The microprocessor and the personal computer","When the computer left the institution and came home.","microprocessor intel 4004 apple ibm pc"],
+["06","06-gui.html",0,12,50,"دههٔ ۸۰ و ۹۰: رابط گرافیکی و شبکه","Xerox PARC، مکینتاش، ویندوز، و تولد لینوکس.","The 80s and 90s: the GUI and the network","Xerox PARC, the Macintosh, Windows, and the birth of Linux.","gui xerox parc macintosh windows linux"],
+["07","07-internet.html",0,12,55,"اینترنت عمومی و وب","از شبکه‌ای پژوهشی تا زیرساخت جهانی.","The public internet and the web","From a research network to global infrastructure.","internet www browser dotcom"],
+["08","08-2000s.html",0,12,55,"دههٔ ۲۰۰۰: موبایل، ابر، متن‌باز","سه تغییری که مدل کسب‌وکار نرم‌افزار را عوض کردند.","The 2000s: mobile, cloud, open source","Three shifts that rewrote the business of software.","mobile cloud aws open source saas"],
+["09","09-today.html",0,12,55,"امروز: چندهسته‌ای، GPU، یادگیری ماشین","چرا پردازنده‌ها دیگر سریع‌تر نمی‌شوند و به‌جایش بیشتر می‌شوند.","Today: many cores, GPUs, machine learning","Why processors stopped getting faster and started getting more numerous.","multicore gpu parallel machine learning"],
+["10","10-languages.html",0,12,60,"تاریخچهٔ زبان‌های برنامه‌نویسی","از اسمبلی تا Rust — هر زبان جواب چه دردی بود.","A history of programming languages","From assembly to Rust — which pain each language answered.","fortran lisp c java python rust language history"],
+["11","11-architecture.html",0,12,60,"تاریخچهٔ معماری نرم‌افزار","مونولیت ← لایه‌ای ← client-server ← SOA ← میکروسرویس ← serverless، و چرخهٔ بازگشتش.","A history of software architecture","Monolith → layered → client-server → SOA → microservices → serverless, and how it loops back.","monolith soa microservice serverless architecture history"],
+["12","12-moore.html",0,12,50,"قانون مور و پایان آن","یک مشاهدهٔ تجربی که پنجاه سال صنعت را هدایت کرد.","Moore's law and its end","An empirical observation that steered an industry for fifty years.","moore law dennard scaling limits"],
+["13","13-timeline.html",0,12,55,"خط زمانی کامل","یک نمودار بزرگ: سخت‌افزار، زبان، شبکه و معماری کنار هم.","The complete timeline","One large diagram: hardware, languages, networks and architecture side by side.","timeline diagram overview chronology"],
+["14","14-cap1.html",0,5,60,"پروژهٔ ۱ — خط زمانی یک تکنولوژی","یک ابزاری که هر روز استفاده می‌کنی را ریشه‌یابی کن.","Project 1 — the timeline of one technology","Trace the roots of a tool you use every day.","capstone timeline research",1],
+["15","15-cap2.html",0,7,90,"پروژهٔ ۲ — چرا این تصمیم گرفته شد","یک تصمیم فنی مشهور را تحلیل کن: زمینه، گزینه‌ها، نتیجه.","Project 2 — why that decision was made","Analyse a famous technical decision: context, options, outcome.","capstone analysis decision",2],
+["16","16-cap3.html",0,9,120,"پروژهٔ ۳ — نقشهٔ تکامل یک حوزه","تکامل یک حوزهٔ فنی را با نمودار و منابع مستند کن.","Project 3 — mapping the evolution of a field","Document a field's evolution with diagrams and sources.","capstone research diagram",3]
+]});
+
+/* ═══════════════ ۲۴ — سخت‌افزار ═══════════════ */
+C.push({
+  id:"24-hardware", dir:"24-hardware", accent:"#0F766E", cat:"roots",
+  ico:'<rect x="6.5" y="6.5" width="11" height="11" rx="1.6"/><rect x="9.6" y="9.6" width="4.8" height="4.8" rx=".8"/><path d="M9.5 6.5V3.4M14.5 6.5V3.4M9.5 17.5v3.1M14.5 17.5v3.1M6.5 9.5H3.4M6.5 14.5H3.4M17.5 9.5h3.1M17.5 14.5h3.1" stroke-linecap="round"/>',
+  fa:{name:"سخت‌افزار در عمل", desc:"قطعه‌به‌قطعهٔ یک رایانه: CPU، حافظه، ذخیره‌سازی، گذرگاه، GPU، توان و خنک‌سازی — و اینکه هرکدام دقیقاً چه می‌کنند.",
+      intro:"نرم‌افزار روی چیزی اجرا می‌شود. اگر ندانی آن چیز چطور کار می‌کند، بعضی مسائل هیچ‌وقت برایت معنا نمی‌دهند: چرا آن حلقه کند است، چرا آن سرور داغ می‌کند، چرا آن دیسک گلوگاه شده. این مسیر سخت‌افزار را از دید کسی توضیح می‌دهد که نرم‌افزار می‌نویسد."},
+  en:{name:"Hardware in practice", desc:"Component by component: CPU, memory, storage, buses, GPU, power and cooling — and exactly what each one does.",
+      intro:"Software runs on something. If you do not know how that something works, certain problems never make sense: why that loop is slow, why that server runs hot, why that disk became the bottleneck. This track explains hardware from the point of view of someone who writes software."},
+  ch:[
+["01","01-overview.html",0,12,50,"معماری کلی یک رایانه","مسیر یک دستور، از دکمهٔ روشن تا اجرا.","The overall architecture","The path of one instruction, from power button to execution.","architecture bus cpu memory io overview"],
+["02","02-cpu.html",0,12,65,"CPU: هسته، کش، خط لوله","چرا cache miss گران‌تر از یک شاخهٔ اشتباه است.","The CPU: cores, cache, pipeline","Why a cache miss costs more than a mispredicted branch.","cpu core cache pipeline branch prediction isa"],
+["03","03-memory.html",0,12,60,"حافظه و سلسله‌مراتبش","رجیستر تا دیسک، و اختلاف ده‌میلیون‌برابری تأخیر.","Memory and its hierarchy","From register to disk, and a ten-million-fold latency gap.","ram ddr latency hierarchy virtual memory"],
+["04","04-storage.html",0,12,55,"ذخیره‌سازی: HDD، SSD، NVMe","چرا تصادفی خواندن روی SSD ارزان است و روی HDD نه.","Storage: HDD, SSD, NVMe","Why random reads are cheap on an SSD and expensive on a disk.","hdd ssd nvme iops seek wear"],
+["05","05-motherboard.html",0,12,50,"مادربرد، چیپست و گذرگاه","PCIe و اینکه پهنای باند کجا تمام می‌شود.","Motherboard, chipset and buses","PCIe, and where the bandwidth runs out.","motherboard chipset pcie bus lanes"],
+["06","06-gpu.html",0,12,55,"GPU و پردازش موازی","چرا کارت گرافیک برای یادگیری ماشین استفاده می‌شود.","GPUs and parallel processing","Why a graphics card ended up training models.","gpu cuda parallel simd vram"],
+["07","07-power.html",0,12,45,"منبع تغذیه و توان","وات، راندمان، و محاسبهٔ نیاز واقعی.","Power supply and consumption","Watts, efficiency, and calculating what you actually need.","psu power efficiency watt ups"],
+["08","08-cooling.html",0,12,45,"حرارت و خنک‌سازی","throttling: وقتی سخت‌افزار خودش را کند می‌کند.","Heat and cooling","Throttling: when the hardware slows itself down.","cooling thermal throttle tdp fan"],
+["09","09-io.html",0,12,50,"کارت شبکه و ورودی/خروجی","وقفه، DMA، و اینکه چرا I/O گران است.","Network cards and I/O","Interrupts, DMA, and why I/O is expensive.","nic dma interrupt io throughput"],
+["10","10-server.html",0,12,55,"سرور در برابر دسکتاپ","ECC، RAID، افزونگی — چه چیزی واقعاً فرق دارد.","Servers versus desktops","ECC, RAID, redundancy — what genuinely differs.","server ecc raid redundancy rack"],
+["11","11-arm-x86.html",0,12,55,"ARM در برابر x86","دو فلسفهٔ طراحی، و اینکه چرا ایمیج داکر تو روی یکی کار نمی‌کند.","ARM versus x86","Two design philosophies, and why your Docker image fails on one of them.","arm x86 risc cisc architecture multiarch"],
+["12","12-choosing.html",0,12,55,"انتخاب سخت‌افزار برای بار کاری","پایگاه‌داده، وب، پردازش — هرکدام گلوگاه متفاوتی دارند.","Choosing hardware for a workload","Databases, web, batch — each has a different bottleneck.","sizing bottleneck workload benchmark"],
+["13","13-debug.html",0,12,55,"عیب‌یابی سخت‌افزاری","تشخیص RAM معیوب، دیسک در حال مرگ، و حرارت.","Hardware troubleshooting","Spotting bad RAM, a dying disk, and thermal problems.","smart memtest diagnostics failure"],
+["14","14-cap1.html",0,5,60,"پروژهٔ ۱ — تشریح ماشین خودت","هر قطعه را شناسایی و نقشش را مستند کن.","Project 1 — dissect your own machine","Identify every component and document its role.","capstone inventory",1],
+["15","15-cap2.html",0,7,90,"پروژهٔ ۲ — پیدا کردن گلوگاه","با اندازه‌گیری ثابت کن کدام قطعه محدودکننده است.","Project 2 — find the bottleneck","Prove by measurement which component is the limit.","capstone benchmark bottleneck",2],
+["16","16-cap3.html",0,9,120,"پروژهٔ ۳ — طراحی یک سرور","برای یک بار کاری مشخص، سخت‌افزار انتخاب و توجیه کن.","Project 3 — spec a server","Choose and justify hardware for a defined workload.","capstone sizing design",3]
+]});
+
+/* ═══════════════ ۲۵ — بنیان شبکه ═══════════════ */
+C.push({
+  id:"25-network-foundations", dir:"25-network-foundations", accent:"#1D4ED8", cat:"roots",
+  ico:'<circle cx="12" cy="5" r="2.3"/><circle cx="4.8" cy="18" r="2.3"/><circle cx="19.2" cy="18" r="2.3"/><circle cx="12" cy="12" r="2.3"/><path d="M12 7.3v2.4M10.2 13.4 6.4 16.4M13.8 13.4l3.8 3" stroke-linecap="round"/>',
+  fa:{name:"بنیان شبکه", desc:"از سیگنال تا HTTP: مدل لایه‌ای، IP، TCP، DNS، TLS — با تاریخچه‌ای که نشان می‌دهد چرا این‌طور شد.",
+      intro:"هر بار که چیزی «کار نمی‌کند»، مشکل در یکی از لایه‌هاست. اگر لایه‌ها را بشناسی، عیب‌یابی از حدس زدن به روش تبدیل می‌شود: از پایین شروع کن، هر لایه را ثابت کن، برو بالاتر."},
+  en:{name:"Networking foundations", desc:"From signal to HTTP: the layered model, IP, TCP, DNS, TLS — with the history that explains why it turned out this way.",
+      intro:"Every time something “does not work”, the problem is in one of the layers. Know the layers and debugging turns from guesswork into method: start at the bottom, prove each layer, move up."},
+  ch:[
+["01","01-why.html",0,12,50,"چرا شبکه؛ از سیگنال تا پیام","مسئلهٔ بنیادی: چطور معنا را روی سیم بفرستیم.","Why networks; from signal to message","The founding problem: how to send meaning down a wire.","signal encoding bandwidth network basics"],
+["02","02-layers.html",0,12,55,"مدل OSI و TCP/IP","چرا لایه‌بندی کردند و کدام لایه‌ها واقعاً وجود دارند.","The OSI and TCP/IP models","Why they layered it, and which layers really exist.","osi tcpip layer model encapsulation"],
+["03","03-physical.html",0,12,50,"لایهٔ فیزیکی و کابل","مس، فیبر، و محدودیت‌های فیزیکی واقعی.","The physical layer and cabling","Copper, fibre, and the real physical limits.","cable fiber copper ethernet physical"],
+["04","04-ethernet.html",0,12,55,"اترنت و سوییچینگ","MAC، فریم، و کاری که سوییچ واقعاً می‌کند.","Ethernet and switching","MAC addresses, frames, and what a switch really does.","ethernet mac switch vlan arp"],
+["05","05-ip.html",0,12,60,"IP، زیرشبکه و مسیریابی","subnet mask بدون حفظ کردن — با منطق.","IP, subnets and routing","Subnet masks by logic, not memorisation.","ip subnet cidr routing gateway ipv6"],
+["06","06-tcp-udp.html",0,12,60,"TCP در برابر UDP","تضمین در برابر سرعت، و هزینهٔ هرکدام.","TCP versus UDP","Guarantees versus speed, and what each costs.","tcp udp handshake window retransmit"],
+["07","07-dns.html",0,12,55,"DNS","بزرگ‌ترین پایگاه‌دادهٔ توزیع‌شدهٔ دنیا، و چرا کش می‌کند.","DNS","The world's largest distributed database, and why it caches.","dns resolver record ttl cache"],
+["08","08-nat.html",0,12,50,"NAT و فایروال","چرا آدرس خصوصی داری و چرا port forwarding لازم است.","NAT and firewalls","Why you have a private address and why port forwarding exists.","nat firewall port forwarding private"],
+["09","09-http.html",0,12,50,"HTTP روی لایهٔ انتقال","یک درخواست از مرورگر تا سرور، بایت‌به‌بایت.","HTTP over the transport layer","One browser request to server, byte by byte.","http request response header keepalive"],
+["10","10-tls.html",0,12,60,"TLS و رمزنگاری","دست‌دادن، گواهی، و اینکه اعتماد از کجا می‌آید.","TLS and encryption","The handshake, certificates, and where trust comes from.","tls ssl certificate ca handshake pki"],
+["11","11-history.html",0,12,55,"تاریخچه: ARPANET تا امروز","چرا اینترنت غیرمتمرکز طراحی شد.","History: ARPANET to now","Why the internet was designed to be decentralised.","arpanet rfc ietf history internet"],
+["12","12-wireshark.html",0,12,60,"تحلیل ترافیک با Wireshark","دیدن آنچه واقعاً روی سیم می‌رود.","Traffic analysis with Wireshark","Seeing what actually goes down the wire.","wireshark capture pcap filter analysis"],
+["13","13-debug.html",0,12,55,"عیب‌یابی لایه‌به‌لایه","روشی که همیشه جواب می‌دهد: از پایین به بالا.","Layer-by-layer debugging","The method that always works: bottom-up.","troubleshooting ping traceroute mtr method"],
+["14","14-cap1.html",0,5,60,"پروژهٔ ۱ — نقشهٔ شبکهٔ خانه","هر دستگاه، آدرس و مسیرش را ترسیم کن.","Project 1 — map your home network","Chart every device, its address and its route.","capstone mapping",1],
+["15","15-cap2.html",0,7,100,"پروژهٔ ۲ — تشریح یک درخواست","یک بارگذاری صفحه را از DNS تا TLS تا HTTP ضبط و تحلیل کن.","Project 2 — dissect one request","Capture and analyse a page load from DNS to TLS to HTTP.","capstone wireshark analysis",2],
+["16","16-cap3.html",0,9,140,"پروژهٔ ۳ — شبکهٔ چندزیرشبکه‌ای","طراحی، مسیریابی و فایروال یک شبکهٔ کوچک سازمانی.","Project 3 — a multi-subnet network","Design, route and firewall a small organisational network.","capstone subnet design",3]
+]});
+
+/* ═══════════════ ۲۶ — وب ═══════════════ */
+C.push({
+  id:"26-web-foundations", dir:"26-web-foundations", accent:"#E8590C", cat:"roots",
+  ico:'<circle cx="12" cy="12" r="9"/><path d="M3.2 9.6h17.6M3.2 14.4h17.6"/><path d="M12 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18z"/>',
+  fa:{name:"وب: تاریخچه و بنیان", desc:"از اولین صفحهٔ وب تا HTTP/3، WebAssembly و PWA — و اینکه مرورگر واقعاً چه می‌کند.",
+      intro:"وب تنها پلتفرمی است که هیچ‌کس مالکش نیست و همه رویش می‌سازند. این مسیر نشان می‌دهد چطور از یک سند ساده به یک پلتفرم برنامه‌نویسی رسید، و هر لایه‌ای که اضافه شد جواب چه مشکلی بود."},
+  en:{name:"The web: history and foundations", desc:"From the first web page to HTTP/3, WebAssembly and PWAs — and what the browser is really doing.",
+      intro:"The web is the only platform nobody owns and everybody builds on. This track shows how a simple document format became a programming platform, and which problem each added layer solved."},
+  ch:[
+["01","01-birth.html",0,12,50,"وب چطور متولد شد","CERN، ابرمتن، و تصمیمی که همه‌چیز را باز نگه داشت.","How the web was born","CERN, hypertext, and the decision that kept it open.","cern berners-lee hypertext history"],
+["02","02-url.html",0,12,50,"URL و مسیر یک درخواست","از تایپ آدرس تا رسیدن اولین بایت.","URLs and the path of a request","From typing an address to the first byte arriving.","url dns request navigation"],
+["03","03-http-versions.html",0,12,60,"HTTP/1.1، HTTP/2، HTTP/3","هر نسخه کدام گلوگاه را برداشت.","HTTP/1.1, HTTP/2, HTTP/3","Which bottleneck each version removed.","http2 http3 quic multiplexing pipelining"],
+["04","04-html.html",0,12,55,"HTML و مدل سند","معناشناسی، DOM، و اینکه چرا تگ درست مهم است.","HTML and the document model","Semantics, the DOM, and why the right tag matters.","html dom semantic accessibility"],
+["05","05-css.html",0,12,60,"CSS: از جدول‌چینی تا Grid","سه دههٔ تلاش برای چیدمان.","CSS: from table layout to Grid","Three decades of trying to lay things out.","css layout flexbox grid cascade"],
+["06","06-js.html",0,12,60,"جاوااسکریپت: از اسکریپت تا پلتفرم","ده روز طراحی، سی سال پیامد.","JavaScript: from script to platform","Ten days of design, thirty years of consequences.","javascript ecmascript engine v8 history"],
+["07","07-rendering.html",0,12,65,"مرورگر چطور صفحه را می‌سازد","parse، style، layout، paint، composite — و اینکه کجا کند می‌شود.","How a browser renders a page","Parse, style, layout, paint, composite — and where it gets slow.","rendering reflow repaint critical path"],
+["08","08-security.html",0,12,60,"امنیت وب","same-origin، CORS، CSP، XSS و CSRF.","Web security","Same-origin, CORS, CSP, XSS and CSRF.","cors csp xss csrf same-origin"],
+["09","09-state.html",0,12,50,"کوکی، session و storage","حالت روی پروتکلی که بی‌حالت طراحی شده بود.","Cookies, sessions and storage","State on a protocol designed to be stateless.","cookie session localstorage samesite"],
+["10","10-apis.html",0,12,60,"API: از SOAP تا REST تا GraphQL","هر سبک جواب چه مشکلی بود.","APIs: SOAP to REST to GraphQL","Which problem each style answered.","soap rest graphql rpc api design"],
+["11","11-pwa.html",0,12,55,"PWA و وب آفلاین","service worker و اپی که نصب می‌شود.","PWAs and the offline web","Service workers and a web app you install.","pwa service worker manifest offline"],
+["12","12-wasm.html",0,12,55,"WebAssembly","وقتی جاوااسکریپت تنها زبان مرورگر نماند.","WebAssembly","When JavaScript stopped being the browser's only language.","wasm webassembly performance runtime"],
+["13","13-timeline.html",0,12,50,"خط زمانی وب","سی سال در یک نمودار.","The web timeline","Thirty years in one diagram.","timeline history web evolution"],
+["14","14-cap1.html",0,5,60,"پروژهٔ ۱ — صفحه‌ای بدون فریم‌ورک","HTML معنایی، CSS مدرن، بدون هیچ وابستگی.","Project 1 — a page with no framework","Semantic HTML, modern CSS, zero dependencies.","capstone vanilla",1],
+["15","15-cap2.html",0,7,100,"پروژهٔ ۲ — تحلیل کارایی یک سایت واقعی","اندازه‌گیری، تشخیص گلوگاه، و بهبود اندازه‌گیری‌شده.","Project 2 — audit a real site's performance","Measure, find the bottleneck, improve measurably.","capstone performance audit",2],
+["16","16-cap3.html",0,9,140,"پروژهٔ ۳ — اپ وب آفلاین‌کار","service worker، کش، همگام‌سازی و نصب‌پذیری.","Project 3 — an offline-capable web app","Service worker, caching, sync and installability.","capstone pwa offline",3]
+]});
+
+/* ═══════════════ ۲۷ — شبکه‌های بی‌سیم ═══════════════ */
+C.push({
+  id:"27-wireless", dir:"27-wireless", accent:"#7E22CE", cat:"roots", soft:["25-network-foundations"],
+  ico:'<path d="M4.2 8.4a11 11 0 0 1 15.6 0M7 11.6a7 7 0 0 1 10 0M9.8 14.8a3 3 0 0 1 4.4 0" stroke-linecap="round"/><circle cx="12" cy="18.6" r="1.5"/>',
+  fa:{name:"شبکه‌های بی‌سیم و مخابرات", desc:"از موج و فرکانس تا ‎2G‎، ‎3G‎، ‎4G‎، ‎5G‎، وای‌فای، بلوتوث و اینترنت اشیا — با نمودار.",
+      intro:"هوا سیم ندارد، پس چطور داده از آن رد می‌شود؟ این مسیر از فیزیک موج شروع می‌کند و لایه‌به‌لایه بالا می‌آید تا برسد به اینکه گوشی‌ات چطور با دکل حرف می‌زند و چرا ‎5G‎ اصلاً ساخته شد."},
+  en:{name:"Wireless and telecom networks", desc:"From waves and frequency to 2G, 3G, 4G, 5G, Wi-Fi, Bluetooth and IoT — with diagrams throughout.",
+      intro:"Air has no wires, so how does data cross it? This track starts at the physics of a wave and works up, layer by layer, to how your phone talks to a tower and why 5G was built at all."},
+  ch:[
+["01","01-waves.html",0,12,55,"موج، فرکانس، طیف","چرا طیف فرکانسی کمیاب و گران است.","Waves, frequency, spectrum","Why radio spectrum is scarce and expensive.","wave frequency spectrum hertz wavelength"],
+["02","02-modulation.html",0,12,60,"مدولاسیون","چطور صفر و یک را سوار موج می‌کنیم.","Modulation","How ones and zeros get carried on a wave.","modulation am fm qam psk constellation"],
+["03","03-antenna.html",0,12,55,"آنتن و انتشار","بهره، جهت‌مندی، افت مسیر و چندمسیری.","Antennas and propagation","Gain, directivity, path loss and multipath.","antenna gain propagation path loss mimo"],
+["04","04-access.html",0,12,60,"دسترسی چندگانه","FDMA، TDMA، CDMA، OFDMA — چطور هزاران نفر یک دکل را share می‌کنند.","Multiple access","FDMA, TDMA, CDMA, OFDMA — how thousands share one tower.","fdma tdma cdma ofdma multiple access"],
+["05","05-1g-2g.html",0,12,55,"‎1G‎ و ‎2G‎: از صدا تا پیامک","آنالوگ به دیجیتال، و تولد GSM.","1G and 2G: from voice to SMS","Analogue to digital, and the birth of GSM.","1g 2g gsm sms analog digital"],
+["06","06-3g.html",0,12,55,"‎3G‎: داده وارد می‌شود","UMTS، و لحظه‌ای که موبایل به اینترنت وصل شد.","3G: data arrives","UMTS, and the moment mobile met the internet.","3g umts wcdma hspa data"],
+["07","07-4g.html",0,12,60,"‎4G LTE‎: همه‌چیز IP","چرا شبکهٔ صوتی کنار گذاشته شد.","4G LTE: everything over IP","Why the voice-switched network was abandoned.","4g lte volte ofdm ip core"],
+["08","08-5g.html",0,12,65,"‎5G‎: معماری و mmWave","تأخیر پایین، برش شبکه، و اینکه چه چیزی واقعاً تازه است.","5G: architecture and mmWave","Low latency, network slicing, and what is genuinely new.","5g mmwave slicing nr latency massive mimo"],
+["09","09-wifi.html",0,12,60,"وای‌فای: ‎802.11‎ از b تا 7","باند، کانال، تداخل و اینکه چرا سرعت واقعی کمتر است.","Wi-Fi: 802.11 from b to 7","Bands, channels, interference, and why real speed is lower.","wifi 802.11 channel band interference wpa"],
+["10","10-bluetooth.html",0,12,50,"بلوتوث و شبکه‌های کوتاه‌برد","BLE، profile، و مصرف انرژی.","Bluetooth and short-range networks","BLE, profiles, and power consumption.","bluetooth ble profile pairing zigbee"],
+["11","11-iot.html",0,12,55,"LPWAN و اینترنت اشیا","LoRa و NB-IoT: برد زیاد، داده کم، باتری چندساله.","LPWAN and IoT","LoRa and NB-IoT: long range, little data, years of battery.","lora nbiot lpwan iot sigfox"],
+["12","12-satellite.html",0,12,50,"ارتباط ماهواره‌ای","GEO، LEO، و تأخیری که فیزیک تحمیل می‌کند.","Satellite communication","GEO, LEO, and the latency physics imposes.","satellite geo leo starlink latency"],
+["13","13-security.html",0,12,55,"امنیت بی‌سیم","WPA، رمزنگاری هوایی، و حمله‌های شناخته‌شده.","Wireless security","WPA, over-the-air encryption, and the known attacks.","wpa3 encryption security wireless attack"],
+["14","14-measure.html",0,12,55,"اندازه‌گیری و عیب‌یابی سیگنال","RSSI، SNR، و تفسیر درست عددها.","Signal measurement and debugging","RSSI, SNR, and reading the numbers correctly.","rssi snr rsrp measurement survey"],
+["15","15-cap1.html",0,5,60,"پروژهٔ ۱ — نقشهٔ پوشش وای‌فای","اندازه‌گیری سیگنال و تحلیل تداخل کانال.","Project 1 — a Wi-Fi coverage map","Measure signal and analyse channel interference.","capstone survey wifi",1],
+["16","16-cap2.html",0,7,100,"پروژهٔ ۲ — تحلیل اتصال موبایل","نسل، باند و کیفیت اتصال را ثبت و تفسیر کن.","Project 2 — analyse a mobile connection","Record and interpret generation, band and link quality.","capstone mobile analysis",2],
+["17","17-cap3.html",0,9,140,"پروژهٔ ۳ — طراحی پوشش یک ساختمان","انتخاب فرکانس، جای‌گذاری اکسس‌پوینت و توجیه مهندسی.","Project 3 — design coverage for a building","Frequency choice, access-point placement and engineering justification.","capstone design coverage",3]
+]});
+
+/* ═══════════════ ۲۸ — Git ═══════════════ */
+C.push({
+  id:"28-git", dir:"28-git", accent:"#F05033", cat:"basics",
+  ico:'<circle cx="6.5" cy="6.5" r="2.4"/><circle cx="6.5" cy="17.5" r="2.4"/><circle cx="17.5" cy="12" r="2.4"/><path d="M6.5 8.9v6.2M8.9 6.9c4 .5 6 2 6.4 4.3M15.3 13.4c-.6 2.1-2.6 3.3-6.3 3.7" stroke-linecap="round"/>',
+  fa:{name:"گیت", desc:"از اولین commit تا rebase، bisect و بیرون آمدن از هر دردسری — با مدل ذهنی درست از گراف.",
+      intro:"بیشتر آدم‌ها Git را با حفظ کردن پنج دستور یاد می‌گیرند و بعد هر بار که چیزی غیرمنتظره می‌شود، مخزن را پاک می‌کنند و از نو clone می‌گیرند. این مسیر آن پنج دستور را کنار می‌گذارد و از مدل داده شروع می‌کند: Git یک گراف از snapshot‌هاست. وقتی گراف را ببینی، هیچ دستوری دیگر جادو نیست و هیچ خطایی بن‌بست نیست."},
+  en:{name:"Git", desc:"From your first commit to rebase, bisect and getting out of any mess — with a correct mental model of the graph.",
+      intro:"Most people learn Git by memorising five commands, then delete the repository and re-clone whenever something unexpected happens. This track skips the five commands and starts from the data model: Git is a graph of snapshots. Once you can see the graph, no command is magic and no error is a dead end."},
+  ch:[
+["01","01-why.html",0,12,45,"مسئله‌ای که Git حل می‌کند","چرا «کپی پوشه با تاریخ» جواب نمی‌دهد، و کنترل نسخه از کجا آمد.","The problem Git solves","Why “copy the folder with today's date” fails, and where version control came from.","git vcs history version control چرا"],
+["02","02-model.html",0,12,60,"مدل داده: blob، tree، commit","Git یک پایگاه‌دادهٔ کلید-مقدار است. همه‌چیز از اینجا نتیجه می‌شود.","The data model: blobs, trees, commits","Git is a key-value store. Everything else follows from that.","blob tree commit sha object model plumbing"],
+["03","03-basics.html",0,12,50,"سه ناحیه: working، staging، repository","چرا staging وجود دارد و چطور درست ازش استفاده کنیم.","Three areas: working, staging, repository","Why the staging area exists and how to use it properly.","add commit status staging index working tree"],
+["04","04-history.html",0,12,55,"خواندن تاریخچه","log، show، diff — و پیدا کردن اینکه چه کسی چه چیزی را کِی عوض کرد.","Reading history","log, show, diff — and finding who changed what, when.","log diff show blame pickaxe"],
+["05","05-branch.html",0,12,55,"شاخه: فقط یک اشاره‌گر","چرا ساختن شاخه در Git تقریباً رایگان است.","Branches: just a pointer","Why creating a branch in Git costs almost nothing.","branch checkout switch head pointer"],
+["06","06-merge.html",0,12,60,"merge و حل تعارض","fast-forward، merge commit، و اینکه تعارض واقعاً یعنی چه.","Merging and resolving conflicts","Fast-forward, merge commits, and what a conflict actually is.","merge conflict fast-forward three-way"],
+["07","07-rebase.html",0,12,65,"rebase","بازنویسی تاریخچه، و قانون طلایی‌اش.","Rebase","Rewriting history, and its golden rule.","rebase interactive squash fixup onto"],
+["08","08-remote.html",0,12,55,"مخزن راه دور","fetch در برابر pull، push، و tracking branch.","Remotes","fetch versus pull, push, and tracking branches.","remote fetch pull push origin upstream tracking"],
+["09","09-undo.html",0,12,65,"برگرداندن: reset، revert، restore","سه راه «برگرد عقب» که سه کار متفاوت می‌کنند.","Undoing: reset, revert, restore","Three ways to “go back” that do three different things.","reset revert restore hard soft mixed undo"],
+["10","10-reflog.html",0,12,55,"reflog: تور نجات","تقریباً هیچ چیزی در Git واقعاً گم نمی‌شود.","reflog: the safety net","Almost nothing in Git is ever truly lost.","reflog recover lost commit dangling"],
+["11","11-stash.html",0,12,45,"stash، cherry-pick، tag","سه ابزار کوچک که روزت را نجات می‌دهند.","stash, cherry-pick, tag","Three small tools that save your day.","stash cherry-pick tag annotated"],
+["12","12-bisect.html",0,12,55,"bisect: پیدا کردن commit خراب","جستجوی دودویی روی تاریخچه، به‌صورت خودکار.","bisect: finding the bad commit","Binary search over history, automated.","bisect regression debug automate"],
+["13","13-workflow.html",0,12,60,"استراتژی شاخه‌بندی","trunk-based، GitHub Flow، Git Flow — کدام برای کدام تیم.","Branching strategies","Trunk-based, GitHub Flow, Git Flow — which for which team.","workflow gitflow trunk based feature branch"],
+["14","14-collab.html",0,12,55,"کار تیمی: PR و بازبینی کد","commit خوب، پیام خوب، و PR قابل بازبینی.","Collaboration: PRs and code review","Good commits, good messages, and a reviewable PR.","pull request review conventional commit"],
+["15","15-advanced.html",0,12,60,"ابزارهای پیشرفته","worktree، submodule، sparse checkout، hook و LFS.","Advanced tooling","worktree, submodules, sparse checkout, hooks and LFS.","worktree submodule hook lfs sparse"],
+["16","16-recovery.html",0,12,60,"وقتی همه‌چیز خراب شد","سناریوهای واقعی فاجعه و راه بیرون آمدن از هرکدام.","When everything goes wrong","Real disaster scenarios and the way out of each.","recovery detached head force push disaster"],
+["17","17-cap1.html",0,5,60,"پروژهٔ ۱ — تاریخچهٔ تمیز","یک مجموعه تغییر آشفته را به تاریخچه‌ای خوانا تبدیل کن.","Project 1 — a clean history","Turn a messy set of changes into a readable history.","capstone rebase history",1],
+["18","18-cap2.html",0,7,90,"پروژهٔ ۲ — گردش کار تیمی","شاخه، PR، بازبینی و ادغام روی یک مخزن واقعی.","Project 2 — a team workflow","Branch, PR, review and merge on a real repository.","capstone workflow pr",2],
+["19","19-cap3.html",0,9,120,"پروژهٔ ۳ — نجات مخزن","یک مخزن به‌هم‌ریخته را بدون از دست دادن کار بازیابی کن.","Project 3 — rescue a repository","Recover a broken repository without losing any work.","capstone recovery reflog",3]
+]});
+
+/* ═══════════════ ۲۹ — Node.js ═══════════════ */
+C.push({
+  id:"29-nodejs", dir:"29-nodejs", accent:"#539E43", cat:"backend", pre:["41-javascript"],
+  ico:'<path d="M12 2.6 20.5 7.3v9.4L12 21.4 3.5 16.7V7.3z"/><path d="M9.4 9.2v5.6M9.4 9.2h2.4a1.6 1.6 0 0 1 1.6 1.6v3a1.6 1.6 0 0 1-1.6 1.6" stroke-linecap="round"/>',
+  fa:{name:"Node.js", desc:"event loop، ماژول، stream، همروندی و استقرار — پلتفرم، نه فریم‌ورک.",
+      intro:"Node یک فریم‌ورک وب نیست؛ یک محیط اجرای جاوااسکریپت است که یک تصمیم بزرگ گرفته: یک نخ، و همه‌چیز غیرمسدودکننده. این مسیر روی همان تصمیم تمرکز می‌کند، چون هر رفتار عجیبی که در Node می‌بینی — از ترتیب لاگ‌ها تا سرور یخ‌زده — نتیجهٔ مستقیم آن است."},
+  en:{name:"Node.js", desc:"The event loop, modules, streams, concurrency and deployment — the platform, not a framework.",
+      intro:"Node is not a web framework; it is a JavaScript runtime built on one big decision: a single thread, and nothing blocking. This track focuses on that decision, because every strange behaviour you meet in Node — from log ordering to a frozen server — follows directly from it."},
+  ch:[
+["01","01-what.html",0,12,50,"Node چیست و چه مسئله‌ای را حل کرد","‎C10k‎، ورودی/خروجی غیرمسدودکننده و انتخاب تک‌نخی.","What Node is and what it solved","C10k, non-blocking I/O and the single-threaded choice.","node runtime v8 libuv nonblocking"],
+["02","02-modules.html",0,12,50,"ماژول: CommonJS و ESM","دو سیستم ماژول در یک زیست‌بوم، و قواعد همزیستی‌شان.","Modules: CommonJS and ESM","Two module systems in one ecosystem, and the rules for living with both.","commonjs esm require import module"],
+["03","03-npm.html",0,12,55,"npm و package.json","وابستگی، نسخه، script و lockfile.","npm and package.json","Dependencies, versions, scripts and the lockfile.","npm package.json lockfile semver script"],
+["04","04-eventloop.html",0,12,70,"event loop از نزدیک","فاز‌ها، microtask و macrotask — و ترتیبی که غافلگیرت می‌کند.","The event loop up close","Phases, microtasks and macrotasks — and the ordering that surprises you.","event loop microtask nexttick setimmediate phase"],
+["05","05-async.html",0,12,60,"async: از callback تا async/await","سه نسل مدیریت ناهمگامی و چرا هرکدام آمدند.","Async: from callbacks to async/await","Three generations of asynchrony and why each arrived.","callback promise async await hell"],
+["06","06-fs-stream.html",0,12,60,"فایل‌سیستم و stream","پردازش فایل یک‌گیگابایتی بدون پر کردن حافظه.","Filesystem and streams","Processing a one-gigabyte file without filling memory.","fs stream pipe backpressure buffer"],
+["07","07-http.html",0,12,55,"HTTP خام","سرور بدون فریم‌ورک، تا بدانی فریم‌ورک چه می‌کند.","Raw HTTP","A server with no framework, so you know what a framework does.","http server request response header"],
+["08","08-buffer.html",0,12,50,"buffer و داده باینری","کار با بایت، رمزگذاری و فایل‌های دودویی.","Buffers and binary data","Working with bytes, encodings and binary files.","buffer binary encoding typedarray"],
+["09","09-workers.html",0,12,60,"worker thread و cluster","وقتی یک نخ کافی نیست.","Worker threads and cluster","When one thread is not enough.","worker thread cluster child process cpu"],
+["10","10-errors.html",0,12,55,"خطا و چرخهٔ عمر پروسه","خطای مدیریت‌نشده، سیگنال، و خاموشی تمیز.","Errors and the process lifecycle","Unhandled rejections, signals, and a graceful shutdown.","error uncaught rejection signal graceful shutdown"],
+["11","11-debug.html",0,12,55,"دیباگ و پروفایل","inspector، heap snapshot و پیدا کردن نشتی حافظه.","Debugging and profiling","The inspector, heap snapshots and finding a memory leak.","debug inspector profile heap leak flame"],
+["12","12-testing.html",0,12,50,"تست","تست‌ران داخلی Node، mock و تست ناهمگام.","Testing","Node's built-in test runner, mocking and async tests.","test node:test vitest jest mock"],
+["13","13-security.html",0,12,55,"امنیت","وابستگی‌های آسیب‌پذیر، ورودی نامعتبر و اسرار.","Security","Vulnerable dependencies, untrusted input and secrets.","security audit injection secret supply chain"],
+["14","14-deploy.html",0,12,55,"استقرار","داکر، مدیریت پروسه، متغیر محیطی و لاگ.","Deployment","Docker, process management, environment variables and logging.","deploy docker pm2 systemd env"],
+["15","15-cap1.html",0,5,70,"پروژهٔ ۱ — ابزار خط فرمان","یک CLI که فایل می‌خواند و گزارش می‌سازد.","Project 1 — a command-line tool","A CLI that reads files and produces a report.","capstone cli",1],
+["16","16-cap2.html",0,7,110,"پروژهٔ ۲ — سرور HTTP بدون فریم‌ورک","مسیریابی، بدنهٔ درخواست، فایل استاتیک و خطا — دستی.","Project 2 — an HTTP server with no framework","Routing, request bodies, static files and errors — by hand.","capstone http server",2],
+["17","17-cap3.html",0,9,160,"پروژهٔ ۳ — خط لولهٔ پردازش داده","stream، worker، backpressure و اندازه‌گیری کارایی.","Project 3 — a data-processing pipeline","Streams, workers, backpressure and measured throughput.","capstone stream worker performance",3]
+]});
+
+/* ═══════════════ ۳۰ — Express ═══════════════ */
+C.push({
+  id:"30-express", dir:"30-express", accent:"#3F4A55", cat:"backend", pre:["29-nodejs"],
+  ico:'<rect x="2.6" y="6" width="18.8" height="12" rx="2.4"/><path d="M6.4 12h11.2M14.4 9.2l3.2 2.8-3.2 2.8" stroke-linecap="round" stroke-linejoin="round"/>',
+  fa:{name:"Express", desc:"مدل middleware، مسیریابی، اعتبارسنجی، احراز هویت و ساختار پروژه‌ای که بزرگ شود.",
+      intro:"Express عمداً کم‌امکانات است: یک تابع، یک زنجیرهٔ middleware، و بقیه‌اش با تو. این آزادی هم قدرت آن است و هم دام آن. این مسیر ساختار می‌دهد — تا پروژه‌ات در ماه ششم هم قابل خواندن بماند."},
+  en:{name:"Express", desc:"The middleware model, routing, validation, authentication and a project structure that scales.",
+      intro:"Express is deliberately minimal: one function, one middleware chain, and the rest is up to you. That freedom is both its strength and its trap. This track supplies the structure — so your project is still readable in month six."},
+  ch:[
+["01","01-model.html",0,12,50,"Express و مدل middleware","همه‌چیز یک تابع با سه آرگومان است.","Express and the middleware model","Everything is one function with three arguments.","express middleware next request response"],
+["02","02-routing.html",0,12,50,"مسیریابی","پارامتر، الگو، router و ترتیب تطبیق.","Routing","Parameters, patterns, routers and match order.","route router param wildcard order"],
+["03","03-req-res.html",0,12,50,"درخواست و پاسخ","بدنه، هدر، کوکی، آپلود و پاسخ‌های مختلف.","Request and response","Bodies, headers, cookies, uploads and response types.","body parser header cookie multipart"],
+["04","04-custom-mw.html",0,12,55,"middleware خودت","لاگ، زمان‌سنجی، احراز هویت — و ترتیبی که مهم است.","Writing your own middleware","Logging, timing, auth — and the order that matters.","middleware custom order error-handling"],
+["05","05-static.html",0,12,45,"فایل استاتیک و قالب","سرو کردن دارایی و رندر سمت سرور.","Static files and templates","Serving assets and server-side rendering.","static template ejs pug view"],
+["06","06-validation.html",0,12,50,"اعتبارسنجی ورودی","هیچ ورودی‌ای قابل اعتماد نیست.","Input validation","No input is trustworthy.","validation zod joi sanitize schema"],
+["07","07-db.html",0,12,60,"اتصال به پایگاه‌داده","Prisma یا کوئری خام، pool و مهاجرت.","Connecting to a database","Prisma or raw queries, pooling and migrations.","prisma sql pool migration orm"],
+["08","08-auth.html",0,12,60,"احراز هویت با JWT","ورود، توکن، refresh و نگهداری امن.","Authentication with JWT","Login, tokens, refresh and safe storage.","jwt auth bcrypt session refresh"],
+["09","09-errors.html",0,12,50,"مدیریت خطا","middleware خطا، پاسخ یکدست و لاگ.","Error handling","The error middleware, consistent responses and logging.","error handler async wrapper logging"],
+["10","10-structure.html",0,12,55,"ساختار پروژه","از یک فایل به لایه‌های با مسئولیت روشن.","Project structure","From one file to layers with clear responsibilities.","structure layer service controller repository"],
+["11","11-testing.html",0,12,55,"تست","تست مسیرها با supertest و پایگاه‌دادهٔ تست.","Testing","Route tests with supertest and a test database.","supertest integration test fixture"],
+["12","12-security.html",0,12,55,"امنیت","helmet، CORS، rate limit و تزریق.","Security","helmet, CORS, rate limiting and injection.","helmet cors ratelimit injection owasp"],
+["13","13-deploy.html",0,12,50,"استقرار","داکر، پروکسی معکوس و پیکربندی production.","Deployment","Docker, a reverse proxy and production configuration.","deploy docker nginx cluster env"],
+["14","14-cap1.html",0,5,70,"پروژهٔ ۱ — API یادداشت","CRUD کامل با اعتبارسنجی و تست.","Project 1 — a notes API","Full CRUD with validation and tests.","capstone crud",1],
+["15","15-cap2.html",0,7,110,"پروژهٔ ۲ — API با احراز هویت","کاربر، نقش، توکن و مسیرهای محافظت‌شده.","Project 2 — an authenticated API","Users, roles, tokens and protected routes.","capstone auth jwt",2],
+["16","16-cap3.html",0,9,160,"پروژهٔ ۳ — سرویس production","لایه‌بندی، کش، صف، مشاهده‌پذیری و استقرار.","Project 3 — a production service","Layering, caching, queues, observability and deployment.","capstone production",3]
+]});
+
+/* ═══════════════ ۳۱ — NestJS ═══════════════ */
+C.push({
+  id:"31-nestjs", dir:"31-nestjs", accent:"#E0234E", cat:"backend", pre:["29-nodejs","42-typescript"], soft:["47-oop"],
+  ico:'<path d="M12 2.6 20.5 7.3v9.4L12 21.4 3.5 16.7V7.3z"/><circle cx="12" cy="12" r="2.2"/><path d="M12 4.8v5M12 14.2v5" stroke-linecap="round"/>',
+  fa:{name:"NestJS", desc:"معماری ماژولار، DI، guard و interceptor، ORM، میکروسرویس و GraphQL روی Node.",
+      intro:"Nest جواب یک سؤال است: اگر بخواهی روی Node پروژه‌ای بنویسی که ده نفر رویش کار کنند و سه سال زنده بماند، ساختارش باید چه باشد. جوابش را از Angular و از دنیای جاوا و دات‌نت گرفته: ماژول، تزریق وابستگی، و مرزهای صریح."},
+  en:{name:"NestJS", desc:"Modular architecture, DI, guards and interceptors, ORMs, microservices and GraphQL on Node.",
+      intro:"Nest answers one question: if ten people must work on a Node project that has to live three years, what structure does it need? Its answer borrows from Angular and from the Java and .NET worlds: modules, dependency injection, and explicit boundaries."},
+  ch:[
+["01","01-why.html",0,12,50,"چرا Nest؛ معماری ماژولار","چه چیزی را از Express می‌گیرد و چه چیزی می‌دهد.","Why Nest; modular architecture","What it takes away from Express and what it gives back.","nest architecture module opinionated"],
+["02","02-building-blocks.html",0,12,55,"ماژول، کنترلر، سرویس","سه قطعه‌ای که کل فریم‌ورک از آن‌ها ساخته می‌شود.","Modules, controllers, services","The three pieces the whole framework is built from.","module controller service provider"],
+["03","03-di.html",0,12,60,"تزریق وابستگی","دامنه، طول عمر و وابستگی دایره‌ای.","Dependency injection","Scopes, lifetimes and circular dependencies.","di inject provider scope circular"],
+["04","04-pipes.html",0,12,55,"pipe و اعتبارسنجی","تبدیل و اعتبارسنجی ورودی، به‌صورت اعلانی.","Pipes and validation","Transforming and validating input, declaratively.","pipe validation dto class-validator transform"],
+["05","05-guards.html",0,12,60,"guard و احراز هویت","‎JWT‎، نقش و مجوز مبتنی بر متادیتا.","Guards and authentication","JWT, roles and metadata-driven authorisation.","guard jwt passport role authorization"],
+["06","06-interceptors.html",0,12,55,"interceptor","لاگ، تبدیل پاسخ، کش و زمان‌سنجی.","Interceptors","Logging, response shaping, caching and timing.","interceptor rxjs transform cache"],
+["07","07-filters.html",0,12,50,"exception filter","خطای یکدست در کل برنامه.","Exception filters","One consistent error shape across the app.","exception filter http error"],
+["08","08-orm.html",0,12,65,"پایگاه‌داده: TypeORM و Prisma","مدل، رابطه، مهاجرت و تراکنش.","Databases: TypeORM and Prisma","Models, relations, migrations and transactions.","typeorm prisma entity migration transaction"],
+["09","09-config.html",0,12,50,"پیکربندی و محیط","ماژول پیکربندی، اعتبارسنجی متغیرها و اسرار.","Configuration and environments","The config module, validated variables and secrets.","config env validation secret"],
+["10","10-testing.html",0,12,60,"تست","تست واحد با ماژول تست و تست ‎e2e‎.","Testing","Unit tests with the testing module, and e2e tests.","test e2e supertest mock testing module"],
+["11","11-microservices.html",0,12,65,"میکروسرویس در Nest","transport، الگوی پیام و رویداد.","Microservices in Nest","Transports, message patterns and events.","microservice transport tcp rabbitmq pattern"],
+["12","12-graphql.html",0,12,60,"GraphQL","schema-first در برابر code-first، resolver و ‎N+1‎.","GraphQL","Schema-first versus code-first, resolvers and N+1.","graphql resolver dataloader schema"],
+["13","13-websocket.html",0,12,55,"WebSocket","gateway، اتاق و رویداد بی‌درنگ.","WebSockets","Gateways, rooms and real-time events.","websocket gateway socket.io room"],
+["14","14-deploy.html",0,12,55,"استقرار","بیلد، داکر، مانیتورینگ و کارایی.","Deployment","Building, Docker, monitoring and performance.","deploy docker build monitoring"],
+["15","15-cap1.html",0,5,70,"پروژهٔ ۱ — ‎API‎ ماژولار","دو ماژول با مرز روشن و تست.","Project 1 — a modular API","Two modules with clear boundaries and tests.","capstone module",1],
+["16","16-cap2.html",0,7,120,"پروژهٔ ۲ — احراز هویت و مجوز","‎JWT‎، نقش، guard سفارشی و تست ‎e2e‎.","Project 2 — authentication and authorisation","JWT, roles, custom guards and e2e tests.","capstone auth guard",2],
+["17","17-cap3.html",0,9,170,"پروژهٔ ۳ — سامانهٔ چندسرویسه","دو سرویس Nest با صف، رویداد و مشاهده‌پذیری.","Project 3 — a multi-service system","Two Nest services with a queue, events and observability.","capstone microservice",3]
+]});
+
+/* ═══════════════ ۳۲ — Rust ═══════════════ */
+C.push({
+  id:"32-rust", dir:"32-rust", accent:"#CE422B", cat:"backend", soft:["43-c"],
+  ico:'<circle cx="12" cy="12" r="8.6"/><circle cx="12" cy="12" r="3.4"/><path d="M12 3.4v2.2M12 18.4v2.2M20.6 12h-2.2M5.6 12H3.4" stroke-linecap="round"/>',
+  fa:{name:"Rust", desc:"مالکیت، قرض‌گیری، trait، همروندی بی‌ترس و وب با Axum — از صفر تا سرویس واقعی.",
+      intro:"Rust یک معامله پیشنهاد می‌دهد: کامپایلر سخت‌گیری می‌کند، و در عوض کل دسته‌ای از باگ‌ها — نشتی حافظه، اشارهٔ آویزان، مسابقهٔ داده — در زمان اجرا اصلاً ممکن نمی‌شوند. سه هفتهٔ اول با کامپایلر می‌جنگی. بعد از آن، متوجه می‌شوی داشت درست می‌گفت."},
+  en:{name:"Rust", desc:"Ownership, borrowing, traits, fearless concurrency and web services with Axum — from zero to production.",
+      intro:"Rust offers a trade: the compiler is strict, and in exchange an entire class of bugs — leaks, dangling pointers, data races — becomes impossible at run time. You fight the compiler for three weeks. After that, you realise it was right."},
+  ch:[
+["01","01-why.html",0,12,50,"چرا Rust","مسئلهٔ ایمنی حافظه بدون زباله‌روب.","Why Rust","Memory safety without a garbage collector.","rust safety performance gc systems"],
+["02","02-ownership.html",0,12,70,"مالکیت","تک قاعده‌ای که همه‌چیز از آن می‌آید.","Ownership","The single rule everything else follows from.","ownership move drop scope"],
+["03","03-borrowing.html",0,12,70,"قرض‌گیری و طول عمر","مرجع مشترک و انحصاری، و اینکه lifetime چه می‌گوید.","Borrowing and lifetimes","Shared and exclusive references, and what a lifetime states.","borrow reference lifetime mutable aliasing"],
+["04","04-types.html",0,12,55,"نوع‌ها: struct و enum","enum در Rust بسیار قوی‌تر از چیزی است که فکر می‌کنی.","Types: structs and enums","Rust's enums are far more powerful than you expect.","struct enum type impl derive"],
+["05","05-matching.html",0,12,50,"pattern matching","تطبیق جامع، و کامپایلری که حالت فراموش‌شده را می‌گیرد.","Pattern matching","Exhaustive matching, and a compiler that catches the case you forgot.","match pattern if-let exhaustive"],
+["06","06-errors.html",0,12,60,"خطا: Result و Option","بدون exception، بدون null.","Errors: Result and Option","No exceptions, no null.","result option error question mark anyhow"],
+["07","07-traits.html",0,12,65,"trait و generic","چندریختی بدون وراثت.","Traits and generics","Polymorphism without inheritance.","trait generic impl dyn bound"],
+["08","08-collections.html",0,12,55,"مجموعه‌ها و iterator","Vec، HashMap و زنجیرهٔ iterator بدون هزینه.","Collections and iterators","Vec, HashMap and zero-cost iterator chains.","vec hashmap iterator closure collect"],
+["09","09-modules.html",0,12,50,"ماژول و Cargo","ساختار پروژه، crate، feature و workspace.","Modules and Cargo","Project layout, crates, features and workspaces.","cargo crate module workspace feature"],
+["10","10-concurrency.html",0,12,70,"همروندی بی‌ترس","چرا مسابقهٔ داده در Rust کامپایل نمی‌شود.","Fearless concurrency","Why a data race does not compile in Rust.","thread send sync arc mutex channel"],
+["11","11-async.html",0,12,65,"async و Tokio","future، runtime و تفاوتش با نخ.","async and Tokio","Futures, the runtime, and how it differs from threads.","async await tokio future runtime"],
+["12","12-unsafe.html",0,12,55,"unsafe و FFI","کِی لازم است و چطور مهارش کنیم.","unsafe and FFI","When it is necessary and how to contain it.","unsafe ffi raw pointer extern"],
+["13","13-testing.html",0,12,55,"تست و benchmark","تست داخلی، تست یکپارچه و اندازه‌گیری.","Testing and benchmarking","Unit tests, integration tests and measurement.","test bench criterion assert"],
+["14","14-web.html",0,12,65,"وب با Axum","مسیریابی، حالت مشترک، پایگاه‌داده و ‎JSON‎.","Web with Axum","Routing, shared state, databases and JSON.","axum tower serde sqlx handler"],
+["15","15-deploy.html",0,12,50,"بیلد و استقرار","کامپایل بهینه، باینری کوچک و داکر.","Building and deploying","Optimised builds, small binaries and Docker.","release build musl docker static"],
+["16","16-cap1.html",0,5,80,"پروژهٔ ۱ — ابزار خط فرمان","پردازش فایل با مدیریت خطای درست.","Project 1 — a CLI tool","File processing with proper error handling.","capstone cli clap",1],
+["17","17-cap2.html",0,7,130,"پروژهٔ ۲ — سرویس وب","‎API‎ با پایگاه‌داده، اعتبارسنجی و تست.","Project 2 — a web service","An API with a database, validation and tests.","capstone axum api",2],
+["18","18-cap3.html",0,9,190,"پروژهٔ ۳ — سرویس همروند پرکار","async، اشتراک حالت، backpressure و اندازه‌گیری.","Project 3 — a high-throughput concurrent service","async, shared state, backpressure and measurement.","capstone concurrency performance",3]
+]});
+
+/* ═══════════════ ۳۳ — Ruby و Rails ═══════════════ */
+C.push({
+  id:"33-ruby-rails", dir:"33-ruby-rails", accent:"#CC0000", cat:"backend",
+  ico:'<path d="M12 3 20.4 8.4 17.4 19H6.6L3.6 8.4z"/><path d="M3.6 8.4h16.8M12 3v16M8 8.4 12 19M16 8.4 12 19" stroke-linecap="round" opacity=".85"/>',
+  fa:{name:"Ruby و Rails", desc:"زبان Ruby، سپس Rails: ‎MVC‎، ActiveRecord، ‎API‎، job پس‌زمینه و تست با RSpec.",
+      intro:"Rails با یک ادعا آمد: بیشتر برنامه‌های وب شبیه هم‌اند، پس بیایید تصمیم‌های تکراری را پیش‌فرض کنیم. نتیجه‌اش سرعتی است که هنوز کم‌نظیر است — به شرطی که قراردادها را بشناسی. این مسیر اول خود Ruby را می‌دهد، چون Rails بدون Ruby فقط جادوست."},
+  en:{name:"Ruby & Rails", desc:"The Ruby language, then Rails: MVC, ActiveRecord, APIs, background jobs and testing with RSpec.",
+      intro:"Rails arrived with a claim: most web applications resemble each other, so let us make the repetitive decisions defaults. The result is a speed that is still hard to match — provided you know the conventions. This track teaches Ruby first, because Rails without Ruby is just magic."},
+  ch:[
+["01","01-ruby.html",0,12,60,"Ruby در ۹۰ دقیقه","نحو، نوع‌ها و فلسفهٔ «همه‌چیز شیء است».","Ruby in ninety minutes","Syntax, types and the everything-is-an-object philosophy.","ruby syntax object irb"],
+["02","02-oop.html",0,12,55,"شیءگرایی در Ruby","کلاس، ماژول، mixin و متد گمشده.","Object orientation in Ruby","Classes, modules, mixins and method_missing.","class module mixin metaprogramming"],
+["03","03-blocks.html",0,12,55,"block، proc و lambda","الگویی که همهٔ کد Ruby رویش سوار است.","Blocks, procs and lambdas","The pattern all Ruby code rests on.","block proc lambda yield enumerable"],
+["04","04-gems.html",0,12,45,"gem و Bundler","وابستگی و نسخه‌بندی.","Gems and Bundler","Dependencies and versioning.","gem bundler gemfile version"],
+["05","05-rails.html",0,12,60,"Rails: معماری و قرارداد","‎MVC‎، ساختار پوشه و «قرارداد بر پیکربندی».","Rails: architecture and convention","MVC, the directory structure and convention over configuration.","rails mvc convention generator"],
+["06","06-activerecord.html",0,12,65,"ActiveRecord","مدل، رابطه، اعتبارسنجی و callback.","ActiveRecord","Models, associations, validations and callbacks.","activerecord association validation callback"],
+["07","07-migration.html",0,12,50,"مهاجرت پایگاه‌داده","تغییر شِما به‌صورت نسخه‌بندی‌شده.","Database migrations","Versioned schema change.","migration schema rollback seed"],
+["08","08-routing.html",0,12,55,"مسیریابی و کنترلر","مسیر ‎RESTful‎، پارامتر قوی و فیلتر.","Routing and controllers","RESTful routes, strong parameters and filters.","route controller restful params filter"],
+["09","09-views.html",0,12,50,"view و قالب","‎ERB‎، partial، helper و دارایی‌ها.","Views and templates","ERB, partials, helpers and assets.","erb view partial helper asset"],
+["10","10-forms.html",0,12,50,"فرم","‎form_with‎، اعتبارسنجی و نمایش خطا.","Forms","form_with, validation and error display.","form validation error nested"],
+["11","11-auth.html",0,12,55,"احراز هویت","‎has_secure_password‎ یا Devise.","Authentication","has_secure_password or Devise.","authentication devise session password"],
+["12","12-api.html",0,12,55,"Rails به‌عنوان ‎API‎","حالت ‎API-only‎، سریال‌سازی و نسخه‌گذاری.","Rails as an API","API-only mode, serialisation and versioning.","api serializer jbuilder versioning"],
+["13","13-jobs.html",0,12,55,"کار پس‌زمینه","‎ActiveJob‎، Sidekiq و صف.","Background jobs","ActiveJob, Sidekiq and queues.","activejob sidekiq queue worker"],
+["14","14-testing.html",0,12,60,"تست با RSpec","تست مدل، درخواست و سیستم.","Testing with RSpec","Model, request and system specs.","rspec factory capybara spec"],
+["15","15-performance.html",0,12,55,"کارایی","‎N+1‎، کش و ایندکس.","Performance","N+1 queries, caching and indexes.","n+1 cache index bullet"],
+["16","16-deploy.html",0,12,55,"استقرار","Puma، داکر، دارایی‌ها و متغیر محیطی.","Deployment","Puma, Docker, assets and environment variables.","puma deploy docker credentials"],
+["17","17-cap1.html",0,5,70,"پروژهٔ ۱ — وبلاگ","‎CRUD‎، فرم و اعتبارسنجی.","Project 1 — a blog","CRUD, forms and validation.","capstone crud blog",1],
+["18","18-cap2.html",0,7,120,"پروژهٔ ۲ — ‎API‎ با احراز هویت","حالت ‎API-only‎، توکن و تست.","Project 2 — an authenticated API","API-only mode, tokens and tests.","capstone api auth",2],
+["19","19-cap3.html",0,9,170,"پروژهٔ ۳ — اپ کامل","کار پس‌زمینه، کش، جستجو و استقرار.","Project 3 — a complete app","Background jobs, caching, search and deployment.","capstone production",3]
+]});
+
+/* ═══════════════ ۳۴ — Svelte ═══════════════ */
+C.push({
+  id:"34-svelte", dir:"34-svelte", accent:"#FF3E00", cat:"frontend", pre:["41-javascript"], soft:["67-css"],
+  ico:'<path d="M15.6 4.2 9.2 8.3a4.3 4.3 0 0 0-1.3 5.9 4.3 4.3 0 0 0 6 1.3l6.4-4.1a4.3 4.3 0 0 0 1.3-5.9 4.3 4.3 0 0 0-6-1.3z" opacity=".55"/><path d="M8.4 19.8l6.4-4.1a4.3 4.3 0 0 0 1.3-5.9 4.3 4.3 0 0 0-6-1.3L3.7 12.6a4.3 4.3 0 0 0-1.3 5.9 4.3 4.3 0 0 0 6 1.3z"/>',
+  fa:{name:"Svelte", desc:"کامپایلر به‌جای runtime: واکنش‌پذیری، store، SvelteKit و استقرار.",
+      intro:"بقیهٔ فریم‌ورک‌ها یک کتابخانه را به مرورگر می‌فرستند تا کار را در زمان اجرا انجام دهد. Svelte همان کار را در زمان کامپایل انجام می‌دهد و جاوااسکریپت خالص تحویل می‌دهد. نتیجه: باندل کوچک‌تر و کد کمتر — به قیمت یک مرحلهٔ بیلد که دیگر اختیاری نیست."},
+  en:{name:"Svelte", desc:"A compiler instead of a runtime: reactivity, stores, SvelteKit and deployment.",
+      intro:"Other frameworks ship a library to the browser to do the work at run time. Svelte does that work at compile time and ships plain JavaScript. The result is a smaller bundle and less code — at the cost of a build step that is no longer optional."},
+  ch:[
+["01","01-why.html",0,12,50,"چرا Svelte؛ کامپایلر به‌جای runtime","تفاوت بنیادی با React و Vue، در یک مثال.","Why Svelte; a compiler, not a runtime","The fundamental difference from React and Vue, in one example.","svelte compiler runtime bundle virtual dom"],
+["02","02-components.html",0,12,50,"کامپوننت و نحو","یک فایل: نشانه‌گذاری، استایل و منطق.","Components and syntax","One file: markup, style and logic.","component script style markup"],
+["03","03-reactivity.html",0,12,60,"واکنش‌پذیری","‎rune‎ و مدل جدید، در برابر ‎$:‎ قدیمی.","Reactivity","Runes and the new model, versus the old $: syntax.","reactivity rune state derived effect"],
+["04","04-props.html",0,12,50,"props و رویداد","داده به پایین، رویداد به بالا.","Props and events","Data down, events up.","props event dispatch binding"],
+["05","05-slots.html",0,12,45,"slot و ترکیب","کامپوننت‌هایی که محتوا می‌پذیرند.","Slots and composition","Components that accept content.","slot snippet children composition"],
+["06","06-lifecycle.html",0,12,45,"چرخهٔ عمر","‎onMount‎، پاکسازی و اثرها.","Lifecycle","onMount, cleanup and effects.","onmount ondestroy tick effect"],
+["07","07-stores.html",0,12,55,"store و حالت مشترک","حالت بیرون از کامپوننت.","Stores and shared state","State outside components.","store writable readable derived context"],
+["08","08-animation.html",0,12,50,"انیمیشن و گذار","حرکت داخلی فریم‌ورک، بدون کتابخانه.","Animation and transitions","Built-in motion, no library needed.","transition animate motion tween spring"],
+["09","09-kit-routing.html",0,12,55,"SvelteKit: مسیریابی","مسیریابی مبتنی بر فایل و layout.","SvelteKit: routing","File-based routing and layouts.","sveltekit route layout param"],
+["10","10-kit-load.html",0,12,60,"load و داده","بارگذاری سمت سرور و سمت مرورگر.","load and data","Server-side and client-side loading.","load server universal fetch"],
+["11","11-kit-forms.html",0,12,55,"‎form action‎","فرم‌هایی که بدون جاوااسکریپت هم کار می‌کنند.","Form actions","Forms that work without JavaScript.","form action progressive enhancement"],
+["12","12-ssr.html",0,12,55,"‎SSR‎، ‎SSG‎ و adapter","انتخاب حالت رندر و مقصد استقرار.","SSR, SSG and adapters","Choosing a render mode and a deployment target.","ssr ssg prerender adapter"],
+["13","13-testing.html",0,12,50,"تست","تست کامپوننت و تست ‎e2e‎.","Testing","Component tests and e2e tests.","vitest playwright testing library"],
+["14","14-deploy.html",0,12,50,"استقرار","بیلد، adapter نود و داکر.","Deployment","Building, the node adapter and Docker.","deploy adapter node docker static"],
+["15","15-cap1.html",0,5,70,"پروژهٔ ۱ — لیست کارها","حالت، رویداد و ماندگاری محلی.","Project 1 — a to-do list","State, events and local persistence.","capstone todo",1],
+["16","16-cap2.html",0,7,110,"پروژهٔ ۲ — اپ چندصفحه‌ای با داده","مسیریابی، load، فرم و خطا.","Project 2 — a multi-page data app","Routing, load, forms and errors.","capstone sveltekit",2],
+["17","17-cap3.html",0,9,160,"پروژهٔ ۳ — اپ کامل ‎SSR‎","احراز هویت، ‎SSR‎، کارایی و استقرار.","Project 3 — a full SSR app","Authentication, SSR, performance and deployment.","capstone ssr production",3]
+]});
+
+/* ═══════════════ ۳۵ — Qwik ═══════════════ */
+C.push({
+  id:"35-qwik", dir:"35-qwik", accent:"#18B6F6", cat:"frontend", pre:["41-javascript"],
+  ico:'<path d="M13.4 2.6 3.6 13.4h6.2l-1 8 9.8-10.8h-6.2z" stroke-linejoin="round"/>',
+  fa:{name:"Qwik", desc:"‎resumability‎ به‌جای ‎hydration‎: اپی که تقریباً هیچ جاوااسکریپتی بارگذاری نمی‌کند.",
+      intro:"هر فریم‌ورک ‎SSR‎ یک هزینهٔ پنهان دارد: صفحه سریع نمایش داده می‌شود، اما تا وقتی کل جاوااسکریپت دانلود و اجرا نشود، کلیک‌ها کار نمی‌کنند. اسمش ‎hydration‎ است. Qwik این مرحله را کاملاً حذف می‌کند — و این مسیر توضیح می‌دهد چطور، و چه چیزی در عوض می‌دهی."},
+  en:{name:"Qwik", desc:"Resumability instead of hydration: an app that loads almost no JavaScript.",
+      intro:"Every SSR framework carries a hidden cost: the page paints fast, but clicks do nothing until all the JavaScript has downloaded and run. That step is hydration. Qwik removes it entirely — and this track explains how, and what you give up in return."},
+  ch:[
+["01","01-hydration.html",0,12,55,"مسئله: hydration","چرا صفحه‌ای که دیده می‌شود هنوز کار نمی‌کند.","The problem: hydration","Why a page you can see still does not respond.","hydration tti interactive ssr cost"],
+["02","02-resumability.html",0,12,60,"resumability","به‌جای اجرای دوباره، ادامه دادن از جایی که سرور رها کرد.","Resumability","Continuing where the server left off, instead of re-running.","resumability serialize continue state"],
+["03","03-components.html",0,12,50,"کامپوننت و signal","واکنش‌پذیری ریزدانه.","Components and signals","Fine-grained reactivity.","component signal useSignal store"],
+["04","04-dollar.html",0,12,60,"‎$‎ و اجرای تنبل","مرز‌هایی که کامپایلر برای بارگذاری تنبل می‌سازد.","The $ sign and lazy execution","The boundaries the compiler creates for lazy loading.","dollar lazy chunk qrl optimizer"],
+["05","05-routing.html",0,12,50,"Qwik City: مسیریابی","مسیریابی مبتنی بر فایل و layout.","Qwik City: routing","File-based routing and layouts.","qwik city route layout"],
+["06","06-data.html",0,12,55,"routeLoader و routeAction","داده و فرم، سمت سرور.","routeLoader and routeAction","Data and forms on the server.","routeloader routeaction form server"],
+["07","07-state.html",0,12,55,"مدیریت حالت","حالت محلی، مشترک و سریال‌سازی‌پذیر.","State management","Local, shared and serialisable state.","state context store serialization"],
+["08","08-styling.html",0,12,45,"استایل","‎CSS‎ محدود به کامپوننت و راه‌های دیگر.","Styling","Scoped CSS and the alternatives.","css scoped tailwind style"],
+["09","09-integrations.html",0,12,50,"یکپارچگی با کتابخانه‌ها","استفاده از کد React و کتابخانه‌های موجود.","Integrations","Using React code and existing libraries.","integration react qwikify adapter"],
+["10","10-performance.html",0,12,55,"کارایی و اندازهٔ باندل","اندازه‌گیری واقعی، نه ادعا.","Performance and bundle size","Real measurement, not claims.","performance bundle lighthouse core web vitals"],
+["11","11-render.html",0,12,50,"‎SSR‎ و ‎SSG‎","انتخاب حالت رندر برای هر مسیر.","SSR and SSG","Choosing a render mode per route.","ssr ssg static prerender"],
+["12","12-deploy.html",0,12,50,"استقرار","adapter، داکر و لبه.","Deployment","Adapters, Docker and the edge.","deploy adapter docker edge"],
+["13","13-cap1.html",0,5,70,"پروژهٔ ۱ — صفحهٔ تعاملی","کامپوننت، signal و رویداد.","Project 1 — an interactive page","Components, signals and events.","capstone signal",1],
+["14","14-cap2.html",0,7,110,"پروژهٔ ۲ — اپ داده‌محور","loader، action، فرم و خطا.","Project 2 — a data-driven app","Loaders, actions, forms and errors.","capstone loader action",2],
+["15","15-cap3.html",0,9,150,"پروژهٔ ۳ — اپ کامل با اندازه‌گیری کارایی","احراز هویت، استقرار و مقایسهٔ عددی با یک اپ ‎SSR‎ معمولی.","Project 3 — a full app, measured","Authentication, deployment and a numeric comparison with a conventional SSR app.","capstone performance production",3]
+]});
+
+/* ═══════════════ ۳۶ — انتشار پکیج ═══════════════ */
+C.push({
+  id:"36-packaging", dir:"36-packaging", accent:"#0891B2", cat:"publish", pre:["28-git"],
+  ico:'<path d="M12 2.8 20.5 7v10L12 21.2 3.5 17V7z"/><path d="M3.5 7 12 11.2 20.5 7M12 11.2v10" stroke-linejoin="round"/>',
+  fa:{name:"انتشار پکیج و مخزن‌سازی", desc:"‎npm‎، ‎NuGet‎، ‎PyPI‎، ‎crates.io‎، ‎RubyGems‎ و ‎Go modules‎ — به‌علاوهٔ مخزن خصوصی با Nexus و امنیت زنجیرهٔ تأمین.",
+      intro:"کدی که فقط در پروژهٔ خودت کار می‌کند، یک فایل است. کدی که دیگران با یک دستور نصبش می‌کنند، یک محصول است. فاصلهٔ این دو، چند قرارداد ساده اما سخت‌گیر است: نسخه‌گذاری، متادیتا، امضا و سازگاری. این مسیر همان فاصله را برای شش زیست‌بوم بزرگ می‌پیماید، و بعد نشان می‌دهد چطور مخزن خصوصی خودت را بالا بیاوری."},
+  en:{name:"Publishing packages & running registries", desc:"npm, NuGet, PyPI, crates.io, RubyGems and Go modules — plus private registries with Nexus and supply-chain security.",
+      intro:"Code that only works inside your project is a file. Code others install with one command is a product. The distance between them is a handful of simple but unforgiving conventions: versioning, metadata, signing and compatibility. This track walks that distance for six major ecosystems, then shows how to run your own private registry."},
+  ch:[
+["01","01-why.html",0,12,45,"پکیج چیست و چرا","مرز میان «کد من» و «کدی که دیگران استفاده می‌کنند».","What a package is, and why","The line between “my code” and “code others use”.","package library distribution reuse"],
+["02","02-semver.html",0,12,55,"نسخه‌گذاری معنایی","‎major.minor.patch‎ یک قرارداد است، نه یک شماره.","Semantic versioning","major.minor.patch is a contract, not a number.","semver breaking change version range"],
+["03","03-npm-basics.html",0,12,60,"‎npm‎: ساخت و انتشار","‎package.json‎، فایل‌های منتشرشده، و اولین ‎publish‎.","npm: building and publishing","package.json, published files, and your first publish.","npm publish package.json files exports"],
+["04","04-npm-advanced.html",0,12,60,"‎npm‎ پیشرفته","scope، بسته‌های خصوصی، ‎workspace‎ و ‎monorepo‎.","npm advanced","Scopes, private packages, workspaces and monorepos.","scope workspace monorepo changesets"],
+["05","05-nuget.html",0,12,60,"‎NuGet‎: ساخت و انتشار","‎csproj‎، متادیتا، ‎symbol package‎ و ‎nuget.org‎.","NuGet: building and publishing","csproj metadata, symbol packages and nuget.org.","nuget nupkg csproj symbols dotnet pack"],
+["06","06-pypi.html",0,12,60,"‎PyPI‎: ‎pyproject‎ و ‎wheel‎","بسته‌بندی مدرن پایتون، از ‎setup.py‎ تا ‎build‎.","PyPI: pyproject and wheels","Modern Python packaging, from setup.py to build.","pypi pyproject wheel sdist twine"],
+["07","07-cargo.html",0,12,50,"‎Cargo‎ و ‎crates.io‎","انتشار crate و مستندسازی خودکار.","Cargo and crates.io","Publishing a crate and automatic documentation.","cargo crates.io docs.rs publish"],
+["08","08-gems.html",0,12,50,"‎RubyGems‎","‎gemspec‎ و انتشار.","RubyGems","The gemspec and publishing.","gem gemspec rubygems bundler"],
+["09","09-go-maven.html",0,12,55,"‎Go modules‎ و ‎Maven‎","دو مدل متفاوت: بدون رجیستری مرکزی، و با آن.","Go modules and Maven","Two different models: without a central registry, and with one.","go module maven gradle proxy sum"],
+["10","10-nexus.html",0,12,65,"مخزن خصوصی با Nexus","یک سرور، چند فرمت: ‎npm‎، ‎NuGet‎، ‎PyPI‎ و ‎Maven‎.","A private registry with Nexus","One server, many formats: npm, NuGet, PyPI and Maven.","nexus repository proxy hosted group"],
+["11","11-alternatives.html",0,12,55,"گزینه‌های دیگر مخزن","Verdaccio، Artifactory و ‎GitHub Packages‎.","Other registry options","Verdaccio, Artifactory and GitHub Packages.","verdaccio artifactory github packages"],
+["12","12-supply-chain.html",0,12,65,"امنیت زنجیرهٔ تأمین","امضا، ‎provenance‎، ‎SBOM‎ و حملهٔ ‎typosquatting‎.","Supply-chain security","Signing, provenance, SBOMs and typosquatting.","sbom provenance sigstore audit typosquatting"],
+["13","13-ci-release.html",0,12,60,"انتشار خودکار با ‎CI‎","انتشار روی تگ، بدون رمز روی لپ‌تاپ کسی.","Automated releases with CI","Publish on tag, with no credentials on anyone's laptop.","ci release automation oidc trusted publishing"],
+["14","14-docs.html",0,12,50,"مستندسازی و ‎CHANGELOG‎","‎README‎ای که سؤال اول را جواب بدهد.","Documentation and CHANGELOG","A README that answers the first question.","readme changelog keepachangelog docs"],
+["15","15-maintenance.html",0,12,55,"نگهداری و منسوخ‌سازی","‎deprecate‎، ‎yank‎ و مسئولیت در برابر کاربران.","Maintenance and deprecation","deprecate, yank, and your duty to users.","deprecate yank maintenance breaking"],
+["16","16-cap1.html",0,5,70,"پروژهٔ ۱ — اولین پکیج عمومی","یک کتابخانهٔ کوچک را واقعاً منتشر کن.","Project 1 — your first public package","Actually publish a small library.","capstone publish",1],
+["17","17-cap2.html",0,7,110,"پروژهٔ ۲ — مخزن خصوصی","Nexus را بالا بیاور و از آن نصب و به آن منتشر کن.","Project 2 — a private registry","Stand up Nexus, then install from it and publish to it.","capstone nexus private",2],
+["18","18-cap3.html",0,9,160,"پروژهٔ ۳ — خط لولهٔ انتشار چندزیست‌بومی","یک ‎monorepo‎ که هم ‎npm‎ و هم ‎NuGet‎ منتشر می‌کند، خودکار و امضاشده.","Project 3 — a multi-ecosystem release pipeline","A monorepo publishing both npm and NuGet, automated and signed.","capstone monorepo pipeline",3]
+]});
+
+/* ═══════════════ ۳۷ — انتشار اپلیکیشن موبایل ═══════════════ */
+C.push({
+  id:"37-mobile-release", dir:"37-mobile-release", accent:"#16A34A", cat:"publish", soft:["18-flutter"],
+  ico:'<rect x="6.4" y="2.6" width="11.2" height="18.8" rx="2.4"/><path d="M10.6 5.4h2.8" stroke-linecap="round"/><circle cx="12" cy="18" r="1.1"/>',
+  fa:{name:"انتشار اپلیکیشن موبایل", desc:"از کد تا فایل نصبی و بعد تا فروشگاه: امضا، ‎AAB‎ و ‎IPA‎، گوگل پلی، ‎App Store‎، بازار و مایکت.",
+      intro:"نوشتن اپ نصف کار است. نیمهٔ دیگر — امضای دیجیتال، متادیتا، بازبینی فروشگاه، انتشار تدریجی و بازگشت نسخه — جایی است که بیشتر تیم‌ها اولین بار گیر می‌کنند، معمولاً یک روز قبل از انتشار. این مسیر همان نیمه است، برای هر چهار فروشگاهی که برای مخاطب ایرانی اهمیت دارند."},
+  en:{name:"Shipping mobile apps", desc:"From code to installable to store: signing, AAB and IPA, Google Play, the App Store, Bazaar and Myket.",
+      intro:"Writing the app is half the work. The other half — code signing, metadata, store review, staged rollout and rollback — is where most teams get stuck the first time, usually the day before launch. This track is that other half, for all four stores that matter to a Persian-speaking audience."},
+  ch:[
+["01","01-pipeline.html",0,12,50,"از کد تا فایل نصبی","مسیر بیلد در اندروید و ‎iOS‎، کنار هم.","From code to installable","The build path on Android and iOS, side by side.","build pipeline gradle xcode artifact"],
+["02","02-signing.html",0,12,65,"امضای دیجیتال","‎keystore‎، گواهی، و اینکه گم کردنش یعنی چه.","Code signing","Keystores, certificates, and what losing one means.","keystore signing certificate key alias"],
+["03","03-android-build.html",0,12,60,"اندروید: ‎APK‎ در برابر ‎AAB‎","چرا گوگل پلی دیگر ‎APK‎ نمی‌پذیرد.","Android: APK versus AAB","Why Google Play no longer accepts APKs.","apk aab bundle split abi"],
+["04","04-ios-build.html",0,12,65,"‎iOS‎: گواهی، ‎provisioning‎ و ‎IPA‎","پیچیده‌ترین بخش انتشار موبایل، مرحله‌به‌مرحله.","iOS: certificates, provisioning and IPA","The most intricate part of mobile release, step by step.","certificate provisioning profile ipa xcode"],
+["05","05-assets.html",0,12,50,"آیکون، اسپلش و متادیتا","اندازه‌ها، الزامات و اشتباهات رایج.","Icons, splash screens and metadata","Sizes, requirements and common mistakes.","icon splash screenshot metadata adaptive"],
+["06","06-versioning.html",0,12,50,"نسخه‌گذاری و ‎build number‎","تفاوت نسخهٔ نمایشی با شمارهٔ بیلد.","Versioning and build numbers","The display version versus the build number.","version code build number semver"],
+["07","07-play-console.html",0,12,60,"گوگل پلی: کنسول و انتشار","ایجاد اپ، مسیرهای انتشار و تست بسته.","Google Play: console and release","Creating the app, release tracks and closed testing.","play console track internal alpha beta"],
+["08","08-play-policy.html",0,12,60,"گوگل پلی: بازبینی و سیاست‌ها","دلایل رایج رد شدن و انتشار تدریجی.","Google Play: review and policy","Common rejection reasons and staged rollout.","policy review rejection rollout data safety"],
+["09","09-appstore.html",0,12,60,"‎App Store Connect‎ و ‎TestFlight‎","توزیع نسخهٔ آزمایشی پیش از انتشار عمومی.","App Store Connect and TestFlight","Distributing a beta before going public.","app store connect testflight beta"],
+["10","10-apple-review.html",0,12,55,"بازبینی اپل","راهنمای بازبینی، دلایل رد و پاسخ دادن به آن.","Apple review","The review guidelines, rejection reasons and how to respond.","apple review guideline rejection appeal"],
+["11","11-bazaar.html",0,12,55,"کافه‌بازار","الزامات، فرایند انتشار و تفاوت‌ها با پلی.","Cafe Bazaar","Requirements, the publishing flow, and how it differs from Play.","bazaar cafebazaar انتشار فروشگاه"],
+["12","12-myket.html",0,12,50,"مایکت","انتشار، به‌روزرسانی و نکات عملی.","Myket","Publishing, updates and practical notes.","myket مایکت انتشار فروشگاه"],
+["13","13-updates.html",0,12,55,"به‌روزرسانی و بازگشت","انتشار تدریجی، توقف انتشار و به‌روزرسانی اجباری.","Updates and rollback","Staged rollout, halting a release and forced updates.","rollout halt force update migration"],
+["14","14-analytics.html",0,12,55,"آنالیتیکس و گزارش خرابی","دیدن اینکه اپ در دست کاربر واقعی چه می‌کند.","Analytics and crash reporting","Seeing what your app does in real users' hands.","crashlytics analytics anr sentry"],
+["15","15-cap1.html",0,5,70,"پروژهٔ ۱ — اولین فایل نصبی امضاشده","یک ‎AAB‎ امضاشده بساز و روی دستگاه واقعی نصب کن.","Project 1 — your first signed build","Produce a signed AAB and install it on a real device.","capstone signing build",1],
+["16","16-cap2.html",0,7,120,"پروژهٔ ۲ — انتشار در یک فروشگاه","متادیتا، تست بسته و انتشار واقعی.","Project 2 — publish to one store","Metadata, closed testing and a real release.","capstone store release",2],
+["17","17-cap3.html",0,9,180,"پروژهٔ ۳ — انتشار خودکار چندفروشگاهی","‎CI‎ که بیلد می‌کند، امضا می‌زند و به چند فروشگاه می‌فرستد.","Project 3 — automated multi-store release","CI that builds, signs and ships to several stores.","capstone ci fastlane automation",3]
+]});
+
+/* ═══════════════ ۳۸ — پروژه‌های ترکیبی ═══════════════ */
+C.push({
+  id:"38-projects", dir:"38-projects", accent:"#7C3AED", cat:"projects", pre:["01-docker","07-architecture"], soft:["08-microservices"],
+  ico:'<path d="M4 7.4 12 3l8 4.4v9.2L12 21l-8-4.4z"/><path d="M8 9.6 12 12l4-2.4M12 12v5.4" stroke-linejoin="round"/><circle cx="12" cy="12" r="1"/>',
+  fa:{name:"پروژه‌های ترکیبی", desc:"سامانه‌های کامل و مستقل که چند مسیر را به هم وصل می‌کنند: چت بی‌درنگ، ‎ERP‎ سازمانی، میکروسرویس چندپایگاه‌داده و بیشتر.",
+      intro:"هر مسیر یک ابزار را عمیق یاد می‌دهد. اما کار واقعی هیچ‌وقت یک ابزار نیست — یک سامانه است که در آن پنج ابزار باید با هم کنار بیایند، و سختی دقیقاً در همان درزهاست. هر فصل اینجا یک پروژهٔ کامل و مستقل است: صورت مسئله، تصمیم‌های معماری با دلیل، پیاده‌سازی، و آنچه می‌شکند."},
+  en:{name:"Integration projects", desc:"Complete, self-contained systems that tie several tracks together: real-time chat, an enterprise ERP, multi-database microservices and more.",
+      intro:"Each track teaches one tool deeply. But real work is never one tool — it is a system where five tools must get along, and the difficulty lives precisely in those seams. Every chapter here is one complete, standalone project: the problem, the architectural decisions with their reasoning, the implementation, and what breaks."},
+  ch:[
+["01","01-chat.html",0,14,240,"چت بی‌درنگ","‎WebSocket‎، Redis برای مقیاس افقی، تاریخچهٔ پیام و حضور کاربر.","Real-time chat","WebSockets, Redis for horizontal scale, message history and presence.","chat websocket redis realtime presence"],
+["02","02-shop-search.html",0,14,240,"فروشگاه با جستجوی پیشرفته","‎Elasticsearch‎ کنار پایگاه‌دادهٔ رابطه‌ای، و همگام‌سازی بینشان.","A shop with real search","Elasticsearch beside a relational database, and keeping them in sync.","shop elasticsearch sync cdc catalog"],
+["03","03-microservices-db.html",0,14,300,"میکروسرویس با چند پایگاه‌داده","هر سرویس، پایگاه‌دادهٔ خودش؛ ‎Saga‎ و ‎Outbox‎ برای سازگاری.","Microservices with multiple databases","One database per service; Saga and Outbox for consistency.","microservice saga outbox polyglot persistence"],
+["04","04-microfrontend.html",0,14,240,"میکروفرانت‌اند روی همان سامانه","سه تیم، سه فریم‌ورک، یک صفحه.","Micro-frontends on the same system","Three teams, three frameworks, one page.","micro frontend module federation shell"],
+["05","05-erp-design.html",0,14,300,"‎ERP‎ سازمانی — مدل‌سازی و معماری","تحلیل دامنه، مرزبندی ماژول‌ها و تصمیم‌های معماری با دلیل.","Enterprise ERP — modelling and architecture","Domain analysis, module boundaries and reasoned architectural decisions.","erp domain modeling module boundary ddd"],
+["06","06-erp-build.html",0,14,360,"‎ERP‎ سازمانی — پیاده‌سازی","انبار، فروش، حسابداری: سه ماژول با مرز واقعی.","Enterprise ERP — implementation","Inventory, sales, accounting: three modules with real boundaries.","erp inventory accounting implementation"],
+["07","07-sso.html",0,14,240,"احراز هویت مرکزی و ‎SSO‎","‎OAuth2‎ و ‎OIDC‎: یک ورود برای همهٔ سرویس‌ها.","Central authentication and SSO","OAuth2 and OIDC: one login for every service.","sso oauth oidc keycloak identity"],
+["08","08-dashboard.html",0,14,240,"داشبورد تحلیلی بی‌درنگ","جمع‌آوری رویداد، تجمیع و نمایش زنده.","A real-time analytics dashboard","Event collection, aggregation and live display.","dashboard analytics aggregation streaming"],
+["09","09-queue.html",0,14,240,"صف کار و پردازش پس‌زمینه","کار طولانی، تلاش مجدد، اولویت و صف مرده.","Job queues and background processing","Long tasks, retries, priorities and dead letters.","queue worker retry priority dlq"],
+["10","10-gateway.html",0,14,240,"‎API Gateway‎ خودت","مسیریابی، احراز هویت، محدودیت نرخ و تجمیع.","Build your own API gateway","Routing, authentication, rate limiting and aggregation.","gateway routing ratelimit aggregation"],
+["11","11-notifications.html",0,14,240,"سامانهٔ اعلان چندکاناله","ایمیل، پیامک و اعلان درون‌برنامه‌ای با یک ‎API‎.","A multi-channel notification system","Email, SMS and in-app notifications behind one API.","notification email sms push template"],
+["12","12-observability.html",0,14,240,"مشاهده‌پذیری کامل","لاگ، متریک و trace برای همهٔ پروژه‌های بالا.","Full observability","Logs, metrics and traces for every project above.","observability tracing metrics logging grafana"],
+["13","13-cicd.html",0,14,240,"خط لولهٔ ‎CI/CD‎ مشترک","یک خط لوله که همهٔ این سامانه‌ها را می‌سازد و مستقر می‌کند.","A shared CI/CD pipeline","One pipeline that builds and deploys all of these systems.","cicd pipeline deploy environment"],
+["14","14-mobile-backend.html",0,14,300,"اپ موبایل با بک‌اند مشترک","یک ‎API‎، سه کلاینت: وب، اندروید و ‎iOS‎.","A mobile app on a shared backend","One API, three clients: web, Android and iOS.","mobile backend api flutter shared"]
+]});
+
+
+
+
+
+/* ═══════════════ ۴۱ — جاوااسکریپت ═══════════════ */
+C.push({
+  id:"41-javascript", dir:"41-javascript", accent:'#A88A00', accentDark:'#F7DF1E', cat:"frontend", soft:["66-html","67-css"],
+  ico:'<rect x="3" y="3" width="18" height="18" rx="2.4"/><path d="M9.4 9.6v5.2c0 1.1-.7 1.7-1.7 1.7M13 15.6c.5.7 1.2 1 2.1 1 1.2 0 1.9-.6 1.9-1.5 0-2-3.7-1.4-3.7-3.4 0-.9.8-1.5 1.8-1.5.8 0 1.4.3 1.8.9" stroke-linecap="round"/>',
+  fa:{name:"جاوااسکریپت", desc:"از نوع‌ها و scope تا prototype، async، ماژول و الگوهای مدرن — زبان، بدون فریم‌ورک.",
+      intro:"جاوااسکریپت زبانی است که همه فکر می‌کنند بلدند و کمتر کسی واقعاً می‌داند. `this` چه می‌شود، چرا آن حلقه عدد اشتباه چاپ می‌کند، چرا `0.1 + 0.2` برابر `0.3` نیست — همهٔ اینها قاعده دارند. این مسیر قاعده‌ها را می‌دهد تا دیگر حدس نزنی."},
+  en:{name:"JavaScript", desc:"From types and scope to prototypes, async, modules and modern patterns — the language, without a framework.",
+      intro:"JavaScript is the language everyone thinks they know and few actually do. What `this` becomes, why that loop logs the wrong number, why `0.1 + 0.2` is not `0.3` — all of it has rules. This track gives you the rules so you stop guessing."},
+  ch:[
+["01","01-types.html",0,12,55,"نوع‌ها و تبدیل","‏coercion، ‎==‎ در برابر ‎===‎، و ‎NaN‎.","Types and coercion","Coercion, == versus ===, and NaN.","type coercion primitive nan typeof"],
+["02","02-scope.html",0,12,60,"‏scope و hoisting","‏var، let، const و چیزی که واقعاً اتفاق می‌افتد.","Scope and hoisting","var, let, const, and what really happens.","scope hoisting tdz closure block"],
+["03","03-functions.html",0,12,60,"تابع و closure","تابع مقدار است — و closure طبیعی‌ترین نتیجهٔ آن.","Functions and closures","Functions are values — and closures are the natural consequence.","function closure iife arrow first-class"],
+["04","04-this.html",0,12,60,"‏this و bind","چهار قاعده که همهٔ رفتار ‎this‎ را توضیح می‌دهند.","this and binding","Four rules that explain every behaviour of this.","this bind call apply arrow context"],
+["05","05-objects.html",0,12,55,"شیء و prototype","وراثت prototypal، که کلاس فقط پوستهٔ آن است.","Objects and prototypes","Prototypal inheritance, of which class is only a shell.","object prototype inheritance descriptor"],
+["06","06-classes.html",0,12,55,"‏class و شیءگرایی","‏class، ‎#private‎، static و getter.","Classes and OOP","class, #private fields, static members and getters.","class extends super static private"],
+["07","07-arrays.html",0,12,60,"آرایه و متدهایش","‏map، filter، reduce — و اینکه کِی حلقه بهتر است.","Arrays and their methods","map, filter, reduce — and when a plain loop is better.","array map filter reduce spread destructuring"],
+["08","08-async-1.html",0,12,65,"ناهمگامی ۱: event loop","‏call stack، صف، و ترتیبی که غافلگیرت می‌کند.","Async 1: the event loop","The call stack, the queues, and the ordering that surprises you.","event loop task microtask stack queue"],
+["09","09-async-2.html",0,12,65,"ناهمگامی ۲: Promise و async/await","زنجیره، خطا، و اجرای موازی.","Async 2: Promises and async/await","Chaining, error handling and parallel execution.","promise async await all race settled"],
+["10","10-modules.html",0,12,50,"ماژول","‏ESM، import پویا و بارگذاری تنبل.","Modules","ESM, dynamic import and lazy loading.","module esm import export dynamic"],
+["11","11-dom.html",0,12,60,"‏DOM و رویداد","انتخاب، تغییر، رویداد، و bubbling.","The DOM and events","Selecting, mutating, events and bubbling.","dom event bubble delegate listener"],
+["12","12-fetch.html",0,12,55,"شبکه","‏fetch، JSON، خطا، لغو درخواست و CORS.","Networking","fetch, JSON, errors, aborting requests and CORS.","fetch json abort cors headers"],
+["13","13-storage.html",0,12,50,"ذخیره‌سازی در مرورگر","‏localStorage، sessionStorage، IndexedDB و کوکی.","Browser storage","localStorage, sessionStorage, IndexedDB and cookies.","localstorage indexeddb cookie storage"],
+["14","14-errors.html",0,12,55,"خطا و اشکال‌زدایی","‏try/catch، خطای سفارشی، و ابزار مرورگر.","Errors and debugging","try/catch, custom errors, and the browser devtools.","error debug devtools breakpoint stack trace"],
+["15","15-patterns.html",0,12,60,"الگوهای مدرن","‏optional chaining، nullish، destructuring، generator و Proxy.","Modern patterns","Optional chaining, nullish coalescing, destructuring, generators and Proxy.","optional chaining generator proxy symbol iterator"],
+["16","16-performance.html",0,12,55,"کارایی","‏debounce، throttle، حافظه و نشتی.","Performance","Debounce, throttle, memory and leaks.","performance debounce throttle memory leak"],
+["17","17-testing.html",0,12,55,"تست","‏Vitest، mock و تست ناهمگام.","Testing","Vitest, mocking and async tests.","test vitest jest mock spy"],
+["18","18-cap1.html",0,5,80,"پروژهٔ ۱ — اپ تعاملی بدون فریم‌ورک","‏DOM، رویداد، حالت و ذخیره‌سازی — دستی.","Project 1 — an interactive app, no framework","DOM, events, state and storage — by hand.","capstone vanilla dom",1],
+["19","19-cap2.html",0,7,130,"پروژهٔ ۲ — کتابخانهٔ کوچک خودت","‏API تمیز، ماژول، تست و انتشار.","Project 2 — your own small library","A clean API, modules, tests and publishing.","capstone library",2],
+["20","20-cap3.html",0,9,180,"پروژهٔ ۳ — کلاینت بی‌درنگ","‏fetch، WebSocket، حالت پیچیده و مدیریت خطا.","Project 3 — a real-time client","fetch, WebSockets, complex state and error handling.","capstone realtime",3]
+]});
+
+/* ═══════════════ ۴۲ — TypeScript ═══════════════ */
+C.push({
+  id:"42-typescript", dir:"42-typescript", accent:"#3178C6", cat:"frontend", pre:["41-javascript"],
+  ico:'<rect x="3" y="3" width="18" height="18" rx="2.4"/><path d="M7 10h5M9.5 10v7M14 16.4c.5.5 1.2.8 2 .8 1.1 0 1.9-.6 1.9-1.4 0-1.9-3.6-1.3-3.6-3.2 0-.8.7-1.4 1.7-1.4.7 0 1.3.2 1.7.7" stroke-linecap="round"/>',
+  fa:{name:"TypeScript", desc:"سیستم نوع، generic، نوع‌های شرطی و پیکربندی — تا کامپایلر باگ را قبل از کاربر پیدا کند.",
+      intro:"‏TypeScript جاوااسکریپت با نوع نیست؛ یک سیستم نوع کامل روی زبانی است که برای نوع طراحی نشده بود. همین باعث می‌شود هم قوی‌تر از چیزی که فکر می‌کنی باشد، هم عجیب‌تر. این مسیر تا جایی می‌رود که بتوانی نوع‌های واقعاً پیچیده را بخوانی و بنویسی."},
+  en:{name:"TypeScript", desc:"The type system, generics, conditional types and configuration — so the compiler finds the bug before your user does.",
+      intro:"TypeScript is not JavaScript with types; it is a full type system layered onto a language never designed for one. That makes it both more powerful and stranger than you expect. This track goes far enough that you can read and write genuinely complex types."},
+  ch:[
+["01","01-why.html",0,12,50,"چرا TypeScript","چه چیزی می‌گیرد و چه هزینه‌ای دارد.","Why TypeScript","What it catches and what it costs.","typescript why type safety"],
+["02","02-basics.html",0,12,55,"نوع‌های پایه","‏primitive، آرایه، tuple، enum و ‎any‎ که باید ازش بترسی.","Basic types","Primitives, arrays, tuples, enums, and the any you should fear.","type primitive tuple enum any unknown"],
+["03","03-interfaces.html",0,12,55,"‏interface و type","تفاوتشان، و اینکه کدام را کِی.","Interfaces and type aliases","The difference, and which to use when.","interface type alias extends intersection"],
+["04","04-functions.html",0,12,55,"تابع و overload","پارامتر اختیاری، نوع بازگشتی و امضای چندگانه.","Functions and overloads","Optional parameters, return types and multiple signatures.","function overload parameter return void never"],
+["05","05-narrowing.html",0,12,60,"باریک‌سازی نوع","‏typeof، in، instanceof و type guard خودت.","Type narrowing","typeof, in, instanceof and your own type guards.","narrowing guard discriminated union predicate"],
+["06","06-generics.html",0,12,65,"‏generic","نوع به‌عنوان پارامتر — سخت‌ترین بخش، با مثال واقعی.","Generics","Types as parameters — the hardest part, with real examples.","generic constraint infer default"],
+["07","07-utility.html",0,12,55,"نوع‌های کمکی","‏Partial، Pick، Omit، Record و بقیه.","Utility types","Partial, Pick, Omit, Record and the rest.","utility partial pick omit record readonly"],
+["08","08-conditional.html",0,12,65,"نوع‌های شرطی و mapped","برنامه‌نویسی در سطح نوع.","Conditional and mapped types","Programming at the type level.","conditional mapped infer template literal"],
+["09","09-modules.html",0,12,50,"ماژول و فایل تعریف","‏.d.ts و کار با کتابخانه‌های بدون نوع.","Modules and declaration files",".d.ts and working with untyped libraries.","declaration dts module ambient namespace"],
+["10","10-config.html",0,12,55,"‏tsconfig","‏strict، target، path و گزینه‌هایی که واقعاً مهم‌اند.","tsconfig","strict, target, paths, and the options that actually matter.","tsconfig strict target module paths"],
+["11","11-react.html",0,12,60,"‏TypeScript در React","‏props، hook، event و کامپوننت عمومی.","TypeScript with React","Props, hooks, events and generic components.","react props hook event fc generic"],
+["12","12-node.html",0,12,55,"‏TypeScript در Node","بیلد، اجرا، و پیکربندی سمت سرور.","TypeScript with Node","Building, running and server-side configuration.","node tsx build esm cjs"],
+["13","13-migration.html",0,12,60,"مهاجرت از جاوااسکریپت","تدریجی، بدون توقف پروژه.","Migrating from JavaScript","Incrementally, without stopping the project.","migration allowjs incremental strict"],
+["14","14-cap1.html",0,5,80,"پروژهٔ ۱ — نوع‌گذاری یک پروژهٔ موجود","یک کد جاوااسکریپتی را تدریجی نوع‌دار کن.","Project 1 — type an existing project","Incrementally add types to a JavaScript codebase.","capstone migration",1],
+["15","15-cap2.html",0,7,130,"پروژهٔ ۲ — کتابخانهٔ نوع‌دار","‏API عمومی با نوع‌های دقیق و ‎.d.ts‎.","Project 2 — a typed library","A public API with precise types and a .d.ts.","capstone library types",2],
+["16","16-cap3.html",0,9,170,"پروژهٔ ۳ — نوع‌های پیشرفته","‏client API با نوع‌های استنتاجی از روی schema.","Project 3 — advanced types","An API client with types inferred from a schema.","capstone advanced inference",3]
+]});
+
+/* ═══════════════ ۴۳ — C ═══════════════ */
+C.push({
+  id:"43-c", dir:"43-c", accent:"#5C6BC0", cat:"backend",
+  ico:'<path d="M16.8 8.2A5.6 5.6 0 0 0 12 5.6 6.4 6.4 0 0 0 12 18.4a5.6 5.6 0 0 0 4.8-2.6" stroke-linecap="round"/><circle cx="12" cy="12" r="9.4" opacity=".45"/>',
+  fa:{name:"زبان C", desc:"اشاره‌گر، حافظه، آرایه و ساختمان داده — زبانی که سیستم‌عامل‌ها با آن نوشته شده‌اند.",
+      intro:"‏C کوچک است: بیست‌وچند کلیدواژه و تقریباً هیچ چیز پنهانی. همین باعث می‌شود سخت‌ترین و آموزنده‌ترین زبان برای یادگیری باشد — چون هیچ‌چیز را برایت انجام نمی‌دهد. اگر C را بفهمی، بعد از آن هر زبانی به نظرت یک راحتی لوکس می‌آید، و می‌دانی آن راحتی دقیقاً چه چیزی را پنهان می‌کند."},
+  en:{name:"C", desc:"Pointers, memory, arrays and data structures — the language operating systems are written in.",
+      intro:"C is small: two dozen keywords and almost nothing hidden. That makes it the hardest and most instructive language to learn, because it does nothing for you. Understand C and every later language feels like a luxury — and you know exactly what that luxury is hiding."},
+  ch:[
+["01","01-why.html",0,12,50,"چرا هنوز C","کجا استفاده می‌شود و چرا جایگزین نشده.","Why C, still","Where it is used and why nothing replaced it.","c systems history kernel embedded"],
+["02","02-basics.html",0,12,55,"نوع، متغیر، عملگر","اندازهٔ نوع‌ها و سرریز.","Types, variables, operators","Type sizes and overflow.","type int char overflow sizeof"],
+["03","03-control.html",0,12,50,"کنترل جریان","شرط، حلقه، switch و goto.","Control flow","Conditionals, loops, switch and goto.","if while for switch goto"],
+["04","04-functions.html",0,12,55,"تابع و پشته","فراخوانی، بازگشت و frame پشته.","Functions and the stack","Calls, recursion and stack frames.","function stack recursion frame"],
+["05","05-pointers.html",0,12,70,"اشاره‌گر","مهم‌ترین فصل. آدرس، مرجع‌گیری و حساب اشاره‌گر.","Pointers","The chapter that matters most. Addresses, dereferencing and pointer arithmetic.","pointer address dereference arithmetic null"],
+["06","06-arrays.html",0,12,60,"آرایه و رشته","چرا آرایه در C اشاره‌گر است و رشته پایان‌یافته با صفر.","Arrays and strings","Why an array is a pointer, and null-terminated strings.","array string char decay strlen"],
+["07","07-memory.html",0,12,70,"مدیریت حافظه","‏malloc، free، نشتی و استفادهٔ پس از آزادسازی.","Memory management","malloc, free, leaks and use-after-free.","malloc free heap leak valgrind"],
+["08","08-structs.html",0,12,55,"‏struct و union","چیدمان حافظه و padding.","Structs and unions","Memory layout and padding.","struct union typedef padding align"],
+["09","09-files.html",0,12,50,"فایل و ورودی/خروجی","خواندن، نوشتن و باینری.","Files and I/O","Reading, writing and binary data.","file fopen fread stdin buffer"],
+["10","10-preprocessor.html",0,12,50,"پیش‌پردازنده","‏#define، #include و ماکرو.","The preprocessor","#define, #include and macros.","preprocessor macro define include guard"],
+["11","11-datastructures.html",0,12,65,"ساختمان داده با اشاره‌گر","لیست پیوندی، درخت و پشته — از صفر.","Data structures with pointers","Linked lists, trees and stacks — from scratch.","linked list tree stack queue"],
+["12","12-build.html",0,12,55,"کامپایل و Make","مراحل کامپایل، لینک و Makefile.","Compiling and Make","Compilation stages, linking and Makefiles.","gcc compile link makefile object"],
+["13","13-debug.html",0,12,60,"اشکال‌زدایی","‏gdb، valgrind و segfault.","Debugging","gdb, valgrind and segfaults.","gdb valgrind segfault sanitizer"],
+["14","14-cap1.html",0,5,90,"پروژهٔ ۱ — ابزار خط فرمان","پردازش فایل با مدیریت حافظهٔ درست.","Project 1 — a CLI tool","File processing with correct memory management.","capstone cli",1],
+["15","15-cap2.html",0,7,140,"پروژهٔ ۲ — ساختمان داده","‏hash table کامل با تست.","Project 2 — a data structure","A complete hash table, with tests.","capstone hashtable",2],
+["16","16-cap3.html",0,9,200,"پروژهٔ ۳ — مفسر کوچک","‏tokenizer، parser و ارزیاب.","Project 3 — a small interpreter","Tokeniser, parser and evaluator.","capstone interpreter parser",3]
+]});
+
+/* ═══════════════ ۴۴ — C++ ═══════════════ */
+C.push({
+  id:"44-cpp", dir:"44-cpp", accent:"#00599C", cat:"backend", soft:["43-c"],
+  ico:'<path d="M14.4 8.6A5 5 0 0 0 10.6 6.8 5.6 5.6 0 0 0 10.6 17.2a5 5 0 0 0 3.8-1.8" stroke-linecap="round"/><path d="M17.4 10v4M15.4 12h4M20.4 10v4M18.4 12h4" stroke-linecap="round" transform="translate(-1.2)"/>',
+  fa:{name:"‏++C", desc:"‏RAII، قالب، STL، مالکیت و ‎C++‎ مدرن — قدرت C بدون خطرهایش.",
+      intro:"‏‎C++‎ چند زبان است در یک بسته، و بخش زیادی از سردرگمی از همین می‌آید: کدی که در سال ۲۰۰۰ درست بود، امروز اشتباه است. این مسیر فقط ‎C++‎ مدرن را یاد می‌دهد — با اشاره‌گر هوشمند، RAII و کتابخانهٔ استاندارد — و توضیح می‌دهد چرا سبک قدیمی کنار گذاشته شد."},
+  en:{name:"C++", desc:"RAII, templates, the STL, ownership and modern C++ — the power of C without its hazards.",
+      intro:"C++ is several languages in one package, and much of the confusion comes from that: code that was correct in 2000 is wrong today. This track teaches only modern C++ — smart pointers, RAII, the standard library — and explains why the old style was abandoned."},
+  ch:[
+["01","01-why.html",0,12,50,"‏++C مدرن","چه چیزی از C گرفت و چه چیزی اضافه کرد.","Modern C++","What it took from C and what it added.","cpp modern standard c++11 c++20"],
+["02","02-basics.html",0,12,55,"نوع، مرجع و ‎auto‎","مرجع در برابر اشاره‌گر.","Types, references and auto","References versus pointers.","reference auto const type deduction"],
+["03","03-classes.html",0,12,60,"کلاس و چرخهٔ عمر","سازنده، مخرب و قاعدهٔ صفر.","Classes and object lifetime","Constructors, destructors and the rule of zero.","class constructor destructor rule of zero"],
+["04","04-raii.html",0,12,65,"‏RAII","مهم‌ترین ایدهٔ ‎C++‎: منبع را به عمر شیء گره بزن.","RAII","The key idea of C++: tie a resource to an object's lifetime.","raii resource scope exception safety"],
+["05","05-smart-pointers.html",0,12,65,"اشاره‌گر هوشمند","‏unique_ptr، shared_ptr و مالکیت صریح.","Smart pointers","unique_ptr, shared_ptr and explicit ownership.","unique_ptr shared_ptr weak_ptr ownership"],
+["06","06-move.html",0,12,65,"معناشناسی انتقال","‏move، rvalue و اینکه چرا کپی گران است.","Move semantics","move, rvalues, and why copying is expensive.","move rvalue forward copy elision"],
+["07","07-templates.html",0,12,70,"قالب","‏generic در زمان کامپایل، و پیام‌های خطای بدنامش.","Templates","Compile-time generics, and their notorious error messages.","template specialization sfinae concept"],
+["08","08-stl-containers.html",0,12,60,"‏STL: ظرف‌ها","‏vector، map، set — و هزینهٔ هرکدام.","STL: containers","vector, map, set — and what each costs.","vector map set unordered complexity"],
+["09","09-stl-algorithms.html",0,12,60,"‏STL: الگوریتم‌ها","‏sort، find، transform و ranges.","STL: algorithms","sort, find, transform and ranges.","algorithm sort find transform ranges"],
+["10","10-errors.html",0,12,55,"خطا","‏exception، noexcept و ایمنی در برابر خطا.","Error handling","Exceptions, noexcept and exception safety.","exception noexcept safety expected"],
+["11","11-concurrency.html",0,12,65,"همروندی","‏thread، mutex، atomic و future.","Concurrency","Threads, mutexes, atomics and futures.","thread mutex atomic future async"],
+["12","12-build.html",0,12,55,"‏CMake و وابستگی","بیلد چندسکویی و مدیریت کتابخانه.","CMake and dependencies","Cross-platform builds and library management.","cmake vcpkg conan build target"],
+["13","13-performance.html",0,12,60,"کارایی","‏cache، تخصیص، و اندازه‌گیری قبل از بهینه‌سازی.","Performance","Cache behaviour, allocation, and measuring before optimising.","performance cache benchmark profile inline"],
+["14","14-testing.html",0,12,50,"تست","‏GoogleTest و Catch2.","Testing","GoogleTest and Catch2.","gtest catch2 test fixture"],
+["15","15-cap1.html",0,5,90,"پروژهٔ ۱ — کلاس منبع‌محور","‏RAII واقعی با تست چرخهٔ عمر.","Project 1 — a resource-owning class","Real RAII with lifetime tests.","capstone raii",1],
+["16","16-cap2.html",0,7,150,"پروژهٔ ۲ — ظرف عمومی","ظرف قالبی خودت با iterator.","Project 2 — a generic container","Your own templated container with iterators.","capstone template container",2],
+["17","17-cap3.html",0,9,210,"پروژهٔ ۳ — موتور همروند","‏thread pool با صف بدون قفل و اندازه‌گیری.","Project 3 — a concurrent engine","A thread pool with a lock-free queue and measurements.","capstone concurrency threadpool",3]
+]});
+
+
+
+
+
+/* ═══════════════ ۴۷ — شیءگرایی ═══════════════ */
+C.push({
+  id:"47-oop", dir:"47-oop", accent:"#DB2777", cat:"arch",
+  ico:'<circle cx="7" cy="7" r="3.2"/><circle cx="17" cy="7" r="3.2"/><circle cx="12" cy="17" r="3.2"/><path d="M9.4 9.4 10.8 14M14.6 9.4 13.2 14M10.2 7h3.6" stroke-linecap="round"/>',
+  fa:{name:"شیءگرایی با چند زبان", desc:"‏encapsulation، وراثت، چندریختی و ترکیب — با مثال هم‌زمان در ‎C#‎، Java، پایتون و تایپ‌اسکریپت.",
+      intro:"شیءگرایی را معمولاً با یک زبان یاد می‌گیرند و بعد فکر می‌کنند قاعده‌های آن زبان، قاعده‌های شیءگرایی‌اند. این مسیر عمداً چهار زبان را کنار هم می‌گذارد تا ببینی کدام بخش ایدهٔ اصلی است و کدام بخش فقط سلیقهٔ آن زبان. همان مثال، چهار بار، با تفاوت‌هایی که آموزنده‌اند."},
+  en:{name:"OOP across languages", desc:"Encapsulation, inheritance, polymorphism and composition — demonstrated side by side in C#, Java, Python and TypeScript.",
+      intro:"People usually learn OOP in one language and then mistake that language's rules for OOP's rules. This track deliberately places four languages side by side so you can see which part is the idea and which part is just that language's taste. The same example, four times, with instructive differences."},
+  ch:[
+["01","01-why.html",0,12,55,"شیءگرایی چه مسئله‌ای را حل کرد","قبل از آن چه بود و چه دردی داشت.","What OOP solved","What came before and what hurt about it.","oop history procedural abstraction"],
+["02","02-encapsulation.html",0,12,60,"کپسوله‌سازی","حالت خصوصی، و اینکه چهار زبان چهار جور می‌گویند.","Encapsulation","Private state, expressed four different ways.","encapsulation private getter setter property"],
+["03","03-classes.html",0,12,55,"کلاس و شیء","سازنده، عضو نمونه‌ای و عضو ایستا.","Classes and objects","Constructors, instance members and static members.","class object constructor static instance"],
+["04","04-inheritance.html",0,12,60,"وراثت","‏is-a، بازنویسی متد و مسئلهٔ کلاس پایهٔ شکننده.","Inheritance","is-a, method overriding and the fragile base class problem.","inheritance override virtual base fragile"],
+["05","05-polymorphism.html",0,12,60,"چندریختی","‏static و dynamic، و duck typing در پایتون.","Polymorphism","Static and dynamic, and Python's duck typing.","polymorphism dynamic dispatch duck typing"],
+["06","06-abstraction.html",0,12,55,"انتزاع و interface","‏abstract در برابر interface، در چهار زبان.","Abstraction and interfaces","Abstract classes versus interfaces, in four languages.","abstract interface protocol contract"],
+["07","07-composition.html",0,12,65,"ترکیب در برابر وراثت","چرا ترکیب معمولاً جواب بهتری است.","Composition over inheritance","Why composition is usually the better answer.","composition delegation has-a mixin"],
+["08","08-solid.html",0,12,65,"‏SOLID در عمل","پنج اصل، با کد بد و کد اصلاح‌شده.","SOLID in practice","Five principles, with bad code and its fix.","solid srp ocp lsp isp dip"],
+["09","09-coupling.html",0,12,55,"وابستگی و انسجام","معیار سنجش طراحی خوب.","Coupling and cohesion","How to measure a good design.","coupling cohesion dependency law of demeter"],
+["10","10-patterns.html",0,12,60,"الگوهای پایه","‏Strategy، Factory، Observer — در چهار زبان.","Core patterns","Strategy, Factory, Observer — in four languages.","pattern strategy factory observer"],
+["11","11-typing.html",0,12,60,"نوع‌دهی ایستا و پویا","اثرش بر طراحی شیءگرا.","Static and dynamic typing","How it changes object-oriented design.","static dynamic typing generic variance"],
+["12","12-testing.html",0,12,55,"تست کد شیءگرا","‏mock، stub و طراحی تست‌پذیر.","Testing object-oriented code","Mocks, stubs and designing for testability.","test mock stub seam injection"],
+["13","13-antipatterns.html",0,12,55,"ضدالگوها","‏God object، وراثت عمیق و anemic model.","Anti-patterns","God objects, deep hierarchies and anemic models.","antipattern god object anemic"],
+["14","14-cap1.html",0,5,80,"پروژهٔ ۱ — یک دامنه، چهار زبان","همان مدل را در هر چهار زبان پیاده کن.","Project 1 — one domain, four languages","Implement the same model in all four languages.","capstone comparison",1],
+["15","15-cap2.html",0,7,130,"پروژهٔ ۲ — بازطراحی با SOLID","کد بدبو را با اصول بازسازی کن.","Project 2 — refactor with SOLID","Rebuild smelly code using the principles.","capstone refactor solid",2],
+["16","16-cap3.html",0,9,170,"پروژهٔ ۳ — موتور افزونه‌پذیر","طراحی توسعه‌پذیر با interface و ترکیب.","Project 3 — a pluggable engine","An extensible design using interfaces and composition.","capstone plugin extensible",3]
+]});
+
+/* ═══════════════ ۴۸ — مدیریت حالت ═══════════════ */
+C.push({
+  id:"48-state-management", dir:"48-state-management", accent:"#764ABC", cat:"frontend", pre:["41-javascript"], soft:["15-react"],
+  ico:'<circle cx="12" cy="6.4" r="2.6"/><circle cx="5.6" cy="16.6" r="2.6"/><circle cx="18.4" cy="16.6" r="2.6"/><path d="M9.8 7.9 7.2 14.2M14.2 7.9l2.6 6.3M8.2 16.6h7.6" stroke-linecap="round" stroke-dasharray="1 2.2"/>',
+  fa:{name:"مدیریت حالت", desc:"‏Redux، Zustand، RxJS، NgRx، Signals و Context — و مهم‌تر از همه، اینکه کِی هیچ‌کدام لازم نیستند.",
+      intro:"بیشتر پیچیدگی فرانت‌اند از حالت می‌آید: چه کسی مالک این داده است، چه کسی می‌تواند عوضش کند، و چطور بقیه خبردار می‌شوند. کتابخانه‌های مدیریت حالت جواب‌های متفاوتی به همین سه سؤال‌اند. این مسیر همهٔ جواب‌های رایج را با یک مسئلهٔ واحد پیاده می‌کند تا تفاوتشان را در عمل ببینی، نه در تبلیغاتشان. و از فصل اول تأکید می‌کند که پرکاربردترین جواب درست، «هیچ‌کدام» است."},
+  en:{name:"State management", desc:"Redux, Zustand, RxJS, NgRx, Signals and Context — and, above all, when you need none of them.",
+      intro:"Most frontend complexity comes from state: who owns this data, who may change it, and how everyone else finds out. State libraries are different answers to those three questions. This track implements one single problem in every common library so you can see the differences in practice rather than in marketing. And from chapter one it insists that the most frequently correct answer is “none of them”."},
+  ch:[
+["01","01-problem.html",0,12,55,"مسئلهٔ حالت","مالکیت، همگام‌سازی و منبع حقیقت واحد.","The state problem","Ownership, synchronisation and a single source of truth.","state ownership source of truth sync"],
+["02","02-local-first.html",0,12,55,"اول حالت محلی","چرا اکثر اپ‌ها به هیچ کتابخانه‌ای نیاز ندارند.","Local state first","Why most apps need no library at all.","local state lifting colocation"],
+["03","03-context.html",0,12,55,"‏Context و prop drilling","راه‌حل داخلی React و محدودیت واقعی‌اش.","Context and prop drilling","React's built-in answer and its real limitation.","context provider prop drilling rerender"],
+["04","04-reducer.html",0,12,60,"الگوی reducer","‏action، خلوص و تغییر قابل ردیابی.","The reducer pattern","Actions, purity and traceable change.","reducer action dispatch pure immutable"],
+["05","05-redux.html",0,12,70,"‏Redux و Redux Toolkit","‏store، slice، و چرا Redux قدیمی بدنام شد.","Redux and Redux Toolkit","The store, slices, and why classic Redux earned its reputation.","redux toolkit slice store devtools"],
+["06","06-redux-async.html",0,12,60,"ناهمگامی در Redux","‏thunk، RTK Query و کش سمت کلاینت.","Async in Redux","Thunks, RTK Query and client-side caching.","thunk saga rtk query middleware"],
+["07","07-zustand.html",0,12,60,"‏Zustand","کمترین کد ممکن برای حالت سراسری.","Zustand","The least possible code for global state.","zustand store selector shallow persist"],
+["08","08-jotai-signals.html",0,12,60,"‏atom و signal","‏Jotai، Signals و واکنش‌پذیری ریزدانه.","Atoms and signals","Jotai, Signals and fine-grained reactivity.","jotai signal atom fine-grained reactive"],
+["09","09-rxjs-1.html",0,12,70,"‏RxJS ۱: Observable","جریان به‌جای مقدار — تغییر مدل ذهنی.","RxJS 1: Observables","Streams instead of values — a mental model shift.","rxjs observable subscribe stream cold hot"],
+["10","10-rxjs-2.html",0,12,70,"‏RxJS ۲: عملگرها","‏map، switchMap، debounce و ترکیب جریان‌ها.","RxJS 2: operators","map, switchMap, debounce and combining streams.","operator switchmap mergemap debounce combine"],
+["11","11-ngrx.html",0,12,70,"‏NgRx","‏Redux برای Angular: store، effect، selector.","NgRx","Redux for Angular: store, effects, selectors.","ngrx effect selector entity angular"],
+["12","12-server-state.html",0,12,70,"حالت سرور در برابر حالت کلاینت","‏React Query و TanStack — تفکیکی که همه‌چیز را ساده می‌کند.","Server state versus client state","React Query and TanStack — the distinction that simplifies everything.","react query tanstack cache stale invalidate"],
+["13","13-forms.html",0,12,55,"حالت فرم","چرا فرم مسئلهٔ جدایی است.","Form state","Why forms are their own problem.","form state validation controlled uncontrolled"],
+["14","14-url-state.html",0,12,55,"حالت در URL","‏URL بهترین ذخیره‌سازی حالتی است که اغلب فراموش می‌شود.","State in the URL","The URL is the best state store, and the most forgotten.","url query param router state share"],
+["15","15-persistence.html",0,12,55,"ماندگاری و همگام‌سازی","‏localStorage، همگام‌سازی بین تب و آفلاین.","Persistence and syncing","localStorage, cross-tab sync and offline.","persist localstorage broadcast offline sync"],
+["16","16-performance.html",0,12,65,"کارایی","رندر اضافی، selector و memo — با اندازه‌گیری.","Performance","Extra renders, selectors and memoisation — measured.","rerender memo selector profiler performance"],
+["17","17-comparison.html",0,12,60,"مقایسه و انتخاب","ماتریس تصمیم بر اساس اندازهٔ تیم و نوع مسئله.","Comparison and choosing","A decision matrix by team size and problem type.","comparison decision tradeoff choose"],
+["18","18-cap1.html",0,5,80,"پروژهٔ ۱ — یک مسئله، پنج راه‌حل","همان اپ را با Context، Redux، Zustand، Jotai و RxJS بساز.","Project 1 — one problem, five solutions","Build the same app with Context, Redux, Zustand, Jotai and RxJS.","capstone comparison",1],
+["19","19-cap2.html",0,7,140,"پروژهٔ ۲ — داشبورد بی‌درنگ","حالت سرور، حالت کلاینت و به‌روزرسانی زنده.","Project 2 — a real-time dashboard","Server state, client state and live updates.","capstone realtime dashboard",2],
+["20","20-cap3.html",0,9,190,"پروژهٔ ۳ — اپ آفلاین‌اول","همگام‌سازی، تعارض و صف تغییرات.","Project 3 — an offline-first app","Syncing, conflicts and a mutation queue.","capstone offline sync conflict",3]
+]});
+
+/* ═══════════════ ۴۹ — رندر، PWA و کارایی وب ═══════════════ */
+C.push({
+  id:"49-rendering-pwa", dir:"49-rendering-pwa", accent:"#0284C7", cat:"frontend", pre:["41-javascript"], soft:["67-css"],
+  ico:'<rect x="2.6" y="4" width="18.8" height="13" rx="2.2"/><path d="M8 20.6h8M12 17v3.6" stroke-linecap="round"/><path d="M6.4 9.4h5M6.4 12.4h8" stroke-linecap="round" opacity=".7"/>',
+  fa:{name:"رندر، PWA و کارایی وب", desc:"‏CSR، SSR، SSG، ISR، استریم، جزیره‌ها و PWA — و اندازه‌گیری واقعی به‌جای حدس.",
+      intro:"«کدام حالت رندر؟» سؤالی است که هر پروژهٔ فرانت‌اند در هفتهٔ اول با آن روبه‌رو می‌شود و معمولاً بر اساس عادت جواب داده می‌شود، نه بر اساس نیاز. این مسیر هر حالت را با همان اپ پیاده می‌کند، عددهایش را اندازه می‌گیرد، و نشان می‌دهد هرکدام چه چیزی را سریع و چه چیزی را کند می‌کنند. مستقل از فریم‌ورک."},
+  en:{name:"Rendering, PWAs and web performance", desc:"CSR, SSR, SSG, ISR, streaming, islands and PWAs — with real measurement instead of guesswork.",
+      intro:"“Which rendering mode?” is the question every frontend project faces in week one, and it is usually answered by habit rather than need. This track implements the same app in each mode, measures the numbers, and shows what each one makes fast and what it makes slow. Framework-independent."},
+  ch:[
+["01","01-modes.html",0,12,60,"نقشهٔ حالت‌های رندر","‏CSR، SSR، SSG، ISR — با یک نمودار و یک جدول تصمیم.","The map of rendering modes","CSR, SSR, SSG, ISR — in one diagram and one decision table.","csr ssr ssg isr rendering mode"],
+["02","02-csr.html",0,12,55,"‏CSR","سریع‌ترین ناوبری، کندترین بارگذاری اول.","CSR","Fastest navigation, slowest first load.","csr spa bundle hydration first paint"],
+["03","03-ssr.html",0,12,60,"‏SSR","‏HTML آماده از سرور، و هزینه‌ای که روی سرور می‌گذارد.","SSR","Ready HTML from the server, and what it costs the server.","ssr server render ttfb streaming"],
+["04","04-ssg-isr.html",0,12,60,"‏SSG و ISR","ساخت در زمان بیلد، و بازسازی تدریجی.","SSG and ISR","Building at build time, and incremental regeneration.","ssg static isr revalidate build"],
+["05","05-hydration.html",0,12,65,"‏hydration و هزینه‌اش","چرا صفحهٔ دیده‌شده هنوز کلیک نمی‌پذیرد.","Hydration and its cost","Why a visible page still ignores your clicks.","hydration tti interactive partial progressive"],
+["06","06-islands.html",0,12,60,"معماری جزیره‌ای و RSC","‏Astro، Server Component و resumability.","Islands architecture and RSC","Astro, Server Components and resumability.","island rsc astro qwik resumable"],
+["07","07-metrics.html",0,12,65,"معیارها","‏LCP، INP، CLS و TTFB — و اینکه هرکدام چه می‌گویند.","The metrics","LCP, INP, CLS and TTFB — and what each actually tells you.","core web vitals lcp inp cls ttfb"],
+["08","08-measuring.html",0,12,65,"اندازه‌گیری","‏Lighthouse، دادهٔ میدانی و پروفایل مرورگر.","Measuring","Lighthouse, field data and browser profiling.","lighthouse rum profiling devtools trace"],
+["09","09-loading.html",0,12,60,"راهبرد بارگذاری","‏preload، prefetch، lazy و مسیر بحرانی.","Loading strategy","preload, prefetch, lazy loading and the critical path.","preload prefetch lazy critical path defer"],
+["10","10-images.html",0,12,55,"تصویر و رسانه","فرمت، اندازه، ‎srcset‎ و بارگذاری تنبل.","Images and media","Formats, sizing, srcset and lazy loading.","image webp avif srcset lazy responsive"],
+["11","11-caching.html",0,12,60,"کش","‏HTTP cache، ETag، CDN و باطل‌سازی.","Caching","HTTP caching, ETags, CDNs and invalidation.","cache etag cdn immutable stale-while-revalidate"],
+["12","12-sw.html",0,12,70,"‏Service Worker","رهگیری درخواست، کش آفلاین و به‌روزرسانی.","Service Workers","Intercepting requests, offline caching and updates.","service worker cache api offline update"],
+["13","13-pwa.html",0,12,65,"‏PWA","‏manifest، نصب‌پذیری و تجربهٔ شبه‌بومی.","PWAs","The manifest, installability and a near-native experience.","pwa manifest install standalone icon"],
+["14","14-offline.html",0,12,65,"آفلاین و همگام‌سازی","صف تغییرات، تعارض و پس‌زمینه.","Offline and background sync","Mutation queues, conflicts and background sync.","offline background sync indexeddb conflict"],
+["15","15-push.html",0,12,55,"اعلان push","‏Web Push، مجوز و پیاده‌سازی سمت سرور.","Push notifications","Web Push, permissions and the server side.","push notification vapid subscription"],
+["16","16-seo.html",0,12,60,"‏SEO و رندر","چه چیزی را خزنده می‌بیند و چه چیزی را نه.","SEO and rendering","What a crawler sees and what it does not.","seo crawler meta og structured data"],
+["17","17-cap1.html",0,5,80,"پروژهٔ ۱ — یک اپ، چهار حالت رندر","همان صفحه را در CSR، SSR، SSG و ISR بساز و عدد بگیر.","Project 1 — one app, four rendering modes","Build the same page in CSR, SSR, SSG and ISR, then measure.","capstone rendering comparison",1],
+["18","18-cap2.html",0,7,140,"پروژهٔ ۲ — تبدیل به PWA","نصب‌پذیر، آفلاین‌کار و با اعلان.","Project 2 — turn it into a PWA","Installable, offline-capable and with notifications.","capstone pwa offline",2],
+["19","19-cap3.html",0,9,180,"پروژهٔ ۳ — بودجهٔ کارایی","یک سایت کند را با اندازه‌گیری به هدف برسان.","Project 3 — a performance budget","Take a slow site to target, driven by measurement.","capstone performance budget",3]
+]});
+
+/* ═══════════════ ۵۰ — طراحی دامنه‌محور (DDD) ═══════════════ */
+C.push({
+  id:"50-ddd", dir:"50-ddd", accent:"#B45309", cat:"arch", pre:["07-architecture"], soft:["47-oop"],
+  ico:'<circle cx="12" cy="12" r="8.8"/><circle cx="12" cy="12" r="4.6"/><circle cx="12" cy="12" r="1.4"/><path d="M12 3.2v3.4M12 17.4v3.4M3.2 12h3.4M17.4 12h3.4" stroke-linecap="round"/>',
+  fa:{name:"طراحی دامنه‌محور", desc:"زبان فراگیر، bounded context، aggregate، رویداد دامنه و event sourcing — با مثال کامل و تست.",
+      intro:"‏DDD یک چارچوب یا کتابخانه نیست؛ روشی است برای اینکه کد، همان چیزی را بگوید که کارشناس کسب‌وکار می‌گوید. بیشتر پروژه‌هایی که «‎DDD‎ کار می‌کنند» فقط پوشه‌هایی به نام Domain ساخته‌اند و مدلشان همچنان کم‌خون است. این مسیر از زبان شروع می‌کند، نه از ساختار پوشه — و صادقانه می‌گوید کجا اصلاً به ‎DDD‎ نیاز نداری."},
+  en:{name:"Domain-Driven Design", desc:"Ubiquitous language, bounded contexts, aggregates, domain events and event sourcing — with a full worked example and tests.",
+      intro:"DDD is not a framework or a library; it is a way of making the code say what the domain expert says. Most projects that “do DDD” have merely created folders named Domain while their model stays anemic. This track starts from language, not folder structure — and is honest about where you do not need DDD at all."},
+  ch:[
+["01","01-why.html",0,12,55,"‏DDD چه مسئله‌ای را حل می‌کند","وقتی پیچیدگی دامنه است، نه فناوری.","What DDD solves","When the complexity is in the domain, not the technology.","ddd complexity domain why"],
+["02","02-ubiquitous-language.html",0,12,60,"زبان فراگیر","یک واژه، یک معنا — بین برنامه‌نویس و کارشناس کسب‌وکار.","Ubiquitous language","One word, one meaning — shared by developers and domain experts.","ubiquitous language glossary vocabulary"],
+["03","03-strategic.html",0,12,60,"طراحی راهبردی","نقشهٔ کل دامنه: هسته، پشتیبان، عمومی.","Strategic design","Mapping the whole domain: core, supporting, generic.","strategic core subdomain generic supporting"],
+["04","04-bounded-context.html",0,12,70,"‏bounded context","مهم‌ترین مفهوم DDD — مرزی که معنا در آن ثابت است.","Bounded contexts","The central DDD concept — a boundary inside which meaning is stable.","bounded context boundary model integrity"],
+["05","05-context-map.html",0,12,65,"نقشهٔ زمینه‌ها","رابطهٔ بین context‌ها: ‎shared kernel‎، ‎ACL‎، ‎conformist‎.","Context maps","Relationships between contexts: shared kernel, ACL, conformist.","context map anticorruption shared kernel upstream"],
+["06","06-entities.html",0,12,60,"‏entity","هویت در برابر مقدار، و چرا شناسه مهم است.","Entities","Identity versus value, and why the ID matters.","entity identity lifecycle equality"],
+["07","07-value-objects.html",0,12,65,"‏value object","بدون هویت، تغییرناپذیر — و اینکه چرا اینقدر مفید است.","Value objects","No identity, immutable — and why that is so useful.","value object immutable equality money"],
+["08","08-aggregates.html",0,12,75,"‏aggregate","سخت‌ترین بخش ‎DDD‎: مرز ثبات و قاعدهٔ تراکنش.","Aggregates","The hardest part of DDD: the consistency boundary and the transaction rule.","aggregate root invariant boundary transaction"],
+["09","09-aggregate-design.html",0,12,70,"طراحی ‎aggregate‎","قاعده‌های عملی: کوچک نگه دار، با شناسه ارجاع بده.","Designing aggregates","Practical rules: keep them small, reference by ID.","aggregate design small reference id rules"],
+["10","10-domain-events.html",0,12,65,"رویداد دامنه","چیزی که در دامنه اتفاق افتاد، و بقیه باید بدانند.","Domain events","Something that happened in the domain, which others must learn about.","domain event publish handler eventual"],
+["11","11-services.html",0,12,55,"‏domain service و application service","منطقی که به هیچ ‎entity‎ تعلق ندارد.","Domain and application services","Logic that belongs to no single entity.","domain service application service orchestration"],
+["12","12-repositories.html",0,12,60,"‏repository در ‎DDD‎","مجموعه‌ای از ‎aggregate‎، نه یک لایهٔ پایگاه‌داده.","Repositories in DDD","A collection of aggregates, not a database layer.","repository aggregate collection persistence ignorance"],
+["13","13-factories.html",0,12,50,"‏factory","ساختن ‎aggregate‎ معتبر، از همان لحظهٔ اول.","Factories","Creating a valid aggregate from the very first moment.","factory creation invariant construction"],
+["14","14-specification.html",0,12,55,"الگوی ‎specification‎","قاعدهٔ کسب‌وکار به‌عنوان یک شیء قابل ترکیب.","The specification pattern","A business rule as a composable object.","specification rule composable query"],
+["15","15-anticorruption.html",0,12,60,"لایهٔ ضدفساد","محافظت از مدل خودت در برابر مدل سیستم بیرونی.","The anti-corruption layer","Protecting your model from an external system's model.","anticorruption acl translation legacy integration"],
+["16","16-event-sourcing.html",0,12,70,"‏event sourcing","ذخیرهٔ رویدادها به‌جای وضعیت — و هزینهٔ واقعی‌اش.","Event sourcing","Storing events instead of state — and what it really costs.","event sourcing projection replay snapshot"],
+["17","17-cqrs-ddd.html",0,12,65,"‏CQRS در کنار ‎DDD‎","مدل نوشتن غنی، مدل خواندن ساده.","CQRS alongside DDD","A rich write model, a simple read model.","cqrs read model projection write model"],
+["18","18-persistence.html",0,12,70,"‏DDD و ‎ORM‎","نگاشت ‎aggregate‎ به جدول بدون آلوده کردن دامنه.","DDD and ORMs","Mapping aggregates to tables without polluting the domain.","orm mapping efcore owned type persistence"],
+["19","19-testing.html",0,12,60,"تست دامنه","تست قاعده‌های کسب‌وکار، بدون پایگاه‌داده و بدون ‎mock‎.","Testing the domain","Testing business rules with no database and no mocks.","test domain unit given when then"],
+["20","20-antipatterns.html",0,12,60,"ضدالگوها","مدل کم‌خون، ‎aggregate‎ غول‌آسا، و ‎DDD‎ کاغذی.","Anti-patterns","Anemic models, giant aggregates, and DDD on paper only.","anemic antipattern god aggregate cargo cult"],
+["21","21-when-not.html",0,12,55,"کِی ‎DDD‎ نزن","‏CRUD ساده به ‎DDD‎ نیاز ندارد — و این را باید بپذیری.","When not to use DDD","Simple CRUD does not need DDD — and you must accept that.","yagni crud simple overengineering"],
+["22","22-cap1.html",0,5,100,"پروژهٔ ۱ — مدل‌سازی یک دامنه","از گفت‌وگو با کارشناس تا ‎entity‎ و ‎value object‎.","Project 1 — model a domain","From a conversation with an expert to entities and value objects.","capstone modeling",1],
+["23","23-cap2.html",0,7,170,"پروژهٔ ۲ — ‎aggregate‎ و رویداد","مرز ثبات، ‎invariant‎ و رویداد دامنه، با تست کامل.","Project 2 — aggregates and events","Consistency boundaries, invariants and domain events, fully tested.","capstone aggregate event",2],
+["24","24-cap3.html",0,9,260,"پروژهٔ ۳ — دو ‎bounded context‎","دو زمینه، نقشهٔ رابطه، ‎ACL‎ و سازگاری نهایی.","Project 3 — two bounded contexts","Two contexts, a context map, an ACL and eventual consistency.","capstone bounded context integration",3]
+]});
+
+
+/* ═══════════════ ۵۱ — MongoDB ═══════════════ */
+C.push({
+  id:"51-mongodb", dir:"51-mongodb", accent:"#13AA52", cat:"data",
+  ico:"<path d=\"M12 2.6c3.4 4 5.2 7.2 5.2 10.2 0 3.6-2.4 6.4-5.2 8.6-2.8-2.2-5.2-5-5.2-8.6 0-3 1.8-6.2 5.2-10.2z\"/><path d=\"M12 6.4v13.4\" stroke-linecap=\"round\" opacity=\".6\"/>",
+  fa:{name:"MongoDB", desc:"پایگاه‌دادهٔ سندگرا: مدل‌سازی، aggregation، ایندکس، replica set و شاردینگ.",
+      intro:"‏MongoDB شِما ندارد — و همین هم بزرگ‌ترین قدرتش است و هم خطرناک‌ترین بخشش. نداشتن شِما یعنی سرعت در شروع، و بی‌نظمی در ماه ششم اگر خودت نظم ندهی. این مسیر بیشتر وقتش را روی مدل‌سازی می‌گذارد، چون در دنیای سندگرا، طراحی سند مهم‌تر از هر کوئری‌ای است."},
+  en:{name:"MongoDB", desc:"The document database: modelling, aggregation, indexing, replica sets and sharding.",
+      intro:"MongoDB has no schema — which is both its greatest strength and its most dangerous part. No schema means speed at the start and disorder by month six unless you impose order yourself. This track spends most of its time on modelling, because in a document world the shape of your document matters more than any query."},
+  ch:[
+["01","01-why.html",0,12,55,"چرا سندگرا","در برابر رابطه‌ای: کجا برنده است و کجا نه.","Why documents","Versus relational: where it wins and where it does not.","document nosql relational comparison"],
+["02","02-install.html",0,12,45,"نصب و ابزار","‏mongosh، Compass و داکر.","Installation and tooling","mongosh, Compass and Docker.","install mongosh compass docker atlas"],
+["03","03-crud.html",0,12,55,"‏CRUD","درج، خواندن، به‌روزرسانی و حذف.","CRUD","Insert, find, update and delete.","insert find update delete bulk"],
+["04","04-query.html",0,12,60,"کوئری","عملگرها، پروجکشن، مرتب‌سازی و صفحه‌بندی.","Querying","Operators, projection, sorting and pagination.","query operator projection sort limit skip"],
+["05","05-modeling-1.html",0,12,70,"مدل‌سازی ۱: تعبیه یا ارجاع","مهم‌ترین تصمیم در MongoDB.","Modelling 1: embed or reference","The most important decision in MongoDB.","embed reference denormalize modeling"],
+["06","06-modeling-2.html",0,12,65,"مدل‌سازی ۲: الگوها","‏bucket، subset، computed و attribute pattern.","Modelling 2: patterns","Bucket, subset, computed and attribute patterns.","pattern bucket subset computed attribute"],
+["07","07-schema.html",0,12,55,"اعتبارسنجی شِما","نظم بدون از دست دادن انعطاف.","Schema validation","Order without losing flexibility.","validation jsonschema validator strict"],
+["08","08-aggregation-1.html",0,12,70,"‏aggregation ۱","‏pipeline: match، group، project، sort.","Aggregation 1","The pipeline: match, group, project, sort.","aggregation pipeline match group project"],
+["09","09-aggregation-2.html",0,12,70,"‏aggregation ۲","‏lookup، unwind، facet و کوئری‌های پیچیده.","Aggregation 2","lookup, unwind, facet and complex queries.","lookup unwind facet bucket window"],
+["10","10-indexes.html",0,12,70,"ایندکس","‏single، compound، ترتیب کلید و ‎ESR‎.","Indexes","Single, compound, key order and the ESR rule.","index compound esr covered partial ttl"],
+["11","11-explain.html",0,12,65,"‏explain و کارایی","خواندن برنامهٔ اجرا و رفع کوئری کند.","explain and performance","Reading the execution plan and fixing slow queries.","explain plan winning stage collscan"],
+["12","12-transactions.html",0,12,55,"تراکنش","چندسندی، و اینکه چرا معمولاً لازم نیست.","Transactions","Multi-document, and why you usually do not need them.","transaction session acid multi-document"],
+["13","13-replication.html",0,12,60,"‏replica set","دسترس‌پذیری، انتخاب رهبر و ‎read preference‎.","Replica sets","Availability, elections and read preferences.","replica set primary election oplog"],
+["14","14-sharding.html",0,12,65,"شاردینگ","کلید شارد، توزیع و اشتباه‌های گران.","Sharding","Shard keys, distribution and expensive mistakes.","shard key chunk balancer distribution"],
+["15","15-security.html",0,12,55,"امنیت","کاربر، نقش، ‎TLS‎ و رمزگذاری.","Security","Users, roles, TLS and encryption.","auth role tls encryption audit"],
+["16","16-backup.html",0,12,55,"پشتیبان و بازیابی","‏mongodump، snapshot و بازیابی نقطه‌ای.","Backup and restore","mongodump, snapshots and point-in-time recovery.","backup mongodump restore oplog pitr"],
+["17","17-drivers.html",0,12,55,"اتصال از اپ","‏Node، Python و ‎.NET‎: pool و الگوی درست.","Connecting from an app","Node, Python and .NET: pooling and correct patterns.","driver pool connection nodejs python dotnet"],
+["18","18-cap1.html",0,5,80,"پروژهٔ ۱ — کاتالوگ محصول","مدل‌سازی، کوئری و ایندکس.","Project 1 — a product catalogue","Modelling, querying and indexing.","capstone catalog",1],
+["19","19-cap2.html",0,7,140,"پروژهٔ ۲ — تحلیل با aggregation","گزارش‌های پیچیده روی دادهٔ حجیم.","Project 2 — analytics with aggregation","Complex reports over a large dataset.","capstone aggregation analytics",2],
+["20","20-cap3.html",0,9,190,"پروژهٔ ۳ — سامانهٔ مقیاس‌پذیر","‏replica، شارد، پشتیبان و مانیتورینگ.","Project 3 — a scalable system","Replicas, shards, backups and monitoring.","capstone production sharding",3]
+]});
+
+/* ═══════════════ ۵۲ — Redis ═══════════════ */
+C.push({
+  id:"52-redis", dir:"52-redis", accent:"#DC382D", cat:"data",
+  ico:"<path d=\"M2.8 7.4 12 4l9.2 3.4L12 10.8z\"/><path d=\"M2.8 12 12 15.4 21.2 12M2.8 16.6 12 20l9.2-3.4\" stroke-linejoin=\"round\"/>",
+  fa:{name:"Redis", desc:"کش، صف، قفل توزیع‌شده، pub/sub و ساختمان‌های دادهٔ درون‌حافظه‌ای.",
+      intro:"‏Redis را همه به‌عنوان «کش» می‌شناسند و همان‌جا متوقف می‌شوند. اما Redis یک سرور ساختمان دادهٔ درون‌حافظه‌ای است: لیست، مجموعه، مجموعهٔ مرتب، bitmap و stream. وقتی این‌ها را بشناسی، مسائلی که با پایگاه‌دادهٔ رابطه‌ای سخت بودند در چند خط حل می‌شوند — و مسائلی که نباید با Redis حل کنی هم روشن می‌شوند."},
+  en:{name:"Redis", desc:"Caching, queues, distributed locks, pub/sub and in-memory data structures.",
+      intro:"Everyone knows Redis as “a cache” and stops there. But Redis is an in-memory data-structure server: lists, sets, sorted sets, bitmaps and streams. Once you know them, problems that were hard in a relational database collapse into a few lines — and it also becomes clear which problems you should not solve with Redis."},
+  ch:[
+["01","01-why.html",0,12,50,"‏Redis چیست","درون‌حافظه‌ای بودن یعنی چه، و چه چیزی را ممکن می‌کند.","What Redis is","What in-memory really means, and what it enables.","redis in-memory keyvalue latency"],
+["02","02-strings.html",0,12,50,"رشته و شمارنده","‏SET، GET، INCR و عملیات اتمی.","Strings and counters","SET, GET, INCR and atomic operations.","string incr atomic expire setnx"],
+["03","03-hash.html",0,12,50,"‏hash","ذخیرهٔ شیء بدون سریال‌سازی کل آن.","Hashes","Storing objects without serialising the whole thing.","hash hset hget field object"],
+["04","04-list.html",0,12,55,"‏list","صف و پشته، و ‎BLPOP‎ برای مصرف‌کننده.","Lists","Queues and stacks, and BLPOP for consumers.","list lpush rpop blpop queue"],
+["05","05-set.html",0,12,55,"مجموعه و مجموعهٔ مرتب","عضویت، اشتراک، و جدول امتیاز با ‎ZSET‎.","Sets and sorted sets","Membership, intersection, and leaderboards with ZSET.","set zset leaderboard rank union"],
+["06","06-advanced-types.html",0,12,55,"نوع‌های ویژه","‏bitmap، HyperLogLog، geo و stream.","Special types","Bitmaps, HyperLogLog, geo and streams.","bitmap hyperloglog geo stream"],
+["07","07-expiry.html",0,12,55,"انقضا و حذف","‏TTL، سیاست‌های ‎eviction‎ و مدیریت حافظه.","Expiry and eviction","TTL, eviction policies and memory management.","ttl expire eviction lru maxmemory"],
+["08","08-caching.html",0,12,65,"الگوهای کش","‏cache-aside، write-through و مسئلهٔ باطل‌سازی.","Caching patterns","Cache-aside, write-through and the invalidation problem.","cache aside write through invalidation stampede"],
+["09","09-pubsub.html",0,12,55,"‏pub/sub و stream","پیام‌رسانی ساده در برابر جریان ماندگار.","Pub/sub and streams","Simple messaging versus a durable log.","pubsub stream consumer group xadd"],
+["10","10-locks.html",0,12,60,"قفل توزیع‌شده","‏SETNX، Redlock و خطرهای واقعی‌اش.","Distributed locks","SETNX, Redlock and its real hazards.","lock setnx redlock fencing token"],
+["11","11-scripting.html",0,12,55,"‏Lua و تراکنش","عملیات اتمی مرکب.","Lua scripting and transactions","Compound atomic operations.","lua eval multi exec watch"],
+["12","12-persistence.html",0,12,55,"ماندگاری","‏RDB، AOF و اینکه چه چیزی ممکن است گم شود.","Persistence","RDB, AOF, and what can actually be lost.","rdb aof fsync durability snapshot"],
+["13","13-cluster.html",0,12,60,"‏replication و cluster","دسترس‌پذیری، Sentinel و توزیع کلید.","Replication and clustering","Availability, Sentinel and key distribution.","replica sentinel cluster slot failover"],
+["14","14-monitoring.html",0,12,55,"مانیتورینگ و عیب‌یابی","‏SLOWLOG، INFO و کلید داغ.","Monitoring and debugging","SLOWLOG, INFO and hot keys.","slowlog info latency hotkey memory"],
+["15","15-cap1.html",0,5,70,"پروژهٔ ۱ — لایهٔ کش","کش‌کردن یک ‎API‎ کند، با باطل‌سازی درست.","Project 1 — a cache layer","Caching a slow API, with correct invalidation.","capstone cache",1],
+["16","16-cap2.html",0,7,120,"پروژهٔ ۲ — صف کار و محدودیت نرخ","‏worker، تلاش مجدد و ‎rate limiter‎.","Project 2 — a job queue and rate limiter","Workers, retries and a rate limiter.","capstone queue ratelimit",2],
+["17","17-cap3.html",0,9,170,"پروژهٔ ۳ — جدول امتیاز بی‌درنگ","‏ZSET، stream، pub/sub و مقیاس افقی.","Project 3 — a real-time leaderboard","ZSETs, streams, pub/sub and horizontal scale.","capstone leaderboard realtime",3]
+]});
+
+/* ═══════════════ ۵۳ — MySQL و MariaDB ═══════════════ */
+C.push({
+  id:"53-mysql-mariadb", dir:"53-mysql-mariadb", accent:"#00758F", cat:"data",
+  ico:"<ellipse cx=\"12\" cy=\"6.2\" rx=\"7.6\" ry=\"3.2\"/><path d=\"M4.4 6.2v11.6c0 1.8 3.4 3.2 7.6 3.2s7.6-1.4 7.6-3.2V6.2\"/><path d=\"M4.4 12c0 1.8 3.4 3.2 7.6 3.2s7.6-1.4 7.6-3.2\" opacity=\".6\"/>",
+  fa:{name:"MySQL و MariaDB", desc:"از ‎SELECT‎ تا ایندکس، ‎EXPLAIN‎، تراکنش، replication و بهینه‌سازی کوئری کند.",
+      intro:"‏MySQL پرکاربردترین پایگاه‌دادهٔ رابطه‌ای دنیاست و MariaDB شاخهٔ آزاد آن. این مسیر فرض نمی‌کند ‎SQL‎ بلدی — از مدل رابطه‌ای شروع می‌کند — اما خیلی زود می‌رود سراغ چیزی که واقعاً فرق می‌گذارد: اینکه چرا آن کوئری کند است و ایندکس درست کدام است."},
+  en:{name:"MySQL & MariaDB", desc:"From SELECT to indexes, EXPLAIN, transactions, replication and fixing slow queries.",
+      intro:"MySQL is the most widely deployed relational database in the world, and MariaDB is its free fork. This track does not assume you know SQL — it starts from the relational model — but it moves quickly to what actually matters: why that query is slow and which index is the right one."},
+  ch:[
+["01","01-relational.html",0,12,50,"مدل رابطه‌ای و نصب","جدول، کلید، و راه‌اندازی با داکر.","The relational model and setup","Tables, keys, and getting started with Docker.","relational install docker workbench"],
+["02","02-select.html",0,12,55,"‏SELECT و فیلتر","‏WHERE، ORDER BY، LIMIT و ‎NULL‎.","SELECT and filtering","WHERE, ORDER BY, LIMIT and NULL.","select where order limit null"],
+["03","03-joins.html",0,12,60,"‏JOIN","‏inner، left، و اشتباهی که سطرها را تکثیر می‌کند.","JOINs","Inner, left, and the mistake that multiplies rows.","join inner left cross duplicate"],
+["04","04-aggregate.html",0,12,55,"تجمیع","‏GROUP BY، HAVING و توابع پنجره‌ای.","Aggregation","GROUP BY, HAVING and window functions.","group having window over"],
+["05","05-subquery.html",0,12,55,"زیرکوئری و ‎CTE‎","کوئری خوانا به‌جای تودرتو.","Subqueries and CTEs","Readable queries instead of nested ones.","cte subquery with exists"],
+["06","06-dml.html",0,12,50,"تغییر داده","‏INSERT، UPDATE، DELETE، ‎UPSERT‎.","Changing data","INSERT, UPDATE, DELETE and UPSERT.","insert update delete upsert replace"],
+["07","07-design.html",0,12,60,"طراحی جدول","نوع داده، کلید، ‎constraint‎ و ‎charset‎ فارسی.","Table design","Data types, keys, constraints and Persian character sets.","datatype key constraint utf8mb4 collation"],
+["08","08-normalization.html",0,12,55,"نرمال‌سازی","سه فرم اول، و ‎denormalization‎ آگاهانه.","Normalisation","The first three forms, and deliberate denormalisation.","normalization 1nf 2nf 3nf"],
+["09","09-indexes.html",0,12,70,"ایندکس","‏B-tree، ترکیبی، پوششی و ترتیب ستون‌ها.","Indexes","B-trees, composite, covering, and column order.","index btree composite covering prefix"],
+["10","10-explain.html",0,12,70,"‏EXPLAIN","خواندن برنامهٔ اجرا و تشخیص ‎full scan‎.","EXPLAIN","Reading the plan and spotting full scans.","explain analyze plan type rows filtered"],
+["11","11-transactions.html",0,12,60,"تراکنش و قفل","سطوح ایزوله، ‎deadlock‎ و ‎InnoDB‎.","Transactions and locking","Isolation levels, deadlocks and InnoDB.","transaction isolation deadlock innodb mvcc"],
+["12","12-procedures.html",0,12,50,"‏procedure، function، trigger","کِی مفیدند و کِی دردسر.","Procedures, functions, triggers","When they help and when they hurt.","procedure function trigger event"],
+["13","13-replication.html",0,12,60,"‏replication","‏master-replica، تأخیر و خواندن از replica.","Replication","Primary/replica, lag, and reading from replicas.","replication binlog lag gtid failover"],
+["14","14-backup.html",0,12,55,"پشتیبان و بازیابی","‏mysqldump، binlog و بازیابی نقطه‌ای.","Backup and restore","mysqldump, binlogs and point-in-time recovery.","mysqldump xtrabackup binlog pitr"],
+["15","15-security.html",0,12,50,"امنیت","کاربر، ‎GRANT‎، ‎TLS‎ و تزریق ‎SQL‎.","Security","Users, GRANT, TLS and SQL injection.","grant privilege tls injection prepared"],
+["16","16-tuning.html",0,12,70,"بهینه‌سازی","‏slow log، buffer pool و کوئری کند واقعی.","Tuning","The slow log, the buffer pool and a genuinely slow query.","slowlog buffer pool tuning optimize"],
+["17","17-cap1.html",0,5,80,"پروژهٔ ۱ — طراحی شِما","از نیاز تا جدول، با کلید و ‎constraint‎ درست.","Project 1 — design a schema","From requirements to tables, with proper keys and constraints.","capstone schema",1],
+["18","18-cap2.html",0,7,140,"پروژهٔ ۲ — گزارش‌های تحلیلی","کوئری‌های پیچیده و ایندکس‌گذاری.","Project 2 — analytical reports","Complex queries and indexing.","capstone report",2],
+["19","19-cap3.html",0,9,190,"پروژهٔ ۳ — از کند به سریع","یک پایگاه‌دادهٔ میلیونی را به زیر یک ثانیه برسان.","Project 3 — from slow to fast","Take a million-row database under one second.","capstone performance",3]
+]});
+
+/* ═══════════════ ۵۴ — Cassandra ═══════════════ */
+C.push({
+  id:"54-cassandra", dir:"54-cassandra", accent:"#1287B1", cat:"data", soft:["53-mysql-mariadb"],
+  ico:"<path d=\"M12 2.6 20 7v10l-8 4.4L4 17V7z\"/><path d=\"M12 7.4 16.4 9.8v4.4L12 16.6l-4.4-2.4V9.8z\" opacity=\".65\"/>",
+  fa:{name:"Cassandra", desc:"پایگاه‌دادهٔ توزیع‌شدهٔ ستونی: مدل‌سازی کوئری‌محور، partition، ثبات قابل تنظیم.",
+      intro:"‏Cassandra قاعده‌ای دارد که برای کسی که با ‎SQL‎ بزرگ شده تکان‌دهنده است: **اول کوئری را بنویس، بعد جدول را طراحی کن.** نرمال‌سازی اینجا اشتباه است و تکرار داده درست. این مسیر آن وارونگی ذهنی را جا می‌اندازد، چون بدون آن هر چیزی که در Cassandra بسازی بالاخره از کار می‌افتد."},
+  en:{name:"Cassandra", desc:"The distributed wide-column store: query-first modelling, partitions and tunable consistency.",
+      intro:"Cassandra has a rule that shocks anyone raised on SQL: **write the query first, then design the table.** Normalisation is wrong here and duplicating data is right. This track drills that mental inversion, because without it anything you build on Cassandra eventually falls over."},
+  ch:[
+["01","01-why.html",0,12,55,"چرا Cassandra","مقیاس افقی، بدون نقطهٔ شکست واحد.","Why Cassandra","Horizontal scale with no single point of failure.","cassandra distributed scale availability"],
+["02","02-architecture.html",0,12,60,"معماری","حلقه، گره، تکرار و ‎gossip‎.","Architecture","The ring, nodes, replication and gossip.","ring node replication gossip token"],
+["03","03-datamodel.html",0,12,70,"مدل داده","‏keyspace، جدول، ستون و انواع.","The data model","Keyspaces, tables, columns and types.","keyspace table column collection udt"],
+["04","04-partition.html",0,12,75,"کلید partition","مهم‌ترین تصمیم: توزیع و ‎hot partition‎.","Partition keys","The decisive choice: distribution and hot partitions.","partition key clustering hot large"],
+["05","05-query-first.html",0,12,70,"مدل‌سازی کوئری‌محور","اول کوئری، بعد جدول — و تکرار عمدی داده.","Query-first modelling","Query first, table second — and deliberate duplication.","query first denormalize duplicate table per query"],
+["06","06-cql.html",0,12,55,"‏CQL","شبیه ‎SQL‎ است، ولی نیست.","CQL","It looks like SQL. It is not.","cql select insert allow filtering"],
+["07","07-consistency.html",0,12,70,"ثبات قابل تنظیم","‏ONE، QUORUM، ALL و قضیهٔ ‎CAP‎ در عمل.","Tunable consistency","ONE, QUORUM, ALL and CAP in practice.","consistency quorum cap tunable read repair"],
+["08","08-writes.html",0,12,60,"مسیر نوشتن","‏commit log، memtable، SSTable و ‎compaction‎.","The write path","Commit log, memtable, SSTables and compaction.","write path memtable sstable compaction"],
+["09","09-deletes.html",0,12,60,"حذف و ‎tombstone‎","چرا حذف در Cassandra گران است.","Deletes and tombstones","Why deleting is expensive in Cassandra.","tombstone delete ttl gc grace"],
+["10","10-operations.html",0,12,60,"عملیات","افزودن گره، ‎repair‎ و مانیتورینگ.","Operations","Adding nodes, repair and monitoring.","nodetool repair bootstrap monitoring"],
+["11","11-drivers.html",0,12,55,"اتصال از اپ","‏prepared statement، صفحه‌بندی و تلاش مجدد.","Connecting from an app","Prepared statements, paging and retries.","driver prepared paging retry policy"],
+["12","12-antipatterns.html",0,12,60,"ضدالگوها","‏ALLOW FILTERING، صف، و مدل رابطه‌ای تحمیلی.","Anti-patterns","ALLOW FILTERING, queues, and forcing a relational model.","antipattern allow filtering queue join"],
+["13","13-cap1.html",0,5,80,"پروژهٔ ۱ — مدل‌سازی از روی کوئری","سه کوئری، سه جدول.","Project 1 — model from queries","Three queries, three tables.","capstone modeling",1],
+["14","14-cap2.html",0,7,140,"پروژهٔ ۲ — سری زمانی","دادهٔ حسگر با partition زمان‌محور.","Project 2 — time series","Sensor data with time-bucketed partitions.","capstone timeseries",2],
+["15","15-cap3.html",0,9,180,"پروژهٔ ۳ — کلاستر چندگره","‏replication، ثبات و تحمل خطا.","Project 3 — a multi-node cluster","Replication, consistency and fault tolerance.","capstone cluster",3]
+]});
+
+/* ═══════════════ ۵۵ — Oracle Database ═══════════════ */
+C.push({
+  id:"55-oracle", dir:"55-oracle", accent:"#C74634", cat:"data", soft:["05-sql"],
+  ico:"<ellipse cx=\"12\" cy=\"12\" rx=\"9.4\" ry=\"5.6\"/><ellipse cx=\"12\" cy=\"12\" rx=\"4.6\" ry=\"2.6\" opacity=\".6\"/>",
+  fa:{name:"Oracle Database", desc:"‏PL/SQL، ایندکس، برنامهٔ اجرا، پارتیشن‌بندی، ‎AWR‎ و بهینه‌سازی سازمانی.",
+      intro:"‏Oracle در بانک‌ها، بیمه‌ها و سازمان‌های بزرگ هنوز حاکم است و احتمالاً تا مدت‌ها می‌ماند. این مسیر برای کسی است که باید با یک پایگاه‌دادهٔ Oracle موجود کار کند: کوئری بنویسد، ‎PL/SQL‎ بخواند، و وقتی چیزی کند شد بتواند بفهمد چرا."},
+  en:{name:"Oracle Database", desc:"PL/SQL, indexes, execution plans, partitioning, AWR and enterprise-grade tuning.",
+      intro:"Oracle still rules in banking, insurance and large institutions, and will for some time. This track is for someone who has to work with an existing Oracle database: write queries, read PL/SQL, and work out why something got slow."},
+  ch:[
+["01","01-architecture.html",0,12,60,"معماری Oracle","نمونه، پایگاه‌داده، ‎tablespace‎ و ‎PDB‎.","Oracle architecture","Instances, databases, tablespaces and PDBs.","instance sga tablespace pdb cdb"],
+["02","02-setup.html",0,12,50,"راه‌اندازی","‏Oracle XE با داکر و ابزارهای کار.","Getting set up","Oracle XE with Docker and the tooling.","xe docker sqlplus sqldeveloper"],
+["03","03-sql.html",0,12,60,"‏SQL در Oracle","تفاوت‌ها با استاندارد و توابع ویژه.","SQL in Oracle","Differences from the standard and Oracle-specific functions.","dual rownum nvl decode sequence"],
+["04","04-joins-analytics.html",0,12,65,"‏JOIN و توابع تحلیلی","‏window function و ‎hierarchical query‎.","Joins and analytics","Window functions and hierarchical queries.","analytic window connect by partition"],
+["05","05-datatypes.html",0,12,55,"نوع داده","‏VARCHAR2، NUMBER، DATE، CLOB و یونیکد فارسی.","Data types","VARCHAR2, NUMBER, DATE, CLOB and Persian Unicode.","varchar2 number date clob nls unicode"],
+["06","06-plsql-1.html",0,12,70,"‏PL/SQL ۱","بلوک، متغیر، شرط، حلقه و ‎cursor‎.","PL/SQL 1","Blocks, variables, control flow and cursors.","plsql block cursor loop record"],
+["07","07-plsql-2.html",0,12,70,"‏PL/SQL ۲","‏procedure، function، package و ‎exception‎.","PL/SQL 2","Procedures, functions, packages and exceptions.","procedure function package exception"],
+["08","08-plsql-3.html",0,12,65,"‏PL/SQL ۳","‏trigger، ‎bulk collect‎ و ‎FORALL‎.","PL/SQL 3","Triggers, bulk collect and FORALL.","trigger bulk collect forall collection"],
+["09","09-indexes.html",0,12,70,"ایندکس","‏B-tree، bitmap، function-based و ‎IOT‎.","Indexes","B-tree, bitmap, function-based and index-organised tables.","index bitmap function based iot"],
+["10","10-explain.html",0,12,70,"برنامهٔ اجرا","‏EXPLAIN PLAN، ‎autotrace‎ و آمار.","Execution plans","EXPLAIN PLAN, autotrace and statistics.","explain plan autotrace statistics cardinality"],
+["11","11-partitioning.html",0,12,65,"پارتیشن‌بندی","‏range، list، hash و ‎pruning‎.","Partitioning","Range, list, hash and partition pruning.","partition range list hash pruning"],
+["12","12-transactions.html",0,12,60,"تراکنش و ثبات","‏undo، ‎read consistency‎ و قفل.","Transactions and consistency","Undo, read consistency and locking.","undo redo consistency lock savepoint"],
+["13","13-tuning.html",0,12,70,"بهینه‌سازی","‏AWR، ‎ASH‎، ‎SQL profile‎ و ‎hint‎.","Tuning","AWR, ASH, SQL profiles and hints.","awr ash hint sql tuning advisor"],
+["14","14-security.html",0,12,55,"امنیت","کاربر، نقش، ‎VPD‎ و ممیزی.","Security","Users, roles, VPD and auditing.","user role privilege vpd audit tde"],
+["15","15-backup.html",0,12,60,"پشتیبان و بازیابی","‏RMAN، ‎data pump‎ و بازیابی نقطه‌ای.","Backup and recovery","RMAN, Data Pump and point-in-time recovery.","rman datapump flashback recovery"],
+["16","16-cap1.html",0,5,80,"پروژهٔ ۱ — شِما و ‎PL/SQL‎","طراحی جدول و یک بستهٔ ‎PL/SQL‎ کامل.","Project 1 — schema and PL/SQL","Table design and a complete PL/SQL package.","capstone plsql",1],
+["17","17-cap2.html",0,7,150,"پروژهٔ ۲ — گزارش‌های تحلیلی","توابع تحلیلی روی دادهٔ حجیم.","Project 2 — analytical reporting","Analytic functions over large data.","capstone analytics",2],
+["18","18-cap3.html",0,9,200,"پروژهٔ ۳ — بهینه‌سازی سازمانی","پارتیشن، ایندکس و ‎AWR‎ روی یک بار کاری واقعی.","Project 3 — enterprise tuning","Partitioning, indexing and AWR against a real workload.","capstone tuning",3]
+]});
+
+/* ═══════════════ ۵۶ — FastAPI ═══════════════ */
+C.push({
+  id:"56-fastapi", dir:"56-fastapi", accent:"#059486", cat:"backend", pre:["12-python"],
+  ico:"<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12.8 6.4 8.6 12.8h3.4l-.8 4.8 4.2-6.4h-3.4z\" stroke-linejoin=\"round\"/>",
+  fa:{name:"FastAPI", desc:"‏API ناهمگام پایتون: Pydantic، تزریق وابستگی، احراز هویت، تست و استقرار.",
+      intro:"‏FastAPI یک ایدهٔ ساده را تا انتها برد: اگر نوع‌ها را بنویسی، بقیه‌اش خودکار می‌شود — اعتبارسنجی، مستندسازی، سریال‌سازی. نتیجه‌اش این است که کد کمتری می‌نویسی و خطای کمتری می‌دهی. این مسیر روی همان نوع‌ها تمرکز می‌کند، چون هرچه ‎Pydantic‎ را بهتر بشناسی، ‎FastAPI‎ برایت ساده‌تر می‌شود."},
+  en:{name:"FastAPI", desc:"Async Python APIs: Pydantic, dependency injection, authentication, testing and deployment.",
+      intro:"FastAPI took one simple idea all the way: write the types and everything else follows — validation, documentation, serialisation. The result is less code and fewer mistakes. This track focuses on those types, because the better you know Pydantic, the simpler FastAPI becomes."},
+  ch:[
+["01","01-why.html",0,12,50,"چرا FastAPI","در برابر Django و Flask، و نقش ‎async‎.","Why FastAPI","Versus Django and Flask, and the role of async.","fastapi asgi starlette comparison"],
+["02","02-first.html",0,12,50,"اولین ‎API‎","مسیر، پارامتر و پاسخ خودکار.","Your first API","Routes, parameters and automatic responses.","path query parameter response uvicorn"],
+["03","03-pydantic-1.html",0,12,65,"‏Pydantic ۱","مدل، اعتبارسنجی و تبدیل نوع.","Pydantic 1","Models, validation and coercion.","pydantic model validation field type"],
+["04","04-pydantic-2.html",0,12,65,"‏Pydantic ۲","اعتبارسنج سفارشی، مدل تودرتو و ‎settings‎.","Pydantic 2","Custom validators, nested models and settings.","validator nested settings alias serializer"],
+["05","05-async.html",0,12,65,"‏async در FastAPI","کِی ‎async def‎ و کِی ‎def‎ — و چرا اشتباهش گران است.","Async in FastAPI","When to use async def and when def — and why getting it wrong costs.","async await threadpool blocking event loop"],
+["06","06-dependencies.html",0,12,70,"تزریق وابستگی","‏Depends: قوی‌ترین ویژگی فریم‌ورک.","Dependency injection","Depends: the framework's strongest feature.","depends dependency injection yield scope"],
+["07","07-database.html",0,12,70,"پایگاه‌داده","‏SQLAlchemy ناهمگام، نشست و مهاجرت با Alembic.","Databases","Async SQLAlchemy, sessions and Alembic migrations.","sqlalchemy async session alembic pool"],
+["08","08-auth.html",0,12,70,"احراز هویت","‏OAuth2 با ‎password flow‎، ‎JWT‎ و نقش.","Authentication","OAuth2 password flow, JWT and roles.","oauth2 jwt password bearer scope"],
+["09","09-errors.html",0,12,50,"خطا","‏HTTPException، ‎handler‎ سراسری و پاسخ یکدست.","Error handling","HTTPException, global handlers and consistent responses.","httpexception handler validation error"],
+["10","10-middleware.html",0,12,50,"‏middleware و ‎CORS‎","لاگ، زمان‌سنجی و ‎CORS‎.","Middleware and CORS","Logging, timing and CORS.","middleware cors gzip trusted host"],
+["11","11-background.html",0,12,55,"کار پس‌زمینه","‏BackgroundTasks و Celery.","Background work","BackgroundTasks and Celery.","background task celery worker redis"],
+["12","12-websocket.html",0,12,55,"‏WebSocket","ارتباط بی‌درنگ در FastAPI.","WebSockets","Real-time communication in FastAPI.","websocket connection manager broadcast"],
+["13","13-structure.html",0,12,55,"ساختار پروژه","‏router، لایه‌بندی و پروژه‌ای که بزرگ شود.","Project structure","Routers, layering and a project that scales.","router structure layer service repository"],
+["14","14-testing.html",0,12,60,"تست","‏TestClient، ‎fixture‎ و پایگاه‌دادهٔ تست.","Testing","TestClient, fixtures and a test database.","pytest testclient fixture httpx async test"],
+["15","15-deploy.html",0,12,60,"استقرار","‏Uvicorn، Gunicorn، داکر و Nginx.","Deployment","Uvicorn, Gunicorn, Docker and Nginx.","uvicorn gunicorn docker nginx worker"],
+["16","16-cap1.html",0,5,80,"پروژهٔ ۱ — ‎API‎ با پایگاه‌داده","‏CRUD با ‎Pydantic‎ و ‎SQLAlchemy‎.","Project 1 — an API with a database","CRUD with Pydantic and SQLAlchemy.","capstone crud",1],
+["17","17-cap2.html",0,7,140,"پروژهٔ ۲ — ‎API‎ امن","‏JWT، نقش، صف و تست کامل.","Project 2 — a secured API","JWT, roles, queues and full tests.","capstone auth",2],
+["18","18-cap3.html",0,9,190,"پروژهٔ ۳ — سرویس production","بی‌درنگ، کش، مانیتورینگ و استقرار.","Project 3 — a production service","Real-time features, caching, monitoring and deployment.","capstone production",3]
+]});
+
+/* ═══════════════ ۵۷ — نقشه و داده‌های مکانی ═══════════════ */
+C.push({
+  id:"57-maps", dir:"57-maps", accent:"#199900", cat:"frontend", pre:["41-javascript"],
+  ico:"<path d=\"M9 4.2 3.6 6.4v13.4L9 17.6l6 2.2 5.4-2.2V4.2L15 6.4z\"/><path d=\"M9 4.2v13.4M15 6.4v13.4\" stroke-linejoin=\"round\"/>",
+  fa:{name:"نقشه و داده‌های مکانی", desc:"‏Leaflet، MapLibre، ‎GeoJSON‎، کاشی، مسیریابی و ‎PostGIS‎ — از نمایش تا تحلیل مکانی.",
+      intro:"نقشه فقط یک تصویر نیست؛ یک سیستم مختصات، یک تصویر برداری، و یک پایگاه‌دادهٔ مکانی است. اگر فقط کتابخانه را یاد بگیری، در اولین مسئلهٔ واقعی — «نزدیک‌ترین شعبه کدام است؟» یا «این نقطه داخل کدام محدوده است؟» — گیر می‌کنی. این مسیر از سیستم مختصات شروع می‌کند و تا تحلیل مکانی در پایگاه‌داده می‌رود."},
+  en:{name:"Maps & geospatial", desc:"Leaflet, MapLibre, GeoJSON, tiles, routing and PostGIS — from display to spatial analysis.",
+      intro:"A map is not just a picture; it is a coordinate system, a vector rendering and a spatial database. Learn only the library and you will stall on the first real question — “which branch is nearest?” or “which zone contains this point?” This track starts from coordinate systems and goes through to spatial analysis in the database."},
+  ch:[
+["01","01-basics.html",0,12,60,"مبانی مکانی","طول و عرض جغرافیایی، ‎WGS84‎ و تصویر مرکاتور.","Geospatial basics","Latitude and longitude, WGS84 and the Mercator projection.","latitude longitude wgs84 projection mercator srid"],
+["02","02-tiles.html",0,12,55,"کاشی و سطح بزرگ‌نمایی","چرا نقشه از مربع‌های ۲۵۶ پیکسلی ساخته می‌شود.","Tiles and zoom levels","Why a map is built from 256-pixel squares.","tile zoom xyz raster vector slippy"],
+["03","03-leaflet-basics.html",0,12,55,"‏Leaflet: شروع","نقشه، لایه، نشانگر و رویداد.","Leaflet: getting started","Maps, layers, markers and events.","leaflet map layer marker popup"],
+["04","04-leaflet-layers.html",0,12,60,"لایه و کنترل","‏overlay، گروه لایه و کنترل سفارشی.","Layers and controls","Overlays, layer groups and custom controls.","layergroup control overlay tilelayer"],
+["05","05-geojson.html",0,12,60,"‏GeoJSON","نقطه، خط، چندضلعی — و استایل‌دهی به آن‌ها.","GeoJSON","Points, lines, polygons — and styling them.","geojson feature geometry polygon style"],
+["06","06-interaction.html",0,12,60,"تعامل","رسم، ویرایش، ‎drag‎ و انتخاب ناحیه.","Interaction","Drawing, editing, dragging and area selection.","draw edit interaction geoman handler"],
+["07","07-clustering.html",0,12,60,"خوشه‌بندی و کارایی","ده‌هزار نشانگر بدون یخ‌زدن مرورگر.","Clustering and performance","Ten thousand markers without freezing the browser.","cluster marker performance canvas heatmap"],
+["08","08-maplibre.html",0,12,65,"‏MapLibre و کاشی برداری","نقشهٔ برداری، استایل ‎JSON‎ و چرخش سه‌بعدی.","MapLibre and vector tiles","Vector maps, JSON styles and 3D tilt.","maplibre mapbox vector tile style pitch"],
+["09","09-geocoding.html",0,12,55,"‏geocoding","آدرس به مختصات و برعکس — با Nominatim.","Geocoding","Address to coordinates and back — with Nominatim.","geocoding nominatim reverse address search"],
+["10","10-routing.html",0,12,65,"مسیریابی","‏OSRM و ‎GraphHopper‎: مسیر، فاصله و زمان.","Routing","OSRM and GraphHopper: route, distance and duration.","routing osrm graphhopper directions isochrone"],
+["11","11-postgis.html",0,12,70,"‏PostGIS","ذخیره و کوئری مکانی: نزدیک‌ترین، درون، تقاطع.","PostGIS","Storing and querying space: nearest, within, intersects.","postgis st_distance st_within gist spatial index"],
+["12","12-analysis.html",0,12,65,"تحلیل مکانی","‏buffer، تقاطع، خوشه و ‎heatmap‎.","Spatial analysis","Buffers, intersections, clustering and heatmaps.","buffer intersect cluster heatmap analysis"],
+["13","13-selfhost.html",0,12,60,"میزبانی نقشهٔ خودت","سرور کاشی، ‎OSM‎ و کار بدون سرویس بیرونی.","Self-hosting maps","A tile server, OpenStreetMap, and working without external services.","osm tileserver selfhost planet extract"],
+["14","14-mobile.html",0,12,55,"نقشه در موبایل","‏Flutter و ‎React Native‎: مکان‌یابی و مجوز.","Maps on mobile","Flutter and React Native: geolocation and permissions.","flutter react native geolocation permission"],
+["15","15-cap1.html",0,5,80,"پروژهٔ ۱ — نقشهٔ شعب","نشانگر، ‎popup‎ و جستجو.","Project 1 — a branch locator","Markers, popups and search.","capstone locator",1],
+["16","16-cap2.html",0,7,140,"پروژهٔ ۲ — ردیاب زنده","موقعیت بی‌درنگ، مسیر طی‌شده و ‎geofence‎.","Project 2 — a live tracker","Real-time position, travelled path and geofences.","capstone tracking realtime",2],
+["17","17-cap3.html",0,9,190,"پروژهٔ ۳ — سامانهٔ مسیریابی","‏PostGIS، مسیریابی، بهینه‌سازی سفر و تحلیل.","Project 3 — a routing system","PostGIS, routing, trip optimisation and analysis.","capstone routing postgis",3]
+]});
+
+
+/* ═══════════════ ۵۸ — الگوریتم و حل مسئله ═══════════════ */
+C.push({
+  id:"58-algorithms", dir:"58-algorithms", accent:"#7C3AED", cat:"basics",
+  ico:"<circle cx=\"6\" cy=\"6\" r=\"2.4\"/><circle cx=\"18\" cy=\"6\" r=\"2.4\"/><circle cx=\"12\" cy=\"12\" r=\"2.4\"/><circle cx=\"6\" cy=\"18\" r=\"2.4\"/><circle cx=\"18\" cy=\"18\" r=\"2.4\"/><path d=\"M7.7 7.7 10.3 10.3M16.3 7.7 13.7 10.3M10.3 13.7 7.7 16.3M13.7 13.7l2.6 2.6\" stroke-linecap=\"round\"/>",
+  fa:{name:"الگوریتم و حل مسئله", desc:"ساختمان داده، پیچیدگی، بازگشت، گراف، برنامه‌ریزی پویا و روش سیستماتیک حل مسئله.",
+      intro:"الگوریتم برای قبولی در مصاحبه نیست — هرچند آنجا هم به کار می‌آید. برای این است که وقتی کدت روی ده رکورد سریع است و روی ده میلیون رکورد از کار می‌افتد، بدانی چرا و چه کار کنی. این مسیر روی «چطور به جواب رسیدیم» تمرکز می‌کند، نه «جواب چیست»، چون حفظ کردن الگوریتم بی‌فایده است و روشِ رسیدن به آن نیست."},
+  en:{name:"Algorithms & problem solving", desc:"Data structures, complexity, recursion, graphs, dynamic programming and a systematic method for solving problems.",
+      intro:"Algorithms are not for passing interviews — though they help there too. They are for the moment your code is fast over ten records and collapses over ten million, so you know why and what to do. This track focuses on how we arrived at a solution rather than what the solution is, because memorising algorithms is useless while the method of finding them is not."},
+  ch:[
+["01","01-method.html",0,12,60,"روش حل مسئله","قبل از کد: بفهم، مثال بزن، ساده کن، تعمیم بده.","A method for solving problems","Before code: understand, exemplify, simplify, generalise.","method polya problem solving approach"],
+["02","02-complexity.html",0,12,65,"پیچیدگی زمانی و حافظه","‏Big-O بدون ریاضیات ترسناک — با شهود.","Time and space complexity","Big-O without the frightening maths — by intuition.","bigo complexity amortized asymptotic"],
+["03","03-arrays.html",0,12,60,"آرایه و رشته","دو اشاره‌گر، پنجرهٔ لغزان و پیشوند تجمعی.","Arrays and strings","Two pointers, sliding windows and prefix sums.","array string two pointer sliding window prefix"],
+["04","04-hashing.html",0,12,60,"‏hash","جدول hash، برخورد، و چرا ‎O(1)‎ همیشه ‎O(1)‎ نیست.","Hashing","Hash tables, collisions, and why O(1) is not always O(1).","hash table collision map set"],
+["05","05-linked.html",0,12,55,"لیست پیوندی","‏reverse، تشخیص حلقه و اشاره‌گر سریع و کند.","Linked lists","Reversal, cycle detection and fast/slow pointers.","linked list reverse cycle floyd"],
+["06","06-stack-queue.html",0,12,55,"پشته و صف","‏monotonic stack و صف دوسر.","Stacks and queues","Monotonic stacks and deques.","stack queue deque monotonic parenthesis"],
+["07","07-recursion.html",0,12,70,"بازگشت","اعتماد به فراخوانی بازگشتی، و درخت فراخوانی.","Recursion","Trusting the recursive call, and the call tree.","recursion base case call tree backtrack"],
+["08","08-sorting.html",0,12,65,"مرتب‌سازی","‏merge، quick، heap — و اینکه کِی خودت بنویسی.","Sorting","Merge, quick, heap — and when to write your own.","sort merge quick heap stability"],
+["09","09-searching.html",0,12,60,"جستجوی دودویی","ساده به نظر می‌رسد، و بیشتر آدم‌ها اشتباه می‌نویسند.","Binary search","It looks simple, and most people write it wrong.","binary search boundary invariant"],
+["10","10-trees.html",0,12,65,"درخت","پیمایش، ‎BST‎ و درخت متوازن.","Trees","Traversal, BSTs and balanced trees.","tree traversal bst avl inorder"],
+["11","11-heaps.html",0,12,55,"‏heap و صف اولویت","‏k‎ بزرگ‌ترین، ادغام و زمان‌بندی.","Heaps and priority queues","Top-k, merging and scheduling.","heap priority queue topk"],
+["12","12-graphs-1.html",0,12,70,"گراف ۱","نمایش، ‎BFS‎ و ‎DFS‎.","Graphs 1","Representation, BFS and DFS.","graph bfs dfs adjacency component"],
+["13","13-graphs-2.html",0,12,70,"گراف ۲","کوتاه‌ترین مسیر: ‎Dijkstra‎ و ‎topological sort‎.","Graphs 2","Shortest paths: Dijkstra and topological sort.","dijkstra topological shortest path dag"],
+["14","14-greedy.html",0,12,60,"حریصانه","کِی جواب می‌دهد و چطور ثابت کنیم.","Greedy algorithms","When it works and how to prove it.","greedy exchange argument interval"],
+["15","15-dp-1.html",0,12,75,"برنامه‌ریزی پویا ۱","از بازگشت به یادداشت‌برداری، قدم‌به‌قدم.","Dynamic programming 1","From recursion to memoisation, step by step.","dp memoization overlapping subproblem"],
+["16","16-dp-2.html",0,12,75,"برنامه‌ریزی پویا ۲","‏knapsack، ‎LCS‎ و بهینه‌سازی حافظه.","Dynamic programming 2","Knapsack, LCS and space optimisation.","dp knapsack lcs tabulation"],
+["17","17-backtracking.html",0,12,60,"عقب‌گرد","‏n-queens، جایگشت و هرس فضای جستجو.","Backtracking","N-queens, permutations and pruning the search space.","backtracking permutation pruning nqueens"],
+["18","18-strings.html",0,12,60,"الگوریتم رشته","‏KMP، ‎trie‎ و ‎hash‎ غلتان.","String algorithms","KMP, tries and rolling hashes.","kmp trie rolling hash pattern"],
+["19","19-practical.html",0,12,60,"الگوریتم در کار روزمره","کجا در کد واقعی به دردت می‌خورد.","Algorithms in daily work","Where this shows up in real code.","practical real world optimization"],
+["20","20-interview.html",0,12,60,"مصاحبهٔ الگوریتمی","بلند فکر کردن، و روش رسیدن به جواب زیر فشار.","Algorithm interviews","Thinking aloud, and getting to an answer under pressure.","interview whiteboard communication"],
+["21","21-cap1.html",0,5,90,"پروژهٔ ۱ — ساختمان دادهٔ خودت","‏hash map و ‎LRU cache‎ با تست.","Project 1 — build a data structure","A hash map and an LRU cache, with tests.","capstone lru hashmap",1],
+["22","22-cap2.html",0,7,150,"پروژهٔ ۲ — موتور جستجوی کوچک","‏trie، رتبه‌بندی و پیشنهاد خودکار.","Project 2 — a small search engine","Tries, ranking and autocomplete.","capstone search trie",2],
+["23","23-cap3.html",0,9,200,"پروژهٔ ۳ — مسیریاب","گراف واقعی شهری با ‎Dijkstra‎ و ‎A*‎.","Project 3 — a route planner","A real city graph with Dijkstra and A*.","capstone routing astar",3]
+]});
+
+/* ═══════════════ ۵۹ — یادگیری ماشین ═══════════════ */
+C.push({
+  id:"59-machine-learning", dir:"59-machine-learning", accent:"#F59E0B", cat:"ai", pre:["12-python"], soft:["58-algorithms"],
+  ico:"<circle cx=\"5.4\" cy=\"8\" r=\"2\"/><circle cx=\"5.4\" cy=\"16\" r=\"2\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/><circle cx=\"18.6\" cy=\"8\" r=\"2\"/><circle cx=\"18.6\" cy=\"16\" r=\"2\"/><path d=\"M7.2 8.8 10.4 11M7.2 15.2 10.4 13M13.6 11l3.2-2.2M13.6 13l3.2 2.2\" stroke-linecap=\"round\"/>",
+  fa:{name:"یادگیری ماشین", desc:"از رگرسیون تا درخت و ‎SVM‎: آماده‌سازی داده، ارزیابی، ‎overfitting‎ و استقرار مدل.",
+      intro:"یادگیری ماشین جادو نیست؛ بهینه‌سازی آماری است. مدل چیزی را یاد می‌گیرد که در داده هست — از جمله سوگیری‌هایی که نمی‌خواستی. این مسیر بیشتر وقتش را روی داده و ارزیابی می‌گذارد، نه روی الگوریتم، چون در پروژهٔ واقعی همان‌جاست که کار برنده یا بازنده می‌شود."},
+  en:{name:"Machine learning", desc:"From regression to trees and SVMs: data preparation, evaluation, overfitting and deploying a model.",
+      intro:"Machine learning is not magic; it is statistical optimisation. A model learns what is in the data — including the biases you did not want. This track spends most of its time on data and evaluation rather than algorithms, because that is where real projects are won or lost."},
+  ch:[
+["01","01-what.html",0,12,55,"یادگیری ماشین چیست","‏نظارت‌شده، بی‌نظارت، تقویتی — و کِی اصلاً لازم نیست.","What machine learning is","Supervised, unsupervised, reinforcement — and when you do not need any of it.","supervised unsupervised ml when not"],
+["02","02-tools.html",0,12,50,"ابزار کار","‏Python، NumPy، pandas و ‎Jupyter‎.","The toolkit","Python, NumPy, pandas and Jupyter.","numpy pandas jupyter scikit matplotlib"],
+["03","03-data.html",0,12,70,"داده: مهم‌ترین بخش","پاکسازی، مقدار گمشده، ‎outlier‎ و نشت داده.","Data: the part that matters most","Cleaning, missing values, outliers and data leakage.","cleaning missing outlier leakage eda"],
+["04","04-features.html",0,12,70,"مهندسی ویژگی","مقیاس‌دهی، رمزگذاری دسته‌ای و ساخت ویژگی.","Feature engineering","Scaling, categorical encoding and building features.","feature scaling encoding onehot pipeline"],
+["05","05-linear.html",0,12,65,"رگرسیون خطی","ساده‌ترین مدل، و اینکه چقدر می‌شود ازش یاد گرفت.","Linear regression","The simplest model, and how much it teaches you.","linear regression gradient descent loss"],
+["06","06-logistic.html",0,12,60,"رگرسیون لجستیک","طبقه‌بندی، احتمال و مرز تصمیم.","Logistic regression","Classification, probability and decision boundaries.","logistic classification sigmoid threshold"],
+["07","07-evaluation.html",0,12,75,"ارزیابی مدل","‏accuracy کافی نیست: precision، recall، ‎F1‎، ‎ROC‎.","Evaluating a model","Accuracy is not enough: precision, recall, F1, ROC.","precision recall f1 roc confusion matrix"],
+["08","08-overfitting.html",0,12,70,"‏overfitting و اعتبارسنجی","‏train/test، ‎cross-validation‎ و منظم‌سازی.","Overfitting and validation","Train/test splits, cross-validation and regularisation.","overfitting crossvalidation regularization bias variance"],
+["09","09-trees.html",0,12,65,"درخت تصمیم و جنگل","قابل تفسیر، قوی و پرکاربرد.","Decision trees and forests","Interpretable, strong and widely used.","decision tree random forest feature importance"],
+["10","10-boosting.html",0,12,65,"‏boosting","‏XGBoost و ‎LightGBM‎: برندهٔ بیشتر مسائل جدولی.","Boosting","XGBoost and LightGBM: winners of most tabular problems.","xgboost lightgbm gradient boosting"],
+["11","11-svm-knn.html",0,12,55,"‏SVM و ‎k-NN‎","مرز و همسایگی.","SVMs and k-NN","Boundaries and neighbourhoods.","svm knn kernel margin distance"],
+["12","12-clustering.html",0,12,60,"خوشه‌بندی","‏k-means، ‎DBSCAN‎ و ارزیابی بدون برچسب.","Clustering","k-means, DBSCAN and evaluating without labels.","kmeans dbscan silhouette unsupervised"],
+["13","13-dimensionality.html",0,12,55,"کاهش بعد","‏PCA و ‎t-SNE‎ برای دیدن داده.","Dimensionality reduction","PCA and t-SNE for seeing your data.","pca tsne umap dimensionality"],
+["14","14-imbalance.html",0,12,60,"دادهٔ نامتوازن","وقتی ۹۹٪ کلاس منفی است.","Imbalanced data","When 99% of the data is the negative class.","imbalance smote resampling class weight"],
+["15","15-tuning.html",0,12,60,"تنظیم ابرپارامتر","‏grid، random و ‎Bayesian‎.","Hyperparameter tuning","Grid, random and Bayesian search.","hyperparameter grid random optuna"],
+["16","16-pipeline.html",0,12,60,"‏pipeline و بازتولیدپذیری","یک خط لولهٔ کامل، قابل تکرار.","Pipelines and reproducibility","One complete, repeatable pipeline.","pipeline sklearn reproducible seed"],
+["17","17-deploy.html",0,12,70,"استقرار مدل","‏API، نسخه‌گذاری مدل، و ‎drift‎.","Deploying a model","APIs, model versioning and drift.","deploy mlflow api drift monitoring"],
+["18","18-ethics.html",0,12,55,"سوگیری و اخلاق","مدلی که تبعیض یاد گرفته، و مسئولیت تو.","Bias and ethics","A model that learned to discriminate, and your responsibility.","bias fairness ethics explainability"],
+["19","19-cap1.html",0,5,100,"پروژهٔ ۱ — پیش‌بینی قیمت","رگرسیون کامل با ارزیابی درست.","Project 1 — price prediction","A complete regression with proper evaluation.","capstone regression",1],
+["20","20-cap2.html",0,7,170,"پروژهٔ ۲ — طبقه‌بندی با دادهٔ کثیف","پاکسازی، ویژگی، نامتوازنی و تفسیر.","Project 2 — classification on messy data","Cleaning, features, imbalance and interpretation.","capstone classification",2],
+["21","21-cap3.html",0,9,220,"پروژهٔ ۳ — مدل در production","خط لوله، ‎API‎، مانیتورینگ و بازآموزی.","Project 3 — a model in production","A pipeline, an API, monitoring and retraining.","capstone mlops",3]
+]});
+
+/* ═══════════════ ۶۰ — یادگیری عمیق ═══════════════ */
+C.push({
+  id:"60-deep-learning", dir:"60-deep-learning", accent:"#EF4444", cat:"ai", pre:["59-machine-learning"],
+  ico:"<circle cx=\"4.6\" cy=\"12\" r=\"1.8\"/><circle cx=\"11\" cy=\"7\" r=\"1.8\"/><circle cx=\"11\" cy=\"17\" r=\"1.8\"/><circle cx=\"17.4\" cy=\"9.6\" r=\"1.8\"/><circle cx=\"17.4\" cy=\"14.4\" r=\"1.8\"/><path d=\"M6.2 11 9.4 8M6.2 13l3.2 3M12.6 8l3.4 1.2M12.6 16l3.4-1.2\" stroke-linecap=\"round\"/>",
+  fa:{name:"یادگیری عمیق", desc:"شبکهٔ عصبی، ‎CNN‎، ‎RNN‎، ترنسفورمر و آموزش مدل — با PyTorch.",
+      intro:"یادگیری عمیق یک ایده است که بارها تکرار شده: لایه‌ای بساز، مشتق بگیر، وزن را کمی تغییر بده. همین. پیچیدگی از عمق می‌آید نه از مفهوم. این مسیر از یک نورون شروع می‌کند و تا ترنسفورمر می‌رود، و در هر مرحله اول با ‎NumPy‎ دستی می‌سازد بعد با ‎PyTorch‎ — تا بدانی کتابخانه چه کاری را برایت انجام می‌دهد."},
+  en:{name:"Deep learning", desc:"Neural networks, CNNs, RNNs, transformers and training — with PyTorch.",
+      intro:"Deep learning is one idea repeated: build a layer, take the derivative, nudge the weights. That is all. The complexity comes from depth, not from the concept. This track starts at a single neuron and works up to transformers, building each stage by hand in NumPy first and then in PyTorch — so you know what the library is doing for you."},
+  ch:[
+["01","01-neuron.html",0,12,65,"از یک نورون","‏perceptron، وزن و تابع فعال‌سازی.","From a single neuron","The perceptron, weights and activation functions.","perceptron neuron activation weight bias"],
+["02","02-backprop.html",0,12,80,"پس‌انتشار","قاعدهٔ زنجیره‌ای — با محاسبهٔ دستی روی یک شبکهٔ کوچک.","Backpropagation","The chain rule — computed by hand on a tiny network.","backpropagation gradient chain rule derivative"],
+["03","03-numpy-net.html",0,12,75,"شبکه با ‎NumPy‎","یک شبکهٔ کامل بدون فریم‌ورک.","A network in NumPy","A complete network with no framework.","numpy from scratch forward backward"],
+["04","04-pytorch.html",0,12,65,"‏PyTorch","‏tensor، autograd و ‎nn.Module‎.","PyTorch","Tensors, autograd and nn.Module.","pytorch tensor autograd module optimizer"],
+["05","05-training.html",0,12,70,"حلقهٔ آموزش","‏loss، بهینه‌ساز، ‎batch‎ و ‎epoch‎.","The training loop","Loss, optimiser, batches and epochs.","training loop loss optimizer batch epoch"],
+["06","06-optimization.html",0,12,65,"بهینه‌سازی","‏SGD، Adam، نرخ یادگیری و زمان‌بند.","Optimisation","SGD, Adam, learning rates and schedulers.","sgd adam learning rate scheduler momentum"],
+["07","07-regularization.html",0,12,65,"منظم‌سازی","‏dropout، ‎batch norm‎ و ‎early stopping‎.","Regularisation","Dropout, batch norm and early stopping.","dropout batchnorm early stopping augmentation"],
+["08","08-cnn.html",0,12,75,"‏CNN","کانولوشن، ‎pooling‎ و بینایی ماشین.","CNNs","Convolution, pooling and computer vision.","cnn convolution pooling kernel vision"],
+["09","09-vision.html",0,12,70,"بینایی در عمل","طبقه‌بندی تصویر، ‎transfer learning‎ و ‎fine-tuning‎.","Vision in practice","Image classification, transfer learning and fine-tuning.","transfer learning resnet finetune augmentation"],
+["10","10-rnn.html",0,12,70,"‏RNN و ‎LSTM‎","داده‌های دنباله‌ای و مسئلهٔ حافظهٔ بلندمدت.","RNNs and LSTMs","Sequential data and the long-memory problem.","rnn lstm gru sequence vanishing gradient"],
+["11","11-attention.html",0,12,80,"‏attention","ایده‌ای که همه‌چیز را عوض کرد.","Attention","The idea that changed everything.","attention query key value softmax"],
+["12","12-transformer.html",0,12,85,"ترنسفورمر","معماری کامل، از ‎embedding‎ تا خروجی.","Transformers","The full architecture, from embeddings to output.","transformer encoder decoder positional multihead"],
+["13","13-nlp.html",0,12,70,"پردازش زبان","‏tokenization، ‎embedding‎ و فارسی.","Natural language processing","Tokenisation, embeddings and Persian text.","nlp tokenization embedding bert persian"],
+["14","14-generative.html",0,12,65,"مدل‌های مولد","‏autoencoder، ‎GAN‎ و ‎diffusion‎ — مرور مفهومی.","Generative models","Autoencoders, GANs and diffusion — a conceptual tour.","gan vae diffusion generative"],
+["15","15-training-real.html",0,12,70,"آموزش در عمل","‏GPU، حافظه، ‎mixed precision‎ و ‎checkpoint‎.","Training for real","GPUs, memory, mixed precision and checkpointing.","gpu cuda mixed precision checkpoint oom"],
+["16","16-deploy.html",0,12,65,"استقرار مدل","‏ONNX، کوانتیزه‌سازی و استنتاج سریع.","Deploying a model","ONNX, quantisation and fast inference.","onnx quantization inference serving latency"],
+["17","17-cap1.html",0,5,110,"پروژهٔ ۱ — طبقه‌بندی تصویر","‏CNN از صفر، بعد با ‎transfer learning‎.","Project 1 — image classification","A CNN from scratch, then with transfer learning.","capstone cnn vision",1],
+["18","18-cap2.html",0,7,180,"پروژهٔ ۲ — تحلیل متن فارسی","‏tokenization فارسی، ‎fine-tune‎ و ارزیابی.","Project 2 — Persian text analysis","Persian tokenisation, fine-tuning and evaluation.","capstone nlp persian",2],
+["19","19-cap3.html",0,9,240,"پروژهٔ ۳ — ترنسفورمر کوچک از صفر","‏attention، آموزش و تولید متن.","Project 3 — a small transformer from scratch","Attention, training and text generation.","capstone transformer",3]
+]});
+
+/* ═══════════════ ۶۱ — مهندسی هوش مصنوعی ═══════════════ */
+C.push({
+  id:"61-ai-engineering", dir:"61-ai-engineering", accent:"#8B5CF6", cat:"ai", pre:["12-python"],
+  ico:"<rect x=\"4.4\" y=\"6.4\" width=\"15.2\" height=\"12\" rx=\"3\"/><circle cx=\"9.2\" cy=\"12.4\" r=\"1.4\"/><circle cx=\"14.8\" cy=\"12.4\" r=\"1.4\"/><path d=\"M12 6.4V3.6M9.6 16h4.8\" stroke-linecap=\"round\"/>",
+  fa:{name:"مهندسی هوش مصنوعی", desc:"ساخت محصول با ‎LLM‎: prompt، ‎RAG‎، ‎embedding‎، ابزار، عامل، ارزیابی و هزینه.",
+      intro:"مدل زبانی را کسی دیگر آموزش داده؛ کار تو ساختن چیزی است که با آن کار می‌کند و در عمل قابل اعتماد باشد. این مسیر دربارهٔ آموزش مدل نیست — دربارهٔ مهندسی اطراف آن است: چطور داده‌ات را وارد کنی، چطور خروجی را بسنجی، چطور جلوی هزینهٔ بی‌حساب را بگیری، و چه کاری را اصلاً نباید به مدل بسپاری."},
+  en:{name:"AI engineering", desc:"Building products with LLMs: prompting, RAG, embeddings, tools, agents, evaluation and cost.",
+      intro:"Somebody else trained the model; your job is building something around it that is reliable in practice. This track is not about training models — it is about the engineering around them: how to feed in your data, how to measure the output, how to keep costs from running away, and what you should never hand to a model at all."},
+  ch:[
+["01","01-landscape.html",0,12,55,"‏LLM چیست و چه نیست","توانایی‌ها، محدودیت‌ها و توهم‌زایی.","What an LLM is and is not","Capabilities, limits and hallucination.","llm token context hallucination capability"],
+["02","02-api.html",0,12,55,"کار با ‎API‎ مدل","درخواست، پارامتر، استریم و مدیریت خطا.","Working with a model API","Requests, parameters, streaming and error handling.","api completion streaming temperature retry"],
+["03","03-prompting.html",0,12,70,"مهندسی prompt","ساختار، مثال، نقش و خروجی ساخت‌یافته.","Prompt engineering","Structure, examples, roles and structured output.","prompt fewshot system structured json"],
+["04","04-structured.html",0,12,60,"خروجی ساخت‌یافته","‏JSON schema، اعتبارسنجی و ‎retry‎ هوشمند.","Structured output","JSON schemas, validation and smart retries.","json schema function calling validation"],
+["05","05-embeddings.html",0,12,65,"‏embedding","معنا به‌صورت عدد، و شباهت برداری.","Embeddings","Meaning as numbers, and vector similarity.","embedding vector cosine similarity"],
+["06","06-vectordb.html",0,12,65,"پایگاه‌دادهٔ برداری","‏pgvector، Qdrant و جستجوی شباهت.","Vector databases","pgvector, Qdrant and similarity search.","pgvector qdrant faiss ann index"],
+["07","07-rag-1.html",0,12,75,"‏RAG ۱","بازیابی و تولید: مدل را با دادهٔ خودت وصل کن.","RAG 1","Retrieval-augmented generation: connecting the model to your data.","rag retrieval chunking context"],
+["08","08-rag-2.html",0,12,75,"‏RAG ۲","‏chunking، بازرتبه‌بندی، جستجوی ترکیبی و ارزیابی.","RAG 2","Chunking, reranking, hybrid search and evaluation.","chunking rerank hybrid bm25 evaluation"],
+["09","09-tools.html",0,12,65,"ابزار و ‎function calling‎","وقتی مدل باید کاری انجام دهد، نه فقط حرف بزند.","Tools and function calling","When the model must do something, not just talk.","tool function calling schema execution"],
+["10","10-agents.html",0,12,70,"عامل","حلقهٔ تصمیم، حافظه و جایی که از کنترل خارج می‌شود.","Agents","The decision loop, memory, and where it runs away.","agent loop memory planning guardrail"],
+["11","11-evaluation.html",0,12,75,"ارزیابی","چطور بفهمی خروجی خوب است — بدون حدس.","Evaluation","How to know the output is good — without guessing.","eval golden set llm judge regression"],
+["12","12-cost.html",0,12,60,"هزینه و تأخیر","‏token، کش، مدل کوچک‌تر و ‎batch‎.","Cost and latency","Tokens, caching, smaller models and batching.","cost token cache latency batching"],
+["13","13-safety.html",0,12,65,"ایمنی و تزریق prompt","ورودی کاربر قابل اعتماد نیست — حتی وقتی مؤدب است.","Safety and prompt injection","User input is untrusted — even when it is polite.","prompt injection jailbreak guardrail moderation"],
+["14","14-local.html",0,12,60,"مدل محلی","‏Ollama و اجرای مدل روی سخت‌افزار خودت.","Local models","Ollama and running a model on your own hardware.","ollama local quantization gguf offline"],
+["15","15-persian.html",0,12,60,"فارسی و ‎LLM‎","‏tokenization فارسی، کیفیت و راهکارها.","Persian and LLMs","Persian tokenisation, quality and workarounds.","persian farsi tokenization rtl quality"],
+["16","16-cap1.html",0,5,90,"پروژهٔ ۱ — دستیار با خروجی ساخت‌یافته","‏API، prompt و اعتبارسنجی خروجی.","Project 1 — an assistant with structured output","API, prompting and output validation.","capstone assistant",1],
+["17","17-cap2.html",0,7,170,"پروژهٔ ۲ — ‏RAG روی سند خودت","‏chunking، برداری، بازیابی و ارزیابی.","Project 2 — RAG over your own documents","Chunking, vectors, retrieval and evaluation.","capstone rag",2],
+["18","18-cap3.html",0,9,230,"پروژهٔ ۳ — عامل ابزارمند","ابزار، حافظه، حفاظ، ارزیابی و کنترل هزینه.","Project 3 — a tool-using agent","Tools, memory, guardrails, evaluation and cost control.","capstone agent",3]
+]});
+
+/* ═══════════════ ۶۲ — ماشین مجازی و توزیع‌ها ═══════════════ */
+C.push({
+  id:"62-virtualization", dir:"62-virtualization", accent:"#0F766E", cat:"infra",
+  ico:"<rect x=\"2.6\" y=\"4.6\" width=\"12\" height=\"9\" rx=\"2\"/><rect x=\"9.4\" y=\"10.4\" width=\"12\" height=\"9\" rx=\"2\"/><path d=\"M6 8h5M12.8 14h5\" stroke-linecap=\"round\"/>",
+  fa:{name:"ماشین مجازی و توزیع‌ها", desc:"‏VirtualBox، KVM/QEMU، Proxmox: نصب چند توزیع، شبکه بین آن‌ها و snapshot.",
+      intro:"قبل از اینکه روی یک سرور واقعی خطا کنی، بهتر است روی ماشینی خطا کنی که با یک کلیک به حالت قبل برمی‌گردد. آزمایشگاه مجازی همان جاست: چند توزیع لینوکس کنار هم، یک شبکهٔ داخلی بین‌شان، و snapshot که هر اشتباهی را برگشت‌پذیر می‌کند. این مسیر همان آزمایشگاه را می‌سازد — که بعد در مسیرهای لینوکس، شبکه و دواپس رویش کار می‌کنی."},
+  en:{name:"Virtual machines & distributions", desc:"VirtualBox, KVM/QEMU, Proxmox: installing several distributions, networking between them and snapshots.",
+      intro:"Before you break a real server, it is better to break one that reverts with a click. That is what a virtual lab is for: several Linux distributions side by side, a private network between them, and snapshots that make every mistake reversible. This track builds that lab — the one you will then use throughout the Linux, networking and DevOps tracks."},
+  ch:[
+["01","01-why.html",0,12,55,"مجازی‌سازی چیست","‏hypervisor نوع ۱ و ۲، و تفاوتش با کانتینر.","What virtualisation is","Type 1 and type 2 hypervisors, and how this differs from containers.","hypervisor type1 type2 container comparison"],
+["02","02-virtualbox.html",0,12,55,"‏VirtualBox","نصب، ساخت ماشین و ‎guest additions‎.","VirtualBox","Installing, creating a machine and guest additions.","virtualbox vm guest additions vdi"],
+["03","03-kvm.html",0,12,65,"‏KVM و ‎QEMU‎","مجازی‌سازی بومی لینوکس با ‎virt-manager‎.","KVM and QEMU","Native Linux virtualisation with virt-manager.","kvm qemu libvirt virt-manager virsh"],
+["04","04-resources.html",0,12,55,"منابع","‏CPU، RAM، دیسک و ‎overcommit‎.","Resources","CPU, RAM, disk and overcommitting.","vcpu ram disk overcommit balloon"],
+["05","05-storage.html",0,12,60,"ذخیره‌سازی","‏qcow2، ‎thin provisioning‎ و افزودن دیسک.","Storage","qcow2, thin provisioning and adding disks.","qcow2 raw thin provisioning lvm"],
+["06","06-snapshots.html",0,12,55,"‏snapshot و کلون","برگشت به عقب، و کلون سریع برای آزمایش.","Snapshots and clones","Rolling back, and fast clones for experiments.","snapshot clone linked restore"],
+["07","07-networking-1.html",0,12,70,"شبکه ۱","‏NAT، bridge، host-only — و کدام برای کدام کار.","Networking 1","NAT, bridged, host-only — and which for what.","nat bridge hostonly internal network mode"],
+["08","08-networking-2.html",0,12,70,"شبکه ۲","شبکهٔ داخلی بین چند ماشین، و ‎ping‎ بینشان.","Networking 2","A private network between machines, and pinging across it.","internal network subnet static ip route"],
+["09","09-distros.html",0,12,65,"توزیع‌های لینوکس","‏Ubuntu، Debian، Rocky، Arch، Alpine — تفاوت‌های واقعی.","Linux distributions","Ubuntu, Debian, Rocky, Arch, Alpine — the real differences.","ubuntu debian rocky arch alpine package"],
+["10","10-install.html",0,12,65,"نصب چند توزیع","نصب دستی، پارتیشن‌بندی و اولین بوت.","Installing several distributions","Manual installation, partitioning and first boot.","install partition bootloader grub iso"],
+["11","11-automation.html",0,12,65,"خودکارسازی","‏Vagrant و ‎cloud-init‎: ساخت ماشین با یک فایل.","Automation","Vagrant and cloud-init: a machine from one file.","vagrant cloud-init provisioning box"],
+["12","12-proxmox.html",0,12,65,"‏Proxmox","مجازی‌سازی سازمانی، ‎LXC‎ و پشتیبان‌گیری.","Proxmox","Enterprise virtualisation, LXC containers and backups.","proxmox lxc cluster backup ve"],
+["13","13-wsl.html",0,12,55,"‏WSL2 و مک","لینوکس روی ویندوز و مک، و محدودیت‌هایش.","WSL2 and macOS","Linux on Windows and macOS, and the limits.","wsl2 hyperv utm multipass"],
+["14","14-troubleshoot.html",0,12,55,"عیب‌یابی","بوت نشدن، شبکه نداشتن و کندی.","Troubleshooting","Failure to boot, no network, and slowness.","troubleshoot boot network performance nested"],
+["15","15-cap1.html",0,5,80,"پروژهٔ ۱ — اولین ماشین","نصب یک توزیع و دسترسی ‎SSH‎ از میزبان.","Project 1 — your first machine","Install a distribution and reach it over SSH from the host.","capstone vm ssh",1],
+["16","16-cap2.html",0,7,140,"پروژهٔ ۲ — آزمایشگاه سه‌ماشینه","سه توزیع، یک شبکهٔ داخلی، ارتباط کامل.","Project 2 — a three-machine lab","Three distributions, one private network, full connectivity.","capstone lab network",2],
+["17","17-cap3.html",0,9,190,"پروژهٔ ۳ — آزمایشگاه خودکار","‏Vagrant، ‎cloud-init‎ و بازسازی کامل با یک دستور.","Project 3 — an automated lab","Vagrant, cloud-init and a full rebuild from one command.","capstone vagrant automation",3]
+]});
+
+/* ═══════════════ ۶۳ — اسکرام، اجایل و جیرا ═══════════════ */
+C.push({
+  id:"63-scrum-agile", dir:"63-scrum-agile", accent:"#0EA5E9", cat:"career",
+  ico:"<path d=\"M20.4 12a8.4 8.4 0 1 1-3.4-6.7\" stroke-linecap=\"round\"/><path d=\"M20.6 4.4v4.4h-4.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><circle cx=\"12\" cy=\"12\" r=\"2.2\"/>",
+  fa:{name:"اسکرام، اجایل و جیرا", desc:"چارچوب اسکرام، نقش‌ها، رویدادها، تخمین، ‎backlog‎ و روند واقعی تحویل یک فیچر.",
+      intro:"بیشتر تیم‌هایی که می‌گویند «اسکرام کار می‌کنیم» در واقع جلسهٔ روزانهٔ طولانی دارند و ‎backlog‎ی که کسی نگاهش نمی‌کند. اسکرام یک چارچوب کوچک با قواعد کم است، و همان قواعد کم دلیل دارند. این مسیر هم چارچوب را دقیق می‌گوید و هم صادقانه نشان می‌دهد کجا در عمل شکست می‌خورد — و یک فیچر را از ایده تا production دنبال می‌کند."},
+  en:{name:"Scrum, agile and Jira", desc:"The Scrum framework, roles, events, estimation, backlogs and the real path a feature takes to delivery.",
+      intro:"Most teams that say “we do Scrum” actually have a long daily meeting and a backlog nobody reads. Scrum is a small framework with few rules, and those few rules have reasons. This track states the framework precisely and is honest about where it breaks down in practice — following one feature from idea to production."},
+  ch:[
+["01","01-agile.html",0,12,55,"اجایل چیست","بیانیه، و چیزی که از آن برداشت غلط شد.","What agile is","The manifesto, and what got misread.","agile manifesto principle waterfall"],
+["02","02-scrum-overview.html",0,12,55,"چارچوب اسکرام","سه نقش، پنج رویداد، سه مصنوع.","The Scrum framework","Three roles, five events, three artefacts.","scrum framework role event artifact"],
+["03","03-roles.html",0,12,60,"نقش‌ها","‏Product Owner، Scrum Master، تیم توسعه.","The roles","Product Owner, Scrum Master, developers.","product owner scrum master team accountability"],
+["04","04-backlog.html",0,12,65,"‏product backlog","اولویت‌بندی، ‎refinement‎ و ‎backlog‎ی که زنده است.","The product backlog","Prioritisation, refinement and a backlog that stays alive.","backlog refinement priority grooming"],
+["05","05-user-stories.html",0,12,65,"‏user story","نوشتن داستان خوب و معیار پذیرش.","User stories","Writing a good story and acceptance criteria.","user story acceptance criteria invest"],
+["06","06-estimation.html",0,12,65,"تخمین","‏story point، ‎planning poker‎ و چرا تخمین ساعتی خراب می‌شود.","Estimation","Story points, planning poker, and why hour estimates fail.","story point planning poker velocity relative"],
+["07","07-sprint-planning.html",0,12,60,"‏sprint planning","هدف اسپرینت، ظرفیت و تعهد.","Sprint planning","The sprint goal, capacity and commitment.","sprint planning goal capacity commitment"],
+["08","08-daily.html",0,12,50,"‏daily scrum","پانزده دقیقه، و اینکه چرا معمولاً یک ساعت می‌شود.","The daily scrum","Fifteen minutes, and why it usually becomes an hour.","daily standup impediment sync"],
+["09","09-review-retro.html",0,12,60,"‏review و ‎retrospective‎","نمایش کار، و بهبودی که واقعاً اجرا شود.","Review and retrospective","Showing the work, and improvements that actually happen.","review retrospective demo improvement"],
+["10","10-dod.html",0,12,55,"‏Definition of Done","تعریفی که جلوی «تقریباً تمام شده» را می‌گیرد.","Definition of Done","The definition that kills “almost done”.","definition of done ready quality gate"],
+["11","11-metrics.html",0,12,60,"معیارها","‏velocity، ‎burndown‎، ‎lead time‎ — و سوءاستفاده از آن‌ها.","Metrics","Velocity, burndown, lead time — and how they get abused.","velocity burndown cumulative flow lead time"],
+["12","12-kanban.html",0,12,60,"‏Kanban","جریان به‌جای اسپرینت، و ‎WIP limit‎.","Kanban","Flow instead of sprints, and WIP limits.","kanban wip flow pull board"],
+["13","13-jira-basics.html",0,12,60,"‏Jira: مبانی","پروژه، ‎issue‎، ‎workflow‎ و ‎board‎.","Jira: the basics","Projects, issues, workflows and boards.","jira issue workflow board sprint"],
+["14","14-jira-advanced.html",0,12,65,"‏Jira پیشرفته","‏JQL، خودکارسازی، گزارش و ‎epic‎.","Jira: advanced","JQL, automation, reports and epics.","jql automation report epic filter dashboard"],
+["15","15-feature-flow.html",0,12,70,"روند تحویل یک فیچر","از ایده تا production: هر مرحله و هر تحویل‌دادنی.","The path of a feature","From idea to production: every stage and every handover.","feature flow lifecycle handover release"],
+["16","16-failures.html",0,12,60,"کجا اسکرام شکست می‌خورد","‏«اسکرام آبشاری»، و نشانه‌هایش.","Where Scrum fails","“Waterfall in sprints”, and how to spot it.","antipattern dark scrum zombie failure"],
+["17","17-cap1.html",0,5,80,"پروژهٔ ۱ — ‏backlog و داستان","یک محصول کوچک را به داستان بشکن و تخمین بزن.","Project 1 — backlog and stories","Break a small product into stories and estimate them.","capstone backlog story",1],
+["18","18-cap2.html",0,7,130,"پروژهٔ ۲ — یک اسپرینت کامل","برنامه‌ریزی، تابلو، معیارها و ‎retrospective‎.","Project 2 — a complete sprint","Planning, the board, metrics and a retrospective.","capstone sprint",2],
+["19","19-cap3.html",0,9,170,"پروژهٔ ۳ — راه‌اندازی جیرا برای یک تیم","‏workflow، خودکارسازی، گزارش و ‎DoD‎.","Project 3 — set up Jira for a team","Workflows, automation, reports and a Definition of Done.","capstone jira setup",3]
+]});
+
+/* ═══════════════ ۶۴ — سندنویسی فنی ═══════════════ */
+C.push({
+  id:"64-docs-writing", dir:"64-docs-writing", accent:"#475569", cat:"career",
+  ico:"<path d=\"M6 3.4h8.4L19 8v12.6H6z\"/><path d=\"M14 3.4V8h5M9 12.4h7M9 16h5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
+  fa:{name:"سندنویسی فنی", desc:"‏SRS، BPMN، ‎ADR‎، مستند ‎API‎، ‎RFC‎ و نمودارهای ‎UML‎ — سندی که خوانده شود.",
+      intro:"سند بد از نبودِ سند بدتر است، چون به آن اعتماد می‌کنی و دروغ می‌گوید. نوشتن سند خوب یک مهارت مهندسی است، نه کار اداری: باید بدانی مخاطب کیست، چه تصمیمی می‌خواهد بگیرد، و چه چیزی را می‌شود حذف کرد. این مسیر انواع سند را با نمونهٔ واقعی نشان می‌دهد و در هرکدام می‌گوید چه چیزی را ننویسی."},
+  en:{name:"Technical documentation", desc:"SRS, BPMN, ADRs, API docs, RFCs and UML diagrams — documents people actually read.",
+      intro:"A bad document is worse than none, because you trust it and it lies. Writing well is an engineering skill, not clerical work: you must know who the reader is, what decision they are making, and what can be left out. This track walks through each document type with a real example and, for each, says what not to write."},
+  ch:[
+["01","01-why.html",0,12,50,"چرا سند","هزینهٔ ننوشتن، و هزینهٔ زیاد نوشتن.","Why document at all","The cost of not writing, and the cost of writing too much.","documentation cost audience purpose"],
+["02","02-audience.html",0,12,55,"مخاطب و هدف","برای که می‌نویسی و او چه تصمیمی دارد.","Audience and purpose","Who you write for and what they must decide.","audience purpose scope decision"],
+["03","03-requirements.html",0,12,65,"استخراج نیاز","مصاحبه، سؤال درست و نیاز پنهان.","Eliciting requirements","Interviews, the right questions and hidden needs.","elicitation interview stakeholder requirement"],
+["04","04-srs.html",0,12,75,"‏SRS","سند نیازمندی نرم‌افزار: ساختار، نیاز کارکردی و غیرکارکردی.","SRS","A software requirements specification: structure, functional and non-functional needs.","srs requirement functional nonfunctional ieee"],
+["05","05-user-stories.html",0,12,55,"داستان و معیار پذیرش","سبک چابک در برابر ‎SRS‎ سنگین.","Stories and acceptance criteria","The agile style versus a heavy SRS.","user story acceptance gherkin criteria"],
+["06","06-uml-structure.html",0,12,65,"‏UML ساختاری","نمودار کلاس، مؤلفه و استقرار.","Structural UML","Class, component and deployment diagrams.","uml class component deployment diagram"],
+["07","07-uml-behavior.html",0,12,65,"‏UML رفتاری","‏use case، توالی، فعالیت و وضعیت.","Behavioural UML","Use case, sequence, activity and state diagrams.","uml usecase sequence activity state"],
+["08","08-bpmn.html",0,12,75,"‏BPMN","مدل‌سازی فرایند کسب‌وکار: رویداد، فعالیت، دروازه و ‎lane‎.","BPMN","Business process modelling: events, activities, gateways and lanes.","bpmn process gateway lane event task"],
+["09","09-bpms.html",0,12,60,"‏BPMS","از نمودار تا فرایند اجراشدنی: ‎Camunda‎ و مانند آن.","BPMS","From diagram to executable process: Camunda and friends.","bpms camunda workflow engine executable"],
+["10","10-c4-adr.html",0,12,65,"‏C4 و ‎ADR‎","سند معماری: زمینه تا کد، و ثبت تصمیم.","C4 and ADRs","Architecture documentation: context to code, and recording decisions.","c4 adr context container decision record"],
+["11","11-api-docs.html",0,12,65,"مستند ‎API‎","‏OpenAPI، مثال، خطا و نسخه.","API documentation","OpenAPI, examples, errors and versioning.","openapi swagger example error reference"],
+["12","12-readme.html",0,12,55,"‏README و راهنمای کاربر","اولین سؤال خواننده را اول جواب بده.","READMEs and user guides","Answer the reader's first question first.","readme quickstart tutorial howto diataxis"],
+["13","13-rfc.html",0,12,60,"‏RFC و طرح فنی","پیشنهاد تغییر بزرگ، و گرفتن بازخورد قبل از کد.","RFCs and design docs","Proposing a large change and getting feedback before code.","rfc design doc proposal review"],
+["14","14-diagrams.html",0,12,60,"نمودار خوب","‏Mermaid، PlantUML و قاعده‌های خوانایی.","Good diagrams","Mermaid, PlantUML and the rules of legibility.","mermaid plantuml diagram legibility"],
+["15","15-maintenance.html",0,12,55,"نگه‌داشتن سند زنده","سندی که با کد به‌روز می‌ماند، نه سندی که می‌پوسد.","Keeping docs alive","Documentation that updates with the code instead of rotting.","docs as code review rot changelog"],
+["16","16-cap1.html",0,5,90,"پروژهٔ ۱ — ‏SRS یک سامانهٔ کوچک","از مصاحبه تا سند کامل.","Project 1 — an SRS for a small system","From interview to a complete document.","capstone srs",1],
+["17","17-cap2.html",0,7,140,"پروژهٔ ۲ — مدل‌سازی فرایند با ‎BPMN‎","یک فرایند سازمانی واقعی.","Project 2 — process modelling with BPMN","A real organisational process.","capstone bpmn",2],
+["18","18-cap3.html",0,9,180,"پروژهٔ ۳ — بستهٔ سند معماری","‏C4، ‎ADR‎، مستند ‎API‎ و ‎README‎.","Project 3 — an architecture documentation set","C4, ADRs, API docs and a README.","capstone c4 adr",3]
+]});
+
+/* ═══════════════ ۶۵ — ارائه، سخنرانی و رهبری فنی ═══════════════ */
+C.push({
+  id:"65-presentation", dir:"65-presentation", accent:"#DB2777", cat:"career",
+  ico:"<path d=\"M12 3.4a3 3 0 0 1 3 3v4.4a3 3 0 0 1-6 0V6.4a3 3 0 0 1 3-3z\"/><path d=\"M6.4 11.4a5.6 5.6 0 0 0 11.2 0M12 17v3.6M9 20.6h6\" stroke-linecap=\"round\"/>",
+  fa:{name:"ارائه، سخنرانی و رهبری فنی", desc:"ساختن ارائهٔ فنی، سخنرانی بدون اضطراب، بازبینی کد محترمانه و رشد به سمت ‎tech lead‎.",
+      intro:"در سطحی از کار، کیفیت کدت دیگر تعیین‌کننده نیست — توانایی‌ات در توضیح دادن، متقاعد کردن و هماهنگ کردن آدم‌ها تعیین‌کننده می‌شود. این مهارت‌ها ذاتی نیستند؛ قابل تمرین‌اند، درست مثل الگوریتم. این مسیر آن‌ها را مثل مهارت فنی برخورد می‌کند: با ساختار، تمرین و بازخورد."},
+  en:{name:"Presenting, speaking and tech leadership", desc:"Building a technical talk, speaking without dread, reviewing code respectfully, and growing into a tech lead.",
+      intro:"Past a certain point, the quality of your code stops being the deciding factor and your ability to explain, persuade and align people takes over. These are not innate traits; they are practisable, exactly like algorithms. This track treats them as technical skills: structure, practice and feedback."},
+  ch:[
+["01","01-structure.html",0,12,60,"ساختار یک ارائه","پیام اصلی، قوس روایت و آنچه باید حذف شود.","Structuring a talk","The core message, the narrative arc, and what to cut.","structure narrative message outline"],
+["02","02-audience.html",0,12,55,"شناخت مخاطب","همان محتوا، برای مدیر و برای مهندس — دو ارائهٔ متفاوت.","Knowing your audience","The same content for a manager and an engineer is two different talks.","audience level context executive"],
+["03","03-slides.html",0,12,60,"اسلاید خوب","کمتر متن، بیشتر معنا — و قاعده‌های خوانایی.","Good slides","Less text, more meaning — and the rules of legibility.","slide design contrast font density"],
+["04","04-visuals.html",0,12,60,"نمودار در ارائه","نموداری که در ده ثانیه فهمیده شود.","Visuals in a talk","A diagram understood in ten seconds.","diagram chart visual simplify"],
+["05","05-demo.html",0,12,55,"دموی زنده","چطور دمو بدهی که خراب نشود — و اگر شد چه کنی.","Live demos","How to demo without it breaking — and what to do when it does.","demo backup recording failure"],
+["06","06-delivery.html",0,12,65,"اجرا","صدا، مکث، تماس چشمی و سرعت.","Delivery","Voice, pauses, eye contact and pace.","delivery voice pace pause body language"],
+["07","07-anxiety.html",0,12,60,"اضطراب","چیزی که از بین نمی‌رود، ولی مهارش می‌شود.","Stage anxiety","It does not disappear, but it becomes manageable.","anxiety preparation breathing rehearsal"],
+["08","08-qa.html",0,12,55,"پرسش و پاسخ","سؤال سخت، سؤال خصمانه، و «نمی‌دانم».","Questions and answers","Hard questions, hostile questions, and “I don't know”.","qa question hostile honest"],
+["09","09-writing-persuasive.html",0,12,60,"نوشتن متقاعدکننده","پیشنهاد فنی که پذیرفته شود.","Persuasive writing","A technical proposal that gets accepted.","persuasion proposal argument evidence"],
+["10","10-meetings.html",0,12,55,"جلسهٔ مفید","دستور کار، تصمیم و پیگیری.","Useful meetings","Agenda, decisions and follow-up.","meeting agenda decision facilitation"],
+["11","11-code-review.html",0,12,65,"بازبینی کد","نقد کد بدون تحقیر آدم — و پذیرش نقد.","Code review","Critiquing code without diminishing the person — and taking criticism.","code review feedback tone nitpick"],
+["12","12-mentoring.html",0,12,60,"راهنمایی و آموزش","بزرگ کردن دیگران، به‌جای انجام دادن کارشان.","Mentoring","Growing others instead of doing their work.","mentoring pairing teaching growth"],
+["13","13-techlead.html",0,12,70,"‏tech lead شدن","از «بهترین کدنویس» به «کسی که تیم را جلو می‌برد».","Becoming a tech lead","From best coder to the person who moves the team forward.","tech lead responsibility delegation influence"],
+["14","14-conflict.html",0,12,60,"اختلاف فنی","وقتی دو نفر هر دو منطق دارند.","Technical disagreement","When two people are both being reasonable.","conflict disagree commit tradeoff"],
+["15","15-stakeholders.html",0,12,60,"گفت‌وگو با غیرفنی‌ها","ترجمهٔ ریسک فنی به زبان کسب‌وکار.","Talking to non-technical people","Translating technical risk into business language.","stakeholder business risk translation"],
+["16","16-cap1.html",0,5,80,"پروژهٔ ۱ — ارائهٔ پنج‌دقیقه‌ای","یک موضوع فنی، پنج دقیقه، ضبط و بازبینی.","Project 1 — a five-minute talk","One technical topic, five minutes, recorded and reviewed.","capstone lightning talk",1],
+["17","17-cap2.html",0,7,130,"پروژهٔ ۲ — طرح فنی و دفاع از آن","بنویس، ارائه بده، به سؤال‌ها جواب بده.","Project 2 — a design doc and its defence","Write it, present it, answer the questions.","capstone design doc",2],
+["18","18-cap3.html",0,9,170,"پروژهٔ ۳ — کارگاه فنی","یک موضوع را به دیگران آموزش بده و بازخورد بگیر.","Project 3 — run a technical workshop","Teach a topic to others and collect feedback.","capstone workshop teaching",3]
+]});
+
+
+/* ═══════════════ HTML ═══════════════ */
+C.push({
+  id:"66-html", dir:"66-html", accent:"#E34F26", cat:"frontend",
+  ico:"<path d=\"M4.2 3h15.6l-1.4 15.8L12 21l-6.4-2.2z\"/><path d=\"M8 7.6h8l-.4 4.2H9.4l.2 2.4 2.4.6 2.4-.6.2-1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
+  fa:{name:"HTML", desc:"سند معنایی، فرم، جدول، رسانه، دسترس‌پذیری و ‎SEO‎ — زبانی که همهٔ وب رویش سوار است.",
+      intro:"‏HTML را همه فکر می‌کنند بلدند چون چند تگ می‌شناسند. اما HTML یک زبان نشانه‌گذاری معنایی است، نه فهرستی از تگ‌ها: انتخاب درست تگ تعیین می‌کند صفحه‌خوان چه بخواند، گوگل چه بفهمد، و مرورگر بدون یک خط جاوااسکریپت چه رفتاری بدهد. این مسیر همان معنا را یاد می‌دهد — و در راه، مقدار زیادی جاوااسکریپتِ لازم‌نشده را از تو می‌گیرد."},
+  en:{name:"HTML", desc:"Semantic documents, forms, tables, media, accessibility and SEO — the language the whole web rests on.",
+      intro:"Everyone thinks they know HTML because they know a few tags. But HTML is a semantic markup language, not a tag list: choosing the right element decides what a screen reader announces, what Google understands, and what the browser does for free without a line of JavaScript. This track teaches that meaning — and along the way removes a great deal of JavaScript you never needed."},
+  ch:[
+["01","01-document.html",0,12,50,"سند و درخت","‏HTML یک سند است نه بوم نقاشی. ساختار درختی و ‎DOM‎.","The document and its tree","HTML is a document, not a canvas. The tree structure and the DOM.","html document dom tree parse"],
+["02","02-anatomy.html",0,12,50,"کالبد یک صفحه","‏doctype، head، meta، charset و ترتیبی که مهم است.","Anatomy of a page","doctype, head, meta, charset, and the order that matters.","doctype head meta charset viewport"],
+["03","03-text.html",0,12,55,"متن","عنوان‌بندی، پاراگراف، نقل‌قول، ‎strong‎ در برابر ‎b‎.","Text","Headings, paragraphs, quotations, strong versus b.","heading paragraph strong em blockquote"],
+["04","04-semantic.html",0,12,65,"معناشناسی","‏article، section، nav، aside — و اینکه ‎div‎ کِی درست است.","Semantics","article, section, nav, aside — and when a div is genuinely right.","semantic landmark article section outline"],
+["05","05-links.html",0,12,55,"پیوند","‏href، هدف، ‎rel‎ و پیوند امن به بیرون.","Links","href, targets, rel, and linking outward safely.","anchor href rel noopener target"],
+["06","06-lists.html",0,12,45,"فهرست","‏ul، ol، dl و کاربرد واقعی هرکدام.","Lists","ul, ol, dl and where each genuinely belongs.","list ul ol dl definition"],
+["07","07-images.html",0,12,60,"تصویر و رسانه","‏alt، srcset، picture، ویدیو و زیرنویس.","Images and media","alt, srcset, picture, video and captions.","img alt srcset picture video track"],
+["08","08-tables.html",0,12,55,"جدول","جدول دادهٔ درست: ‎thead‎، ‎scope‎ و ‎caption‎.","Tables","A correct data table: thead, scope and caption.","table thead scope caption colspan"],
+["09","09-forms-1.html",0,12,65,"فرم ۱","‏input، label، نوع‌های ورودی و ‎name‎.","Forms 1","Inputs, labels, input types and name.","form input label type name placeholder"],
+["10","10-forms-2.html",0,12,65,"فرم ۲","اعتبارسنجی داخلی مرورگر، بدون جاوااسکریپت.","Forms 2","The browser's built-in validation, with no JavaScript.","validation required pattern constraint novalidate"],
+["11","11-forms-3.html",0,12,60,"فرم ۳","‏select، datalist، fieldset، آپلود و ارسال.","Forms 3","select, datalist, fieldset, file upload and submission.","select datalist fieldset file submit"],
+["12","12-interactive.html",0,12,55,"عناصر تعاملی","‏details، dialog، progress — رفتار رایگان از مرورگر.","Interactive elements","details, dialog, progress — free behaviour from the browser.","details dialog progress meter popover"],
+["13","13-a11y.html",0,12,70,"دسترس‌پذیری","‏ARIA، ترتیب فوکوس، و اینکه HTML درست ۹۰٪ کار را می‌کند.","Accessibility","ARIA, focus order, and how correct HTML does 90% of the work.","aria role focus screen reader tabindex"],
+["14","14-seo.html",0,12,60,"‏HTML و SEO","‏title، توضیح، داده‌های ساخت‌یافته و ‎sitemap‎.","HTML and SEO","Titles, descriptions, structured data and sitemaps.","seo title meta schema jsonld canonical"],
+["15","15-rtl.html",0,12,55,"فارسی و ‎RTL‎","‏dir، ‎lang‎، متن دوجهته و عدد فارسی.","Persian and RTL","dir, lang, bidirectional text and Persian numerals.","rtl dir lang bidi persian"],
+["16","16-embed.html",0,12,50,"جاسازی و امنیت","‏iframe، ‎sandbox‎ و محتوای بیرونی.","Embedding and safety","iframes, sandboxing and third-party content.","iframe sandbox embed csp"],
+["17","17-validation.html",0,12,50,"اعتبارسنجی و ابزار","اعتبارسنج ‎W3C‎ و خطاهای رایج ساختاری.","Validation and tooling","The W3C validator and common structural errors.","validator w3c lint nesting error"],
+["18","18-cap1.html",0,5,80,"پروژهٔ ۱ — رزومهٔ معنایی","یک صفحهٔ کامل، فقط با ‎HTML‎ درست.","Project 1 — a semantic résumé","One complete page, with correct HTML alone.","capstone semantic resume",1],
+["19","19-cap2.html",0,7,130,"پروژهٔ ۲ — فرم چندمرحله‌ای","اعتبارسنجی کامل بدون یک خط جاوااسکریپت.","Project 2 — a multi-step form","Full validation without a line of JavaScript.","capstone form validation",2],
+["20","20-cap3.html",0,9,170,"پروژهٔ ۳ — صفحهٔ کاملاً دسترس‌پذیر","تست با صفحه‌خوان، کیبورد و اعتبارسنج.","Project 3 — a fully accessible page","Tested with a screen reader, the keyboard and the validator.","capstone accessibility audit",3]
+]});
+
+/* ═══════════════ CSS ═══════════════ */
+C.push({
+  id:"67-css", dir:"67-css", accent:"#2965F1", cat:"frontend", pre:["66-html"],
+  ico:"<path d=\"M4.2 3h15.6l-1.4 15.8L12 21l-6.4-2.2z\"/><path d=\"M15.8 7.6H8.6l.3 3.2h6.6l-.4 3.6-3.1.8-3.1-.8-.2-1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
+  fa:{name:"CSS", desc:"آبشار، مدل جعبه، Flexbox، Grid، متغیر، انیمیشن، ‎RTL‎ و کارایی رندر.",
+      intro:"بیشتر ناامیدی از ‎CSS‎ از یک چیز می‌آید: آدم‌ها خاصیت‌ها را حفظ می‌کنند ولی مدل زیرین را نه. چرا این ‎margin‎ اعمال نشد، چرا آن عنصر وسط نمی‌آید، چرا ‎z-index‎ کار نمی‌کند — همه جواب دقیق دارند، و همه از سه مفهوم می‌آیند: آبشار، جریان، و بافت انباشت. این مسیر آن سه را محکم می‌کند، بعد می‌رود سراغ چیدمان."},
+  en:{name:"CSS", desc:"The cascade, the box model, Flexbox, Grid, custom properties, animation, RTL and render performance.",
+      intro:"Most frustration with CSS comes from one thing: people memorise properties but not the underlying model. Why that margin did not apply, why the element will not centre, why z-index does nothing — each has an exact answer, and they all come from three ideas: the cascade, flow, and stacking contexts. This track makes those solid, then moves to layout."},
+  ch:[
+["01","01-cascade.html",0,12,65,"آبشار و ویژگی","منشأ بیشتر «چرا اعمال نمی‌شود؟»","The cascade and specificity","The source of most “why is this not applying?”","cascade specificity inherit important layer"],
+["02","02-selectors.html",0,12,60,"انتخابگرها","ترکیبی، شبه‌کلاس، ‎:has()‎ و ‎:is()‎.","Selectors","Combinators, pseudo-classes, :has() and :is().","selector pseudo class has is where nth"],
+["03","03-box-model.html",0,12,60,"مدل جعبه","‏margin، padding، border و ‎border-box‎.","The box model","margin, padding, border and border-box.","box model border-box collapse overflow"],
+["04","04-flow.html",0,12,60,"جریان سند","‏block، inline، ‎inline-block‎ و ‎BFC‎.","Document flow","block, inline, inline-block and block formatting contexts.","flow block inline bfc float clear"],
+["05","05-units.html",0,12,55,"واحدها","‏px، rem، em، ‎%‎، ‎vh‎، ‎ch‎ و ‎clamp()‎.","Units","px, rem, em, %, vh, ch and clamp().","unit rem em vh clamp calc"],
+["06","06-color.html",0,12,55,"رنگ","‏hex، ‎hsl‎، ‎oklch‎، شفافیت و ‎color-mix()‎.","Colour","hex, hsl, oklch, alpha and color-mix().","color hsl oklch opacity color-mix contrast"],
+["07","07-typography.html",0,12,60,"تایپوگرافی","خط، فاصله، ‎font-face‎ و فونت متغیر.","Typography","Line height, spacing, font-face and variable fonts.","font typography line-height woff2 variable"],
+["08","08-flexbox.html",0,12,70,"Flexbox","چیدمان یک‌بعدی — و اینکه هر خاصیت روی کدام محور اثر دارد.","Flexbox","One-dimensional layout — and which axis each property affects.","flex justify align gap basis grow shrink"],
+["09","09-grid-1.html",0,12,70,"Grid ۱","ستون، ردیف، ‎fr‎ و ‎gap‎.","Grid 1","Columns, rows, fr units and gap.","grid template columns rows fr gap"],
+["10","10-grid-2.html",0,12,70,"Grid ۲","ناحیهٔ نام‌دار، ‎auto-fit‎، ‎minmax‎ و چیدمان زیرشبکه.","Grid 2","Named areas, auto-fit, minmax and subgrid.","grid area autofit minmax subgrid dense"],
+["11","11-position.html",0,12,60,"موقعیت و لایه","‏sticky، ‎absolute‎ و بافت انباشت ‎z-index‎.","Positioning and layers","sticky, absolute and the z-index stacking context.","position sticky absolute z-index stacking"],
+["12","12-responsive.html",0,12,65,"واکنش‌گرایی","‏media query، ‎container query‎ و طراحی سیال.","Responsive design","Media queries, container queries and fluid design.","responsive media container query breakpoint"],
+["13","13-variables.html",0,12,60,"متغیرهای ‎CSS‎","‏custom property، دامنه، و ساخت تم تاریک.","CSS custom properties","Custom properties, scope, and building a dark theme.","variable custom property theme dark scope"],
+["14","14-transitions.html",0,12,60,"گذار و انیمیشن","‏transition، ‎keyframes‎ و حرکتی که آزار ندهد.","Transitions and animation","transitions, keyframes and motion that does not annoy.","transition animation keyframes reduced motion"],
+["15","15-transforms.html",0,12,55,"تبدیل","‏translate، ‎scale‎، ‎rotate‎ و سه‌بعدی.","Transforms","translate, scale, rotate and 3D.","transform translate scale rotate perspective"],
+["16","16-rtl.html",0,12,60,"‏RTL و خاصیت منطقی","‏inline-start به‌جای ‎left‎ — درس اصلی برای فارسی.","RTL and logical properties","inline-start instead of left — the key lesson for Persian.","rtl logical inline-start direction margin-inline"],
+["17","17-architecture.html",0,12,60,"معماری ‎CSS‎","‏BEM، لایه‌بندی و کدی که بشود حذفش کرد.","CSS architecture","BEM, layering, and code you can safely delete.","bem architecture layer naming scope"],
+["18","18-performance.html",0,12,65,"کارایی رندر","‏reflow، ‎repaint‎، ‎contain‎ و اسکرول روان.","Render performance","Reflow, repaint, contain and smooth scrolling.","reflow repaint contain will-change compositing"],
+["19","19-modern.html",0,12,60,"‏CSS مدرن","‏@layer، ‎@container‎، ‎:has()‎، ‎nesting‎ و ‎@supports‎.","Modern CSS","@layer, @container, :has(), nesting and @supports.","layer container has nesting supports"],
+["20","20-cap1.html",0,5,80,"پروژهٔ ۱ — چیدمان صفحه","یک صفحهٔ کامل با ‎Grid‎ و ‎Flexbox‎.","Project 1 — a page layout","A full page with Grid and Flexbox.","capstone layout",1],
+["21","21-cap2.html",0,7,140,"پروژهٔ ۲ — سیستم تم","توکن، تم روشن و تاریک، و ‎RTL‎.","Project 2 — a theming system","Tokens, light and dark themes, and RTL.","capstone theme tokens",2],
+["22","22-cap3.html",0,9,180,"پروژهٔ ۳ — رابط کامل بدون فریم‌ورک","واکنش‌گرا، دسترس‌پذیر و با اسکرول روان.","Project 3 — a complete UI, no framework","Responsive, accessible and smooth-scrolling.","capstone ui performance",3]
+]});
+
+/* ═══════════════ Sass ═══════════════ */
+C.push({
+  id:"68-sass", dir:"68-sass", accent:"#CD6799", cat:"frontend", pre:["67-css"],
+  ico:"<path d=\"M3.4 12.4c3-5.4 8.8-7.8 13-7 2.6.5 3.8 2.2 3.2 3.8-1 2.6-5.6 3-8.6 1.6-2.4-1.1-2-3 .4-2.6\" stroke-linecap=\"round\"/><path d=\"M20.6 13.6c-2.6 4.6-7.6 6.8-11.4 6.2\" stroke-linecap=\"round\" opacity=\".75\"/>",
+  fa:{name:"Sass", desc:"متغیر، تودرتویی، ‎mixin‎، تابع، ماژول و معماری ‎7-1‎ — ‎CSS‎ در مقیاس.",
+      intro:"‏Sass اولین چیزی بود که ‎CSS‎ را قابل مدیریت کرد، و با اینکه ‎CSS‎ امروز خیلی از قابلیت‌هایش را دارد، هنوز جایی می‌ماند که ‎CSS‎ نمی‌رسد: منطق در زمان کامپایل. این مسیر یاد می‌دهد کجا ‎Sass‎ هنوز ارزش دارد و کجا فقط پیچیدگی اضافه است — چون بخش زیادی از ‎Sass‎ی که تیم‌ها می‌نویسند، امروز با ‎CSS‎ خام ساده‌تر است."},
+  en:{name:"Sass", desc:"Variables, nesting, mixins, functions, modules and the 7-1 architecture — CSS at scale.",
+      intro:"Sass was the first thing that made CSS manageable, and although modern CSS has absorbed many of its features, it still reaches where CSS cannot: logic at compile time. This track shows where Sass still earns its place and where it is now just extra complexity — because much of the Sass teams write today is simpler in plain CSS."},
+  ch:[
+["01","01-why.html",0,12,50,"چرا ‎Sass‎ آمد","مسئله‌ای که ‎CSS‎ آن زمان نداشت.","Why Sass appeared","The problem CSS did not solve at the time.","sass scss why preprocessor history"],
+["02","02-setup.html",0,12,45,"راه‌اندازی","‏dart-sass، ‎watch‎ و یکپارچگی با ابزار بیلد.","Getting set up","dart-sass, watching, and build-tool integration.","install dart sass watch cli vite"],
+["03","03-syntax.html",0,12,50,"نحو","‏SCSS در برابر نحو تورفته.","Syntax","SCSS versus the indented syntax.","scss sass syntax indented"],
+["04","04-variables.html",0,12,55,"متغیر","متغیر ‎Sass‎ در برابر ‎custom property‎ — تفاوت مهم.","Variables","Sass variables versus CSS custom properties — an important difference.","variable custom property compile runtime"],
+["05","05-nesting.html",0,12,55,"تودرتویی","قدرتش، و دامی که ویژگی را منفجر می‌کند.","Nesting","Its power, and the trap that explodes specificity.","nesting ampersand specificity depth"],
+["06","06-partials.html",0,12,55,"‏partial و ماژول","‏@use و ‎@forward‎ به‌جای ‎@import‎ منسوخ.","Partials and modules","@use and @forward instead of the deprecated @import.","partial use forward import namespace"],
+["07","07-mixins.html",0,12,65,"‎mixin‎","کد قابل استفادهٔ مجدد با پارامتر و بلوک محتوا.","Mixins","Reusable code with parameters and content blocks.","mixin include content parameter default"],
+["08","08-functions.html",0,12,60,"تابع","تابع خودت، و توابع داخلی رنگ و ریاضی.","Functions","Your own functions, plus the built-in colour and maths modules.","function return math color module"],
+["09","09-control.html",0,12,60,"کنترل جریان","‏@if، ‎@each‎، ‎@for‎ و تولید کلاس.","Control flow","@if, @each, @for and generating classes.","if each for while map list"],
+["10","10-maps.html",0,12,60,"‏map","توکن طراحی به‌صورت ساختار داده.","Maps","Design tokens as a data structure.","map get merge keys token"],
+["11","11-extend.html",0,12,50,"‎@extend‎","چرا معمولاً باید از ‎mixin‎ استفاده کنی نه این.","@extend","Why you should usually reach for a mixin instead.","extend placeholder selector output"],
+["12","12-architecture.html",0,12,65,"معماری ‎7-1‎","ساختار پوشه‌ای که در پروژهٔ بزرگ دوام می‌آورد.","The 7-1 architecture","A folder structure that survives a large project.","7-1 architecture folder abstract layout"],
+["13","13-bem.html",0,12,55,"‏BEM با ‎Sass‎","نام‌گذاری منظم و ‎&__element‎.","BEM with Sass","Disciplined naming and &__element.","bem naming block element modifier"],
+["14","14-modern-css.html",0,12,60,"‏Sass یا ‎CSS‎ مدرن؟","چه چیزی را دیگر لازم نداری.","Sass or modern CSS?","What you no longer need it for.","nesting variable modern css comparison"],
+["15","15-cap1.html",0,5,70,"پروژهٔ ۱ — بازنویسی با ‎Sass‎","یک ‎CSS‎ تکراری را ماژولار کن.","Project 1 — refactor into Sass","Make a repetitive stylesheet modular.","capstone refactor",1],
+["16","16-cap2.html",0,7,120,"پروژهٔ ۲ — سیستم توکن","‏map، تابع و تولید خودکار کلاس‌ها.","Project 2 — a token system","Maps, functions and generated utility classes.","capstone token map",2],
+["17","17-cap3.html",0,9,160,"پروژهٔ ۳ — کتابخانهٔ استایل","ساختار ‎7-1‎، تم، ‎RTL‎ و مستندات.","Project 3 — a style library","7-1 structure, theming, RTL and documentation.","capstone library",3]
+]});
+
+/* ═══════════════ Tailwind CSS ═══════════════ */
+C.push({
+  id:"69-tailwind", dir:"69-tailwind", accent:"#06B6D4", cat:"frontend", pre:["67-css"],
+  ico:"<path d=\"M7.4 10.4c.6-2.6 2.3-3.9 5-3.9 4 0 4.5 3 6.6 3.5 1.3.3 2.5-.2 3.5-1.5-.6 2.6-2.3 3.9-5 3.9-4 0-4.5-3-6.6-3.5-1.3-.3-2.5.2-3.5 1.5z\"/><path d=\"M1.5 17c.6-2.6 2.3-3.9 5-3.9 4 0 4.5 3 6.6 3.5 1.3.3 2.5-.2 3.5-1.5-.6 2.6-2.3 3.9-5 3.9-4 0-4.5-3-6.6-3.5-1.3-.3-2.5.2-3.5 1.5z\"/>",
+  fa:{name:"Tailwind CSS", desc:"‏utility-first، پیکربندی، توکن طراحی، ‎variant‎، پلاگین، ‎RTL‎ و بهینه‌سازی باندل.",
+      intro:"اولین واکنش تقریباً همه به ‎Tailwind‎ این است: «این که همان ‎inline style‎ است.» نیست، و تفاوتش دقیقاً همان چیزی است که ارزشش را می‌سازد — مجموعه‌ای محدود از مقادیر مجاز، یعنی یک سیستم طراحی که رعایتش اجباری است. این مسیر از همان جا شروع می‌کند، و بعد نشان می‌دهد کجا ‎Tailwind‎ واقعاً اذیت می‌کند."},
+  en:{name:"Tailwind CSS", desc:"Utility-first, configuration, design tokens, variants, plugins, RTL and bundle optimisation.",
+      intro:"Almost everyone's first reaction to Tailwind is: “this is just inline styles.” It is not, and the difference is exactly what makes it valuable — a constrained set of permitted values, which is to say a design system you cannot casually break. This track starts there, then shows honestly where Tailwind does get in the way."},
+  ch:[
+["01","01-why.html",0,12,55,"‏utility-first","چرا کلاس زیاد در ‎HTML‎ لزوماً بد نیست.","Utility-first","Why many classes in your HTML is not necessarily bad.","utility first atomic inline comparison"],
+["02","02-setup.html",0,12,50,"راه‌اندازی","نصب، ‎CLI‎، و یکپارچگی با ‎Vite‎ و فریم‌ورک‌ها.","Getting set up","Installation, the CLI, and integrating with Vite and frameworks.","install cli vite postcss config"],
+["03","03-core.html",0,12,60,"کلاس‌های پایه","فاصله، رنگ، متن، حاشیه و اندازه.","The core utilities","Spacing, colour, text, borders and sizing.","spacing color text border sizing scale"],
+["04","04-layout.html",0,12,65,"چیدمان","‏Flexbox و ‎Grid‎ با کلاس‌های ‎Tailwind‎.","Layout","Flexbox and Grid the Tailwind way.","flex grid gap container layout"],
+["05","05-responsive.html",0,12,60,"واکنش‌گرایی","‏breakpoint‌ها و رویکرد ‎mobile-first‎.","Responsive design","Breakpoints and the mobile-first approach.","responsive breakpoint sm md lg mobile first"],
+["06","06-states.html",0,12,60,"حالت‌ها و ‎variant‎","‏hover، focus، ‎group‎، ‎peer‎ و ‎data-*‎.","States and variants","hover, focus, group, peer and data-* variants.","hover focus group peer variant data"],
+["07","07-dark.html",0,12,55,"تم تاریک","دو راهبرد، و انتخاب درست.","Dark mode","Two strategies, and choosing correctly.","dark mode class media strategy"],
+["08","08-config.html",0,12,70,"پیکربندی","گسترش تم، توکن طراحی و مقیاس سفارشی.","Configuration","Extending the theme, design tokens and custom scales.","config theme extend token scale"],
+["09","09-components.html",0,12,65,"کامپوننت","‎@apply‎، تکرار، و اینکه کِی باید انتزاع بسازی.","Components","@apply, repetition, and when to abstract.","apply component extract cva clsx"],
+["10","10-plugins.html",0,12,60,"پلاگین","پلاگین رسمی و نوشتن پلاگین خودت.","Plugins","Official plugins and writing your own.","plugin typography forms addutilities"],
+["11","11-rtl.html",0,12,60,"‏RTL و فارسی","‏ps/pe به‌جای ‎pl/pr‎، و فونت فارسی.","RTL and Persian","ps/pe instead of pl/pr, and Persian fonts.","rtl logical ps pe direction font"],
+["12","12-animation.html",0,12,55,"انیمیشن","‏transition، ‎animate‎ و ‎keyframes‎ سفارشی.","Animation","transition, animate and custom keyframes.","transition animate keyframes motion"],
+["13","13-optimization.html",0,12,60,"بهینه‌سازی","چطور باندل نهایی چند کیلوبایت می‌ماند.","Optimisation","How the final bundle stays a few kilobytes.","purge content jit bundle size"],
+["14","14-headless.html",0,12,60,"کامپوننت آماده","‏Headless UI، ‎Radix‎ و ‎shadcn‎ در کنار ‎Tailwind‎.","Component libraries","Headless UI, Radix and shadcn alongside Tailwind.","headless radix shadcn accessible component"],
+["15","15-tradeoffs.html",0,12,55,"کجا اذیت می‌کند","خوانایی ‎HTML‎، بازبینی کد و تیم بزرگ.","Where it hurts","HTML readability, code review and large teams.","tradeoff readability review criticism"],
+["16","16-cap1.html",0,5,70,"پروژهٔ ۱ — صفحهٔ فرود","یک صفحهٔ واکنش‌گرا با ‎Tailwind‎ خالص.","Project 1 — a landing page","A responsive page in pure Tailwind.","capstone landing",1],
+["17","17-cap2.html",0,7,130,"پروژهٔ ۲ — تم سفارشی","توکن، تم تاریک، ‎RTL‎ و پلاگین خودت.","Project 2 — a custom theme","Tokens, dark mode, RTL and your own plugin.","capstone theme plugin",2],
+["18","18-cap3.html",0,9,170,"پروژهٔ ۳ — داشبورد کامل","کامپوننت‌های تکرارشونده، دسترس‌پذیری و باندل کوچک.","Project 3 — a complete dashboard","Repeatable components, accessibility and a small bundle.","capstone dashboard",3]
+]});
+
+/* ═══════════════ Bootstrap ═══════════════ */
+C.push({
+  id:"70-bootstrap", dir:"70-bootstrap", accent:"#7952B3", cat:"frontend", pre:["67-css"],
+  ico:"<rect x=\"2.6\" y=\"2.6\" width=\"18.8\" height=\"18.8\" rx=\"4.4\"/><path d=\"M8.6 17V7h4.2c1.9 0 2.9 1 2.9 2.4 0 1.2-.8 2.1-2 2.3v.1c1.5.1 2.5 1.1 2.5 2.5 0 1.7-1.2 2.7-3.3 2.7z\" stroke-linejoin=\"round\"/>",
+  fa:{name:"Bootstrap", desc:"شبکه، کامپوننت آماده، ابزار ‎JavaScript‎، سفارشی‌سازی با ‎Sass‎ و ‎RTL‎.",
+      intro:"‏Bootstrap سریع‌ترین راه رسیدن به یک رابط قابل‌قبول است و همین باعث می‌شود هم بی‌جهت تحقیر شود و هم بی‌جهت همه‌جا استفاده شود. برای پنل داخلی، ابزار سازمانی و نمونهٔ اولیه، هنوز انتخاب عاقلانه‌ای است. این مسیر آن را جدی یاد می‌دهد — و مهم‌تر، یاد می‌دهد چطور سفارشی‌اش کنی که شبیه ‎Bootstrap‎ نباشد."},
+  en:{name:"Bootstrap", desc:"The grid, ready-made components, JavaScript widgets, Sass customisation and RTL.",
+      intro:"Bootstrap is the fastest route to an acceptable interface, which is why it gets both unfair scorn and unwarranted ubiquity. For internal panels, admin tools and prototypes it is still the sensible choice. This track teaches it seriously — and, more importantly, teaches you to customise it so it does not look like Bootstrap."},
+  ch:[
+["01","01-why.html",0,12,50,"کِی ‎Bootstrap‎","کجا انتخاب درستی است و کجا نه.","When Bootstrap","Where it is the right choice and where it is not.","bootstrap when comparison admin prototype"],
+["02","02-setup.html",0,12,45,"راه‌اندازی","‏CDN، ‎npm‎ و ساختار فایل‌ها.","Getting set up","CDN, npm and the file structure.","install cdn npm bundle scss"],
+["03","03-layout.html",0,12,60,"‏container و شبکه","‏۱۲ ستون، ‎gutter‎ و ‎breakpoint‎.","Containers and the grid","Twelve columns, gutters and breakpoints.","container row col grid gutter breakpoint"],
+["04","04-flex-utils.html",0,12,55,"کلاس‌های کمکی","فاصله، نمایش، ‎Flexbox‎ و متن.","Utility classes","Spacing, display, Flexbox and text.","utility spacing display flex text"],
+["05","05-typography.html",0,12,50,"تایپوگرافی و رنگ","مقیاس متن، رنگ‌های معنایی و ‎badge‎.","Typography and colour","The type scale, semantic colours and badges.","typography color badge text muted"],
+["06","06-components-1.html",0,12,65,"کامپوننت ۱","دکمه، کارت، ‎navbar‎، ‎alert‎.","Components 1","Buttons, cards, navbars, alerts.","button card navbar alert list group"],
+["07","07-components-2.html",0,12,65,"کامپوننت ۲","‏table، ‎pagination‎، ‎breadcrumb‎، ‎spinner‎.","Components 2","Tables, pagination, breadcrumbs, spinners.","table pagination breadcrumb spinner progress"],
+["08","08-forms.html",0,12,65,"فرم","ورودی، اعتبارسنجی و چیدمان فرم.","Forms","Inputs, validation and form layout.","form input validation floating label"],
+["09","09-js-components.html",0,12,65,"کامپوننت تعاملی","مودال، ‎dropdown‎، ‎tooltip‎، ‎collapse‎، ‎toast‎.","Interactive components","Modals, dropdowns, tooltips, collapse, toasts.","modal dropdown tooltip collapse toast offcanvas"],
+["10","10-js-api.html",0,12,55,"‏API جاوااسکریپت","کنترل کامپوننت‌ها از کد، و رویدادهایشان.","The JavaScript API","Controlling components from code, and their events.","javascript api event instance dispose"],
+["11","11-customize.html",0,12,70,"سفارشی‌سازی","متغیرهای ‎Sass‎، و اینکه چطور شبیه ‎Bootstrap‎ نباشد.","Customisation","Sass variables, and how to stop looking like Bootstrap.","customize sass variable override theme"],
+["12","12-rtl.html",0,12,55,"‏RTL و فارسی","نسخهٔ ‎RTL‎، فونت فارسی و نکات چیدمان.","RTL and Persian","The RTL build, Persian fonts and layout notes.","rtl bootstrap-rtl direction persian"],
+["13","13-optimize.html",0,12,55,"بهینه‌سازی","فقط چیزی که لازم داری را وارد کن.","Optimisation","Import only what you use.","import tree shaking bundle size purge"],
+["14","14-cap1.html",0,5,70,"پروژهٔ ۱ — پنل مدیریت","شبکه، ‎navbar‎، جدول و فرم.","Project 1 — an admin panel","Grid, navbar, tables and forms.","capstone admin",1],
+["15","15-cap2.html",0,7,120,"پروژهٔ ۲ — تم سفارشی","متغیر ‎Sass‎، رنگ برند و ‎RTL‎.","Project 2 — a custom theme","Sass variables, brand colours and RTL.","capstone theme",2],
+["16","16-cap3.html",0,9,160,"پروژهٔ ۳ — اپ چندصفحه‌ای","کامپوننت تعاملی، اعتبارسنجی و دسترس‌پذیری.","Project 3 — a multi-page app","Interactive components, validation and accessibility.","capstone app",3]
+]});
+
+/* ═══════════════ زبان Java ═══════════════ */
+C.push({
+  id:"71-java", dir:"71-java", accent:"#E76F00", cat:"backend",
+  ico:"<path d=\"M9.4 17.6c-2.6.7-4.2 1.7-1 2.4 4 .9 9.6.5 11-.2M10.4 14.4c-2 .6-3 1.4-.7 2 3 .7 7.6.4 9-.2\" stroke-linecap=\"round\"/><path d=\"M13.6 3.4c1.8 2-2.4 3.4-2.4 5.4 0 1.8 3 2.6 3 4.4\" stroke-linecap=\"round\"/>",
+  fa:{name:"زبان Java", desc:"‏JVM، شیءگرایی، ‎generic‎، ‎Stream‎، همروندی، ماژول و ابزار بیلد.",
+      intro:"‏Java زبان سازمان‌هاست — نه چون بهترین است، بلکه چون پیش‌بینی‌پذیر است: کدی که امروز می‌نویسی، ده سال دیگر هم کامپایل می‌شود. این پایداری هزینه دارد (پرگویی) و سود دارد (اکوسیستم عظیم و ابزار بالغ). این مسیر ‎Java‎ مدرن را یاد می‌دهد، نه ‎Java‎ی سال ۲۰۰۸: ‎record‎، ‎var‎، ‎switch‎ الگویی و ‎virtual thread‎."},
+  en:{name:"Java", desc:"The JVM, object orientation, generics, streams, concurrency, modules and build tooling.",
+      intro:"Java is the language of institutions — not because it is the best, but because it is predictable: code you write today still compiles in ten years. That stability has a cost (verbosity) and a payoff (an enormous ecosystem and mature tooling). This track teaches modern Java, not 2008 Java: records, var, pattern-matching switch and virtual threads."},
+  ch:[
+["01","01-jvm.html",0,12,55,"‏JVM و اولین برنامه","کامپایل، ‎bytecode‎ و اجرا.","The JVM and your first program","Compilation, bytecode and execution.","jvm jdk jre bytecode classpath"],
+["02","02-types.html",0,12,55,"نوع‌ها","اولیه در برابر شیء، ‎autoboxing‎ و ‎var‎.","Types","Primitives versus objects, autoboxing and var.","primitive wrapper autoboxing var literal"],
+["03","03-oop-1.html",0,12,60,"شیءگرایی ۱","کلاس، سازنده، ‎encapsulation‎.","OOP 1","Classes, constructors and encapsulation.","class constructor field encapsulation"],
+["04","04-oop-2.html",0,12,65,"شیءگرایی ۲","وراثت، ‎interface‎، ‎abstract‎ و چندریختی.","OOP 2","Inheritance, interfaces, abstract classes and polymorphism.","inheritance interface abstract polymorphism"],
+["05","05-records.html",0,12,55,"‏record و ‎sealed‎","‏Java مدرن: داده بدون پرگویی.","Records and sealed types","Modern Java: data without ceremony.","record sealed immutable equals"],
+["06","06-generics.html",0,12,65,"‏generic","‏wildcard، ‎bound‎ و ‎type erasure‎.","Generics","Wildcards, bounds and type erasure.","generic wildcard bound erasure"],
+["07","07-collections.html",0,12,65,"مجموعه‌ها","‏List، Map، Set و انتخاب درست.","Collections","List, Map, Set and choosing correctly.","collection list map set comparator"],
+["08","08-streams.html",0,12,70,"‏Stream و ‎lambda‎","برنامه‌نویسی تابعی در ‎Java‎.","Streams and lambdas","Functional programming in Java.","stream lambda collector optional map filter"],
+["09","09-optional.html",0,12,50,"‏Optional","‏null بدون ‎NullPointerException‎.","Optional","Absence without a NullPointerException.","optional null npe orelse"],
+["10","10-exceptions.html",0,12,55,"خطا","‏checked و ‎unchecked‎، و ‎try-with-resources‎.","Exceptions","Checked and unchecked, and try-with-resources.","exception checked try-with-resources finally"],
+["11","11-io.html",0,12,55,"فایل و ‎I/O‎","‏NIO، مسیر، خواندن و نوشتن.","Files and I/O","NIO, paths, reading and writing.","nio path files reader stream"],
+["12","12-concurrency-1.html",0,12,70,"همروندی ۱","نخ، ‎executor‎ و ‎synchronized‎.","Concurrency 1","Threads, executors and synchronized.","thread executor synchronized runnable"],
+["13","13-concurrency-2.html",0,12,70,"همروندی ۲","‏CompletableFuture و ‎virtual thread‎.","Concurrency 2","CompletableFuture and virtual threads.","completablefuture virtual thread loom"],
+["14","14-modules.html",0,12,50,"ماژول و پکیج","‏JPMS و سازماندهی کد.","Modules and packages","JPMS and organising code.","module jpms package visibility"],
+["15","15-build.html",0,12,60,"‏Maven و ‎Gradle‎","وابستگی، ‎lifecycle‎ و چندماژولی.","Maven and Gradle","Dependencies, lifecycles and multi-module builds.","maven gradle pom dependency lifecycle"],
+["16","16-testing.html",0,12,60,"تست","‏JUnit 5، ‎Mockito‎ و ‎assertion‎ خوانا.","Testing","JUnit 5, Mockito and readable assertions.","junit mockito assertj parameterized"],
+["17","17-jvm-tuning.html",0,12,60,"‏JVM در عمل","حافظه، ‎GC‎ و پروفایل.","The JVM in practice","Memory, garbage collection and profiling.","heap gc jvm flags profiling jfr"],
+["18","18-cap1.html",0,5,90,"پروژهٔ ۱ — ابزار خط فرمان","خواندن فایل، پردازش و تست.","Project 1 — a CLI tool","Reading files, processing and tests.","capstone cli",1],
+["19","19-cap2.html",0,7,150,"پروژهٔ ۲ — کتابخانه","‏API تمیز، ‎generic‎ و انتشار ‎Maven‎.","Project 2 — a library","A clean API, generics and Maven publishing.","capstone library",2],
+["20","20-cap3.html",0,9,200,"پروژهٔ ۳ — پردازشگر همروند","‏executor، ‎virtual thread‎ و اندازه‌گیری.","Project 3 — a concurrent processor","Executors, virtual threads and measurement.","capstone concurrency",3]
+]});
+
+/* ═══════════════ Spring Boot ═══════════════ */
+C.push({
+  id:"72-spring-boot", dir:"72-spring-boot", accent:"#6DB33F", cat:"backend", pre:["71-java"], soft:["05-sql"],
+  ico:"<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M8 14.6c2.6 1.6 5.6 1.2 7-.6 1.6-2 .8-4.6-1.4-5.4-1.8-.7-3.2.4-3 1.8.2 1.3 1.8 1.4 2.6.6\" stroke-linecap=\"round\"/>",
+  fa:{name:"Spring Boot", desc:"‏DI، ‎REST‎، ‎JPA‎، امنیت، تست، ‎cache‎، پیام و استقرار — فریم‌ورک غالب دنیای ‎Java‎.",
+      intro:"‏Spring پیش از ‎Boot‎ به پیکربندی ‎XML‎ بی‌پایان معروف بود. ‎Boot‎ یک تصمیم گرفت: پیش‌فرض عاقلانه بگذار و فقط چیزی را که فرق دارد بنویس. نتیجه‌اش این است که در پنج دقیقه یک سرویس داری — و در ماه ششم، وقتی باید بفهمی آن پیش‌فرض از کجا آمده، این مسیر به کارت می‌آید."},
+  en:{name:"Spring Boot", desc:"DI, REST, JPA, security, testing, caching, messaging and deployment — the dominant Java framework.",
+      intro:"Before Boot, Spring was famous for endless XML configuration. Boot made one decision: supply sensible defaults and only write what differs. The result is a running service in five minutes — and in month six, when you need to know where a default came from, this track is what helps."},
+  ch:[
+["01","01-why.html",0,12,55,"چرا ‎Spring Boot‎","‏auto-configuration و ‎starter‎.","Why Spring Boot","Auto-configuration and starters.","spring boot starter autoconfiguration"],
+["02","02-di.html",0,12,70,"تزریق وابستگی","‏bean، ‎context‎، دامنه و چرخهٔ عمر.","Dependency injection","Beans, the context, scopes and lifecycles.","bean context inject component scope"],
+["03","03-config.html",0,12,60,"پیکربندی","‏properties، ‎profile‎ و ‎@ConfigurationProperties‎.","Configuration","Properties, profiles and @ConfigurationProperties.","properties yaml profile configurationproperties"],
+["04","04-web.html",0,12,60,"‏Spring Web","کنترلر، مسیریابی و ‎REST‎.","Spring Web","Controllers, routing and REST.","controller restcontroller mapping requestbody"],
+["05","05-validation.html",0,12,55,"اعتبارسنجی و ‎DTO‎","‏Bean Validation و جدا کردن مدل انتقال.","Validation and DTOs","Bean Validation and separating the transport model.","validation dto mapstruct valid"],
+["06","06-errors.html",0,12,55,"مدیریت خطا","‏@ControllerAdvice و پاسخ یکدست.","Error handling","@ControllerAdvice and consistent responses.","exception handler controlleradvice problem"],
+["07","07-jpa-1.html",0,12,70,"‏JPA ۱","‏entity، رابطه و ‎repository‎.","JPA 1","Entities, relationships and repositories.","jpa entity repository relation mapping"],
+["08","08-jpa-2.html",0,12,75,"‏JPA ۲","‏N+1، ‎fetch‎، ‎lazy‎ و کوئری بهینه.","JPA 2","N+1, fetch strategies, laziness and efficient queries.","n+1 fetch lazy join entitygraph"],
+["09","09-migrations.html",0,12,50,"مهاجرت پایگاه‌داده","‏Flyway و ‎Liquibase‎.","Database migrations","Flyway and Liquibase.","flyway liquibase migration versioning"],
+["10","10-security-1.html",0,12,70,"‏Spring Security ۱","زنجیرهٔ فیلتر، احراز هویت و ‎UserDetails‎.","Spring Security 1","The filter chain, authentication and UserDetails.","security filter chain authentication userdetails"],
+["11","11-security-2.html",0,12,70,"‏Spring Security ۲","‏JWT، ‎OAuth2‎ و مجوز روش‌محور.","Spring Security 2","JWT, OAuth2 and method-level authorisation.","jwt oauth2 preauthorize resource server"],
+["12","12-testing.html",0,12,70,"تست","‏slice test، ‎MockMvc‎ و ‎Testcontainers‎.","Testing","Slice tests, MockMvc and Testcontainers.","springboottest mockmvc testcontainers slice"],
+["13","13-caching.html",0,12,55,"کش","‎@Cacheable‎ و ‎Redis‎.","Caching","@Cacheable and Redis.","cache cacheable redis eviction"],
+["14","14-async.html",0,12,60,"کار ناهمگام","‎@Async‎، ‎@Scheduled‎ و صف.","Async work","@Async, @Scheduled and queues.","async scheduled executor rabbitmq kafka"],
+["15","15-observability.html",0,12,60,"مشاهده‌پذیری","‏Actuator، ‎Micrometer‎ و ‎trace‎.","Observability","Actuator, Micrometer and tracing.","actuator micrometer prometheus tracing"],
+["16","16-deploy.html",0,12,60,"استقرار","‏JAR اجرایی، داکر و پیکربندی ‎production‎.","Deployment","Executable JARs, Docker and production configuration.","jar docker native image profile"],
+["17","17-cap1.html",0,5,90,"پروژهٔ ۱ — ‎REST API‎","‏CRUD با ‎JPA‎ و اعتبارسنجی.","Project 1 — a REST API","CRUD with JPA and validation.","capstone crud",1],
+["18","18-cap2.html",0,7,160,"پروژهٔ ۲ — سرویس امن","‏JWT، نقش و تست یکپارچه.","Project 2 — a secured service","JWT, roles and integration tests.","capstone security",2],
+["19","19-cap3.html",0,9,220,"پروژهٔ ۳ — سرویس ‎production‎","کش، صف، مشاهده‌پذیری و استقرار خودکار.","Project 3 — a production service","Caching, queues, observability and automated deployment.","capstone production",3]
+]});
+
+/* ═══════════════ زبان PHP ═══════════════ */
+C.push({
+  id:"73-php", dir:"73-php", accent:"#777BB4", cat:"backend",
+  ico:"<ellipse cx=\"12\" cy=\"12\" rx=\"9.6\" ry=\"5.6\"/><path d=\"M7.4 14.6 8.8 9h2.2c1 0 1.5.6 1.3 1.6-.2 1-.9 1.6-1.9 1.6H9M13.6 14.6 15 9h2.2c1 0 1.5.6 1.3 1.6-.2 1-.9 1.6-1.9 1.6h-1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
+  fa:{name:"زبان PHP", desc:"‏PHP 8: نوع، ‎enum‎، شیءگرایی، ‎Composer‎، ‎PSR‎، تست و امنیت.",
+      intro:"بدنامی ‎PHP‎ مال پانزده سال پیش است و منصفانه هم بود. اما ‎PHP 8‎ زبان دیگری است: نوع‌دار، سریع، با ‎JIT‎ و اکوسیستمی منظم که ‎Composer‎ و استانداردهای ‎PSR‎ ساخته‌اند. این مسیر از ‎PHP‎ امروز شروع می‌کند، نه از آنچه در ذهن‌ها مانده — و روی نوشتن ‎PHP‎ی تأکید دارد که بشود تست و نگهداری‌اش کرد."},
+  en:{name:"PHP", desc:"PHP 8: types, enums, object orientation, Composer, PSRs, testing and security.",
+      intro:"PHP's bad reputation was earned fifteen years ago, and fairly. But PHP 8 is a different language: typed, fast, JIT-compiled, with an orderly ecosystem built by Composer and the PSR standards. This track starts from PHP as it is today, not as it is remembered — and insists on PHP you can test and maintain."},
+  ch:[
+["01","01-modern.html",0,12,55,"‏PHP امروز","چه چیزی از ‎5‎ به ‎8‎ عوض شد و چرا مهم است.","PHP today","What changed from 5 to 8, and why it matters.","php8 jit performance history"],
+["02","02-basics.html",0,12,55,"مبانی","متغیر، آرایه، رشته و عملگرها.","The basics","Variables, arrays, strings and operators.","variable array string operator"],
+["03","03-types.html",0,12,60,"نوع‌ها","اعلان نوع، ‎union‎، ‎nullable‎ و ‎strict_types‎.","Types","Type declarations, unions, nullables and strict_types.","type union nullable strict declare"],
+["04","04-functions.html",0,12,55,"تابع","آرگومان نام‌دار، ‎spread‎، ‎closure‎ و ‎arrow fn‎.","Functions","Named arguments, spread, closures and arrow functions.","function named argument closure arrow"],
+["05","05-oop-1.html",0,12,65,"شیءگرایی ۱","کلاس، سازنده ارتقایافته، ‎readonly‎.","OOP 1","Classes, constructor promotion and readonly.","class constructor promotion readonly property"],
+["06","06-oop-2.html",0,12,65,"شیءگرایی ۲","‏interface، ‎trait‎، ‎abstract‎ و ‎enum‎.","OOP 2","Interfaces, traits, abstract classes and enums.","interface trait abstract enum static"],
+["07","07-errors.html",0,12,55,"خطا","‏exception، ‎error‎ و ‎try/catch/finally‎.","Errors","Exceptions, errors and try/catch/finally.","exception error throwable finally"],
+["08","08-arrays.html",0,12,60,"آرایه و تابع‌های آن","‏map، ‎filter‎، ‎reduce‎ و ‎spread‎.","Arrays and their functions","map, filter, reduce and spread.","array map filter reduce usort"],
+["09","09-composer.html",0,12,55,"‏Composer و ‎PSR‎","وابستگی، ‎autoload‎ و استانداردها.","Composer and PSRs","Dependencies, autoloading and the standards.","composer autoload psr4 packagist"],
+["10","10-http.html",0,12,60,"‏PHP و ‎HTTP‎","درخواست، پاسخ، ‎session‎ و کوکی.","PHP and HTTP","Requests, responses, sessions and cookies.","request response session cookie superglobal"],
+["11","11-database.html",0,12,65,"پایگاه‌داده","‏PDO، ‎prepared statement‎ و تراکنش.","Databases","PDO, prepared statements and transactions.","pdo prepared transaction mysql"],
+["12","12-security.html",0,12,70,"امنیت","تزریق ‎SQL‎، ‎XSS‎، ‎CSRF‎ و رمز عبور.","Security","SQL injection, XSS, CSRF and password hashing.","injection xss csrf password_hash sanitize"],
+["13","13-files.html",0,12,50,"فایل و آپلود","خواندن، نوشتن و آپلود امن.","Files and uploads","Reading, writing and safe uploads.","file upload stream mime validation"],
+["14","14-testing.html",0,12,60,"تست","‏PHPUnit، ‎Pest‎ و کد تست‌پذیر.","Testing","PHPUnit, Pest and testable code.","phpunit pest mock coverage"],
+["15","15-tooling.html",0,12,55,"ابزار کیفیت","‏PHPStan، ‎Rector‎ و ‎CS Fixer‎.","Quality tooling","PHPStan, Rector and CS Fixer.","phpstan psalm rector cs-fixer static analysis"],
+["16","16-cap1.html",0,5,80,"پروژهٔ ۱ — ابزار خط فرمان","پردازش فایل با نوع‌دهی کامل.","Project 1 — a CLI tool","File processing with full typing.","capstone cli",1],
+["17","17-cap2.html",0,7,140,"پروژهٔ ۲ — ‎API‎ بدون فریم‌ورک","مسیریابی، ‎PDO‎ و تست — دستی.","Project 2 — an API with no framework","Routing, PDO and tests — by hand.","capstone api vanilla",2],
+["18","18-cap3.html",0,9,180,"پروژهٔ ۳ — کتابخانهٔ ‎Composer‎","‏PSR، تست، تحلیل ایستا و انتشار.","Project 3 — a Composer library","PSRs, tests, static analysis and publishing.","capstone package",3]
+]});
+
+/* ═══════════════ Laravel ═══════════════ */
+C.push({
+  id:"74-laravel", dir:"74-laravel", accent:"#FF2D20", cat:"backend", pre:["73-php"], soft:["53-mysql-mariadb"],
+  ico:"<path d=\"M3 7.4 8.2 4.6l5.2 2.8v5.4l5.2 2.8-5.2 2.8-5.2-2.8V10.2z\" stroke-linejoin=\"round\"/><path d=\"M8.2 10.2 13.4 7.4M8.2 10.2v5.4\" stroke-linejoin=\"round\" opacity=\".6\"/>",
+  fa:{name:"Laravel", desc:"‏Eloquent، مسیریابی، احراز هویت، صف، رویداد، تست و استقرار — با اکوسیستم کاملش.",
+      intro:"‏Laravel چیزی را ساخت که کمتر فریم‌ورکی دارد: یک اکوسیستم کامل که همه‌چیزش با هم جور است — از صف و زمان‌بند تا احراز هویت و تست. قیمتش این است که باید «راه ‎Laravel‎» را بپذیری. این مسیر آن راه را دقیق نشان می‌دهد و توضیح می‌دهد پشت هر جادویی چه می‌گذرد، تا وقتی چیزی خراب شد بدانی کجا را نگاه کنی."},
+  en:{name:"Laravel", desc:"Eloquent, routing, authentication, queues, events, testing and deployment — with its full ecosystem.",
+      intro:"Laravel built something few frameworks have: a complete ecosystem where everything fits together — queues, schedulers, auth, testing. The price is accepting “the Laravel way”. This track shows that way precisely and explains what sits behind each piece of magic, so that when something breaks you know where to look."},
+  ch:[
+["01","01-architecture.html",0,12,60,"معماری و چرخهٔ درخواست","از ‎index.php‎ تا پاسخ، مرحله‌به‌مرحله.","Architecture and the request lifecycle","From index.php to the response, step by step.","lifecycle kernel container provider bootstrap"],
+["02","02-container.html",0,12,65,"‏service container","تزریق وابستگی و ‎binding‎ — قلب ‎Laravel‎.","The service container","Dependency injection and binding — the heart of Laravel.","container binding singleton resolve provider"],
+["03","03-routing.html",0,12,55,"مسیریابی","مسیر، گروه، ‎middleware‎ و ‎model binding‎.","Routing","Routes, groups, middleware and model binding.","route group middleware binding resource"],
+["04","04-controllers.html",0,12,55,"کنترلر و درخواست","‏Form Request و اعتبارسنجی.","Controllers and requests","Form Requests and validation.","controller formrequest validation invokable"],
+["05","05-eloquent-1.html",0,12,70,"‏Eloquent ۱","مدل، ‎cast‎، ‎scope‎ و ‎accessor‎.","Eloquent 1","Models, casts, scopes and accessors.","eloquent model cast scope accessor mutator"],
+["06","06-eloquent-2.html",0,12,75,"‏Eloquent ۲","رابطه‌ها، ‎eager loading‎ و ‎N+1‎.","Eloquent 2","Relationships, eager loading and N+1.","relationship hasmany belongsto eager n+1"],
+["07","07-migrations.html",0,12,55,"مهاجرت، ‎seeder‎ و ‎factory‎","شِمای نسخه‌بندی‌شده و دادهٔ آزمایشی.","Migrations, seeders and factories","Versioned schema and test data.","migration seeder factory faker schema"],
+["08","08-blade.html",0,12,55,"‏Blade","قالب، ‎component‎ و ‎slot‎.","Blade","Templates, components and slots.","blade component slot directive layout"],
+["09","09-auth.html",0,12,70,"احراز هویت","‏Breeze، ‎Sanctum‎، ‎guard‎ و نشست.","Authentication","Breeze, Sanctum, guards and sessions.","auth breeze sanctum guard session"],
+["10","10-authorization.html",0,12,60,"مجوز","‏policy، ‎gate‎ و نقش.","Authorisation","Policies, gates and roles.","policy gate authorize role permission"],
+["11","11-api.html",0,12,60,"‏API","‏API resource، نسخه‌گذاری و ‎rate limit‎.","APIs","API resources, versioning and rate limiting.","api resource collection versioning throttle"],
+["12","12-queues.html",0,12,70,"صف و کار پس‌زمینه","‏job، ‎worker‎، ‎Horizon‎ و تلاش مجدد.","Queues and background jobs","Jobs, workers, Horizon and retries.","queue job horizon retry failed batch"],
+["13","13-events.html",0,12,60,"رویداد و ‎listener‎","جدا کردن اثرات جانبی از منطق اصلی.","Events and listeners","Separating side effects from core logic.","event listener observer broadcast"],
+["14","14-scheduling.html",0,12,50,"زمان‌بندی","‏scheduler و کار دوره‌ای.","Scheduling","The scheduler and recurring work.","schedule cron task withoutoverlapping"],
+["15","15-cache.html",0,12,55,"کش و جلسه","‏Redis، ‎tag‎ و باطل‌سازی.","Caching and sessions","Redis, tags and invalidation.","cache redis tag session store"],
+["16","16-testing.html",0,12,70,"تست","‏Pest، تست ویژگی، ‎factory‎ و پایگاه‌دادهٔ تست.","Testing","Pest, feature tests, factories and a test database.","pest phpunit feature refreshdatabase mock"],
+["17","17-performance.html",0,12,60,"کارایی","‏N+1، ایندکس، ‎cache‎ و ‎Octane‎.","Performance","N+1, indexes, caching and Octane.","performance octane debugbar telescope"],
+["18","18-deploy.html",0,12,60,"استقرار","‏Nginx، ‎PHP-FPM‎، داکر و ‎queue worker‎.","Deployment","Nginx, PHP-FPM, Docker and queue workers.","deploy nginx fpm docker supervisor envoyer"],
+["19","19-cap1.html",0,5,90,"پروژهٔ ۱ — وبلاگ","‏CRUD، احراز هویت و آپلود.","Project 1 — a blog","CRUD, authentication and uploads.","capstone blog",1],
+["20","20-cap2.html",0,7,160,"پروژهٔ ۲ — ‎API‎ فروشگاه","سبد، سفارش، صف، رویداد و اعلان.","Project 2 — a shop API","Cart, orders, queues, events and notifications.","capstone shop",2],
+["21","21-cap3.html",0,9,220,"پروژهٔ ۳ — سامانهٔ چندمستأجری","مجوز پیچیده، کش، صف و استقرار کامل.","Project 3 — a multi-tenant system","Complex authorisation, caching, queues and full deployment.","capstone multitenant",3]
 ]});
 
 })();

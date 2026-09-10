@@ -22,6 +22,61 @@
   /* ---------------------------------------------------------------- ذخیره‌سازی
      روی file:// ممکن است localStorage پرتاب کند. همیشه با پشتیبان حافظه‌ای. */
   var mem = {};
+
+  /* ‏localStorage تنها جای نگهداری نیست. دو نسخه نگه می‌داریم:
+       ۱) localStorage — جای اصلی، سریع و همگام
+       ۲) IndexedDB    — نسخهٔ دوم؛ بعضی پاک‌کردن‌های مرورگر فقط یکی را می‌برند
+
+     چیزی که این‌ها را از بین *نمی‌برد*: عوض شدن IP، ری‌استارت، به‌روزرسانی مرورگر.
+     چیزی که می‌برد: پاک کردن دادهٔ سایت، حالت ناشناس، مرورگر یا دستگاه دیگر.
+     برای آن حالت‌ها راه واقعی فقط پشتیبان‌گیری است — پایین‌تر، exportBackup. */
+  var idb = null;
+  try {
+    var rq = indexedDB.open("codenameh", 1);
+    rq.onupgradeneeded = function (e) {
+      var db = e.target.result;
+      if (!db.objectStoreNames.contains("kv")) db.createObjectStore("kv");
+    };
+    rq.onsuccess = function (e) { idb = e.target.result; mirrorAll(); };
+  } catch (e) { /* مرورگر قدیمی یا حالت محدود */ }
+
+  function idbPut(k, v) {
+    if (!idb) return;
+    try { idb.transaction("kv", "readwrite").objectStore("kv").put(v, k); } catch (e) {}
+  }
+  function idbDel(k) {
+    if (!idb) return;
+    try { idb.transaction("kv", "readwrite").objectStore("kv").delete(k); } catch (e) {}
+  }
+  /* اگر localStorage خالی بود ولی IndexedDB داده داشت، برگردانش — یعنی
+     دادهٔ کاربر از یک پاک‌شدن ناقص نجات پیدا می‌کند. */
+  function mirrorAll() {
+    if (!idb) return;
+    try {
+      var st = idb.transaction("kv", "readonly").objectStore("kv");
+      var all = st.getAllKeys();
+      all.onsuccess = function () {
+        all.result.forEach(function (k) {
+          if (String(k).indexOf("docsfa:") !== 0) return;
+          var g = idb.transaction("kv", "readonly").objectStore("kv").get(k);
+          g.onsuccess = function () {
+            var restored = g.result;
+            if (restored == null) return;
+            var cur = null;
+            try { cur = localStorage.getItem(k); } catch (e) {}
+            if (cur === null) {
+              mem[k] = restored;
+              try { localStorage.setItem(k, restored); } catch (e) {}
+              if (k.indexOf("docsfa:p:") === 0 || k === "docsfa:bm") RESTORED = true;
+            }
+          };
+        });
+        setTimeout(function () { if (RESTORED) paintProgress(); }, 120);
+      };
+    } catch (e) {}
+  }
+  var RESTORED = false;
+
   var store = {
     get: function (k) {
       try { var v = localStorage.getItem(k); return v === null ? (k in mem ? mem[k] : null) : v; }
@@ -30,15 +85,18 @@
     set: function (k, v) {
       mem[k] = v;
       try { localStorage.setItem(k, v); } catch (e) { /* حالت خصوصی مرورگر */ }
+      idbPut(k, v);
     },
     del: function (k) {
       delete mem[k];
       try { localStorage.removeItem(k); } catch (e) {}
+      idbDel(k);
     },
     keys: function () {
       var out = [];
       try { for (var i = 0; i < localStorage.length; i++) out.push(localStorage.key(i)); }
       catch (e) { for (var k in mem) out.push(k); }
+      for (var m in mem) if (out.indexOf(m) === -1) out.push(m);
       return out;
     }
   };
@@ -80,27 +138,44 @@
 
   var COURSES = window.COURSES || [];
 
-  /* مانیفست فشرده را به شیء باز می‌کند. ترتیب آرایه در courses.js توضیح داده شده. */
-  (function normalize() {
-    COURSES.forEach(function (c) {
-      if (c.chapters) return;                       // قبلاً باز شده
-      c.chapters = (c.ch || []).map(function (a) {
-        return {
-          n: a[0], file: a[1], ready: !!a[2], ex: a[3], mins: a[4],
-          fa: { t: a[5], d: a[6] },
-          en: { t: a[7], d: a[8] },
-          kw: a[9] || "",
-          cap: a[10] || 0
-        };
-      });
-      c.ready = c.chapters.some(function (x) { return x.ready; });
+  /* مانیفست فشرده را به شیء باز می‌کند. ترتیب آرایه در tracks.js توضیح داده شده.
+     ‏tracks.js فقط فصل‌های آمادهٔ هر مسیر را دارد (برای محاسبهٔ پیشرفت در صفحهٔ اصلی).
+     فهرست کامل فصل‌های یک مسیر جداگانه در assets/ch/<id>.js می‌آید و فقط در
+     صفحه‌های همان مسیر بارگذاری می‌شود — این تفاوت ۷۲ کیلوبایت و ۳ کیلوبایت است. */
+  function expand(c) {
+    c.chapters = (c.ch || []).map(function (a) {
+      return {
+        n: a[0], file: a[1], ready: !!a[2], ex: a[3], mins: a[4],
+        fa: { t: a[5], d: a[6] },
+        en: { t: a[7], d: a[8] },
+        kw: a[9] || "",
+        cap: a[10] || 0
+      };
     });
-  })();
+    c.ready = c.chapters.some(function (x) { return x.ready; });
+  }
+  COURSES.forEach(expand);
 
   function course(id) {
     for (var i = 0; i < COURSES.length; i++) if (COURSES[i].id === id) return COURSES[i];
     return null;
   }
+
+  /* فصل‌های کامل این مسیر، اگر صفحه بارگذاری‌شان کرده باشد */
+  (function attachChapters() {
+    var d = window.CHAPTERS;
+    if (!d || !d.id) return;
+    var c = course(d.id);
+    if (!c) return;
+    c.ch = d.ch;
+    c.full = true;
+    expand(c);
+  })();
+
+  /* آمار کل هر مسیر از پیش محاسبه شده تا به فهرست کامل فصل‌ها نیاز نباشد */
+  function nCh(c)   { return c.nCh   != null ? c.nCh   : (c.chapters || []).length; }
+  function nEx(c)   { return c.nEx   != null ? c.nEx   : (c.chapters || []).reduce(function (s, x) { return s + (x.ex || 0); }, 0); }
+  function nHour(c) { return c.hours != null ? c.hours : Math.round((c.chapters || []).reduce(function (s, x) { return s + (x.mins || 0); }, 0) / 60); }
 
   /* ============================================================== ۱) تم */
   function applyTheme(v) {
@@ -154,6 +229,12 @@
     $$(".lang-sw button").forEach(function (b) {
       b.setAttribute("aria-pressed", String(b.getAttribute("data-l") === (fa ? "fa" : "en")));
     });
+    /* نام سایت در عنوان برگه هم با زبان عوض شود */
+    try {
+      D.title = fa
+        ? D.title.replace(/Codenameh/g, "کدنامه")
+        : D.title.replace(/کدنامه/g, "Codenameh");
+    } catch (e) {}
     relabel();
   }
   /* برچسب‌هایی که JS ساخته و باید با زبان عوض شوند.
@@ -172,6 +253,7 @@
     safe("relabel:resume",  buildResumeButtons);
     safe("relabel:cstats",  initCourseStats);
     safe("relabel:hstats",  initHomeStats);
+    safe("relabel:bm",      paintBookmarks);
     safe("relabel:progress", paintProgress);
   }
   safe("applyLang", function () { applyLang(store.get(K_LANG)); });
@@ -214,11 +296,15 @@
       var old = lbl.textContent;
       n.classList.add("ok");
       lbl.textContent = t("copied");
+      /* پیام صریح، چون خود دکمه کوچک است و تغییرش ممکن است دیده نشود */
+      toast(n.hasAttribute("data-copy-msg")
+        ? n.getAttribute("data-copy-msg")
+        : (isFa() ? "کپی شد" : "Copied"), "ok");
       clearTimeout(n._tm);
       n._tm = setTimeout(function () {
         n.classList.remove("ok");
         lbl.textContent = old;
-      }, 1800);
+      }, 3000);
     });
 
     D.addEventListener("click", function (e) {
@@ -571,19 +657,32 @@
   }
 
   /* ===================================================== ۱۱) جستجو */
+  /* نمایهٔ جستجو تنبل است: تا اولین باز شدن جستجو، بارگذاری نمی‌شود.
+     ردیف‌ها فشرده‌اند: [مسیر, شماره, فایل, آماده, عنوانFA, توضیحFA, عنوانEN, توضیحEN, کلیدواژه] */
+  var searchState = 0; // ۰ نیامده · ۱ در راه · ۲ آماده
+  function loadSearch(cb) {
+    if (searchState === 2) return cb();
+    if (searchState === 1) return;
+    searchState = 1;
+    var s = D.createElement("script");
+    s.src = ROOT + "assets/search.js";
+    s.onload = s.onerror = function () { searchState = 2; cb(); };
+    D.head.appendChild(s);
+  }
+
   function searchIndex() {
-    var out = [];
-    COURSES.forEach(function (c) {
-      if (c.locked) return;
-      (c.chapters || []).forEach(function (ch) {
-        var L = isFa() ? ch.fa : ch.en, CL = isFa() ? c.fa : c.en;
-        out.push({
-          title: L.t,
-          sub: CL.name + " · " + (isFa() ? "فصل " : "Ch. ") + num(parseInt(ch.n, 10)),
-          hay: (L.t + " " + L.d + " " + (ch.kw || "") + " " + CL.name).toLowerCase(),
-          href: ch.ready ? ROOT + c.dir + "/ch/" + ch.file : ROOT + c.dir + "/index.html",
-          ready: !!ch.ready
-        });
+    var out = [], rows = window.SEARCH_ROWS || [];
+    rows.forEach(function (r) {
+      var c = course(r[0]);
+      if (!c || c.locked) return;
+      var CL = isFa() ? c.fa : c.en;
+      var t = isFa() ? r[4] : r[6], d = isFa() ? r[5] : r[7];
+      out.push({
+        title: t,
+        sub: CL.name + " · " + (isFa() ? "فصل " : "Ch. ") + num(parseInt(r[1], 10)),
+        hay: (t + " " + d + " " + (r[8] || "") + " " + CL.name).toLowerCase(),
+        href: r[3] ? ROOT + c.dir + "/ch/" + r[2] : ROOT + c.dir + "/index.html",
+        ready: !!r[3]
       });
     });
     /* بخش‌های همین صفحه هم قابل جستجو باشند */
@@ -602,11 +701,17 @@
     var input = $("input", dim), res = $(".sres", dim), idx = [], sel = 0;
 
     function open() {
-      idx = searchIndex();
       dim.classList.add("open");
       input.value = "";
+      idx = searchIndex();
       render("");
       input.focus();
+      /* نمایه هنوز نیامده؟ باز کن، بعد که رسید دوباره رندر کن */
+      loadSearch(function () {
+        if (!dim.classList.contains("open")) return;
+        idx = searchIndex();
+        render(input.value);
+      });
     }
     function close() { dim.classList.remove("open"); }
 
@@ -660,7 +765,290 @@
     });
   }
 
+  /* ================================================= ۱۱٫۵) مودال «دربارهٔ پروژه» */
+  /* ───────────────────────────── منوی موبایل ─────────────────────────────
+     دکمه‌های نوار بالا زیر ۷۲۰px در یک کشو جمع می‌شوند. دکمه‌های داخل کشو
+     همان کلاس‌های js-* را دارند، پس handlerهای موجود خودشان کار می‌کنند؛
+     اینجا فقط باز و بسته شدن کشو را مدیریت می‌کنیم. */
+  function initMenu() {
+    var dim = $(".js-menu-dim");
+    if (!dim) return;
+    var openBtn = $(".js-menu");
+
+    function open() {
+      dim.classList.add("open");
+      if (openBtn) openBtn.setAttribute("aria-expanded", "true");
+    }
+    function close() {
+      dim.classList.remove("open");
+      if (openBtn) openBtn.setAttribute("aria-expanded", "false");
+    }
+
+    if (openBtn) openBtn.addEventListener("click", open);
+    $$(".js-menu-close").forEach(function (b) { b.addEventListener("click", close); });
+    dim.addEventListener("click", function (e) { if (e.target === dim) close(); });
+    /* هر انتخابی داخل کشو، کشو را می‌بندد — وگرنه مودال زیرش باز می‌شود
+       و کاربر دو لایه روی هم می‌بیند. */
+    dim.addEventListener("click", function (e) {
+      if (e.target.closest(".sheet-i")) setTimeout(close, 10);
+    });
+    D.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && dim.classList.contains("open")) close();
+    });
+  }
+
+  function initAbout() {
+    var dim = $(".js-about-dim");
+    if (!dim) return;
+    function open() { dim.classList.add("open"); D.body.style.overflow = "hidden"; }
+    function close() { dim.classList.remove("open"); D.body.style.overflow = ""; }
+
+    $$(".js-about").forEach(function (b) { b.addEventListener("click", open); });
+    $$(".js-modal-close", dim).forEach(function (b) { b.addEventListener("click", close); });
+    dim.addEventListener("click", function (e) { if (e.target === dim) close(); });
+    D.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && dim.classList.contains("open")) close();
+    });
+
+    /* زبانه‌ها */
+    $$(".modal-tabs button", dim).forEach(function (tab) {
+      tab.addEventListener("click", function () {
+        var k = tab.getAttribute("data-tab");
+        $$(".modal-tabs button", dim).forEach(function (t) { t.classList.toggle("on", t === tab); });
+        $$("[data-pane]", dim).forEach(function (p) {
+          p.classList.toggle("on", p.getAttribute("data-pane") === k);
+        });
+      });
+    });
+
+    /* لینک راهنمای مشارکت باید نسبت به عمق صفحه درست باشد */
+    $$(".js-contrib-link", dim).forEach(function (a) { a.href = ROOT + "contributing.html"; });
+
+    /* کپی شمارهٔ کارت */
+    $$(".js-copy-card", dim).forEach(function (b) {
+      b.addEventListener("click", function () {
+        copyText(b.getAttribute("data-card") || "");
+        b.classList.add("ok");
+        var s = $("span:not([hidden])", b);
+        clearTimeout(b._t);
+        b._t = setTimeout(function () { b.classList.remove("ok"); }, 1600);
+        void s;
+      });
+    });
+  }
+
+  /* ─────────────────────────────── پیام کوتاه (toast) ───────────────────────
+     یک عنصر مشترک؛ هر جای برنامه می‌تواند صدایش بزند. */
+  var toastEl = null, toastT = 0;
+  function toast(msg, kind) {
+    if (!toastEl) {
+      toastEl = el("div", "toast");
+      toastEl.setAttribute("role", "status");
+      toastEl.setAttribute("aria-live", "polite");
+      D.body.appendChild(toastEl);
+    }
+    toastEl.className = "toast" + (kind ? " " + kind : "");
+    toastEl.textContent = msg;
+    /* دوباره راه‌انداختن انیمیشن وقتی پیام پشت سر هم می‌آید */
+    void toastEl.offsetWidth;
+    toastEl.classList.add("show");
+    clearTimeout(toastT);
+    toastT = setTimeout(function () { toastEl.classList.remove("show"); }, 3000);
+  }
+
+  /* ===================================================== ۱۱٫۶) اشتراک‌گذاری */
+  function initShare() {
+    $$(".js-share").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var url = location.href;
+        /* ‏navigator.share فقط با http(s) کار می‌کند. روی file:// کروم کل
+           رِندرر را می‌کشد (RESULT_CODE_KILLED_BAD_MESSAGE) — پس اصلاً صدایش نمی‌زنیم. */
+        var shareable = /^https?:$/.test(location.protocol);
+        if (shareable && navigator.share) {
+          try {
+            navigator.share({ title: D.title, url: url }).catch(function () {});
+            return;
+          } catch (e) { /* می‌افتد روی کپی */ }
+        }
+        copyText(url);
+        toast(isFa() ? "لینک این صفحه کپی شد" : "Page link copied", "ok");
+      });
+    });
+  }
+
+  /* ======================================================== ۱۱٫۷) بوکمارک
+     فهرست مسیرهای نشان‌شده در localStorage. صفحهٔ bookmarks.html از همین می‌خواند. */
+  var K_BM = "docsfa:bm";
+  function bmList() { return json(K_BM, []) || []; }
+  function bmHas(id) { return bmList().indexOf(id) !== -1; }
+  function bmToggle(id) {
+    var l = bmList(), i = l.indexOf(id);
+    if (i === -1) l.push(id); else l.splice(i, 1);
+    store.set(K_BM, JSON.stringify(l));
+    paintBookmarks();
+    return i === -1;
+  }
+
+  var STAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="m12 3.6 2.6 5.3 5.8.85-4.2 4.1 1 5.75L12 16.9l-5.2 2.7 1-5.75-4.2-4.1 5.8-.85z"/></svg>';
+
+  function initBookmarks() {
+    /* دکمه روی هر کارت دوره در صفحهٔ اصلی */
+    $$("[data-prog-course]").forEach(function (node) {
+      var card = node.closest(".course");
+      if (!card || $(".bm-btn", card)) return;
+      addBmBtn(card, node.getAttribute("data-prog-course"));
+    });
+    /* دکمه در سربرگ خانهٔ دوره */
+    if (PAGE === "course" && COURSE_ID) {
+      var host = $("[data-resume='" + COURSE_ID + "']");
+      if (host && !$(".bm-btn", host.parentNode)) addBmBtn(host, COURSE_ID, true);
+    }
+    paintBookmarks();
+  }
+
+  function addBmBtn(host, id, inline) {
+    var b = el("button", "bm-btn");
+    b.type = "button";
+    b.setAttribute("data-bm", id);
+    b.innerHTML = STAR + '<span></span>';
+    b.addEventListener("click", function (e) {
+      e.preventDefault(); e.stopPropagation();
+      var added = bmToggle(id);
+      var c = course(id);
+      var nm = c ? (isFa() ? c.fa.name : c.en.name) : "";
+      toast(isFa()
+        ? (added ? "«" + nm + "» به علاقه‌مندی‌ها اضافه شد" : "«" + nm + "» از علاقه‌مندی‌ها برداشته شد")
+        : (added ? "“" + nm + "” added to bookmarks" : "“" + nm + "” removed from bookmarks"),
+        added ? "ok" : "");
+    });
+    if (inline) host.appendChild(b); else host.appendChild(b);
+  }
+
+  function paintBookmarks() {
+    var l = bmList();
+    $$("[data-bm]").forEach(function (b) {
+      var on = l.indexOf(b.getAttribute("data-bm")) !== -1;
+      b.classList.toggle("on", on);
+      var s = $("span", b);
+      if (s) s.textContent = on
+        ? (isFa() ? "ذخیره شد" : "Saved")
+        : (isFa() ? "ذخیره" : "Save");
+      b.setAttribute("aria-pressed", String(on));
+    });
+    $$(".bm-count").forEach(function (n) {
+      n.textContent = num(l.length);
+      n.hidden = l.length === 0;
+    });
+    $$(".js-bm-open").forEach(function (a) { a.classList.toggle("on", l.length > 0); });
+    buildBookmarkPage();
+  }
+
+  /* صفحهٔ علاقه‌مندی‌ها */
+  function buildBookmarkPage() {
+    var grid = $("[data-bmgrid]");
+    if (!grid) return;
+    var l = bmList();
+    grid.innerHTML = "";
+    if (!l.length) {
+      var e = el("div", "bm-empty");
+      e.innerHTML = STAR + "<p>" +
+        (isFa() ? "هنوز دوره‌ای ذخیره نکرده‌ای. روی ستارهٔ هر دوره بزن تا اینجا بیاید."
+                : "No saved tracks yet. Star a track and it will appear here.") + "</p>";
+      grid.appendChild(e);
+      return;
+    }
+    l.forEach(function (id) {
+      var c = course(id);
+      if (!c) return;
+      var L = isFa() ? c.fa : c.en;
+      var a = el("a", "ch-card");
+      a.href = ROOT + c.dir + "/index.html";
+      a.setAttribute("data-prog-course", c.id);
+      a.appendChild(el("span", "n", num(parseInt(c.id, 10))));
+      var b = el("div", "b");
+      b.appendChild(el("h3", null, L.name));
+      b.appendChild(el("p", null, L.desc));
+      var pr = el("div", "course-prog");
+      var bar = el("div", "pbar sm"); bar.appendChild(el("i"));
+      pr.appendChild(bar); pr.appendChild(el("b", null, "۰٪"));
+      b.appendChild(pr);
+      a.appendChild(b);
+      grid.appendChild(a);
+    });
+    paintProgress();
+  }
+
   /* =============================================== ۱۲) صفر کردن پیشرفت */
+  /* ─────────────────── پشتیبان‌گیری از پیشرفت و علاقه‌مندی‌ها ───────────────────
+     تنها راهی که دادهٔ تو از عوض شدن مرورگر یا دستگاه جان سالم به در می‌برد.
+     یک فایل JSON کوچک؛ نگهش دار، هر وقت خواستی برگردانش. */
+  function collectData() {
+    var out = {};
+    store.keys().forEach(function (k) {
+      if (String(k).indexOf("docsfa:") === 0) out[k] = store.get(k);
+    });
+    return out;
+  }
+
+  function exportBackup() {
+    var data = collectData();
+    var n = Object.keys(data).filter(function (k) { return k.indexOf("docsfa:p:") === 0; }).length;
+    var blob = new Blob([JSON.stringify({
+      app: "codenameh", version: 1,
+      savedAt: new Date().toISOString(),
+      chapters: n,
+      data: data
+    }, null, 2)], { type: "application/json" });
+    var a = D.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "codenameh-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+    D.body.appendChild(a); a.click(); D.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  }
+
+  function importBackup(file, done) {
+    var r = new FileReader();
+    r.onload = function () {
+      var parsed;
+      try { parsed = JSON.parse(r.result); } catch (e) { return done(false, "فایل خوانا نیست"); }
+      if (!parsed || parsed.app !== "codenameh" || !parsed.data)
+        return done(false, isFa() ? "این فایل پشتیبان کدنامه نیست" : "Not a Codenameh backup");
+      var n = 0;
+      Object.keys(parsed.data).forEach(function (k) {
+        if (String(k).indexOf("docsfa:") !== 0) return;   /* فقط کلیدهای خودمان */
+        store.set(k, parsed.data[k]);
+        n++;
+      });
+      done(true, n);
+    };
+    r.onerror = function () { done(false, "خواندن فایل شکست خورد"); };
+    r.readAsText(file);
+  }
+
+  function initBackup() {
+    $$(".js-export").forEach(function (b) {
+      b.addEventListener("click", function () { exportBackup(); });
+    });
+    $$(".js-import").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var inp = D.createElement("input");
+        inp.type = "file";
+        inp.accept = "application/json,.json";
+        inp.addEventListener("change", function () {
+          if (!inp.files || !inp.files[0]) return;
+          importBackup(inp.files[0], function (ok, info) {
+            if (!ok) { alert(info); return; }
+            alert(isFa()
+              ? "بازیابی شد: " + num(info) + " مورد. صفحه تازه می‌شود."
+              : "Restored " + info + " entries. Reloading.");
+            location.reload();
+          });
+        });
+        inp.click();
+      });
+    });
+  }
+
   function initReset() {
     $$(".js-reset").forEach(function (b) {
       b.addEventListener("click", function () {
@@ -686,8 +1074,10 @@
     $$("[data-chead]").forEach(function (n) {
       var k = n.getAttribute("data-chead");
       if (k === "name")  n.textContent = L.name;
-      if (k === "intro") n.textContent = L.intro || L.desc;
       if (k === "desc")  n.textContent = L.desc;
+      /* intro در tracks.js نیست (فقط همین صفحه لازمش دارد و در HTML نوشته شده)؛
+         اگر نبود، متن خود صفحه دست‌نخورده می‌ماند. */
+      if (k === "intro" && L.intro) n.textContent = L.intro;
     });
   }
 
@@ -780,10 +1170,9 @@
       var p = (n.getAttribute("data-cstat") || "").split(":");
       var c = course(p[0]);
       if (!c) return;
-      var chs = c.chapters || [], sum = 0;
-      if (p[1] === "chapters") { n.textContent = num(chs.length); return; }
-      if (p[1] === "ex")    { chs.forEach(function (x) { sum += x.ex || 0; }); n.textContent = num(sum); return; }
-      if (p[1] === "hours") { chs.forEach(function (x) { sum += x.mins || 0; }); n.textContent = num(Math.round(sum / 60)); }
+      if (p[1] === "chapters") { n.textContent = num(nCh(c));   return; }
+      if (p[1] === "ex")       { n.textContent = num(nEx(c));   return; }
+      if (p[1] === "hours")    { n.textContent = num(nHour(c)); }
     });
   }
 
@@ -791,12 +1180,10 @@
   function initHomeStats() {
     var total = 0, ready = 0, exs = 0, caps = 0;
     COURSES.forEach(function (c) {
-      (c.chapters || []).forEach(function (ch) {
-        total++;
-        if (ch.ready) ready++;
-        exs += ch.ex || 0;
-        if (ch.cap) caps++;
-      });
+      total += nCh(c);
+      exs   += nEx(c);
+      caps  += (c.nCap != null ? c.nCap : 0);
+      (c.chapters || []).forEach(function (ch) { if (ch.ready) ready++; });
     });
     var set = function (sel, v) { var n = $(sel); if (n) n.textContent = num(v); };
     set("[data-stat-chapters]", total);
@@ -859,6 +1246,11 @@
   safe("pager",       buildPager);
   safe("readbar",     initReadbar);
   safe("reset",       initReset);
+  safe("backup",      initBackup);
+  safe("about",       initAbout);
+  safe("menu",        initMenu);
+  safe("share",       initShare);
+  safe("bookmarks",   initBookmarks);
   safe("courseStats", initCourseStats);
   safe("homeStats",   initHomeStats);
   safe("rememberLast", rememberLast);

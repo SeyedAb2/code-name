@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://codenameh.ir/sitemap.xml

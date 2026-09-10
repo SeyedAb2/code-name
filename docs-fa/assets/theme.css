@@ -116,7 +116,16 @@ body{
 :root[lang="en"] body{font-family:'Inter',system-ui,'Segoe UI',Roboto,sans-serif;line-height:1.75}
 ::selection{background:var(--sel)}
 a{color:var(--blue);text-decoration:none}
-a:hover{text-decoration:underline;text-underline-offset:3px}
+/* هاور خط نمی‌کشد — رنگ عوض می‌شود.
+   استثنا: لینک داخل متن پیوسته، که باید از متن اطرافش قابل تشخیص باشد. */
+a:hover{color:var(--violet)}
+.content p > a,.content li > a,.note a,.modal-b p a{
+  text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;
+  text-decoration-color:color-mix(in srgb,currentColor 40%,transparent);
+}
+.content p > a:hover,.content li > a:hover,.note a:hover,.modal-b p a:hover{
+  text-decoration-color:currentColor;
+}
 :where(a,button,summary,input,[tabindex]):focus-visible{
   outline:2px solid var(--blue);outline-offset:2px;border-radius:6px;
 }
@@ -222,31 +231,61 @@ body{opacity:1}
   :root.is-in body{animation:none}
   :root.is-out body{opacity:1;transform:none;transition:none}
 }
-/* بخش‌ها هنگام اسکرول کمی بالا می‌آیند.
-   فقط جایی که مرورگر انیمیشن مبتنی بر اسکرول را می‌فهمد؛ جای دیگر هیچ اتفاقی نمی‌افتد. */
-@supports (animation-timeline:view()){
-  @media (prefers-reduced-motion:no-preference){
-    .content>section{
-      animation:secIn .5s cubic-bezier(.2,.8,.3,1) both;
-      animation-timeline:view();
-      animation-range:entry 0% cover 18%;
-    }
-  }
-}
-@keyframes secIn{from{opacity:.35;transform:translateY(14px)}to{opacity:1;transform:none}}
+/* انیمیشن اسکرول‌محور روی بخش‌ها برداشته شد.
+   ‏animation-timeline:view() برای هر بخش در هر فریم اسکرول کار تولید می‌کند و
+   روی فصل‌های بلند (۱۲ بخش، ۴۰ بلوک کد) اسکرول را محسوس کند می‌کرد.
+   یک افکت تزئینی ارزش آن هزینه را نداشت. */
+
+/* فصل‌ها بلندند؛ به مرورگر اجازه بده چیزی را که بیرون از دید است رندر نکند.
+   ‏contain-intrinsic-size ارتفاع تخمینی می‌دهد تا نوار اسکرول نپرد. */
+.content>section{content-visibility:auto;contain-intrinsic-size:auto 900px}
+.ex{content-visibility:auto;contain-intrinsic-size:auto 320px}
+.grid-courses>.course{content-visibility:auto;contain-intrinsic-size:auto 300px}
 
 /* ============================================================================
    دسته‌بندی مسیرها در صفحهٔ اصلی
    ========================================================================== */
-.cat{margin:0 0 14px;display:flex;align-items:center;gap:12px}
-.cat h2{font-size:1.18rem;margin:0;white-space:nowrap}
-.cat .line{flex:1;height:1px;background:var(--line)}
-.cat .n{
-  font-family:var(--num);font-size:.74rem;font-weight:700;color:var(--ink-faint);
-  background:var(--surface-sunk);border:1px solid var(--line);
-  padding:2px 9px;border-radius:99px;
+/* هر دسته یک جعبهٔ مستقل است تا مرزش با دستهٔ بعد روشن بماند */
+.cat-block{
+  margin-bottom:26px;padding:20px clamp(14px,2.4vw,24px) 24px;
+  background:var(--surface-sunk);
+  border:1px solid var(--line);
+  border-radius:var(--r-xl);
 }
-.cat-block{margin-bottom:44px}
+.cat{
+  display:flex;align-items:flex-start;gap:16px;
+  margin:0 0 18px;padding-bottom:14px;
+  border-bottom:1px solid var(--line);
+}
+.cat-t{min-width:0;flex:1}
+.cat h2{font-size:1.22rem;margin:0 0 4px;letter-spacing:-.015em}
+.cat p{
+  margin:0;font-size:.855rem;line-height:1.7;color:var(--ink-soft);
+  max-width:62ch;
+}
+.cat-n{
+  flex:none;text-align:center;line-height:1.35;
+  padding:6px 13px;border-radius:var(--r-md);
+  background:var(--surface);border:1px solid var(--line);
+  font-size:.68rem;color:var(--ink-faint);
+}
+.cat-n b{
+  display:block;font-family:var(--num);font-size:1.15rem;font-weight:700;
+  color:var(--ink);letter-spacing:-.02em;
+}
+.cat-n i{
+  display:block;font-style:normal;font-size:.65rem;
+  margin-top:2px;padding-top:3px;border-top:1px solid var(--line);
+  color:var(--ink-faint);
+}
+@media (max-width:520px){
+  .cat{gap:10px}
+  .cat h2{font-size:1.08rem}
+  .cat p{font-size:.8rem}
+  .cat-n{padding:5px 10px}
+  .cat-n b{font-size:1rem}
+  .cat-block{padding:16px 12px 18px;border-radius:var(--r-lg)}
+}
 
 /* ============================================================================
    بخش توسعه‌دهنده
@@ -292,7 +331,11 @@ body{opacity:1}
   border:1px solid transparent;cursor:pointer;
   transition:transform .16s cubic-bezier(.2,.8,.3,1),box-shadow .18s,background .18s,border-color .18s;
 }
-.btn:hover{text-decoration:none}
+/* ‏a:hover رنگ عمومی لینک را عوض می‌کند و ویژگی‌اش (0,1,1) از .btn-primary
+   (0,1,0) بیشتر است — یعنی متن دکمه روی گرادیان بنفش، بنفش می‌شد و گم.
+   این قاعده رنگ را صریح برمی‌گرداند. */
+.btn:hover,.btn:focus-visible{text-decoration:none}
+.btn-primary,.btn-primary:hover,.btn-primary:focus-visible,.btn-primary:active{color:#fff}
 .btn-ico{width:16px;height:16px;flex:none}
 :root[dir="rtl"] .btn-ico{transform:scaleX(-1)}
 .btn-primary{
@@ -322,12 +365,13 @@ body{opacity:1}
   height:var(--bar-h);
   display:flex;align-items:center;gap:14px;
   padding-inline:clamp(14px,3vw,28px);
-  background:color-mix(in srgb,var(--surface) 82%,transparent);
-  backdrop-filter:saturate(1.6) blur(14px);
-  -webkit-backdrop-filter:saturate(1.6) blur(14px);
+  /* پس‌زمینهٔ مات به‌جای backdrop-filter.
+     ‏blur(14px) روی یک نوار چسبان یعنی مرورگر در هر فریم اسکرول باید ناحیهٔ پشتش
+     را دوباره محو کند — گران‌ترین چیز در کل صفحه بود. ‎۹۴٪‎ کدری همان حس را
+     می‌دهد و هزینه‌اش صفر است. */
+  background:color-mix(in srgb,var(--surface) 94%,transparent);
   border-bottom:1px solid var(--line);
 }
-@supports not (backdrop-filter:blur(2px)){.topbar{background:var(--surface)}}
 
 .brand{display:flex;align-items:center;gap:10px;font-weight:700;color:var(--ink);flex:none}
 .brand:hover{text-decoration:none}
@@ -339,6 +383,8 @@ body{opacity:1}
 }
 .brand-mark svg{width:17px;height:17px;display:block}
 .brand-txt{font-size:.95rem;letter-spacing:-.01em}
+.brand-txt b{font-weight:700}
+.loader-name b{font-weight:inherit}
 .brand-txt i{display:block;font-style:normal;font-size:.68rem;font-weight:500;color:var(--ink-faint);line-height:1.2}
 
 .crumbs{
@@ -425,8 +471,9 @@ body{opacity:1}
     border-radius:var(--r-md);color:var(--ink);font-family:inherit;font-size:.9rem;font-weight:700;
     cursor:pointer;box-shadow:var(--shadow-2);
   }
-  .rail-toggle svg{width:17px;height:17px;flex:none;color:var(--blue);transition:transform .2s}
-  .rail.open .rail-toggle svg{transform:rotate(180deg)}
+  .rail-toggle{justify-content:flex-start}
+  .rail-toggle svg{width:18px;height:18px;flex:none;color:var(--blue)}
+  .rail-ico{display:inline-flex;flex:none}
 
   /* پرده */
   .rail::before{
@@ -439,10 +486,9 @@ body{opacity:1}
   /* خود کشو */
   .rail-body{
     position:fixed;z-index:120;
-    inset-block:0;inset-inline-end:0;
+    inset-block:0;
     width:min(87vw,335px);
     background:var(--surface);
-    border-inline-start:1px solid var(--line-strong);
     box-shadow:var(--shadow-3);
     overflow-y:auto;overscroll-behavior:contain;
     -webkit-overflow-scrolling:touch;
@@ -450,8 +496,16 @@ body{opacity:1}
     visibility:hidden;
     transition:transform .3s cubic-bezier(.3,.9,.3,1),visibility .3s;
   }
-  :root[dir="rtl"] .rail-body{transform:translateX(102%)}
-  :root[dir="ltr"] .rail-body{transform:translateX(-102%)}
+  /* مختصات فیزیکی، نه منطقی: در RTL خاصیت inline-end به «چپ» ترجمه می‌شود،
+     برای همین کشو از راست می‌آمد ولی سمت چپ می‌نشست. */
+  :root[dir="rtl"] .rail-body{
+    right:0;left:auto;border-left:1px solid var(--line-strong);
+    transform:translateX(102%);
+  }
+  :root[dir="ltr"] .rail-body{
+    left:0;right:auto;border-right:1px solid var(--line-strong);
+    transform:translateX(-102%);
+  }
   .rail.open .rail-body{transform:none;visibility:visible}
 
   .rail-sec:last-child{margin-bottom:0}
@@ -553,10 +607,14 @@ body.rail-lock{overflow:hidden}
   content:"";position:absolute;inset-inline-start:0;top:0;height:4px;width:100%;
   background:var(--brand-grad);
 }
+/* هالهٔ تزئینی با گرادیان شعاعی، نه filter:blur — گرادیان لایهٔ جدید نمی‌سازد. */
 .masthead::after{
   content:"";position:absolute;inset-inline-end:-70px;top:-90px;
-  width:260px;height:260px;border-radius:50%;
-  background:var(--brand-grad);opacity:.07;filter:blur(8px);pointer-events:none;
+  width:260px;height:260px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,
+    color-mix(in srgb,var(--violet) 16%,transparent) 0%,
+    color-mix(in srgb,var(--blue) 8%,transparent) 55%,
+    transparent 72%);
 }
 .eyebrow{
   display:inline-flex;align-items:center;gap:7px;
@@ -566,20 +624,97 @@ body.rail-lock{overflow:hidden}
   padding:4px 11px;border-radius:99px;margin-bottom:14px;
 }
 .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--brand-grad);flex:none}
+/* سربرگ با نشان دوره در کنار عنوان */
+.mast-head{display:flex;align-items:center;gap:16px;margin-bottom:14px}
+.mast-mark{
+  width:64px;height:64px;flex:none;border-radius:18px;
+  display:grid;place-items:center;
+  color:var(--acc,var(--blue));
+  background:color-mix(in srgb,var(--acc,var(--blue)) 12%,var(--surface));
+  border:1px solid color-mix(in srgb,var(--acc,var(--blue)) 26%,var(--line));
+}
+:root[data-theme="dark"] .mast-mark{
+  color:var(--acc-d,var(--acc,var(--blue)));
+  background:color-mix(in srgb,var(--acc-d,var(--acc,var(--blue))) 14%,var(--surface));
+  border-color:color-mix(in srgb,var(--acc-d,var(--acc,var(--blue))) 30%,var(--line));
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .mast-mark{
+    color:var(--acc-d,var(--acc,var(--blue)));
+    background:color-mix(in srgb,var(--acc-d,var(--acc,var(--blue))) 14%,var(--surface));
+    border-color:color-mix(in srgb,var(--acc-d,var(--acc,var(--blue))) 30%,var(--line));
+  }
+}
+.mast-mark svg{width:34px;height:34px;display:block}
+.mast-t{min-width:0;flex:1}
+.mast-cat{
+  display:block;margin-top:4px;
+  font-size:.78rem;color:var(--ink-faint);font-weight:500;
+}
+/* نشان «مسیر ۰۵» به انتهای ردیف می‌رود — در فارسی یعنی سمت چپ */
+.mast-badge{margin:0;margin-inline-start:auto;align-self:flex-start;flex:none}
+.masthead.has-mark h1{margin-bottom:0}
+@media (max-width:640px){
+  .mast-head{gap:12px;flex-wrap:wrap}
+  .mast-mark{width:50px;height:50px;border-radius:14px}
+  .mast-mark svg{width:27px;height:27px}
+  .mast-badge{order:-1;margin-inline-start:0;width:100%}
+}
 .masthead h1{margin-bottom:12px;max-width:22ch}
 .masthead .sub{color:var(--ink-soft);font-size:1.02rem;max-width:var(--measure);margin-bottom:22px}
 
+/* هر آمار یک کارت مستقل است، نه خانه‌ای از یک جدول. */
 .facts{
-  display:grid;grid-template-columns:repeat(auto-fit,minmax(126px,1fr));
-  gap:1px;background:var(--line);border:1px solid var(--line);
-  border-radius:var(--r-md);overflow:hidden;
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:10px;
 }
-.fact{background:var(--surface);padding:12px 14px}
+.fact{
+  position:relative;overflow:hidden;
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:var(--r-md);
+  padding:14px 15px;
+  box-shadow:var(--shadow-1);
+  transition:border-color .18s,box-shadow .18s,transform .18s;
+}
+.fact:hover{border-color:var(--line-strong);box-shadow:var(--shadow-2);transform:translateY(-2px)}
+@media (prefers-reduced-motion:reduce){.fact:hover{transform:none}}
+/* نوار رنگی بالای هر کارت — بجای خط جداکنندهٔ جدولی */
+.fact::before{
+  content:"";position:absolute;top:0;inset-inline-start:0;
+  width:100%;height:2.5px;background:var(--fc,var(--blue));opacity:.9;
+}
+.fact-ico{
+  width:30px;height:30px;border-radius:9px;
+  display:grid;place-items:center;margin-bottom:10px;
+  background:var(--fbg,var(--tint-blue));color:var(--fc,var(--blue));
+}
+.fact-ico svg{width:15px;height:15px;display:block}
+.fact:nth-child(1){--fc:var(--blue);  --fbg:var(--tint-blue)}
+.fact:nth-child(2){--fc:var(--violet);--fbg:var(--tint-violet)}
+.fact:nth-child(3){--fc:var(--warn);  --fbg:var(--tint-warn)}
+.fact:nth-child(4){--fc:var(--safe);  --fbg:var(--tint-safe)}
+.fact-v{min-width:0;display:block}
+/* عدد و واحدش کنار هم می‌مانند — قبلاً «≈ ۱۷ ساعت» سه خط می‌شد */
 .fact b{
-  display:block;font-family:var(--num);font-size:1.28rem;font-weight:700;
-  color:var(--ink);line-height:1.3;letter-spacing:-.02em;
+  display:flex;align-items:baseline;gap:4px;flex-wrap:nowrap;white-space:nowrap;
+  font-family:var(--num);font-size:1.42rem;font-weight:700;
+  color:var(--ink);line-height:1.2;letter-spacing:-.025em;
 }
-.fact span{display:block;font-size:.74rem;color:var(--ink-faint);line-height:1.5}
+.fact b .u{font-size:.7rem;font-weight:600;color:var(--ink-soft)}
+.fact-v>span{
+  display:block;margin-top:3px;
+  font-size:.735rem;color:var(--ink-faint);line-height:1.45;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+@media (max-width:560px){
+  .facts{grid-template-columns:1fr 1fr;gap:8px}
+  .fact{padding:11px 12px}
+  .fact-ico{width:26px;height:26px;border-radius:8px;margin-bottom:8px}
+  .fact-ico svg{width:13px;height:13px}
+  .fact b{font-size:1.16rem}
+  .fact-v>span{font-size:.68rem}
+}
 
 /* ============================================================================
    جملهٔ راهنما، بخش‌ها
@@ -1082,18 +1217,36 @@ details.ex-hint>*:last-child,details.ex-sol>*:last-child{margin-bottom:14px}
 }
 .course:hover::before{opacity:1}
 .course-top{display:flex;align-items:flex-start;gap:14px;margin-bottom:16px}
+/* رنگ نشان: --acc رنگ برند است. اگر برند در تم تاریک خوانا نباشد،
+   ‏build-pages.js یک --acc-d هم می‌گذارد و اینجا جایگزین می‌شود. */
 .logo-box{
+  position:relative;
   width:56px;height:56px;flex:none;border-radius:15px;
   display:grid;place-items:center;
+  color:var(--acc,var(--blue));
   background:var(--lb,var(--surface-sunk));
   border:1px solid var(--line);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.35);
 }
-.logo-box svg{width:30px;height:30px;display:block}
-.course-id{
-  font-family:var(--num);font-size:.74rem;font-weight:700;color:var(--ink-faint);
-  letter-spacing:.08em;display:block;margin-bottom:2px;
+:root[data-theme="dark"] .logo-box{color:var(--acc-d,var(--acc,var(--blue)))}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .logo-box{color:var(--acc-d,var(--acc,var(--blue)))}
 }
+.logo-box svg{width:30px;height:30px;display:block}
+/* شمارهٔ مسیر — کوچک، در گوشهٔ خود جعبهٔ لوگو، نه کنار عنوان */
+.logo-n{
+  position:absolute;bottom:-5px;inset-inline-start:-5px;
+  min-width:19px;height:19px;padding:0 4px;
+  display:grid;place-items:center;
+  font-family:var(--num);font-style:normal;
+  font-size:.62rem;font-weight:700;line-height:1;
+  color:var(--ink-faint);
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:99px;
+}
+.course:hover .logo-n{color:var(--ink);border-color:var(--line-strong)}
+.course-name{min-width:0}
 .course h2{font-size:1.13rem;margin:0 0 3px;letter-spacing:-.01em}
 .course .en-name{font-family:var(--mono);font-size:.72rem;color:var(--ink-faint);display:block}
 .course .desc{font-size:.885rem;color:var(--ink-soft);line-height:1.72;margin:0 0 16px;flex:1}
@@ -1261,3 +1414,267 @@ details.ex-hint>*:last-child,details.ex-sol>*:last-child{margin-bottom:14px}
   .ex details{display:block}
   .ex details>*{display:block!important}
 }
+
+/* ============================================================================
+   مودال (دربارهٔ پروژه · توسعه‌دهنده · حمایت)
+   ========================================================================== */
+.mdim{
+  position:fixed;inset:0;z-index:95;display:none;
+  background:rgba(8,12,22,.62);
+  padding:6vh 16px 20px;overflow-y:auto;
+}
+.mdim.open{display:block}
+.modal{
+  max-width:520px;margin:0 auto;
+  background:var(--surface);
+  border:1px solid var(--line-strong);
+  border-radius:var(--r-xl);
+  box-shadow:var(--shadow-3);
+  overflow:hidden;
+}
+.modal-h{
+  display:flex;align-items:center;gap:12px;
+  padding:16px 18px;border-bottom:1px solid var(--line);
+  background:var(--surface-sunk);
+}
+.modal-h h2{font-size:1.05rem;margin:0;flex:1}
+.modal-x{
+  width:32px;height:32px;flex:none;border-radius:9px;
+  border:1px solid var(--line-strong);background:var(--surface);
+  color:var(--ink-soft);font-size:1.3rem;line-height:1;cursor:pointer;
+}
+.modal-x:hover{color:var(--danger);border-color:var(--danger)}
+
+.modal-tabs{display:flex;gap:2px;padding:8px 10px 0;border-bottom:1px solid var(--line)}
+.modal-tabs button{
+  flex:1;padding:9px 6px;border:0;background:transparent;cursor:pointer;
+  font-family:inherit;font-size:.85rem;font-weight:600;color:var(--ink-faint);
+  border-bottom:2px solid transparent;transition:color .15s,border-color .15s;
+}
+.modal-tabs button:hover{color:var(--ink)}
+.modal-tabs button.on{color:var(--blue);border-bottom-color:var(--blue)}
+
+.modal-b{padding:18px}
+.modal-b>section{display:none}
+.modal-b>section.on{display:block}
+.modal-b p{font-size:.9rem;line-height:1.8;color:var(--ink-soft);margin:0 0 14px}
+.modal-b p.hint{font-size:.78rem;color:var(--ink-faint);margin-top:12px}
+
+.dev-card{
+  display:flex;align-items:center;gap:13px;margin-bottom:16px;
+  padding:14px;border-radius:var(--r-md);
+  background:var(--surface-sunk);border:1px solid var(--line);
+}
+.dev-av{
+  width:46px;height:46px;flex:none;border-radius:13px;
+  display:grid;place-items:center;color:#fff;background:var(--brand-grad);
+}
+.dev-av svg{width:24px;height:24px}
+.dev-card b{display:block;font-size:.98rem;line-height:1.5}
+.dev-card span{display:block;font-size:.78rem;color:var(--ink-faint)}
+
+.link-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.link-list a{
+  display:flex;align-items:center;gap:12px;
+  padding:11px 13px;border-radius:var(--r-md);
+  background:var(--surface);border:1px solid var(--line);
+  color:var(--ink);transition:border-color .16s,background .16s;
+}
+.link-list a:hover{text-decoration:none;border-color:var(--blue);background:var(--tint-blue)}
+.link-list .li{
+  width:32px;height:32px;flex:none;border-radius:9px;display:grid;place-items:center;
+  background:var(--surface-sunk);color:var(--ink-soft);
+}
+.link-list a:hover .li{background:var(--surface);color:var(--blue)}
+.link-list .li svg{width:17px;height:17px;display:block}
+.link-list .lt{min-width:0;font-size:.9rem;font-weight:600;line-height:1.45}
+.link-list .lt i{
+  display:block;font-style:normal;font-weight:400;
+  font-family:var(--mono);font-size:.74rem;color:var(--ink-faint);
+  unicode-bidi:isolate;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+
+/* کارت بانکی — بلوبانک */
+.bank-card{
+  position:relative;overflow:hidden;
+  border-radius:16px;padding:18px 18px 15px;margin:4px 0 6px;
+  background:linear-gradient(135deg,#0B63E5 0%,#1E86FF 55%,#4FA8FF 100%);
+  color:#fff;box-shadow:0 12px 30px -12px rgba(11,99,229,.65);
+}
+.bank-card::after{
+  content:"";position:absolute;inset-inline-end:-40px;top:-60px;
+  width:190px;height:190px;border-radius:50%;
+  background:rgba(255,255,255,.13);pointer-events:none;
+}
+.bank-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
+.bank-name{font-size:.82rem;font-weight:700;opacity:.95}
+.bank-chip{
+  width:34px;height:25px;border-radius:5px;flex:none;
+  background:linear-gradient(135deg,#F5D77E,#D8A93F);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.12);
+}
+.bank-num{
+  font-family:var(--mono);font-size:1.16rem;letter-spacing:.12em;
+  margin-bottom:14px;text-shadow:0 1px 2px rgba(0,0,0,.2);
+}
+.bank-bot{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:.82rem}
+.bank-copy{
+  display:inline-flex;align-items:center;gap:5px;flex:none;
+  padding:5px 11px;border-radius:99px;cursor:pointer;
+  background:rgba(255,255,255,.2);color:#fff;
+  border:1px solid rgba(255,255,255,.32);
+  font-family:inherit;font-size:.74rem;font-weight:600;
+}
+.bank-copy:hover{background:rgba(255,255,255,.3)}
+.bank-copy svg{width:13px;height:13px}
+.bank-copy.ok{background:rgba(255,255,255,.95);color:#0B63E5}
+
+@media (max-width:520px){
+  .mdim{padding:0}
+  .modal{max-width:none;min-height:100vh;border:0;border-radius:0}
+  .bank-num{font-size:1rem;letter-spacing:.08em}
+}
+
+/* ============================================================================
+   بوکمارک
+   ========================================================================== */
+.bm-count{
+  font-family:var(--num);font-size:.66rem;font-weight:700;
+  min-width:16px;height:16px;padding:0 4px;border-radius:99px;
+  display:grid;place-items:center;
+  background:var(--blue);color:#fff;margin-inline-start:2px;
+}
+.js-bm-open.on{color:var(--warn);border-color:var(--warn);background:var(--tint-warn)}
+
+/* دکمهٔ ستاره روی کارت دوره و سربرگ */
+.bm-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 12px;border-radius:99px;cursor:pointer;
+  background:var(--surface);border:1px solid var(--line-strong);
+  color:var(--ink-soft);font-family:inherit;font-size:.78rem;font-weight:600;
+  transition:color .16s,border-color .16s,background .16s;
+}
+.bm-btn svg{width:15px;height:15px}
+.bm-btn:hover{color:var(--warn);border-color:var(--warn)}
+.bm-btn.on{color:var(--warn);border-color:var(--warn);background:var(--tint-warn)}
+.bm-btn.on svg{fill:var(--warn)}
+.course .bm-btn{position:absolute;top:12px;inset-inline-start:12px;padding:6px;border-radius:9px}
+.course .bm-btn span{display:none}
+
+.bm-empty{
+  text-align:center;padding:60px 20px;color:var(--ink-faint);
+}
+.bm-empty svg{width:44px;height:44px;opacity:.4;margin-bottom:14px}
+
+/* ============================================================================
+   پیش‌نیاز مسیر
+   ========================================================================== */
+.pre-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));margin:18px 0}
+.pre-card{
+  display:flex;align-items:center;gap:13px;
+  padding:13px 15px;border-radius:var(--r-md);
+  background:var(--surface);border:1px solid var(--line);
+  box-shadow:var(--shadow-1);color:inherit;
+  transition:border-color .18s,transform .18s,box-shadow .18s;
+}
+.pre-card:hover{
+  text-decoration:none;border-color:var(--blue);
+  transform:translateY(-2px);box-shadow:var(--shadow-2);
+}
+@media (prefers-reduced-motion:reduce){.pre-card:hover{transform:none}}
+.pre-card .logo-box{width:42px;height:42px;border-radius:12px}
+.pre-card .logo-box svg{width:22px;height:22px}
+.pre-t{min-width:0;flex:1}
+.pre-t b{display:block;font-size:.95rem;line-height:1.5}
+.pre-t i{
+  display:block;font-style:normal;font-size:.78rem;color:var(--ink-faint);
+  line-height:1.6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.pre-tag{
+  flex:none;font-size:.68rem;font-weight:700;padding:3px 9px;border-radius:99px;
+  background:var(--tint-blue);color:var(--blue);
+  border:1px solid color-mix(in srgb,var(--blue) 24%,transparent);
+}
+.pre-card.soft .pre-tag{background:var(--surface-sunk);color:var(--ink-faint);border-color:var(--line)}
+
+/* ============================================================================
+   منوی موبایل
+   زیر ۷۲۰px هفت دکمهٔ نوار بالا در یک دکمه جمع می‌شوند و کشویی از همان
+   سمتی باز می‌شود که زبان صفحه اقتضا می‌کند.
+   ========================================================================== */
+.bar-menu{display:none}
+
+@media (max-width:719px){
+  .bar-tools{display:none}
+  .bar-menu{display:inline-flex;margin-inline-start:auto}
+  .topbar{gap:10px}
+  .brand-txt i{display:none}
+}
+
+.js-menu-dim{position:fixed;inset:0;z-index:200;display:none;background:rgba(8,12,22,.55)}
+.js-menu-dim.open{display:block}
+
+.sheet{
+  position:fixed;inset-block:0;
+  width:min(84vw,320px);
+  background:var(--surface);
+  box-shadow:var(--shadow-3);
+  display:flex;flex-direction:column;
+  padding-bottom:env(safe-area-inset-bottom);
+  transform:translateX(0);
+  transition:transform .28s cubic-bezier(.3,.9,.3,1);
+}
+/* مثل کشوی فهرست: مختصات فیزیکی تا در RTL سمت راست بنشیند */
+:root[dir="rtl"] .sheet{right:0;left:auto;border-left:1px solid var(--line-strong)}
+:root[dir="ltr"] .sheet{left:0;right:auto;border-right:1px solid var(--line-strong)}
+:root[dir="rtl"] .js-menu-dim:not(.open) .sheet{transform:translateX(102%)}
+:root[dir="ltr"] .js-menu-dim:not(.open) .sheet{transform:translateX(-102%)}
+
+.sheet-h{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px;border-bottom:1px solid var(--line);
+  font-weight:700;font-size:.95rem;flex:none;
+}
+.sheet-b{padding:10px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.sheet-i{
+  display:flex;align-items:center;gap:12px;
+  width:100%;padding:12px 13px;border-radius:var(--r-md);
+  background:transparent;border:0;cursor:pointer;
+  font-family:inherit;font-size:.92rem;font-weight:600;
+  color:var(--ink);text-align:start;
+}
+.sheet-i:hover,.sheet-i:focus-visible{background:var(--surface-sunk);text-decoration:none;color:var(--ink)}
+.sheet-i svg{width:19px;height:19px;flex:none;color:var(--ink-soft)}
+.sheet-i:hover svg{color:var(--blue)}
+.sheet-i .bm-count{
+  margin-inline-start:auto;font-family:var(--num);font-size:.72rem;font-weight:700;
+  background:var(--tint-blue);color:var(--blue);
+  padding:1px 8px;border-radius:99px;
+}
+.sheet-row{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:12px 13px;margin-top:6px;
+  border-top:1px solid var(--line);
+  font-size:.88rem;color:var(--ink-soft);font-weight:600;
+}
+@media (prefers-reduced-motion:reduce){.sheet{transition:none}}
+
+/* ============================================================================
+   پیام کوتاه (toast)
+   یک عنصر مشترک که app.js می‌سازد. پایین صفحه، بالای همه‌چیز.
+   ========================================================================== */
+.toast{
+  position:fixed;z-index:300;
+  inset-inline:0;bottom:calc(20px + env(safe-area-inset-bottom));
+  margin-inline:auto;width:max-content;max-width:min(90vw,440px);
+  padding:12px 18px;border-radius:999px;
+  background:var(--ink);color:var(--canvas);
+  font-size:.88rem;font-weight:600;line-height:1.6;text-align:center;
+  box-shadow:var(--shadow-3);
+  opacity:0;transform:translateY(14px);pointer-events:none;
+  transition:opacity .22s ease,transform .22s cubic-bezier(.2,.8,.3,1);
+}
+.toast.show{opacity:1;transform:none}
+.toast.ok{background:var(--safe);color:#fff}
+.toast.warn{background:var(--warn);color:#fff}
+@media (prefers-reduced-motion:reduce){.toast{transition:opacity .01ms}}

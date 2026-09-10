@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="fa" dir="rtl" data-lang="fa">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Sass — کدنامه</title>
+<meta name="description" content="متغیر، تودرتویی، ‎mixin‎، تابع، ماژول و معماری ‎7-1‎ — ‎CSS‎ در مقیاس.">
+<meta name="color-scheme" content="light dark">
+<link rel="canonical" href="https://codenameh.ir/68-sass/">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="کدنامه">
+<meta property="og:locale" content="fa_IR">
+<meta property="og:locale:alternate" content="en_US">
+<meta property="og:url" content="https://codenameh.ir/68-sass/">
+<meta property="og:title" content="Sass — کدنامه">
+<meta property="og:description" content="متغیر، تودرتویی، ‎mixin‎، تابع، ماژول و معماری ‎7-1‎ — ‎CSS‎ در مقیاس.">
+<meta property="og:image" content="https://codenameh.ir/assets/og/68-sass.svg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Sass — کدنامه">
+<meta name="twitter:description" content="متغیر، تودرتویی، ‎mixin‎، تابع، ماژول و معماری ‎7-1‎ — ‎CSS‎ در مقیاس.">
+<meta name="twitter:image" content="https://codenameh.ir/assets/og/68-sass.svg">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Course","name":"Sass","description":"متغیر، تودرتویی، ‎mixin‎، تابع، ماژول و معماری ‎7-1‎ — ‎CSS‎ در مقیاس.","inLanguage":"fa","url":"https://codenameh.ir/68-sass/","provider":{"@type":"Organization","name":"کدنامه","url":"https://codenameh.ir"},"isAccessibleForFree":true,"teaches":["چرا ‎Sass‎ آمد","راه‌اندازی","نحو","متغیر","تودرتویی","‏partial و ماژول","‎mixin‎","تابع","کنترل جریان","‏map","‎@extend‎","معماری ‎7-1‎"],"hasCourseInstance":{"@type":"CourseInstance","courseMode":"online","courseWorkload":"PT19H"}}</script>
+<link rel="preload" href="../assets/fonts/Vazirmatn-Variable.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../assets/theme.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Crect%20width%3D%2224%22%20height%3D%2224%22%20rx%3D%226%22%20fill%3D%22%23CD6799%22%2F%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23fff%22%20stroke-width%3D%221.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20transform%3D%22translate(2.4%202.4)%20scale(.8)%22%3E%3Cpath%20d%3D%22M3.4%2012.4c3-5.4%208.8-7.8%2013-7%202.6.5%203.8%202.2%203.2%203.8-1%202.6-5.6%203-8.6%201.6-2.4-1.1-2-3%20.4-2.6%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M20.6%2013.6c-2.6%204.6-7.6%206.8-11.4%206.2%22%20stroke-linecap%3D%22round%22%20opacity%3D%22.75%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E">
+</head>
+<body data-page="course" data-course="68-sass">
+
+<div class="loader" aria-hidden="true">
+  <div class="loader-in">
+    <span class="loader-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+<path d="M3.6 4.8A1.8 1.8 0 0 1 5.4 3H20v18H5.4a1.8 1.8 0 0 1-1.8-1.8z"/>
+<path d="M7.6 18.2H20"/><path d="m10.4 8.6-2.3 2.9 2.3 2.9M14.4 8.6l2.3 2.9-2.3 2.9"/></svg></span>
+    <span class="loader-name"><b lang="fa">کدنامه</b><b lang="en">Codenameh</b><i>Codenameh</i></span>
+    <span class="loader-bar"><i></i></span>
+  </div>
+</div>
+<div class="readbar" aria-hidden="true"></div>
+
+<header class="topbar">
+  <a class="brand" href="../index.html">
+    <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+<path d="M3.6 4.8A1.8 1.8 0 0 1 5.4 3H20v18H5.4a1.8 1.8 0 0 1-1.8-1.8z"/>
+<path d="M7.6 18.2H20"/><path d="m10.4 8.6-2.3 2.9 2.3 2.9M14.4 8.6l2.3 2.9-2.3 2.9"/></svg></span>
+    <span class="brand-txt"><b lang="fa">کدنامه</b><b lang="en">Codenameh</b><i lang="fa">مرجع‌های مهندسی نرم‌افزار، به فارسی</i><i lang="en">Software engineering references, in Persian</i></span>
+  </a>
+  <nav class="crumbs" aria-label="مسیر">
+    <a href="../index.html"><span lang="fa">خانه</span><span lang="en">Home</span></a>
+    <span class="sep">/</span>
+    <span class="cur"><span lang="fa">Sass</span><span lang="en">Sass</span></span>
+  </nav>
+  <div class="bar-tools">
+    <button class="ibtn js-search" type="button" aria-label="جستجو"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg><span lang="fa">جستجو</span><span lang="en">Search</span></button>
+    <a class="ibtn js-bm-open" href="../bookmarks.html" aria-label="علاقه‌مندی‌ها"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="m12 3.6 2.6 5.3 5.8.85-4.2 4.1 1 5.75L12 16.9l-5.2 2.7 1-5.75-4.2-4.1 5.8-.85z"/></svg><span class="bm-count" hidden>۰</span></a>
+    <button class="ibtn js-share" type="button" aria-label="اشتراک‌گذاری"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="17.5" cy="6" r="2.6"/><circle cx="6.5" cy="12" r="2.6"/><circle cx="17.5" cy="18" r="2.6"/><path d="m8.9 10.7 6.2-3.4M8.9 13.3l6.2 3.4"/></svg></button>
+    <a class="ibtn" href="../contributing.html" aria-label="مشارکت در پروژه" title="مشارکت در پروژه"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 8-4 4 4 4M15 8l4 4-4 4"/></svg></a>
+    <div class="lang-sw" role="group" aria-label="زبان">
+      <button type="button" data-l="fa" aria-pressed="true">FA</button>
+      <button type="button" data-l="en" aria-pressed="false">EN</button>
+    </div>
+    <button class="ibtn js-theme" type="button" aria-label="تغییر تم"><svg class="ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+    <button class="ibtn js-about" type="button" aria-label="دربارهٔ پروژه و توسعه‌دهنده"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5.5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="18.5" cy="12" r="1.7"/></svg></button>
+  </div>
+
+  <!-- روی موبایل به‌جای هفت دکمه، یک دکمه؛ کشوی زیر باز می‌شود -->
+  <button class="ibtn js-menu bar-menu" type="button" aria-label="منو" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+</header>
+
+<div class="mdim js-menu-dim" role="dialog" aria-modal="true" aria-label="منو">
+  <div class="sheet">
+    <header class="sheet-h">
+      <span lang="fa">منو</span><span lang="en">Menu</span>
+      <button class="ibtn js-menu-close" type="button" aria-label="بستن"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+    </header>
+    <nav class="sheet-b">
+      <button class="sheet-i js-search" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+        <span lang="fa">جستجو</span><span lang="en">Search</span></button>
+      <a class="sheet-i" href="../bookmarks.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="m12 3.6 2.6 5.3 5.8.85-4.2 4.1 1 5.75L12 16.9l-5.2 2.7 1-5.75-4.2-4.1 5.8-.85z"/></svg>
+        <span lang="fa">علاقه‌مندی‌ها</span><span lang="en">Bookmarks</span>
+        <span class="bm-count" hidden>۰</span></a>
+      <button class="sheet-i js-share" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="17.5" cy="6" r="2.6"/><circle cx="6.5" cy="12" r="2.6"/><circle cx="17.5" cy="18" r="2.6"/><path d="m8.9 10.7 6.2-3.4M8.9 13.3l6.2 3.4"/></svg>
+        <span lang="fa">اشتراک‌گذاری</span><span lang="en">Share</span></button>
+      <a class="sheet-i" href="../contributing.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 8-4 4 4 4M15 8l4 4-4 4"/></svg>
+        <span lang="fa">مشارکت در پروژه</span><span lang="en">Contribute</span></a>
+      <button class="sheet-i js-about" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 20.3 4.6 13a4.6 4.6 0 0 1 6.5-6.5l.9.9.9-.9A4.6 4.6 0 1 1 19.4 13z"/></svg>
+        <span lang="fa">دربارهٔ پروژه و حمایت</span><span lang="en">About &amp; support</span></button>
+      <div class="sheet-row">
+        <span lang="fa">زبان</span><span lang="en">Language</span>
+        <div class="lang-sw" role="group" aria-label="زبان">
+          <button type="button" data-l="fa" aria-pressed="true">FA</button>
+          <button type="button" data-l="en" aria-pressed="false">EN</button>
+        </div>
+      </div>
+      <div class="sheet-row">
+        <span lang="fa">تم</span><span lang="en">Theme</span>
+        <button class="ibtn js-theme" type="button" aria-label="تغییر تم"><svg class="ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+      </div>
+    </nav>
+  </div>
+</div>
+
+<div class="shell">
+<main class="content">
+
+  <div class="masthead has-mark">
+    <div class="mast-head">
+      <span class="mast-mark" style="--acc:#CD6799" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3.4 12.4c3-5.4 8.8-7.8 13-7 2.6.5 3.8 2.2 3.2 3.8-1 2.6-5.6 3-8.6 1.6-2.4-1.1-2-3 .4-2.6" stroke-linecap="round"/><path d="M20.6 13.6c-2.6 4.6-7.6 6.8-11.4 6.2" stroke-linecap="round" opacity=".75"/></svg>
+      </span>
+      <div class="mast-t">
+        <h1 lang="fa" data-chead="name">Sass</h1>
+        <h1 lang="en" data-chead="name">Sass</h1>
+        <span class="mast-cat" lang="fa">فرانت‌اند و موبایل</span>
+        <span class="mast-cat" lang="en">Frontend & mobile</span>
+      </div>
+      <span class="eyebrow mast-badge"><span class="dot"></span>
+        <span lang="fa">مسیر ۶۴</span><span lang="en">Track 64</span>
+      </span>
+    </div>
+    <p class="sub" lang="fa" data-chead="intro">‏Sass اولین چیزی بود که ‎CSS‎ را قابل مدیریت کرد، و با اینکه ‎CSS‎ امروز خیلی از قابلیت‌هایش را دارد، هنوز جایی می‌ماند که ‎CSS‎ نمی‌رسد: منطق در زمان کامپایل. این مسیر یاد می‌دهد کجا ‎Sass‎ هنوز ارزش دارد و کجا فقط پیچیدگی اضافه است — چون بخش زیادی از ‎Sass‎ی که تیم‌ها می‌نویسند، امروز با ‎CSS‎ خام ساده‌تر است.</p>
+    <p class="sub" lang="en" data-chead="intro">Sass was the first thing that made CSS manageable, and although modern CSS has absorbed many of its features, it still reaches where CSS cannot: logic at compile time. This track shows where Sass still earns its place and where it is now just extra complexity — because much of the Sass teams write today is simpler in plain CSS.</p>
+    <div class="facts">
+      <div class="fact"><span class="fact-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg></span><span class="fact-v"><b data-cstat="68-sass:chapters">۱۷</b><span lang="fa">فصل</span><span lang="en">chapters</span></span></div>
+      <div class="fact"><span class="fact-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg></span><span class="fact-v"><b data-cstat="68-sass:ex">۱۸۹</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></span></div>
+      <div class="fact"><span class="fact-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span class="fact-v"><b><span data-cstat="68-sass:hours">۱۹</span><span class="u" lang="fa">ساعت</span><span class="u" lang="en">h</span></b><span lang="fa">زمان تخمینی</span><span lang="en">estimated time</span></span></div>
+      <div class="fact"><span class="fact-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M5 21V4M5 4h12l-2.4 3.6L17 11H5"/></svg></span><span class="fact-v"><b>۳</b><span lang="fa">پروژهٔ نهایی</span><span lang="en">final projects</span></span></div>
+    </div>
+    <div style="margin-top:20px" data-resume="68-sass"></div>
+  </div>
+
+
+  <section id="prereq">
+    <h2><span lang="fa">پیش‌نیاز</span><span lang="en">Prerequisites</span></h2>
+    <p class="lede" lang="fa">بدون این مسیرها، بخشی از فصل‌های اینجا معنا نمی‌دهد.</p>
+    <p class="lede" lang="en">Without these, parts of this track will not make sense.</p>
+    <div class="pre-grid">
+      <a class="pre-card" href="../67-css/index.html">
+        <span class="logo-box" style="--acc:#2965F1" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4.2 3h15.6l-1.4 15.8L12 21l-6.4-2.2z"/><path d="M15.8 7.6H8.6l.3 3.2h6.6l-.4 3.6-3.1.8-3.1-.8-.2-1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+        <span class="pre-t">
+          <b lang="fa">CSS</b><b lang="en">CSS</b>
+          <i lang="fa">آبشار، مدل جعبه، Flexbox، Grid، متغیر، انیمیشن، ‎RTL‎ و کارایی رندر.…</i><i lang="en">The cascade, the box model, Flexbox, Grid, custom properties, animation, R…</i>
+        </span>
+        <span class="pre-tag"><span lang="fa">لازم</span><span lang="en">Required</span></span>
+      </a>
+    </div>
+  </section>
+  <section id="status">
+    <h2><span lang="fa">وضعیت این مسیر</span><span lang="en">Status</span></h2>
+    <div class="note warn"><div class="note-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span lang="fa">هنوز فصلی نوشته نشده</span><span lang="en">No chapter written yet</span></div>
+    <p lang="fa">نقشهٔ راه پایین کامل است، اما نوشتن این مسیر هنوز شروع نشده. اگر دوست داری کمک کنی،
+      <a href="../contributing.html">راهنمای مشارکت</a> را ببین — این پروژه متن‌باز است.</p>
+    <p lang="en">The roadmap below is complete, but writing has not started. If you would like to help, see the
+      <a href="../contributing.html">contributing guide</a> — this project is open source.</p></div>
+  </section>
+
+  <section id="chapters">
+    <h2><span lang="fa">فصل‌ها</span><span lang="en">Chapters</span></h2>
+    <p class="lede" lang="fa">فصل‌ها به هم وابسته‌اند و ترتیبشان معنا دارد. هر مسیر با سه پروژهٔ نهایی تمام می‌شود: ساده، متوسط، پیچیده.</p>
+    <p class="lede" lang="en">Chapters build on each other; the order is deliberate. Every track ends with three final projects: easy, medium and hard.</p>
+    <div class="ch-grid" data-chgrid></div>
+    <noscript><div class="note warn"><p lang="fa">جاوااسکریپت خاموش است، پس فهرست فصل‌ها ساخته نشد.</p><p lang="en">JavaScript is off, so the chapter list was not built.</p></div></noscript>
+  </section>
+
+  <section id="progress">
+    <h2><span lang="fa">پیشرفت تو</span><span lang="en">Your progress</span></h2>
+    <div class="ex-stat" data-prog-overall="68-sass">
+      <span class="js-pct" style="font-family:var(--num);font-weight:700;font-size:1.1rem">۰٪</span>
+      <div class="pbar"><i></i></div>
+      <button class="ibtn js-reset" data-scope="68-sass" type="button"><span lang="fa">صفر کن</span><span lang="en">Reset</span></button>
+    </div>
+    <p style="font-size:.88rem;color:var(--ink-soft)" lang="fa">درصد هر فصل از دو چیز می‌آید: چقدر خوانده‌ای (۵۵٪) و چند تمرین تیک زده‌ای (۴۵٪). همه‌چیز داخل مرورگر خودت می‌ماند.</p>
+    <p style="font-size:.88rem;color:var(--ink-soft)" lang="en">A chapter's percentage comes from how much you have read (55%) and how many exercises you ticked (45%). It all stays in your own browser.</p>
+  </section>
+
+</main>
+</div>
+
+<div class="sdim" role="dialog" aria-modal="true" aria-label="جستجو">
+  <div class="sbox">
+    <input type="search" placeholder="جستجو در همهٔ دوره‌ها…" autocomplete="off" spellcheck="false">
+    <div class="sres"></div>
+    <div class="sfoot">
+      <span><kbd>↑</kbd> <kbd>↓</kbd> <span lang="fa">حرکت</span><span lang="en">navigate</span></span>
+      <span><kbd>Enter</kbd> <span lang="fa">باز کردن</span><span lang="en">open</span></span>
+      <span><kbd>Esc</kbd> <span lang="fa">بستن</span><span lang="en">close</span></span>
+    </div>
+  </div>
+</div>
+
+<div class="mdim js-about-dim" role="dialog" aria-modal="true" aria-labelledby="about-t">
+  <div class="modal">
+    <header class="modal-h">
+      <h2 id="about-t"><span lang="fa">دربارهٔ کدنامه</span><span lang="en">About Codenameh</span></h2>
+      <button class="modal-x js-modal-close" type="button" aria-label="بستن">&times;</button>
+    </header>
+
+    <nav class="modal-tabs" role="tablist">
+      <button class="on" data-tab="dev" role="tab" type="button"><span lang="fa">توسعه‌دهنده</span><span lang="en">Developer</span></button>
+      <button data-tab="join" role="tab" type="button"><span lang="fa">همکاری</span><span lang="en">Contribute</span></button>
+      <button data-tab="donate" role="tab" type="button"><span lang="fa">حمایت</span><span lang="en">Support</span></button>
+    </nav>
+
+    <div class="modal-b">
+      <!-- توسعه‌دهنده -->
+      <section data-pane="dev" class="on">
+        <div class="dev-card">
+          <span class="dev-av" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+<path d="M3.6 4.8A1.8 1.8 0 0 1 5.4 3H20v18H5.4a1.8 1.8 0 0 1-1.8-1.8z"/>
+<path d="M7.6 18.2H20"/><path d="m10.4 8.6-2.3 2.9 2.3 2.9M14.4 8.6l2.3 2.9-2.3 2.9"/></svg></span>
+          <div>
+            <b lang="fa">سیدعباس موسوی اصل</b><b lang="en">Seyed Abbas Mousavi Asl</b>
+            <span lang="fa">توسعه‌دهنده و نویسندهٔ کدنامه</span><span lang="en">Developer and author of Codenameh</span>
+          </div>
+        </div>
+        <ul class="link-list">
+          <li><a href="https://github.com/SeyedAb2" target="_blank" rel="noopener noreferrer">
+            <span class="li"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48l-.01-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.5 9.5 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.94.36.31.68.92.68 1.85l-.01 2.75c0 .27.18.58.69.48A10 10 0 0 0 12 2z"/></svg></span>
+            <span class="lt">GitHub<i dir="ltr">@seyedAb2</i></span></a></li>
+          <li><a href="https://www.linkedin.com/in/abbas-mossavi-520b09213" target="_blank" rel="noopener noreferrer">
+            <span class="li"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M4.98 3.5A2.5 2.5 0 1 0 5 8.5a2.5 2.5 0 0 0-.02-5zM3 9.5h4v11H3zM10 9.5h3.8v1.5h.05c.53-.95 1.83-1.95 3.77-1.95 4.03 0 4.78 2.5 4.78 5.76v5.69h-4v-5.04c0-1.2-.02-2.75-1.75-2.75-1.75 0-2.02 1.3-2.02 2.66v5.13h-4z"/></svg></span>
+            <span class="lt"><span lang="fa">لینکدین</span><span lang="en">LinkedIn</span><i dir="ltr">abbas-mossavi</i></span></a></li>
+          <li><a href="tel:+989302010811">
+            <span class="li"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M21 16.5v2.8a1.8 1.8 0 0 1-2 1.8 17.6 17.6 0 0 1-7.7-2.7 17.3 17.3 0 0 1-5.3-5.3A17.6 17.6 0 0 1 3.3 5.3a1.8 1.8 0 0 1 1.8-2h2.8a1.8 1.8 0 0 1 1.8 1.6c.1.9.3 1.7.6 2.5a1.8 1.8 0 0 1-.4 1.9l-1.2 1.2a14 14 0 0 0 5.3 5.3l1.2-1.2a1.8 1.8 0 0 1 1.9-.4c.8.3 1.6.5 2.5.6a1.8 1.8 0 0 1 1.6 1.8z"/></svg></span>
+            <span class="lt"><span lang="fa">تلفن</span><span lang="en">Phone</span><i dir="ltr">09302010811</i></span></a></li>
+          <li><a href="mailto:abbas.mossavi1378@gmail.com">
+            <span class="li"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="m3 7 9 6 9-6"/></svg></span>
+            <span class="lt"><span lang="fa">ایمیل</span><span lang="en">Email</span><i dir="ltr">abbas.mossavi1378@gmail.com</i></span></a></li>
+        </ul>
+      </section>
+
+      <!-- همکاری -->
+      <section data-pane="join">
+        <p lang="fa">کدنامه متن‌باز است و هر فصلی که بنویسی به نام خودت ثبت می‌شود. لازم نیست همه‌چیز بلد باشی — یک فصل، یک تمرین، یا حتی اصلاح یک غلط املایی هم کمک است.</p>
+        <p lang="en">Codenameh is open source and every chapter you write carries your name. You do not need to know everything — one chapter, one exercise, even a typo fix helps.</p>
+        <ul class="link-list">
+          <li><a href="https://github.com/SeyedAb2/code-name" target="_blank" rel="noopener noreferrer">
+            <span class="li"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48l-.01-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.5 9.5 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.94.36.31.68.92.68 1.85l-.01 2.75c0 .27.18.58.69.48A10 10 0 0 0 12 2z"/></svg></span>
+            <span class="lt"><span lang="fa">مخزن پروژه</span><span lang="en">The repository</span><i dir="ltr">github.com/SeyedAb2/code-name</i></span></a></li>
+          <li><a class="js-contrib-link" href="../contributing.html">
+            <span class="li"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 8-4 4 4 4M15 8l4 4-4 4"/></svg></span>
+            <span class="lt"><span lang="fa">راهنمای مشارکت</span><span lang="en">Contributing guide</span>
+            <i lang="fa">قدم‌به‌قدم، از صفر</i><i lang="en">Step by step, from zero</i></span></a></li>
+          <li><a href="mailto:abbas.mossavi1378@gmail.com?subject=Codenameh">
+            <span class="li"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="m3 7 9 6 9-6"/></svg></span>
+            <span class="lt"><span lang="fa">پیشنهاد یا سؤال</span><span lang="en">Ideas or questions</span><i dir="ltr">abbas.mossavi1378@gmail.com</i></span></a></li>
+        </ul>
+      </section>
+
+      <!-- حمایت -->
+      <section data-pane="donate">
+        <p lang="fa">کدنامه رایگان است و رایگان می‌ماند. اگر به کارت آمد و خواستی حمایت کنی، سپاسگزارم — اما هیچ فصلی پشت پرداخت قفل نمی‌شود.</p>
+        <p lang="en">Codenameh is free and stays free. If it helped you and you would like to support it, thank you — but no chapter will ever be locked behind a payment.</p>
+
+        <div class="bank-card">
+          <div class="bank-top">
+            <span class="bank-name"><span lang="fa">بلوبانک — بانک سامان</span><span lang="en">Blu Bank — Saman Bank</span></span>
+            <span class="bank-chip" aria-hidden="true"></span>
+          </div>
+          <div class="bank-num" dir="ltr">6219 8618 4472 9987</div>
+          <div class="bank-bot">
+            <span lang="fa">سیدعباس موسوی اصل</span><span lang="en">Seyed Abbas Mousavi Asl</span>
+            <button class="bank-copy js-copy-card" type="button" data-card="6219861844729987">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="9" y="9" width="11.5" height="11.5" rx="2.2"/><path d="M15 6.5V5.8A2.3 2.3 0 0 0 12.7 3.5H5.8A2.3 2.3 0 0 0 3.5 5.8v6.9A2.3 2.3 0 0 0 5.8 15h.7"/></svg><span lang="fa">کپی</span><span lang="en">Copy</span>
+            </button>
+          </div>
+        </div>
+        <p class="hint" lang="en">The card number is a placeholder; replace it in <code>tools/build-pages.js</code> before publishing.</p>
+      </section>
+    </div>
+  </div>
+</div>
+
+<footer class="foot">
+  <div class="foot-in">
+    <span><a href="../index.html"><span lang="fa">کدنامه</span><span lang="en">Codenameh</span></a>
+      · <a href="../contributing.html"><span lang="fa">راهنمای مشارکت</span><span lang="en">Contributing</span></a></span>
+    <span><span lang="fa">ساختهٔ سیدعباس موسوی اصل</span><span lang="en">Built by Seyed Abbas Mousavi Asl</span> · <kbd>Ctrl</kbd>+<kbd>K</kbd></span>
+  </div>
+</footer>
+
+<script src="../assets/tracks.js" defer></script>
+<script src="../assets/ch/68-sass.js" defer></script>
+<script src="../assets/app.js" defer></script>
+</body>
+</html>

@@ -37,6 +37,7 @@ COURSES.forEach(c => {
   }));
   c.readyCount = c.chapters.filter(x => x.ready).length;
   c.exTotal = c.chapters.reduce((s, x) => s + (x.ex || 0), 0);
+  c.capCount = c.chapters.filter(x => x.cap).length;
   c.hours = Math.round(c.chapters.reduce((s, x) => s + (x.mins || 0), 0) / 60);
 });
 
@@ -44,12 +45,39 @@ const FA_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
 const fa = n => String(n).replace(/\d/g, d => FA_DIGITS[+d]);
 
 const CATS = [
-  { id: "infra",    fa: "زیرساخت و عملیات",   en: "Infrastructure & operations" },
-  { id: "arch",     fa: "معماری و مهندسی",     en: "Architecture & engineering" },
-  { id: "backend",  fa: "بک‌اند",              en: "Backend" },
-  { id: "frontend", fa: "فرانت‌اند و موبایل",  en: "Frontend & mobile" },
-  { id: "data",     fa: "داده و بی‌درنگ",      en: "Data & real-time" },
-  { id: "career",   fa: "مهارت و مسیر شغلی",   en: "Skills & career" }
+  { id: "roots",    fa: "بنیان‌ها و تاریخچه",  en: "Foundations & history",
+    dfa: "اینکه هر چیزی از کجا آمد و چه دردی را درمان کرد. اگر تازه‌کاری، از اینجا شروع کن.",
+    den: "Where each thing came from and which pain it cured. If you are new, start here." },
+  { id: "basics",   fa: "ابزار روزمره",        en: "Everyday tools",
+    dfa: "ابزارهایی که هر روز، در هر پروژه‌ای، صرف‌نظر از زبان و فریم‌ورک لازمشان داری.",
+    den: "The tools you need every day, in every project, whatever the language or framework." },
+  { id: "infra",    fa: "زیرساخت و عملیات",    en: "Infrastructure & operations",
+    dfa: "بردن کد از لپ‌تاپ به سروری که شب هم بیدار می‌ماند.",
+    den: "Getting code from your laptop onto a server that stays up overnight." },
+  { id: "arch",     fa: "معماری و مهندسی",     en: "Architecture & engineering",
+    dfa: "تصمیم‌هایی که عوض کردنشان بعداً گران است — و چطور درست بگیری‌شان.",
+    den: "The decisions that are expensive to change later — and how to make them well." },
+  { id: "backend",  fa: "بک‌اند",              en: "Backend",
+    dfa: "زبان‌ها و فریم‌ورک‌های سمت سرور، هرکدام از مقدماتی تا پیشرفته.",
+    den: "Server-side languages and frameworks, each from beginner to advanced." },
+  { id: "frontend", fa: "فرانت‌اند و موبایل",  en: "Frontend & mobile",
+    dfa: "آنچه کاربر واقعاً می‌بیند و لمس می‌کند.",
+    den: "What the user actually sees and touches." },
+  { id: "ai",       fa: "هوش مصنوعی",          en: "Artificial intelligence",
+    dfa: "از یادگیری ماشین تا ساختن محصول با مدل‌های زبانی — با تأکید بر داده و ارزیابی.",
+    den: "From machine learning to building products on language models — with the emphasis on data and evaluation." },
+  { id: "data",     fa: "داده و بی‌درنگ",      en: "Data & real-time",
+    dfa: "ذخیره کردن، پیدا کردن و زنده رساندن داده.",
+    den: "Storing data, finding it, and delivering it live." },
+  { id: "publish",  fa: "انتشار و توزیع",      en: "Publishing & distribution",
+    dfa: "از کدی که کار می‌کند تا چیزی که دیگران نصبش می‌کنند.",
+    den: "From code that works to something other people install." },
+  { id: "projects", fa: "پروژه‌های ترکیبی",    en: "Integration projects",
+    dfa: "سامانه‌های کامل که چند مسیر را به هم وصل می‌کنند. بعد از چند مسیر بیا سراغشان.",
+    den: "Complete systems tying several tracks together. Come here after a few tracks." },
+  { id: "career",   fa: "مهارت و مسیر شغلی",   en: "Skills & career",
+    dfa: "آنچه بین یک برنامه‌نویس خوب و یک مهندس نرم‌افزار فرق می‌گذارد.",
+    den: "What separates a good programmer from a software engineer." }
 ];
 
 /* ───────────────────────────── نشان و آیکون‌ها ───────────────────────────── */
@@ -57,6 +85,19 @@ const CATS = [
 const MARK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
 <path d="M3.6 4.8A1.8 1.8 0 0 1 5.4 3H20v18H5.4a1.8 1.8 0 0 1-1.8-1.8z"/>
 <path d="M7.6 18.2H20"/><path d="m10.4 8.6-2.3 2.9 2.3 2.9M14.4 8.6l2.3 2.9-2.3 2.9"/></svg>`;
+
+/* رنگ نشان دوره.
+   رنگ برند بعضی ابزارها در یکی از دو تم خوانا نیست (Next.js تقریباً سیاه است،
+   JavaScript تقریباً سفید). هرجا accentDark تعریف شده، تم تاریک از آن استفاده
+   می‌کند. theme.css این دو متغیر را برمی‌دارد. */
+const accVars = c =>
+  `--acc:${c.accent}` + (c.accentDark ? `;--acc-d:${c.accentDark}` : "");
+
+/* یک خانهٔ باکس آمار: آیکون + عدد + برچسب دوزبانه */
+const factCell = (ico, value, labelFa, labelEn) =>
+  `<div class="fact"><span class="fact-ico" aria-hidden="true">${ico}</span>` +
+  `<span class="fact-v">${value}` +
+  `<span lang="fa">${labelFa}</span><span lang="en">${labelEn}</span></span></div>`;
 
 const FAVICON = (color, inner) =>
   `data:image/svg+xml,${encodeURIComponent(
@@ -70,8 +111,24 @@ const ICO = {
   book:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg>`,
   clock:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`,
   check:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg>`,
+  flag:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M5 21V4M5 4h12l-2.4 3.6L17 11H5"/></svg>`,
   mail:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="m3 7 9 6 9-6"/></svg>`,
   code:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 8-4 4 4 4M15 8l4 4-4 4"/></svg>`,
+  shield: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.4 20 6.6v5.6c0 4.4-3.2 7.5-8 8.8-4.8-1.3-8-4.4-8-8.8V6.6z"/><path d="m9 12 2.2 2.2L15.4 10"/></svg>`,
+  down:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 20h14"/></svg>`,
+  up:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V9M7.5 13.5 12 9l4.5 4.5M5 4h14"/></svg>`,
+  bars:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>`,
+  list:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 7h12M8 12h12M8 17h9"/><circle cx="4.3" cy="7" r="1.1" fill="currentColor" stroke="none"/><circle cx="4.3" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="4.3" cy="17" r="1.1" fill="currentColor" stroke="none"/></svg>`,
+  close:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg>`,
+  star:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="m12 3.6 2.6 5.3 5.8.85-4.2 4.1 1 5.75L12 16.9l-5.2 2.7 1-5.75-4.2-4.1 5.8-.85z"/></svg>`,
+  share:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="17.5" cy="6" r="2.6"/><circle cx="6.5" cy="12" r="2.6"/><circle cx="17.5" cy="18" r="2.6"/><path d="m8.9 10.7 6.2-3.4M8.9 13.3l6.2 3.4"/></svg>`,
+  dots:   `<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5.5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="18.5" cy="12" r="1.7"/></svg>`,
+  heart:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M12 20.4 4.6 13a4.7 4.7 0 0 1 6.6-6.7l.8.8.8-.8A4.7 4.7 0 0 1 19.4 13z"/></svg>`,
+  github: `<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48l-.01-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.5 9.5 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.94.36.31.68.92.68 1.85l-.01 2.75c0 .27.18.58.69.48A10 10 0 0 0 12 2z"/></svg>`,
+  linkedin: `<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M4.98 3.5A2.5 2.5 0 1 0 5 8.5a2.5 2.5 0 0 0-.02-5zM3 9.5h4v11H3zM10 9.5h3.8v1.5h.05c.53-.95 1.83-1.95 3.77-1.95 4.03 0 4.78 2.5 4.78 5.76v5.69h-4v-5.04c0-1.2-.02-2.75-1.75-2.75-1.75 0-2.02 1.3-2.02 2.66v5.13h-4z"/></svg>`,
+  phone:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M21 16.5v2.8a1.8 1.8 0 0 1-2 1.8 17.6 17.6 0 0 1-7.7-2.7 17.3 17.3 0 0 1-5.3-5.3A17.6 17.6 0 0 1 3.3 5.3a1.8 1.8 0 0 1 1.8-2h2.8a1.8 1.8 0 0 1 1.8 1.6c.1.9.3 1.7.6 2.5a1.8 1.8 0 0 1-.4 1.9l-1.2 1.2a14 14 0 0 0 5.3 5.3l1.2-1.2a1.8 1.8 0 0 1 1.9-.4c.8.3 1.6.5 2.5.6a1.8 1.8 0 0 1 1.6 1.8z"/></svg>`,
+  card:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 9.5h19M6 15h3"/></svg>`,
+  copy:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="9" y="9" width="11.5" height="11.5" rx="2.2"/><path d="M15 6.5V5.8A2.3 2.3 0 0 0 12.7 3.5H5.8A2.3 2.3 0 0 0 3.5 5.8v6.9A2.3 2.3 0 0 0 5.8 15h.7"/></svg>`,
   heart:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 20.3 4.6 13a4.6 4.6 0 0 1 6.5-6.5l.9.9.9-.9A4.6 4.6 0 1 1 19.4 13z"/></svg>`
 };
 
@@ -80,7 +137,7 @@ const loader = () => `
 <div class="loader" aria-hidden="true">
   <div class="loader-in">
     <span class="loader-mark">${MARK}</span>
-    <span class="loader-name">${BRAND.fa}<i>${BRAND.en}</i></span>
+    <span class="loader-name"><b lang="fa">${BRAND.fa}</b><b lang="en">${BRAND.en}</b><i>${BRAND.en}</i></span>
     <span class="loader-bar"><i></i></span>
   </div>
 </div>`;
@@ -89,23 +146,161 @@ const topbar = (root, crumbs) => `
 <header class="topbar">
   <a class="brand" href="${root}index.html">
     <span class="brand-mark" aria-hidden="true">${MARK}</span>
-    <span class="brand-txt">${BRAND.fa}<i lang="fa">${TAGLINE.fa}</i><i lang="en">${TAGLINE.en}</i></span>
+    <span class="brand-txt"><b lang="fa">${BRAND.fa}</b><b lang="en">${BRAND.en}</b><i lang="fa">${TAGLINE.fa}</i><i lang="en">${TAGLINE.en}</i></span>
   </a>
 ${crumbs}
   <div class="bar-tools">
     <button class="ibtn js-search" type="button" aria-label="جستجو">${ICO.search}<span lang="fa">جستجو</span><span lang="en">Search</span></button>
+    <a class="ibtn js-bm-open" href="${root}bookmarks.html" aria-label="علاقه‌مندی‌ها">${ICO.star}<span class="bm-count" hidden>۰</span></a>
+    <button class="ibtn js-share" type="button" aria-label="اشتراک‌گذاری">${ICO.share}</button>
+    <a class="ibtn" href="${root}contributing.html" aria-label="مشارکت در پروژه" title="مشارکت در پروژه">${ICO.code}</a>
     <div class="lang-sw" role="group" aria-label="زبان">
       <button type="button" data-l="fa" aria-pressed="true">FA</button>
       <button type="button" data-l="en" aria-pressed="false">EN</button>
     </div>
     <button class="ibtn js-theme" type="button" aria-label="تغییر تم">${ICO.moon}${ICO.sun}</button>
+    <button class="ibtn js-about" type="button" aria-label="دربارهٔ پروژه و توسعه‌دهنده">${ICO.dots}</button>
   </div>
-</header>`;
+
+  <!-- روی موبایل به‌جای هفت دکمه، یک دکمه؛ کشوی زیر باز می‌شود -->
+  <button class="ibtn js-menu bar-menu" type="button" aria-label="منو" aria-expanded="false">${ICO.bars}</button>
+</header>
+
+<div class="mdim js-menu-dim" role="dialog" aria-modal="true" aria-label="منو">
+  <div class="sheet">
+    <header class="sheet-h">
+      <span lang="fa">منو</span><span lang="en">Menu</span>
+      <button class="ibtn js-menu-close" type="button" aria-label="بستن">${ICO.close}</button>
+    </header>
+    <nav class="sheet-b">
+      <button class="sheet-i js-search" type="button">${ICO.search}
+        <span lang="fa">جستجو</span><span lang="en">Search</span></button>
+      <a class="sheet-i" href="${root}bookmarks.html">${ICO.star}
+        <span lang="fa">علاقه‌مندی‌ها</span><span lang="en">Bookmarks</span>
+        <span class="bm-count" hidden>۰</span></a>
+      <button class="sheet-i js-share" type="button">${ICO.share}
+        <span lang="fa">اشتراک‌گذاری</span><span lang="en">Share</span></button>
+      <a class="sheet-i" href="${root}contributing.html">${ICO.code}
+        <span lang="fa">مشارکت در پروژه</span><span lang="en">Contribute</span></a>
+      <button class="sheet-i js-about" type="button">${ICO.heart}
+        <span lang="fa">دربارهٔ پروژه و حمایت</span><span lang="en">About &amp; support</span></button>
+      <div class="sheet-row">
+        <span lang="fa">زبان</span><span lang="en">Language</span>
+        <div class="lang-sw" role="group" aria-label="زبان">
+          <button type="button" data-l="fa" aria-pressed="true">FA</button>
+          <button type="button" data-l="en" aria-pressed="false">EN</button>
+        </div>
+      </div>
+      <div class="sheet-row">
+        <span lang="fa">تم</span><span lang="en">Theme</span>
+        <button class="ibtn js-theme" type="button" aria-label="تغییر تم">${ICO.moon}${ICO.sun}</button>
+      </div>
+    </nav>
+  </div>
+</div>`;
 
 const crumb = items => `  <nav class="crumbs" aria-label="مسیر">
 ${items.map((it, i) => (i ? '    <span class="sep">/</span>\n' : "") +
     (it.href ? `    <a href="${it.href}">${it.label}</a>` : `    <span class="cur">${it.label}</span>`)).join("\n")}
   </nav>`;
+
+/* ─────────────────────── مودال «دربارهٔ پروژه» ───────────────────────
+   سه زبانه‌ی کوچک: توسعه‌دهنده · همکاری · حمایت مالی. */
+const DEV = {
+  name: { fa: "سیدعباس موسوی اصل", en: "Seyed Abbas Mousavi Asl" },
+  role: { fa: "توسعه‌دهنده و نویسندهٔ کدنامه", en: "Developer and author of Codenameh" },
+  github: "seyedAb2",
+  githubUrl: "https://github.com/SeyedAb2",
+  repoUrl: "https://github.com/SeyedAb2/code-name",
+  email: "abbas.mossavi1378@gmail.com",
+  phone: "09302010811",
+  phoneIntl: "+989302010811",
+  linkedin: "https://www.linkedin.com/in/abbas-mossavi-520b09213",
+  card: "6219 8618 4472 9987",
+  bank: { fa: "بلوبانک — بانک سامان", en: "Blu Bank — Saman Bank" }
+};
+
+const aboutModal = (root = "") => `
+<div class="mdim js-about-dim" role="dialog" aria-modal="true" aria-labelledby="about-t">
+  <div class="modal">
+    <header class="modal-h">
+      <h2 id="about-t"><span lang="fa">دربارهٔ کدنامه</span><span lang="en">About Codenameh</span></h2>
+      <button class="modal-x js-modal-close" type="button" aria-label="بستن">&times;</button>
+    </header>
+
+    <nav class="modal-tabs" role="tablist">
+      <button class="on" data-tab="dev" role="tab" type="button"><span lang="fa">توسعه‌دهنده</span><span lang="en">Developer</span></button>
+      <button data-tab="join" role="tab" type="button"><span lang="fa">همکاری</span><span lang="en">Contribute</span></button>
+      <button data-tab="donate" role="tab" type="button"><span lang="fa">حمایت</span><span lang="en">Support</span></button>
+    </nav>
+
+    <div class="modal-b">
+      <!-- توسعه‌دهنده -->
+      <section data-pane="dev" class="on">
+        <div class="dev-card">
+          <span class="dev-av" aria-hidden="true">${MARK}</span>
+          <div>
+            <b lang="fa">${DEV.name.fa}</b><b lang="en">${DEV.name.en}</b>
+            <span lang="fa">${DEV.role.fa}</span><span lang="en">${DEV.role.en}</span>
+          </div>
+        </div>
+        <ul class="link-list">
+          <li><a href="${DEV.githubUrl}" target="_blank" rel="noopener noreferrer">
+            <span class="li">${ICO.github}</span>
+            <span class="lt">GitHub<i dir="ltr">@${DEV.github}</i></span></a></li>
+          <li><a href="${DEV.linkedin}" target="_blank" rel="noopener noreferrer">
+            <span class="li">${ICO.linkedin}</span>
+            <span class="lt"><span lang="fa">لینکدین</span><span lang="en">LinkedIn</span><i dir="ltr">abbas-mossavi</i></span></a></li>
+          <li><a href="tel:${DEV.phoneIntl}">
+            <span class="li">${ICO.phone}</span>
+            <span class="lt"><span lang="fa">تلفن</span><span lang="en">Phone</span><i dir="ltr">${DEV.phone}</i></span></a></li>
+          <li><a href="mailto:${DEV.email}">
+            <span class="li">${ICO.mail}</span>
+            <span class="lt"><span lang="fa">ایمیل</span><span lang="en">Email</span><i dir="ltr">${DEV.email}</i></span></a></li>
+        </ul>
+      </section>
+
+      <!-- همکاری -->
+      <section data-pane="join">
+        <p lang="fa">کدنامه متن‌باز است و هر فصلی که بنویسی به نام خودت ثبت می‌شود. لازم نیست همه‌چیز بلد باشی — یک فصل، یک تمرین، یا حتی اصلاح یک غلط املایی هم کمک است.</p>
+        <p lang="en">Codenameh is open source and every chapter you write carries your name. You do not need to know everything — one chapter, one exercise, even a typo fix helps.</p>
+        <ul class="link-list">
+          <li><a href="${DEV.repoUrl}" target="_blank" rel="noopener noreferrer">
+            <span class="li">${ICO.github}</span>
+            <span class="lt"><span lang="fa">مخزن پروژه</span><span lang="en">The repository</span><i dir="ltr">github.com/SeyedAb2/code-name</i></span></a></li>
+          <li><a class="js-contrib-link" href="${root}contributing.html">
+            <span class="li">${ICO.code}</span>
+            <span class="lt"><span lang="fa">راهنمای مشارکت</span><span lang="en">Contributing guide</span>
+            <i lang="fa">قدم‌به‌قدم، از صفر</i><i lang="en">Step by step, from zero</i></span></a></li>
+          <li><a href="mailto:${DEV.email}?subject=Codenameh">
+            <span class="li">${ICO.mail}</span>
+            <span class="lt"><span lang="fa">پیشنهاد یا سؤال</span><span lang="en">Ideas or questions</span><i dir="ltr">${DEV.email}</i></span></a></li>
+        </ul>
+      </section>
+
+      <!-- حمایت -->
+      <section data-pane="donate">
+        <p lang="fa">کدنامه رایگان است و رایگان می‌ماند. اگر به کارت آمد و خواستی حمایت کنی، سپاسگزارم — اما هیچ فصلی پشت پرداخت قفل نمی‌شود.</p>
+        <p lang="en">Codenameh is free and stays free. If it helped you and you would like to support it, thank you — but no chapter will ever be locked behind a payment.</p>
+
+        <div class="bank-card">
+          <div class="bank-top">
+            <span class="bank-name"><span lang="fa">${DEV.bank.fa}</span><span lang="en">${DEV.bank.en}</span></span>
+            <span class="bank-chip" aria-hidden="true"></span>
+          </div>
+          <div class="bank-num" dir="ltr">${DEV.card}</div>
+          <div class="bank-bot">
+            <span lang="fa">${DEV.name.fa}</span><span lang="en">${DEV.name.en}</span>
+            <button class="bank-copy js-copy-card" type="button" data-card="${DEV.card.replace(/\s/g, "")}">
+              ${ICO.copy}<span lang="fa">کپی</span><span lang="en">Copy</span>
+            </button>
+          </div>
+        </div>
+        <p class="hint" lang="en">The card number is a placeholder; replace it in <code>tools/build-pages.js</code> before publishing.</p>
+      </section>
+    </div>
+  </div>
+</div>`;
 
 const searchBox = () => `
 <div class="sdim" role="dialog" aria-modal="true" aria-label="جستجو">
@@ -129,21 +324,49 @@ const footer = root => `
   </div>
 </footer>`;
 
-const scripts = root => `
-<script src="${root}assets/courses.js"></script>
-<script src="${root}assets/app.js"></script>`;
+/* ‏tracks.js سبک است و همه‌جا می‌آید؛ فهرست کامل فصل‌های یک مسیر فقط در
+   صفحه‌های همان مسیر. defer ترتیب اجرا را حفظ می‌کند، پس CHAPTERS همیشه
+   قبل از app.js تعریف شده است. */
+const scripts = (root, courseId) => `
+<script src="${root}assets/tracks.js" defer></script>${courseId ? `
+<script src="${root}assets/ch/${courseId}.js" defer></script>` : ""}
+<script src="${root}assets/app.js" defer></script>`;
 
-const head = (title, desc, favicon, root) => `<!doctype html>
+/* آدرس پایه برای canonical و ‎og:url‎. اگر جای دیگری میزبانی می‌کنی، فقط همین را عوض کن. */
+const SITE = process.env.CODENAMEH_SITE || "https://codenameh.ir";
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+
+/* seo: {path, type, jsonld} — path نسبت به ریشهٔ سایت، بدون اسلش ابتدایی */
+const head = (title, desc, favicon, root, seo = {}) => {
+  const url = SITE + "/" + (seo.path || "");
+  return `<!doctype html>
 <html lang="fa" dir="rtl" data-lang="fa">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>${title}</title>
-<meta name="description" content="${desc}">
+<title>${esc(title)}</title>
+<meta name="description" content="${esc(desc)}">
 <meta name="color-scheme" content="light dark">
+<link rel="canonical" href="${esc(url)}">
+
+<meta property="og:type" content="${seo.type || "website"}">
+<meta property="og:site_name" content="${esc(BRAND.fa)}">
+<meta property="og:locale" content="fa_IR">
+<meta property="og:locale:alternate" content="en_US">
+<meta property="og:url" content="${esc(url)}">
+<meta property="og:title" content="${esc(title)}">
+<meta property="og:description" content="${esc(desc)}">
+<meta property="og:image" content="${esc(SITE)}/assets/og/${seo.og || "home"}.svg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${esc(title)}">
+<meta name="twitter:description" content="${esc(desc)}">
+<meta name="twitter:image" content="${esc(SITE)}/assets/og/${seo.og || "home"}.svg">
+${seo.jsonld ? `<script type="application/ld+json">${JSON.stringify(seo.jsonld)}</script>` : ""}
+<link rel="preload" href="${root}assets/fonts/Vazirmatn-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="${root}assets/theme.css">
 <link rel="icon" href="${favicon}">
 </head>`;
+};
 
 /* ───────────────────────────── خانهٔ هر مسیر ───────────────────────────── */
 function coursePage(c) {
@@ -162,7 +385,28 @@ function coursePage(c) {
     `${c.fa.name} — ${BRAND.fa}`,
     c.fa.desc.replace(/"/g, "'"),
     FAVICON(c.accent, c.ico),
-    "../"
+    "../",
+    {
+      path: c.dir + "/",
+      type: "article",
+      og: c.id,
+      jsonld: {
+        "@context": "https://schema.org",
+        "@type": "Course",
+        name: c.fa.name,
+        description: c.fa.desc,
+        inLanguage: "fa",
+        url: SITE + "/" + c.dir + "/",
+        provider: { "@type": "Organization", name: BRAND.fa, url: SITE },
+        isAccessibleForFree: true,
+        teaches: c.chapters.slice(0, 12).map(ch => ch.fa.t),
+        hasCourseInstance: {
+          "@type": "CourseInstance",
+          courseMode: "online",
+          courseWorkload: "PT" + c.hours + "H"
+        }
+      }
+    }
   )}
 <body data-page="course" data-course="${c.id}">
 ${loader()}
@@ -175,23 +419,33 @@ ${topbar("../", crumb([
 <div class="shell">
 <main class="content">
 
-  <div class="masthead">
-    <span class="eyebrow"><span class="dot"></span>
-      <span lang="fa">مسیر ${fa(String(idx).padStart(2, "0"))}</span><span lang="en">Track ${String(idx).padStart(2, "0")}</span>
-    </span>
-    <h1 lang="fa" data-chead="name">${c.fa.name}</h1>
-    <h1 lang="en" data-chead="name">${c.en.name}</h1>
+  <div class="masthead has-mark">
+    <div class="mast-head">
+      <span class="mast-mark" style="${accVars(c)}" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">${c.ico}</svg>
+      </span>
+      <div class="mast-t">
+        <h1 lang="fa" data-chead="name">${c.fa.name}</h1>
+        <h1 lang="en" data-chead="name">${c.en.name}</h1>
+        <span class="mast-cat" lang="fa">${(CATS.find(x => x.id === c.cat) || {}).fa || ""}</span>
+        <span class="mast-cat" lang="en">${(CATS.find(x => x.id === c.cat) || {}).en || ""}</span>
+      </div>
+      <span class="eyebrow mast-badge"><span class="dot"></span>
+        <span lang="fa">مسیر ${fa(String(idx).padStart(2, "0"))}</span><span lang="en">Track ${String(idx).padStart(2, "0")}</span>
+      </span>
+    </div>
     <p class="sub" lang="fa" data-chead="intro">${c.fa.intro}</p>
     <p class="sub" lang="en" data-chead="intro">${c.en.intro}</p>
     <div class="facts">
-      <div class="fact"><b data-cstat="${c.id}:chapters">${fa(c.chapters.length)}</b><span lang="fa">فصل</span><span lang="en">chapters</span></div>
-      <div class="fact"><b data-cstat="${c.id}:ex">${fa(c.exTotal)}</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></div>
-      <div class="fact"><b>≈ <span data-cstat="${c.id}:hours">${fa(c.hours)}</span> <span lang="fa">ساعت</span><span lang="en">h</span></b><span lang="fa">زمان تخمینی</span><span lang="en">estimated time</span></div>
-      <div class="fact"><b>۳</b><span lang="fa">پروژهٔ نهایی</span><span lang="en">final projects</span></div>
+      ${factCell(ICO.book,  `<b data-cstat="${c.id}:chapters">${fa(c.chapters.length)}</b>`, "فصل", "chapters")}
+      ${factCell(ICO.check, `<b data-cstat="${c.id}:ex">${fa(c.exTotal)}</b>`, "تمرین با پاسخ", "solved exercises")}
+      ${factCell(ICO.clock, `<b><span data-cstat="${c.id}:hours">${fa(c.hours)}</span><span class="u" lang="fa">ساعت</span><span class="u" lang="en">h</span></b>`, "زمان تخمینی", "estimated time")}
+      ${factCell(ICO.flag,  `<b>${fa(c.capCount)}</b>`, "پروژهٔ نهایی", "final projects")}
     </div>
     <div style="margin-top:20px" data-resume="${c.id}"></div>
   </div>
 
+${prereqSection(c)}
   <section id="status">
     <h2><span lang="fa">وضعیت این مسیر</span><span lang="en">Status</span></h2>
     ${status}
@@ -219,8 +473,9 @@ ${topbar("../", crumb([
 </main>
 </div>
 ${searchBox()}
+${aboutModal("../")}
 ${footer("../")}
-${scripts("../")}
+${scripts("../", c.id)}
 </body>
 </html>
 `;
@@ -233,11 +488,11 @@ function homePage() {
     return `      <div class="course" style="--lb:${c.accent}22">
         ${ready ? "" : `<span class="badge-soon"><span lang="fa">در نوبت نوشتن</span><span lang="en">Planned</span></span>`}
         <div class="course-top">
-          <span class="logo-box" style="color:${c.accent}" aria-hidden="true">
+          <span class="logo-box" style="${accVars(c)}" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round">${c.ico}</svg>
+            <i class="logo-n">${fa(c.id.slice(0, 2))}</i>
           </span>
-          <div>
-            <span class="course-id">${fa(String(COURSES.indexOf(c) + 1).padStart(2, "0"))}</span>
+          <div class="course-name">
             <h2><a href="${c.dir}/index.html"><span lang="fa">${c.fa.name}</span><span lang="en">${c.en.name}</span></a></h2>
             <span class="en-name" lang="fa">${c.en.name}</span>
           </div>
@@ -257,23 +512,43 @@ function homePage() {
   const blocks = CATS.map(cat => {
     const list = COURSES.filter(c => c.cat === cat.id);
     if (!list.length) return "";
-    return `  <div class="cat-block">
-    <div class="cat">
-      <h2 lang="fa">${cat.fa}</h2><h2 lang="en">${cat.en}</h2>
-      <span class="n">${fa(list.length)}</span>
-      <span class="line"></span>
-    </div>
+    const chs = list.reduce((s, c) => s + c.chapters.length, 0);
+    return `  <section class="cat-block" id="cat-${cat.id}">
+    <header class="cat">
+      <div class="cat-t">
+        <h2 lang="fa">${cat.fa}</h2><h2 lang="en">${cat.en}</h2>
+        <p lang="fa">${cat.dfa}</p><p lang="en">${cat.den}</p>
+      </div>
+      <span class="cat-n">
+        <b>${fa(list.length)}</b>
+        <span lang="fa">مسیر</span><span lang="en">tracks</span>
+        <i lang="fa">${fa(chs)} فصل</i><i lang="en">${chs} chapters</i>
+      </span>
+    </header>
     <div class="grid-courses">
 ${list.map(card).join("\n")}
     </div>
-  </div>`;
+  </section>`;
   }).join("\n");
 
   return `${head(
     `${BRAND.fa} — ${TAGLINE.fa}`,
     "مرجع‌های آموزشی فارسی برای مهندسی نرم‌افزار: داکر، کوبرنتیز، معماری، میکروسرویس، ‎C#‎، پایتون، ری‌اکت، فلاتر و بیشتر.",
     FAVICON("#4F6BF5", `<path d="M3.6 4.8A1.8 1.8 0 0 1 5.4 3H20v18H5.4a1.8 1.8 0 0 1-1.8-1.8z"/><path d="M7.6 18.2H20"/><path d="m10.4 8.6-2.3 2.9 2.3 2.9M14.4 8.6l2.3 2.9-2.3 2.9"/>`),
-    ""
+    "",
+    {
+      path: "",
+      og: "home",
+      jsonld: {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        name: BRAND.fa,
+        alternateName: BRAND.en,
+        url: SITE,
+        inLanguage: "fa",
+        description: TAGLINE.fa
+      }
+    }
   )}
 <body data-page="home">
 ${loader()}
@@ -302,54 +577,9 @@ ${topbar("", "")}
 <div class="shell">
 ${blocks}
 
-  <div class="dev">
-    <span class="dev-av">ab2</span>
-    <div class="dev-b">
-      <span class="role"><span lang="fa">توسعه‌دهنده</span><span lang="en">Developer</span></span>
-      <h3 lang="fa">سیدعباس موسوی اصل</h3>
-      <h3 lang="en">Seyed Abbas Mousavi Asl</h3>
-      <p lang="fa">این مجموعه را نوشتم چون خودم وقتی شروع کردم، چنین چیزی به فارسی نبود. متن‌باز است — اگر فصلی نوشتی یا غلطی دیدی، خوشحال می‌شوم مشارکت کنی.</p>
-      <p lang="en">I wrote this because when I started, nothing like it existed in Persian. It is open source — if you write a chapter or spot a mistake, contributions are welcome.</p>
-      <div class="dev-links">
-        <a href="mailto:abbas.mossavi1378@gmail.com">${ICO.mail}<code>abbas.mossavi1378@gmail.com</code></a>
-        <a href="contributing.html">${ICO.code}<span lang="fa">چطور مشارکت کنم</span><span lang="en">How to contribute</span></a>
-      </div>
-    </div>
-  </div>
-
-  <div class="donate">
-    <div class="donate-h">${ICO.heart}
-      <h3 lang="fa">حمایت از این پروژه</h3>
-      <h3 lang="en">Supporting this project</h3>
-    </div>
-    <p lang="fa">
-      کدنامه رایگان است و رایگان می‌ماند — نه تبلیغ دارد، نه اشتراک، نه ردیاب.
-      اگر به کارت آمد و خواستی حمایت کنی، فعلاً فقط کارت‌به‌کارت ممکن است؛
-      هنوز درگاه پرداخت ندارم. هیچ اجباری نیست و هیچ بخشی از محتوا پشت پرداخت نمی‌رود.
-    </p>
-    <p lang="en">
-      Codenameh is free and will stay free — no ads, no subscription, no tracking.
-      If it helped and you would like to support it, a direct card transfer is the only
-      option for now; there is no payment gateway yet. Nothing is required, and no content
-      is ever put behind a paywall.
-    </p>
-    <div class="card-row">
-      <span class="card-num">
-        <b>6219 8618 4472 9987</b>
-        <span class="card-bank">
-          <span lang="fa">بانک سامان</span><span lang="en">Saman Bank</span>
-          <span lang="fa">سیدعباس موسوی اصل</span><span lang="en">Seyed Abbas Mousavi Asl</span>
-        </span>
-      </span>
-      <button class="btn-copy-card" type="button" data-copy="6219861844729987">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="8.5" y="8.5" width="12" height="12" rx="2.4"/><path d="M15.5 8.5v-3a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/></svg>
-        <span class="cp-lbl"><span lang="fa">کپی شمارهٔ کارت</span><span lang="en">Copy card number</span></span>
-      </button>
-    </div>
-  </div>
-</div>
 </main>
 ${searchBox()}
+${aboutModal()}
 ${footer("")}
 ${scripts("")}
 </body>
@@ -369,7 +599,8 @@ ${body}
     `راهنمای مشارکت — ${BRAND.fa}`,
     "چطور در کدنامه یک فصل یا یک دورهٔ کامل اضافه کنیم.",
     FAVICON("#15A34A", `<path d="m9 8-4 4 4 4M15 8l4 4-4 4"/>`),
-    ""
+    "",
+    { path: "contributing.html", og: "home" }
   )}
 <body data-page="doc">
 ${loader()}
@@ -382,8 +613,8 @@ ${topbar("", crumb([
 <div class="shell shell-grid">
 <aside class="rail">
   <button class="rail-toggle" type="button" aria-expanded="false">
+    <span class="rail-ico" aria-hidden="true">${ICO.list}</span>
     <span class="js-t" data-t="menu">فهرست مطالب</span>
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
   </button>
   <div class="rail-body"></div>
 </aside>
@@ -396,10 +627,10 @@ ${topbar("", crumb([
     <p class="sub" lang="fa">این سند دقیقاً می‌گوید چطور یک فصل یا یک دورهٔ کامل به کدنامه اضافه کنی. هیچ دانش قبلی از این پروژه لازم نیست؛ فقط HTML مقدماتی.</p>
     <p class="sub" lang="en">This page tells you exactly how to add a chapter or a whole track to Codenameh. No prior knowledge of the project is needed — just basic HTML.</p>
     <div class="facts">
-      <div class="fact"><b data-stat-chapters>۰</b><span lang="fa">فصل در نقشهٔ راه</span><span lang="en">chapters mapped</span></div>
-      <div class="fact"><b data-stat-ready>۰</b><span lang="fa">نوشته‌شده</span><span lang="en">written</span></div>
-      <div class="fact"><b data-stat-tracks>۰</b><span lang="fa">مسیر</span><span lang="en">tracks</span></div>
-      <div class="fact"><b>MIT<span style="font-size:.6em"> + </span>CC</b><span lang="fa">پروانه</span><span lang="en">licence</span></div>
+      ${factCell(ICO.book,  `<b data-stat-chapters>۰</b>`, "فصل در نقشهٔ راه", "chapters mapped")}
+      ${factCell(ICO.check, `<b data-stat-ready>۰</b>`, "نوشته‌شده", "written")}
+      ${factCell(ICO.flag,  `<b data-stat-tracks>۰</b>`, "مسیر", "tracks")}
+      ${factCell(ICO.clock, `<b>MIT<span class="u">+ CC</span></b>`, "پروانه", "licence")}
     </div>
   </div>
 
@@ -569,6 +800,7 @@ ${S("pr", "ارسال Pull Request", "Sending a pull request", `
 </main>
 </div>
 ${searchBox()}
+${aboutModal()}
 ${footer("")}
 ${scripts("")}
 </body>
@@ -586,14 +818,419 @@ function write(rel, html) {
   console.log("  ✓ " + rel);
 }
 
+/* ─────────────────── دارایی‌های تولیدی: tracks / ch / search ───────────────────
+   ‏courses.js منبع نوشتن است و هرگز به مرورگر فرستاده نمی‌شود. از رویش سه چیز
+   ساخته می‌شود تا هر صفحه فقط چیزی را بگیرد که لازم دارد. */
+const J = v => JSON.stringify(v);
+
+function writeAssets() {
+  /* ۱) tracks.js — متادیتای مسیرها + فقط فصل‌های آماده (برای نوار پیشرفت) */
+  const tracks = COURSES.map(c => {
+    const o = {
+      id: c.id, dir: c.dir, accent: c.accent, cat: c.cat, ico: c.ico,
+      /* intro فقط در سربرگ خودِ آن مسیر لازم است و همان‌جا در HTML نوشته شده،
+         پس به همهٔ صفحه‌ها فرستاده نمی‌شود. */
+      fa: { name: c.fa.name, desc: c.fa.desc },
+      en: { name: c.en.name, desc: c.en.desc },
+      nCh: c.chapters.length,
+      nEx: c.chapters.reduce((s, x) => s + (x.ex || 0), 0),
+      nCap: c.chapters.filter(x => x.cap).length,
+      hours: c.hours,
+      ch: c.ch.filter(a => a[2])            // فقط ردیف‌های آماده
+    };
+    if (c.pre)  o.pre  = c.pre;
+    if (c.soft) o.soft = c.soft;
+    if (c.locked) o.locked = true;
+    return o;
+  });
+  const tracksJs =
+`/* ساختهٔ tools/build-pages.js — دست نزن. منبع: assets/courses.js */
+window.COURSES=${J(tracks)};
+`;
+  writeAsset("assets/tracks.js", tracksJs);
+
+  /* ۲) assets/ch/<id>.js — فهرست کامل فصل‌های یک مسیر */
+  COURSES.forEach(c => {
+    writeAsset(`assets/ch/${c.id}.js`,
+`/* ساختهٔ tools/build-pages.js — دست نزن. */
+window.CHAPTERS={id:${J(c.id)},ch:${J(c.ch)}};
+`);
+  });
+
+  /* ۳) search.js — نمایهٔ جستجو، تنبل بارگذاری می‌شود */
+  const rows = [];
+  COURSES.forEach(c => {
+    if (c.locked) return;
+    c.ch.forEach(a => rows.push([c.id, a[0], a[1], a[2] ? 1 : 0, a[5], a[6], a[7], a[8], a[9] || ""]));
+  });
+  writeAsset("assets/search.js",
+`/* ساختهٔ tools/build-pages.js — دست نزن. */
+window.SEARCH_ROWS=${J(rows)};
+`);
+}
+
+/* ─────────────────── تصویر اشتراک‌گذاری، sitemap و robots ───────────────────
+   تصویر ‎OG‎ به‌صورت ‎SVG‎ ساخته می‌شود: بدون ابزار بیرونی، بدون فونت رستر شده.
+   نکته: تلگرام و واتساپ ‎SVG‎ را در پیش‌نمایش نشان نمی‌دهند؛ برای پوشش کامل باید
+   همین‌ها را یک‌بار به ‎PNG‎ تبدیل کنی (مثلاً با resvg یا مرورگر). ساختار آماده است. */
+function ogImage(title, sub, accent, accentDark) {
+  const c = accentDark || accent;
+  const t = String(title).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const s = String(sub).replace(/&/g, "&amp;").replace(/</g, "&lt;").slice(0, 90);
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0" stop-color="#4F6BF5"/><stop offset="1" stop-color="#8B5CF6"/></linearGradient></defs>
+<rect width="1200" height="630" fill="#0B1220"/>
+<rect x="0" y="0" width="1200" height="7" fill="url(#g)"/>
+<circle cx="1050" cy="120" r="190" fill="${c}" opacity=".14"/>
+<text x="1130" y="120" text-anchor="end" font-family="Vazirmatn,Tahoma,sans-serif"
+ font-size="30" fill="#8FA0BF" direction="rtl">${esc(BRAND.fa)}</text>
+<text x="1130" y="330" text-anchor="end" font-family="Vazirmatn,Tahoma,sans-serif"
+ font-size="72" font-weight="700" fill="#E9EEF9" direction="rtl">${t}</text>
+<text x="1130" y="400" text-anchor="end" font-family="Vazirmatn,Tahoma,sans-serif"
+ font-size="30" fill="#9CA9C6" direction="rtl">${s}</text>
+<rect x="1010" y="520" width="120" height="6" rx="3" fill="${c}"/>
+</svg>`;
+}
+
+function writeSeoAssets() {
+  writeAsset("assets/og/home.svg", ogImage(BRAND.fa, TAGLINE.fa, "#4F6BF5"));
+  COURSES.forEach(c =>
+    writeAsset(`assets/og/${c.id}.svg`, ogImage(c.fa.name, c.fa.desc, c.accent, c.accentDark)));
+
+  const today = new Date().toISOString().slice(0, 10);
+  const urls = [
+    { loc: SITE + "/", pri: "1.0" },
+    { loc: SITE + "/contributing.html", pri: "0.4" },
+    ...COURSES.map(c => ({ loc: `${SITE}/${c.dir}/`, pri: c.readyCount ? "0.9" : "0.6" })),
+    ...COURSES.flatMap(c => c.chapters.filter(ch => ch.ready)
+      .map(ch => ({ loc: `${SITE}/${c.dir}/ch/${ch.file}`, pri: "0.8" })))
+  ];
+  writeAsset("sitemap.xml",
+`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.map(u => `  <url><loc>${u.loc}</loc><lastmod>${today}</lastmod><priority>${u.pri}</priority></url>`).join("\n")}
+</urlset>
+`);
+
+  writeAsset("robots.txt",
+`User-agent: *
+Allow: /
+
+Sitemap: ${SITE}/sitemap.xml
+`);
+}
+
+let assetN = 0, assetBytes = 0;
+function writeAsset(rel, body) {
+  const p = path.join(ROOT, rel);
+  fs.mkdirSync(path.dirname(p), { recursive: true });
+  fs.writeFileSync(p, body, "utf8");
+  assetN++;
+  assetBytes += Buffer.byteLength(body);
+}
+
+/* ═══════════════════════════ صفحهٔ فصل ═══════════════════════════
+   محتوای هر فصل در docs-fa/<dir>/ch/_src/<file> نگه داشته می‌شود و فقط شامل
+   چیزی است که داخل <main class="content"> می‌آید — بدون نوار بالا، بدون فوتر.
+   این‌جا دورش پیچیده می‌شود.
+
+   چرا: چهارچوب صفحه (نوار بالا، مودال، اسکریپت‌ها) مدام عوض می‌شود. اگر داخل
+   هر فصل دست‌نویس تکرار شده باشد، با اولین تغییر، فصل‌ها عقب می‌مانند — همان
+   اتفاقی که برای فصل ۱ داکر افتاد. حالا یک جا تعریف می‌شود.
+
+   سرِ فایل _src می‌تواند یک بلوک متادیتا داشته باشد:
+     <!--meta
+     title: عنوان فصل
+     desc:  توضیح برای موتور جستجو
+     -->                                                                     */
+function chapterMeta(srcText) {
+  const m = /^<!--meta([\s\S]*?)-->/.exec(srcText.trim());
+  if (!m) return { meta: {}, body: srcText };
+  const meta = {};
+  m[1].split("\n").forEach(line => {
+    const i = line.indexOf(":");
+    if (i > 0) meta[line.slice(0, i).trim()] = line.slice(i + 1).trim();
+  });
+  return { meta, body: srcText.trim().slice(m[0].length) };
+}
+
+function chapterPage(c, ch, inner, meta) {
+  const nFa = fa(String(parseInt(ch.n, 10)));
+  const title = meta.title || ch.fa.t;
+  const desc = (meta.desc || ch.fa.d).replace(/"/g, "'");
+  return `${head(
+    `فصل ${nFa} — ${title} | ${c.fa.name} | ${BRAND.fa}`,
+    desc,
+    FAVICON(c.accent, c.ico),
+    "../../",
+    {
+      path: `${c.dir}/ch/${ch.file}`,
+      type: "article",
+      og: c.id,
+      jsonld: {
+        "@context": "https://schema.org",
+        "@type": "LearningResource",
+        name: title,
+        description: desc,
+        inLanguage: "fa",
+        url: `${SITE}/${c.dir}/ch/${ch.file}`,
+        isPartOf: { "@type": "Course", name: c.fa.name, url: `${SITE}/${c.dir}/` },
+        timeRequired: "PT" + (ch.mins || 45) + "M",
+        isAccessibleForFree: true
+      }
+    }
+  )}
+<body data-page="chapter" data-course="${c.id}" data-chapter="${ch.n}">
+${loader()}
+<div class="readbar" aria-hidden="true"></div>
+${topbar("../../", crumb([
+    { label: `<span lang="fa">خانه</span><span lang="en">Home</span>`, href: "../../index.html" },
+    { label: `<span lang="fa">${c.fa.name}</span><span lang="en">${c.en.name}</span>`, href: "../index.html" },
+    { label: `<span lang="fa">فصل ${nFa}</span><span lang="en">Chapter ${parseInt(ch.n, 10)}</span>` }
+  ]))}
+
+<div class="shell shell-grid">
+<aside class="rail">
+  <button class="rail-toggle" type="button" aria-expanded="false">
+    <span class="rail-ico" aria-hidden="true">${ICO.list}</span>
+    <span class="js-t" data-t="menu">فهرست مطالب</span>
+  </button>
+  <div class="rail-body"><!-- app.js پرش می‌کند --></div>
+</aside>
+
+<main class="content">
+${inner}
+<div class="pager"><!-- app.js پرش می‌کند --></div>
+</main>
+</div>
+${searchBox()}
+${aboutModal("../../")}
+${footer("../../")}
+${scripts("../../", c.id)}
+</body>
+</html>
+`;
+}
+
+function buildChapters() {
+  let n = 0;
+  COURSES.forEach(c => {
+    const dir = path.join(ROOT, c.dir, "ch", "_src");
+    if (!fs.existsSync(dir)) return;
+    c.chapters.forEach(ch => {
+      const p = path.join(dir, ch.file);
+      if (!fs.existsSync(p)) return;
+      const { meta, body } = chapterMeta(fs.readFileSync(p, "utf8"));
+      write(path.join(c.dir, "ch", ch.file), chapterPage(c, ch, body, meta));
+      n++;
+    });
+  });
+  return n;
+}
+
+/* ─────────────────────────── پیش‌نیازهای یک مسیر ───────────────────────────
+   ‏pre  = بدون این، فصل‌ها معنا نمی‌دهند.
+   ‏soft = کمک می‌کند ولی می‌شود بدونش هم شروع کرد.
+   هر پیش‌نیازی که خودش مسیری در کدنامه است، لینک می‌شود. */
+function prereqSection(c) {
+  const byId = id => COURSES.find(x => x.id === id);
+  const pre = (c.pre || []).map(byId).filter(Boolean);
+  const soft = (c.soft || []).map(byId).filter(Boolean);
+
+  if (!pre.length && !soft.length) {
+    return `
+  <section id="prereq">
+    <h2><span lang="fa">پیش‌نیاز</span><span lang="en">Prerequisites</span></h2>
+    <div class="note safe"><div class="note-t">${ICO.check}<span lang="fa">پیش‌نیازی ندارد</span><span lang="en">No prerequisites</span></div>
+    <p lang="fa">این مسیر از صفر شروع می‌کند. اگر با ترمینال و ویرایشگر کد راحت باشی، کافی است.</p>
+    <p lang="en">This track starts from zero. Being comfortable with a terminal and an editor is enough.</p></div>
+  </section>`;
+  }
+
+  const card = (x, need) => `      <a class="pre-card${need ? "" : " soft"}" href="../${x.dir}/index.html">
+        <span class="logo-box" style="${accVars(x)}" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round">${x.ico}</svg>
+        </span>
+        <span class="pre-t">
+          <b lang="fa">${x.fa.name}</b><b lang="en">${x.en.name}</b>
+          <i lang="fa">${x.fa.desc.slice(0, 74)}…</i><i lang="en">${x.en.desc.slice(0, 74)}…</i>
+        </span>
+        <span class="pre-tag">${need
+          ? `<span lang="fa">لازم</span><span lang="en">Required</span>`
+          : `<span lang="fa">مفید</span><span lang="en">Helpful</span>`}</span>
+      </a>`;
+
+  return `
+  <section id="prereq">
+    <h2><span lang="fa">پیش‌نیاز</span><span lang="en">Prerequisites</span></h2>
+    <p class="lede" lang="fa">${pre.length
+      ? "بدون این مسیرها، بخشی از فصل‌های اینجا معنا نمی‌دهد."
+      : "این مسیر پیش‌نیاز اجباری ندارد، اما این‌ها کارت را خیلی راحت‌تر می‌کنند."}</p>
+    <p class="lede" lang="en">${pre.length
+      ? "Without these, parts of this track will not make sense."
+      : "This track has no hard prerequisites, but these make it much easier."}</p>
+    <div class="pre-grid">
+${pre.map(x => card(x, true)).concat(soft.map(x => card(x, false))).join("\n")}
+    </div>
+  </section>`;
+}
+
+/* ─────────────────────────── صفحهٔ علاقه‌مندی‌ها ─────────────────────────── */
+function bookmarksPage() {
+  return `${head(
+    `علاقه‌مندی‌ها — ${BRAND.fa}`,
+    "مسیرهایی که ذخیره کرده‌ای، با درصد پیشرفت هرکدام.",
+    FAVICON("#B45309", `<path d="m12 3.6 2.6 5.3 5.8.85-4.2 4.1 1 5.75L12 16.9l-5.2 2.7 1-5.75-4.2-4.1 5.8-.85z"/>`),
+    "",
+    { path: "bookmarks.html", og: "home" }
+  )}
+<body data-page="doc">
+${loader()}
+<div class="readbar" aria-hidden="true"></div>
+${topbar("", crumb([
+    { label: `<span lang="fa">خانه</span><span lang="en">Home</span>`, href: "index.html" },
+    { label: `<span lang="fa">علاقه‌مندی‌ها</span><span lang="en">Bookmarks</span>` }
+  ]))}
+
+<div class="shell">
+<main class="content">
+  <div class="masthead">
+    <span class="eyebrow"><span class="dot"></span>
+      <span lang="fa">ذخیره‌شده‌های تو</span><span lang="en">Your saved tracks</span>
+    </span>
+    <h1 lang="fa">علاقه‌مندی‌ها</h1>
+    <h1 lang="en">Bookmarks</h1>
+    <p class="sub" lang="fa">هر مسیری که ستاره بزنی اینجا می‌آید، همراه با درصد پیشرفتت. همه‌چیز داخل مرورگر خودت می‌ماند و به هیچ سروری نمی‌رود.</p>
+    <p class="sub" lang="en">Every track you star appears here with your progress. It all stays in your own browser and reaches no server.</p>
+  </div>
+
+  <section id="saved">
+    <h2><span lang="fa">مسیرهای ذخیره‌شده</span><span lang="en">Saved tracks</span></h2>
+    <div class="ch-grid" data-bmgrid></div>
+  </section>
+
+  <section id="backup">
+    <h2><span lang="fa">پشتیبان‌گیری</span><span lang="en">Backup</span></h2>
+    <div class="note">
+      <div class="note-t">${ICO.shield}
+        <span lang="fa">دادهٔ تو کجا می‌ماند و کِی از بین می‌رود</span>
+        <span lang="en">Where your data lives, and when it disappears</span>
+      </div>
+      <p lang="fa">
+        پیشرفت و علاقه‌مندی‌هایت در دو جای مرورگر خودت ذخیره می‌شود
+        (<code>localStorage</code> و <code>IndexedDB</code>) تا اگر یکی پاک شد، از دیگری برگردد.
+      </p>
+      <p lang="en">
+        Your progress and bookmarks are stored in two places inside your own browser
+        (<code>localStorage</code> and <code>IndexedDB</code>) so that if one is cleared, it comes back from the other.
+      </p>
+      <div class="table-wrap" style="margin:14px 0">
+        <table>
+          <thead><tr>
+            <th><span lang="fa">این اتفاق</span><span lang="en">If this happens</span></th>
+            <th><span lang="fa">دادهٔ تو</span><span lang="en">Your data</span></th>
+          </tr></thead>
+          <tbody>
+            <tr><td><span lang="fa">‏IP یا شبکه‌ات عوض شود</span><span lang="en">Your IP or network changes</span></td>
+                <td class="yes"><span lang="fa">سالم می‌ماند</span><span lang="en">Survives</span></td></tr>
+            <tr><td><span lang="fa">مرورگر یا سیستم را ری‌استارت کنی</span><span lang="en">You restart the browser or machine</span></td>
+                <td class="yes"><span lang="fa">سالم می‌ماند</span><span lang="en">Survives</span></td></tr>
+            <tr><td><span lang="fa">مرورگر به‌روزرسانی شود</span><span lang="en">The browser updates</span></td>
+                <td class="yes"><span lang="fa">سالم می‌ماند</span><span lang="en">Survives</span></td></tr>
+            <tr><td><span lang="fa">کش را پاک کنی (بدون «دادهٔ سایت»)</span><span lang="en">You clear the cache (not “site data”)</span></td>
+                <td class="yes"><span lang="fa">سالم می‌ماند</span><span lang="en">Survives</span></td></tr>
+            <tr><td><span lang="fa">«دادهٔ سایت» را پاک کنی</span><span lang="en">You clear “site data”</span></td>
+                <td class="no"><span lang="fa">از بین می‌رود</span><span lang="en">Lost</span></td></tr>
+            <tr><td><span lang="fa">مرورگر یا دستگاه دیگری باز کنی</span><span lang="en">You open another browser or device</span></td>
+                <td class="no"><span lang="fa">آنجا نیست</span><span lang="en">Not there</span></td></tr>
+            <tr><td><span lang="fa">حالت ناشناس</span><span lang="en">Private/incognito mode</span></td>
+                <td class="no"><span lang="fa">با بستن پنجره می‌رود</span><span lang="en">Gone when you close it</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p lang="fa">
+        برای آن سه ردیف قرمز، تنها راه واقعی پشتیبان‌گیری است. یک فایل کوچک
+        <code>JSON</code> می‌گیری و هر وقت خواستی — روی همین دستگاه یا هر دستگاه دیگری — برش می‌گردانی.
+        کدنامه سرور ندارد، پس همگام‌سازی خودکار بین دستگاه‌ها ممکن نیست؛ این جایگزین صادقانه‌اش است.
+      </p>
+      <p lang="en">
+        For those three red rows the only real answer is a backup. You get a small
+        <code>JSON</code> file and can restore it whenever you like — on this device or any other.
+        Codenameh has no server, so automatic cross-device sync is not possible; this is the honest substitute.
+      </p>
+      <div class="dev-links" style="margin-top:14px">
+        <button class="btn btn-primary js-export" type="button">${ICO.down}
+          <span lang="fa">گرفتن فایل پشتیبان</span><span lang="en">Download a backup</span></button>
+        <button class="btn btn-ghost js-import" type="button">${ICO.up}
+          <span lang="fa">بازیابی از فایل</span><span lang="en">Restore from a file</span></button>
+      </div>
+    </div>
+  </section>
+</main>
+</div>
+${searchBox()}
+${aboutModal()}
+${footer("")}
+${scripts("")}
+</body>
+</html>
+`;
+}
+
+/* دارایی‌های یتیم را پاک می‌کند.
+   وقتی مسیری حذف یا تغییر نام داده می‌شود، فایل‌های ساخته‌شده‌اش می‌مانند و
+   بی‌صدا در sitemap و پوشه‌ها باقی می‌مانند. این تابع فقط چیزهایی را حذف
+   می‌کند که خودِ همین ابزار ساخته و دیگر در مانیفست نیستند. */
+function prune() {
+  const live = new Set(COURSES.map(c => c.id));
+  let gone = 0;
+
+  [["assets/ch", ".js"], ["assets/og", ".svg"]].forEach(([dir, ext]) => {
+    const p = path.join(ROOT, dir);
+    if (!fs.existsSync(p)) return;
+    fs.readdirSync(p).forEach(f => {
+      if (!f.endsWith(ext)) return;
+      const id = f.slice(0, -ext.length);
+      if (id === "home" || live.has(id)) return;
+      fs.unlinkSync(path.join(p, f));
+      console.log("  ✂ " + dir + "/" + f);
+      gone++;
+    });
+  });
+
+  /* پوشهٔ مسیرهایی که دیگر وجود ندارند — فقط اگر خالی یا فقط index.html باشند،
+     تا اگر کسی فصل دست‌نویس گذاشته، تصادفی پاک نشود. */
+  fs.readdirSync(ROOT, { withFileTypes: true }).forEach(d => {
+    if (!d.isDirectory() || !/^\d{2}-/.test(d.name) || live.has(d.name)) return;
+    const p = path.join(ROOT, d.name);
+    const rest = fs.readdirSync(p);
+    if (rest.length && !(rest.length === 1 && rest[0] === "index.html")) {
+      console.log("  ! " + d.name + " در مانیفست نیست ولی فایل دارد — دستی بررسی کن");
+      return;
+    }
+    fs.rmSync(p, { recursive: true, force: true });
+    console.log("  ✂ " + d.name + "/");
+    gone++;
+  });
+
+  if (gone) console.log(`  ${gone} دارایی یتیم پاک شد.\n`);
+}
+
 console.log("کدنامه — ساخت صفحه‌ها\n");
+prune();
+writeAssets();
+writeSeoAssets();
+console.log(`  ✓ ${assetN} دارایی جاوااسکریپت (${(assetBytes / 1024).toFixed(0)} KB مجموع)\n`);
 write("index.html", homePage());
 write("contributing.html", contributingPage());
+write("bookmarks.html", bookmarksPage());
 COURSES.forEach(c => {
   /* ۰۱ داکر خانهٔ دست‌نویس و مفصل‌تری دارد؛ بازنویسی‌اش نکن */
   if (c.id === "01-docker") { console.log("  – " + c.dir + "/index.html (دست‌نویس، رد شد)"); return; }
   write(path.join(c.dir, "index.html"), coursePage(c));
 });
+const chN = buildChapters();
 console.log(`\n${n} فایل ساخته شد.`);
 console.log(`${COURSES.length} مسیر · ${COURSES.reduce((s, c) => s + c.chapters.length, 0)} فصل · ` +
             `${COURSES.reduce((s, c) => s + c.readyCount, 0)} فصل آماده`);

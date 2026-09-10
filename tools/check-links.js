@@ -10,7 +10,8 @@ const ROOT = path.join(__dirname, "..", "docs-fa");
 function walk(dir, out = []) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, e.name);
-    if (e.isDirectory()) walk(p, out);
+    /* ‏_src فقط تکهٔ محتواست، نه صفحهٔ کامل — build-pages.js دورش را می‌پیچد. */
+    if (e.isDirectory()) { if (e.name !== "_src") walk(p, out); }
     else if (e.name.endsWith(".html")) out.push(p);
   }
   return out;
@@ -47,7 +48,7 @@ for (const file of files) {
   }
 
   /* هر صفحه باید هر سه دارایی را داشته باشد */
-  for (const need of ["theme.css", "courses.js", "app.js"]) {
+  for (const need of ["theme.css", "tracks.js", "app.js"]) {
     if (!html.includes(need)) { console.log(`  ✗ ${rel}  →  ${need} بارگذاری نشده`); problems++; }
   }
 
