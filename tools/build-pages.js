@@ -158,7 +158,12 @@ ${crumbs}
       <button type="button" data-l="fa" aria-pressed="true">FA</button>
       <button type="button" data-l="en" aria-pressed="false">EN</button>
     </div>
-    <button class="ibtn js-theme" type="button" aria-label="تغییر تم">${ICO.moon}${ICO.sun}</button>
+    <button class="theme-sw js-theme" type="button" role="switch" aria-checked="false" aria-label="تغییر تم">
+      <span class="knob" aria-hidden="true">
+        <svg class="tk-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></svg>
+        <svg class="tk-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </span>
+    </button>
     <button class="ibtn js-about" type="button" aria-label="دربارهٔ پروژه و توسعه‌دهنده">${ICO.dots}</button>
   </div>
 
@@ -193,7 +198,12 @@ ${crumbs}
       </div>
       <div class="sheet-row">
         <span lang="fa">تم</span><span lang="en">Theme</span>
-        <button class="ibtn js-theme" type="button" aria-label="تغییر تم">${ICO.moon}${ICO.sun}</button>
+        <button class="theme-sw js-theme" type="button" role="switch" aria-checked="false" aria-label="تغییر تم">
+      <span class="knob" aria-hidden="true">
+        <svg class="tk-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></svg>
+        <svg class="tk-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </span>
+    </button>
       </div>
     </nav>
   </div>

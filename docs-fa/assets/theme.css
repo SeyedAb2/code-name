@@ -463,6 +463,10 @@ body{opacity:1}
    بسته می‌شود و صفحه به همان بخش می‌رود. */
 @media (max-width:1039px){
   .rail{position:sticky;top:var(--bar-h);z-index:50;margin:10px 0 4px}
+  /* ‏.rail با z-index خودش یک stacking context می‌سازد؛ یعنی z-index:120 کشو
+     داخل همان بافت محبوس می‌شد و زیر نوار بالا (۶۰) می‌رفت. وقتی باز است
+     خودِ .rail باید بالاتر از نوار برود تا کشو واقعاً رویش بنشیند. */
+  .rail.open{z-index:200}
   .rail-head{display:flex}
 
   .rail-toggle{
@@ -475,13 +479,6 @@ body{opacity:1}
   .rail-toggle svg{width:18px;height:18px;flex:none;color:var(--blue)}
   .rail-ico{display:inline-flex;flex:none}
 
-  /* پرده */
-  .rail::before{
-    content:"";position:fixed;inset:0;z-index:110;
-    background:rgba(8,12,22,.55);backdrop-filter:blur(2px);
-    opacity:0;visibility:hidden;transition:opacity .26s ease,visibility .26s ease;
-  }
-  .rail.open::before{opacity:1;visibility:visible}
 
   /* خود کشو */
   .rail-body{
@@ -492,7 +489,7 @@ body{opacity:1}
     box-shadow:var(--shadow-3);
     overflow-y:auto;overscroll-behavior:contain;
     -webkit-overflow-scrolling:touch;
-    padding:16px 16px calc(24px + env(safe-area-inset-bottom));
+    padding:calc(14px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom));
     visibility:hidden;
     transition:transform .3s cubic-bezier(.3,.9,.3,1),visibility .3s;
   }
@@ -506,7 +503,7 @@ body{opacity:1}
     left:0;right:auto;border-right:1px solid var(--line-strong);
     transform:translateX(-102%);
   }
-  .rail.open .rail-body{transform:none;visibility:visible}
+  .rail-body.open{transform:none;visibility:visible}
 
   .rail-sec:last-child{margin-bottom:0}
   .toc a{padding:9px 13px;font-size:.9rem}      /* هدف لمسی بزرگ‌تر */
@@ -517,7 +514,7 @@ body{opacity:1}
 .rail-head{
   display:none;align-items:center;justify-content:space-between;gap:10px;
   padding-bottom:12px;margin-bottom:14px;border-bottom:1px solid var(--line);
-  position:sticky;top:-16px;background:var(--surface);z-index:2;padding-top:2px;
+  position:sticky;top:0;background:var(--surface);z-index:2;padding-top:4px;
 }
 .rail-head b{font-size:.95rem}
 .rail-close{
@@ -1604,12 +1601,16 @@ details.ex-hint>*:last-child,details.ex-sol>*:last-child{margin-bottom:14px}
    ========================================================================== */
 .bar-menu{display:none}
 
-@media (max-width:719px){
+/* زیر ۹۰۰px هفت دکمه در نوار جا نمی‌شوند و روی هم می‌افتند */
+@media (max-width:900px){
   .bar-tools{display:none}
-  .bar-menu{display:inline-flex;margin-inline-start:auto}
+  .bar-menu{display:inline-flex;margin-inline-start:auto;flex:none}
   .topbar{gap:10px}
+  .brand{flex:0 1 auto;min-width:0;overflow:hidden}
   .brand-txt i{display:none}
 }
+/* کشوی منو باید بالاتر از نوار بالا باشد، نه زیرش */
+.js-menu-dim{z-index:220}
 
 .js-menu-dim{position:fixed;inset:0;z-index:200;display:none;background:rgba(8,12,22,.55)}
 .js-menu-dim.open{display:block}
@@ -1678,3 +1679,66 @@ details.ex-hint>*:last-child,details.ex-sol>*:last-child{margin-bottom:14px}
 .toast.ok{background:var(--safe);color:#fff}
 .toast.warn{background:var(--warn);color:#fff}
 @media (prefers-reduced-motion:reduce){.toast{transition:opacity .01ms}}
+
+/* ============================================================================
+   پردهٔ کشوی فهرست
+   \u200F.rail-body حالا فرزند مستقیم body است تا position:fixed آن هرگز داخل
+   بافت چیدمان یک جدّ (transform/contain) گیر نکند. پرده هم عنصر مستقل شد.
+   ========================================================================== */
+.rail-scrim{
+  position:fixed;inset:0;z-index:210;
+  background:rgba(8,12,22,.55);
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .26s ease,visibility .26s ease;
+}
+.rail-scrim.open{opacity:1;visibility:visible;pointer-events:auto}
+@media (min-width:1040px){.rail-scrim{display:none}}
+/* روی دسکتاپ پنل داخل ستون کناری می‌نشیند، نه شناور */
+@media (min-width:1040px){
+  .rail-body{position:static;transform:none;visibility:visible;width:auto;
+    background:transparent;border:0;box-shadow:none;padding:0;overflow:visible}
+}
+@media (max-width:1039px){.rail-body{z-index:220}}
+
+/* شمارندهٔ علاقه‌مندی‌ها — عدد باید در مرکز نشان بنشیند */
+.bm-count{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:18px;height:18px;padding:0 5px;
+  font-family:var(--num);font-size:.66rem;font-weight:700;line-height:1;
+  border-radius:99px;background:var(--blue);color:#fff;
+}
+.ibtn .bm-count{
+  position:absolute;top:-6px;inset-inline-end:-6px;
+  box-shadow:0 0 0 2px var(--surface);
+}
+.ibtn{position:relative}
+
+/* ============================================================================
+   سوییچ تم — به‌جای دکمهٔ ساده، یک کلید واقعی
+   ========================================================================== */
+.theme-sw{
+  position:relative;flex:none;
+  width:56px;height:30px;padding:0;
+  border-radius:999px;cursor:pointer;
+  background:var(--surface-sunk);
+  border:1px solid var(--line-strong);
+  transition:background .22s ease,border-color .22s ease;
+}
+.theme-sw:hover{border-color:var(--blue)}
+.theme-sw .knob{
+  position:absolute;top:2px;inset-inline-start:2px;
+  width:24px;height:24px;border-radius:50%;
+  background:var(--surface);
+  box-shadow:var(--shadow-2);
+  display:grid;place-items:center;
+  transition:transform .26s cubic-bezier(.3,.9,.3,1);
+}
+.theme-sw .knob svg{width:14px;height:14px;display:block;color:var(--warn)}
+.theme-sw .tk-moon{display:none;color:var(--violet)}
+/* حالت تاریک: دستگیره به سمت مقابل می‌رود — با علامت جهت، تا در RTL هم درست باشد */
+:root[dir="ltr"] .theme-sw.on .knob{transform:translateX(26px)}
+:root[dir="rtl"] .theme-sw.on .knob{transform:translateX(-26px)}
+.theme-sw.on{background:color-mix(in srgb,var(--violet) 26%,var(--surface-sunk))}
+.theme-sw.on .tk-sun{display:none}
+.theme-sw.on .tk-moon{display:block}
+@media (prefers-reduced-motion:reduce){.theme-sw .knob{transition:none}}

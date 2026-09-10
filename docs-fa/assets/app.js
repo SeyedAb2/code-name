@@ -184,6 +184,10 @@
     $$(".js-theme").forEach(function (b) {
       var dark = v === "dark" || (!v && matchMedia("(prefers-color-scheme:dark)").matches);
       b.setAttribute("aria-label", dark ? "روشن" : "تاریک");
+      /* سوییچ تازه: وضعیت با کلاس و aria-checked نشان داده می‌شود */
+      b.classList.toggle("on", dark);
+      if (b.hasAttribute("role")) b.setAttribute("aria-checked", String(dark));
+      /* دکمهٔ قدیمی (اگر جایی مانده باشد) */
       var s = $(".ico-sun", b), m = $(".ico-moon", b);
       if (s) s.style.display = dark ? "block" : "none";
       if (m) m.style.display = dark ? "none" : "block";
@@ -441,14 +445,39 @@
   }
 
   /* کشوی فهرست روی موبایل: باز/بسته، قفل اسکرول، بستن با پرده و Esc */
+  /* ‏position:fixed نسبت به هر جدّی که transform / filter / contain داشته باشد
+     محاسبه می‌شود، نه نسبت به پنجره. کشوها را می‌بریم مستقیم زیر <body> تا
+     هیچ‌وقت داخل چنین بافتی گیر نکنند — علت «کشوی خالی بعد از اسکرول». */
+  function liftPanels() {
+    /* مودال‌ها و کشوها مستقیم زیر body می‌روند. برای .rail-body یک پردهٔ
+       واقعی هم می‌سازیم، چون پردهٔ قبلی .rail::before بود و با جابه‌جایی
+       پنل بی‌اثر می‌شد. */
+    $$(".js-menu-dim, .sdim, .mdim").forEach(function (n) {
+      if (n.parentNode !== D.body) D.body.appendChild(n);
+    });
+    var rb = $(".rail-body");
+    if (rb && rb.parentNode !== D.body) {
+      var scrim = el("div", "rail-scrim");
+      scrim.setAttribute("aria-hidden", "true");
+      D.body.appendChild(scrim);
+      D.body.appendChild(rb);
+    }
+  }
+
   function initRailToggle() {
     var rail = $(".rail"), btn = $(".rail-toggle");
     if (!rail || !btn) return;
 
+    var panel = $(".rail-body"), scrim = $(".rail-scrim");
     function setOpen(on) {
       rail.classList.toggle("open", on);
+      if (panel) panel.classList.toggle("open", on);
+      if (scrim) scrim.classList.toggle("open", on);
       btn.setAttribute("aria-expanded", String(on));
       body.classList.toggle("rail-lock", on && innerWidth < 1040);
+      /* محتوای فهرست را همان لحظهٔ باز شدن تازه می‌سازیم تا هیچ‌وقت
+         خالی یا کهنه نباشد. */
+      if (on) safe("rail:rebuild", buildRail);
     }
     function close() { setOpen(false); }
 
@@ -456,12 +485,12 @@
       setOpen(!rail.classList.contains("open"));
     });
 
-    rail.addEventListener("click", function (e) {
-      /* کلیک روی خودِ .rail یعنی روی پرده — چون کشو فرزند آن است */
-      if (e.target === rail) { close(); return; }
+    if (scrim) scrim.addEventListener("click", close);
+    D.addEventListener("click", function (e) {
+      if (!e.target.closest) return;
       if (e.target.closest(".rail-close")) { close(); return; }
-      /* انتخاب یک بخش: ببند و بگذار مرورگر به لنگر برود */
-      if (e.target.closest("a") && innerWidth < 1040) close();
+      /* انتخاب یک بخش از فهرست: ببند و بگذار مرورگر به لنگر برود */
+      if (e.target.closest(".rail-body a") && innerWidth < 1040) close();
     });
 
     D.addEventListener("keydown", function (e) {
