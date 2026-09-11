@@ -1,0 +1,55 @@
+.btn {
+  height: 34px;
+  min-width: 34px;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  position: relative;
+
+  background: var(--surface);
+  color: var(--ink-soft);
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+
+  font-family: inherit;
+  font-size: .8rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background .15s, color .15s, border-color .15s;
+
+  &:hover {
+    color: var(--ink);
+    border-color: var(--blue);
+    background: var(--tint-blue);
+    text-decoration: none;
+  }
+
+  &[aria-pressed="true"],
+  &.active {
+    color: var(--blue);
+    border-color: var(--blue);
+    background: var(--tint-blue);
+  }
+}
+
+/* شمارندهٔ کوچک روی دکمه — مثل تعداد علاقه‌مندی‌ها */
+.count {
+  position: absolute;
+  top: -6px;
+  inset-inline-end: -6px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  font-family: var(--num);
+  font-size: .62rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  background: var(--blue);
+  border-radius: 99px;
+}

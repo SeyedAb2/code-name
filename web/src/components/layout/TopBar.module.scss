@@ -1,0 +1,109 @@
+@use "../../styles/tokens" as *;
+
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  height: var(--bar-h);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-inline: clamp(14px, 3vw, 28px);
+  /* پس‌زمینهٔ تقریباً مات به‌جای backdrop-filter: محو کردن ناحیهٔ پشت یک نوار
+     چسبان، در هر فریم اسکرول کار تولید می‌کند و روی صفحه‌های بلند محسوس بود. */
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  color: var(--ink);
+  flex: none;
+
+  &:hover { text-decoration: none; color: var(--ink); }
+}
+
+.mark {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  filter: drop-shadow(0 3px 8px rgba(79, 107, 245, .45));
+
+  img { display: block; border-radius: 8px; }
+}
+
+.brandText {
+  font-size: .95rem;
+  letter-spacing: -.01em;
+  line-height: 1.25;
+
+  b { display: block; font-weight: 700; }
+  i {
+    display: block;
+    font-style: normal;
+    font-size: .68rem;
+    font-weight: 500;
+    color: var(--ink-faint);
+  }
+
+  @include below($bp-sm) { display: none; }
+}
+
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+  font-size: .83rem;
+  color: var(--ink-soft);
+
+  a { color: var(--ink-soft); }
+  a:hover { color: var(--blue); }
+
+  @include below($bp-md) { display: none; }
+}
+
+.sep { color: var(--ink-faint); opacity: .6; }
+
+.current {
+  color: var(--ink);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tools {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+  margin-inline-start: auto;
+
+  /* روی موبایل جایش را به یک دکمهٔ منو می‌دهد */
+  @include below($bp-md) { display: none; }
+}
+
+.menuButton {
+  display: none;
+  margin-inline-start: auto;
+
+  @include below($bp-md) { display: inline-flex; }
+}
+
+/* نوار پیشرفت خواندن، چسبیده به لبهٔ پایین نوار بالا */
+.readbar {
+  position: fixed;
+  top: 0;
+  inset-inline-start: 0;
+  height: 2px;
+  background: var(--brand-grad);
+  z-index: 70;
+  transition: width .1s linear;
+}

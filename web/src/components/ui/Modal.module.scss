@@ -1,0 +1,83 @@
+@use "../../styles/tokens" as *;
+
+.dim {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(8, 12, 22, .55);
+  padding: 10vh 16px 20px;
+  overflow-y: auto;
+  animation: fade .16s ease;
+}
+
+@keyframes fade { from { opacity: 0; } }
+
+.box {
+  max-width: 620px;
+  margin: 0 auto;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-3);
+  overflow: hidden;
+  animation: rise .2s cubic-bezier(.2, .8, .3, 1);
+}
+
+@keyframes rise { from { transform: translateY(10px); opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .dim, .box { animation: none; }
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  font-weight: 700;
+
+  h2 { font-size: 1.02rem; margin: 0; flex: 1; }
+}
+
+.body { padding: 16px; }
+
+/* ── کشوی موبایل ─────────────────────────────────────────────────────────── */
+.sheetDim {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  background: rgba(8, 12, 22, .55);
+  animation: fade .16s ease;
+}
+
+.sheet {
+  position: fixed;
+  inset-block: 0;
+  width: min(88vw, 330px);
+  background: var(--surface);
+  box-shadow: var(--shadow-3);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: env(safe-area-inset-bottom);
+  animation: slideIn .26s cubic-bezier(.3, .9, .3, 1);
+}
+
+/* مختصات فیزیکی، نه منطقی: در RTL خاصیت inline-end به «چپ» ترجمه می‌شود و
+   کشو از راست می‌آمد ولی سمت چپ می‌نشست. */
+:global(:root[dir="rtl"]) .sheet {
+  right: 0; left: auto;
+  border-left: 1px solid var(--line-strong);
+}
+:global(:root[dir="ltr"]) .sheet {
+  left: 0; right: auto;
+  border-right: 1px solid var(--line-strong);
+}
+
+@keyframes slideIn { from { transform: translateX(var(--from, 102%)); } }
+:global(:root[dir="rtl"]) .sheet { --from: 102%; }
+:global(:root[dir="ltr"]) .sheet { --from: -102%; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sheetDim, .sheet { animation: none; }
+}

@@ -1,0 +1,20 @@
+.bar {
+  height: 7px;
+  border-radius: 99px;
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: var(--brand-grad);
+  transition: width .5s cubic-bezier(.2, .8, .3, 1);
+}
+
+.sm { height: 5px; }
+
+/* رسیدن به ۱۰۰٪ باید دیده شود، نه اینکه فقط نوار پر باشد */
+.done .fill { background: linear-gradient(120deg, #15A34A, #34D399); }

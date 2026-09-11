@@ -1,0 +1,27 @@
+/* ============================================================================
+   فونت‌ها — لوکال، بدون درخواست به گوگل
+
+   هر دو فونت «متغیر»اند: یک فایل، همهٔ وزن‌ها از ۱۰۰ تا ۹۰۰. برای همین
+   به‌جای چهار فایل جدا فقط یکی داریم.
+
+   ‏font-display:swap یعنی متن بلافاصله با فونت جایگزین دیده می‌شود و بعد
+   عوض می‌شود — بهتر از اینکه چند صد میلی‌ثانیه صفحه خالی بماند.
+   ========================================================================== */
+
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('/assets/fonts/Vazirmatn-Variable.woff2') format('woff2-variations'),
+       url('/assets/fonts/Vazirmatn-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: local('JetBrains Mono'),
+       url('/assets/fonts/JetBrainsMono-var.ttf') format('truetype');
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}

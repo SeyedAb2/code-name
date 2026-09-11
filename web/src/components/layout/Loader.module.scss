@@ -1,0 +1,117 @@
+/* ============================================================================
+   لودینگ اولیه
+
+   بدون جعبه، بدون پس‌زمینهٔ رنگی پشت نشان — فقط زمینهٔ خود سایت، لوگوی
+   بزرگ، و یک حلقه که دورش می‌چرخد. سادگی عمدی است: هر چیزی که دور لوگو
+   بگذاریم، خود لوگو را کوچک‌تر نشان می‌دهد.
+   ========================================================================== */
+
+.wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  background: var(--canvas);
+  gap: 0;
+}
+
+.inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 26px;
+}
+
+/* نشان و حلقه روی هم می‌نشینند */
+.badge {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  display: grid;
+  place-items: center;
+}
+
+.logo {
+  /* بدون کادر و بدون پس‌زمینه — سایهٔ نرم فقط برای جدا شدن از زمینه */
+  display: block;
+  border-radius: 24px;
+  filter: drop-shadow(0 14px 34px rgba(79, 107, 245, .34));
+  animation: pop .7s cubic-bezier(.2, .9, .3, 1.15) both;
+}
+
+/* حلقهٔ چرخان */
+.ring {
+  position: absolute;
+  inset: 0;
+  width: 150px;
+  height: 150px;
+  transform: rotate(-90deg);   /* شروع از بالا، نه از راست */
+}
+
+.ringTrack {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 3;
+}
+
+.ringHead {
+  fill: none;
+  stroke: url(#loaderGrad);
+  stroke-width: 3;
+  stroke-linecap: round;
+  /* محیط دایره با r=70 حدود ۴۴۰ است؛ کمان کوتاهی از آن می‌چرخد */
+  stroke-dasharray: 110 330;
+  transform-origin: center;
+  animation: spin 1.15s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@keyframes pop {
+  from { opacity: 0; transform: scale(.82); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.name {
+  text-align: center;
+  animation: rise .55s ease .15s both;
+
+  b {
+    display: block;
+    font-size: 1.42rem;
+    font-weight: 700;
+    letter-spacing: -.02em;
+    color: var(--ink);
+  }
+
+  i {
+    display: block;
+    margin-top: 4px;
+    font-style: normal;
+    font-size: .82rem;
+    color: var(--ink-faint);
+  }
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(9px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* محو شدن در پایان */
+.out {
+  animation: fadeOut .42s cubic-bezier(.4, 0, .2, 1) both;
+  pointer-events: none;
+}
+
+@keyframes fadeOut {
+  to { opacity: 0; visibility: hidden; }
+}
+
+/* کسی که حرکت نمی‌خواهد، نباید منتظر انیمیشن بماند */
+@media (prefers-reduced-motion: reduce) {
+  .logo, .name { animation: none; }
+  .ringHead { animation-duration: 2.4s; }
+  .out { animation-duration: .01s; }
+}

@@ -1,0 +1,52 @@
+/* کلید تم — یک ریل با دستگیرهٔ لغزان.
+   حالت فعلی باید بدون خواندن متن معلوم باشد، برای همین خورشید و ماه
+   هر دو روی ریل دیده می‌شوند و دستگیره روی یکی می‌ایستد. */
+.sw {
+  position: relative;
+  width: 58px;
+  height: 30px;
+  flex: none;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 99px;
+  background: var(--surface-sunk);
+  cursor: pointer;
+  transition: background .2s, border-color .2s;
+
+  &:hover { border-color: var(--blue); }
+}
+
+/* آیکون‌های ثابت روی ریل */
+.rail {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 7px;
+  color: var(--ink-faint);
+  pointer-events: none;
+}
+
+.knob {
+  position: absolute;
+  top: 2px;
+  inset-inline-start: 2px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 2px 6px rgba(16, 24, 40, .28);
+  display: grid;
+  place-items: center;
+  color: var(--blue);
+  transition: transform .24s cubic-bezier(.3, .9, .3, 1);
+}
+
+/* در RTL جهت حرکت برعکس است */
+.on .knob { transform: translateX(28px); }
+:global(:root[dir="rtl"]) .on .knob { transform: translateX(-28px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .knob { transition: none; }
+}

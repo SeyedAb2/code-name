@@ -1,0 +1,128 @@
+@use "sass:map";
+
+/* ============================================================================
+   توکن‌های طراحی — کدنامه
+
+   دو لایه داریم و عمداً از هم جدا هستند:
+
+   ۱) متغیرهای Sass ($bp-md و …): چیزهایی که در زمان بیلد لازم‌اند.
+      ‏media query نمی‌تواند از متغیر CSS بخواند، پس نقطه‌شکست‌ها باید Sass باشند.
+
+   ۲) متغیرهای CSS (--ink و …): چیزهایی که در زمان اجرا عوض می‌شوند.
+      تم روشن و تاریک فقط همین‌ها را جابه‌جا می‌کنند، بدون بارگذاری دوبارهٔ استایل.
+
+   کنتراست‌ها اندازه‌گیری شده‌اند، نه حدسی — عددها کنار هر رنگ آمده‌اند.
+   ========================================================================== */
+
+/* ── نقطه‌شکست‌ها ─────────────────────────────────────────────────────────── */
+$bp-sm: 520px;
+$bp-md: 720px;
+$bp-lg: 1040px;
+$bp-xl: 1320px;
+
+@mixin below($bp) {
+  @media (max-width: #{$bp - 1px}) { @content; }
+}
+@mixin from($bp) {
+  @media (min-width: $bp) { @content; }
+}
+
+/* حرکت را فقط وقتی اجرا کن که کاربر مخالفتی نکرده باشد */
+@mixin motion {
+  @media (prefers-reduced-motion: no-preference) { @content; }
+}
+
+/* ── پالت تم تاریک ─────────────────────────────────────────────────────────
+   در دو جا لازم است: پاسخ به prefers-color-scheme، و انتخاب صریح کاربر.
+   نوشتنش به‌صورت mixin از دوباره‌نویسی و واگرایی جلوگیری می‌کند. */
+@mixin dark-tokens {
+  --canvas: #080C16;
+  --surface: #111828;
+  --surface-sunk: #0C1220;
+  --surface-code: #060A13;
+
+  --ink: #E9EEF9;        /* ۱۵٫۸:۱ روی سطح */
+  --ink-soft: #9CA9C6;   /*  ۷٫۱:۱ */
+  --ink-faint: #7B88A6;  /*  ۴٫۸:۱ — از کف ۴٫۵ رد می‌شود */
+
+  --line: rgba(255, 255, 255, .09);
+  --line-strong: rgba(255, 255, 255, .17);
+
+  --blue: #7D94FF;
+  --violet: #A98BFA;
+  --brand-grad: linear-gradient(120deg, #6C86FF 0%, #A98BFA 100%);
+  --safe: #34D399;
+  --warn: #F0B429;
+  --danger: #F87171;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .4);
+  --shadow-2: 0 4px 14px rgba(0, 0, 0, .45);
+  --shadow-3: 0 18px 44px -14px rgba(0, 0, 0, .7);
+
+  --tint-blue: rgba(125, 148, 255, .12);
+  --tint-violet: rgba(169, 139, 250, .13);
+  --tint-safe: rgba(52, 211, 153, .12);
+  --tint-warn: rgba(240, 180, 41, .13);
+  --tint-danger: rgba(248, 113, 113, .12);
+  --sel: rgba(125, 148, 255, .26);
+
+  color-scheme: dark;
+}
+
+@mixin light-tokens {
+  /* زمینه کمی عمیق‌تر از سفید است تا کارت‌های سفید از آن جدا دیده شوند */
+  --canvas: #EEF2F9;
+  --surface: #FFFFFF;
+  --surface-sunk: #E4EAF4;
+  --surface-code: #0E1524;   /* بلوک کد در هر دو تم تیره است */
+
+  --ink: #0F1729;        /* ۱۷٫۹:۱ روی سطح */
+  --ink-soft: #49556E;   /*  ۷٫۵:۱ */
+  --ink-faint: #5E6A84;  /*  ۵٫۴:۱ */
+
+  --line: rgba(16, 24, 40, .13);
+  --line-strong: rgba(16, 24, 40, .24);
+
+  --blue: #4F6BF5;
+  --violet: #8B5CF6;
+  --brand-grad: linear-gradient(120deg, #4F6BF5 0%, #8B5CF6 100%);
+  --safe: #15A34A;
+  --warn: #B45309;
+  --danger: #DC2626;
+
+  --shadow-1: 0 1px 2px rgba(16, 24, 40, .07), 0 1px 3px rgba(16, 24, 40, .08);
+  --shadow-2: 0 4px 12px rgba(16, 24, 40, .10), 0 1px 3px rgba(16, 24, 40, .07);
+  --shadow-3: 0 18px 44px -14px rgba(16, 24, 40, .24);
+
+  --tint-blue: rgba(79, 107, 245, .08);
+  --tint-violet: rgba(139, 92, 246, .09);
+  --tint-safe: rgba(21, 163, 74, .09);
+  --tint-warn: rgba(180, 83, 9, .10);
+  --tint-danger: rgba(220, 38, 38, .08);
+  --sel: rgba(79, 107, 245, .18);
+
+  color-scheme: light;
+}
+
+/* ── توکن‌های مستقل از تم ─────────────────────────────────────────────────── */
+@mixin static-tokens {
+  --fa: 'Vazirmatn', 'Vazir', 'IRANYekanX', 'IRANYekan', 'Sahel',
+        system-ui, 'Segoe UI', Tahoma, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+
+  /* عدد نمایشی: در فارسی وزیرمتن، چون JetBrains Mono رقم فارسی ندارد و
+     مرورگر برای هر رقم به فونت دیگری برمی‌گردد. کد همیشه مونو می‌ماند. */
+  --num: var(--fa);
+
+  --measure: 68ch;
+  --rail: 232px;
+  --bar-h: 58px;
+
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+
+  --sb-thumb: color-mix(in srgb, var(--ink-faint) 45%, transparent);
+  --sb-thumb-hover: var(--blue);
+}

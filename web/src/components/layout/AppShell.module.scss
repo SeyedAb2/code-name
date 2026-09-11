@@ -1,0 +1,27 @@
+@use "../../styles/tokens" as *;
+
+.shell {
+  max-width: $bp-xl;
+  margin: 0 auto;
+  padding: 0 clamp(14px, 3vw, 28px) 90px;
+}
+
+.footer {
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  padding: 26px clamp(14px, 3vw, 28px);
+  font-size: .82rem;
+  color: var(--ink-faint);
+}
+
+.footerInner {
+  max-width: $bp-xl;
+  margin: 0 auto;
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+
+  a { color: var(--ink-soft); }
+}

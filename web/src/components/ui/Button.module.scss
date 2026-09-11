@@ -1,0 +1,64 @@
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 20px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  font-family: inherit;
+  font-size: .9rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform .16s cubic-bezier(.2, .8, .3, 1),
+              box-shadow .18s, background .18s, border-color .18s;
+
+  &:hover { text-decoration: none; }
+  &:active { transform: translateY(0); }
+}
+
+/* ‏a:hover رنگ عمومی لینک را عوض می‌کند و ویژگی‌اش از .primary بیشتر است،
+   پس متن روی گرادیان بنفش، بنفش می‌شد و گم. رنگ را صریح برمی‌گردانیم. */
+.primary,
+.primary:hover,
+.primary:focus-visible,
+.primary:active {
+  color: #fff;
+}
+
+.primary {
+  background: var(--brand-grad);
+  box-shadow: 0 8px 20px -8px rgba(79, 107, 245, .7);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 28px -10px rgba(79, 107, 245, .8);
+  }
+}
+
+.ghost {
+  background: var(--surface);
+  color: var(--ink-soft);
+  border-color: var(--line-strong);
+
+  &:hover {
+    color: var(--ink);
+    border-color: var(--blue);
+    background: var(--tint-blue);
+  }
+}
+
+.disabled {
+  opacity: .5;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn:hover { transform: none; }
+}
+
+/* در RTL فلش باید به سمت مخالف باشد */
+.icon { width: 16px; height: 16px; flex: none; }
+:global(:root[dir="rtl"]) .icon { transform: scaleX(-1); }

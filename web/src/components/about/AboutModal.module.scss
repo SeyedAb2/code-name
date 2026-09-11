@@ -1,0 +1,148 @@
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 10px 16px 0;
+  border-bottom: 1px solid var(--line);
+
+  button {
+    border: 0;
+    background: transparent;
+    color: var(--ink-faint);
+    font-family: inherit;
+    font-size: .87rem;
+    font-weight: 700;
+    padding: 9px 13px;
+    border-radius: var(--r-sm) var(--r-sm) 0 0;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+
+    &:hover { color: var(--ink); }
+    &[aria-selected="true"] { color: var(--blue); border-bottom-color: var(--blue); }
+  }
+}
+
+.pane { padding: 18px 16px; }
+
+.dev {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.avatar {
+  width: 52px;
+  height: 52px;
+  flex: none;
+  filter: drop-shadow(0 6px 16px rgba(79, 107, 245, .45));
+
+  img { display: block; border-radius: 13px; }
+}
+
+.name {
+  h3 { margin: 0 0 2px; font-size: 1.05rem; }
+  span { font-size: .8rem; color: var(--ink-faint); }
+}
+
+.note {
+  font-size: .9rem;
+  line-height: 1.75;
+  color: var(--ink-soft);
+  margin: 0 0 16px;
+}
+
+.links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li { margin: 0; }
+
+  a {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 10px 12px;
+    border-radius: var(--r-md);
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    font-size: .88rem;
+    text-decoration: none;
+    transition: border-color .15s, background .15s;
+
+    &:hover {
+      border-color: var(--blue);
+      background: var(--tint-blue);
+      text-decoration: none;
+      color: var(--ink);
+    }
+
+    svg { flex: none; color: var(--ink-faint); }
+    &:hover svg { color: var(--blue); }
+
+    i {
+      margin-inline-start: auto;
+      font-style: normal;
+      font-family: var(--mono);
+      font-size: .76rem;
+      color: var(--ink-faint);
+      direction: ltr;
+    }
+  }
+}
+
+/* ── کارت بانکی ──────────────────────────────────────────────────────────── */
+.card {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  padding: 18px 18px 16px;
+  color: #fff;
+  /* آبی بلوبانک */
+  background: linear-gradient(135deg, #0B4FD8 0%, #1B6BF0 55%, #3E8BFF 100%);
+  box-shadow: 0 14px 34px -14px rgba(11, 79, 216, .75);
+  margin-bottom: 14px;
+}
+
+.cardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+  font-size: .84rem;
+  font-weight: 700;
+  opacity: .95;
+}
+
+.chip {
+  width: 34px;
+  height: 25px;
+  border-radius: 5px;
+  background: linear-gradient(135deg, #F5D57A, #C9A227);
+  opacity: .95;
+}
+
+.cardNum {
+  font-family: var(--mono);
+  font-size: 1.18rem;
+  font-weight: 700;
+  letter-spacing: .09em;
+  direction: ltr;
+  text-align: left;
+  margin-bottom: 12px;
+}
+
+.cardFoot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  font-size: .78rem;
+  opacity: .9;
+}
+
+.copyRow { display: flex; gap: 8px; }
