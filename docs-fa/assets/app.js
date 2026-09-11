@@ -201,8 +201,15 @@
         var cur = R.getAttribute("data-theme");
         if (!cur) cur = matchMedia("(prefers-color-scheme:dark)").matches ? "dark" : "light";
         var next = cur === "dark" ? "light" : "dark";
+        /* ترنزیشن‌ها را یک لحظه خاموش کن: وگرنه مرورگر رنگ صدها عنصر را
+           همزمان انیمیت می‌کند و تعویض تم کند و پرش‌دار می‌شود. */
+        R.classList.add("theme-switching");
         store.set(K_THEME, next);
         applyTheme(next);
+        /* دو فریم صبر تا استایل تازه اعمال شود، بعد ترنزیشن‌ها برگردند */
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () { R.classList.remove("theme-switching"); });
+        });
       });
     });
   }

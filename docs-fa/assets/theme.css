@@ -19,9 +19,14 @@
 
 /* ---------- توکن‌ها: لایت --------------------------------------------------- */
 :root{
-  --canvas:#F4F7FC; --surface:#FFFFFF; --surface-sunk:#EDF1F8; --surface-code:#0E1524;
-  --ink:#0F1729; --ink-soft:#55617C; --ink-faint:#7A87A3;
-  --line:rgba(16,24,40,.10); --line-strong:rgba(16,24,40,.18);
+  /* تم روشن — نسبت کنتراست‌ها اندازه‌گیری شده، نه حدسی:
+       ink       #0F1729 روی سطح ۱۷٫۹:۱
+       ink-soft  #49556E روی سطح  ۷٫۵:۱
+       ink-faint #5E6A84 روی سطح  ۵٫۴:۱  (قبلاً ۳٫۶:۱ بود و از کف ۴٫۵ رد نمی‌شد)
+     زمینه کمی عمیق‌تر شد تا کارت‌های سفید از آن جدا دیده شوند. */
+  --canvas:#EEF2F9; --surface:#FFFFFF; --surface-sunk:#E4EAF4; --surface-code:#0E1524;
+  --ink:#0F1729; --ink-soft:#49556E; --ink-faint:#5E6A84;
+  --line:rgba(16,24,40,.13); --line-strong:rgba(16,24,40,.24);
   --blue:#4F6BF5; --violet:#8B5CF6;
   --brand-grad:linear-gradient(120deg,#4F6BF5 0%,#8B5CF6 100%);
   --safe:#15A34A; --warn:#B45309; --danger:#DC2626;
@@ -36,8 +41,8 @@
   --rail:232px;
   --bar-h:58px;
   --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:22px;
-  --shadow-1:0 1px 2px rgba(16,24,40,.05),0 1px 3px rgba(16,24,40,.06);
-  --shadow-2:0 4px 12px rgba(16,24,40,.07),0 1px 3px rgba(16,24,40,.05);
+  --shadow-1:0 1px 2px rgba(16,24,40,.07),0 1px 3px rgba(16,24,40,.08);
+  --shadow-2:0 4px 12px rgba(16,24,40,.10),0 1px 3px rgba(16,24,40,.07);
   --shadow-3:0 18px 44px -14px rgba(16,24,40,.24);
   --tint-blue:rgba(79,107,245,.08);
   --tint-violet:rgba(139,92,246,.09);
@@ -298,13 +303,6 @@ body{opacity:1}
   box-shadow:var(--shadow-2);margin:10px 0 54px;
 }
 .dev::before{content:"";position:absolute;top:0;inset-inline-start:0;width:100%;height:3px;background:var(--brand-grad)}
-.dev-av{
-  width:62px;height:62px;flex:none;border-radius:18px;
-  background:var(--brand-grad);color:#fff;
-  display:grid;place-items:center;
-  font-weight:700;font-size:1.25rem;letter-spacing:-.02em;
-  box-shadow:0 10px 26px -10px rgba(79,107,245,.7);
-}
 .dev-b{flex:1;min-width:210px}
 .dev-b .role{font-size:.73rem;font-weight:700;color:var(--violet);letter-spacing:.04em;display:block;margin-bottom:3px}
 .dev-b h3{margin:0 0 4px;font-size:1.08rem}
@@ -1465,8 +1463,10 @@ details.ex-hint>*:last-child,details.ex-sol>*:last-child{margin-bottom:14px}
 .dev-av{
   width:46px;height:46px;flex:none;border-radius:13px;
   display:grid;place-items:center;color:#fff;background:var(--brand-grad);
+  box-shadow:0 8px 20px -9px rgba(79,107,245,.65);
 }
-.dev-av svg{width:24px;height:24px}
+/* بدون display:block، آیکون روی خط پایهٔ متن می‌نشیند و کمی بالا می‌افتد */
+.dev-av svg{width:23px;height:23px;display:block;color:#fff;stroke:#fff}
 .dev-card b{display:block;font-size:.98rem;line-height:1.5}
 .dev-card span{display:block;font-size:.78rem;color:var(--ink-faint)}
 
@@ -1733,12 +1733,28 @@ details.ex-hint>*:last-child,details.ex-sol>*:last-child{margin-bottom:14px}
   display:grid;place-items:center;
   transition:transform .26s cubic-bezier(.3,.9,.3,1);
 }
-.theme-sw .knob svg{width:14px;height:14px;display:block;color:var(--warn)}
-.theme-sw .tk-moon{display:none;color:var(--violet)}
+/* ‏display را روی قاعدهٔ عمومی svg نمی‌گذاریم: ویژگی‌اش (0,2,1) از
+   ‏.theme-sw .tk-moon (0,2,0) بیشتر بود و هر دو آیکون با هم دیده می‌شدند. */
+.theme-sw .knob svg{width:14px;height:14px;color:var(--warn)}
+.theme-sw .knob .tk-sun{display:block}
+.theme-sw .knob .tk-moon{display:none;color:var(--violet)}
+.theme-sw.on .knob .tk-sun{display:none}
+.theme-sw.on .knob .tk-moon{display:block}
 /* حالت تاریک: دستگیره به سمت مقابل می‌رود — با علامت جهت، تا در RTL هم درست باشد */
 :root[dir="ltr"] .theme-sw.on .knob{transform:translateX(26px)}
 :root[dir="rtl"] .theme-sw.on .knob{transform:translateX(-26px)}
 .theme-sw.on{background:color-mix(in srgb,var(--violet) 26%,var(--surface-sunk))}
-.theme-sw.on .tk-sun{display:none}
-.theme-sw.on .tk-moon{display:block}
 @media (prefers-reduced-motion:reduce){.theme-sw .knob{transition:none}}
+
+/* ============================================================================
+   لگ هنگام تعویض تم
+   ده‌ها کلاس روی background و color و border ترنزیشن دارند. با عوض شدن تم،
+   مرورگر می‌خواهد همهٔ آن‌ها را همزمان انیمیت کند و صفحه کند می‌شود.
+   \u200Fapp.js موقع سوییچ این کلاس را چند میلی‌ثانیه روی <html> می‌گذارد.
+   ========================================================================== */
+:root.theme-switching *,
+:root.theme-switching *::before,
+:root.theme-switching *::after{
+  transition:none!important;
+  animation:none!important;
+}
