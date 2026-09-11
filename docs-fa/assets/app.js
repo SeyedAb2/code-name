@@ -833,6 +833,139 @@
     });
   }
 
+  /* ═══════════════ سوییچر حالت نمایش + فیلتر درون‌صفحه‌ای ═══════════════
+     دو کار جدا که یک نوار مشترک دارند:
+       ۱) کاشی دسته‌ها ↔ فهرست کامل مسیرها (انتخاب کاربر ذخیره می‌شود)
+       ۲) فیلتر زندهٔ کارت‌ها، با های‌لایت همان عبارتی که باعث تطبیق شد */
+  var K_VIEW = "docsfa:view";
+
+  function initViewSwitch() {
+    var sw = $(".view-sw");
+    if (!sw) return;
+    var panes = $$("[data-view-pane]");
+
+    function apply(v) {
+      panes.forEach(function (p) { p.hidden = p.getAttribute("data-view-pane") !== v; });
+      $$("button", sw).forEach(function (b) {
+        b.setAttribute("aria-pressed", String(b.getAttribute("data-view") === v));
+      });
+    }
+    var saved = store.get(K_VIEW);
+    apply(saved === "list" ? "list" : "tiles");
+
+    sw.addEventListener("click", function (e) {
+      var b = e.target.closest("button[data-view]");
+      if (!b) return;
+      var v = b.getAttribute("data-view");
+      store.set(K_VIEW, v);
+      apply(v);
+      /* وقتی حالت عوض شد، فیلتر جاری باید روی نمای تازه هم اعمال شود */
+      var inp = $(".js-filter");
+      if (inp && inp.value.trim()) runFilter(inp.value);
+    });
+  }
+
+  /* متن را با حفظ ساختار های‌لایت می‌کند. فقط گره‌های متنی دست می‌خورند،
+     پس تگ‌های داخل (مثل <code>) سالم می‌مانند. */
+  function mark(root, q) {
+    unmark(root);
+    if (!q) return false;
+    var needle = q.toLowerCase(), found = false;
+    var walker = D.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) {
+        if (!n.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+        if (n.parentNode.closest("mark,script,style")) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    var nodes = [], n;
+    while ((n = walker.nextNode())) nodes.push(n);
+
+    nodes.forEach(function (node) {
+      var text = node.nodeValue, low = text.toLowerCase(), i = low.indexOf(needle);
+      if (i === -1) return;
+      found = true;
+      var frag = D.createDocumentFragment(), pos = 0;
+      while (i !== -1) {
+        if (i > pos) frag.appendChild(D.createTextNode(text.slice(pos, i)));
+        var m = el("mark", "hit", text.slice(i, i + needle.length));
+        frag.appendChild(m);
+        pos = i + needle.length;
+        i = low.indexOf(needle, pos);
+      }
+      if (pos < text.length) frag.appendChild(D.createTextNode(text.slice(pos)));
+      node.parentNode.replaceChild(frag, node);
+    });
+    return found;
+  }
+
+  function unmark(root) {
+    $$("mark.hit", root).forEach(function (m) {
+      var t = D.createTextNode(m.textContent);
+      m.parentNode.replaceChild(t, m);
+    });
+    /* گره‌های متنی تکه‌تکه‌شده را دوباره یکی کن، وگرنه جستجوی بعدی
+       عبارتی را که وسطش شکسته پیدا نمی‌کند. */
+    root.normalize();
+  }
+
+  function runFilter(q) {
+    q = (q || "").trim();
+    var cards = $$("[data-course-card]");
+    var tiles = $$(".cat-tile");
+    var hits = 0;
+
+    cards.forEach(function (card) {
+      unmark(card);
+      if (!q) { card.hidden = false; hits++; return; }
+      /* فقط نام و توضیح جستجو می‌شود، نه آمار و دکمه‌ها */
+      var zone = $$(".course-name, .desc", card);
+      var any = false;
+      zone.forEach(function (z) { if (mark(z, q)) any = true; });
+      card.hidden = !any;
+      if (any) hits++;
+    });
+
+    /* کاشی‌های دسته هم فیلتر شوند */
+    tiles.forEach(function (tile) {
+      unmark(tile);
+      if (!q) { tile.hidden = false; return; }
+      tile.hidden = !mark(tile, q);
+    });
+
+    /* بلوک دسته‌ای که هیچ کارتی ندارد، عنوانش هم نباید بماند */
+    $$(".cat-block").forEach(function (blk) {
+      var vis = $$("[data-course-card]", blk).filter(function (c) { return !c.hidden; });
+      blk.hidden = q ? vis.length === 0 : false;
+    });
+
+    var none = $(".no-hit");
+    if (none) none.hidden = !(q && hits === 0);
+  }
+
+  function initFilter() {
+    var inp = $(".js-filter");
+    if (!inp) return;
+    var clear = $(".js-filter-clear");
+
+    function update() {
+      if (clear) clear.hidden = !inp.value;
+      runFilter(inp.value);
+    }
+    /* تایپ سریع نباید هر حرف یک بار کل صفحه را دوباره بسازد */
+    var t = 0;
+    inp.addEventListener("input", function () {
+      clearTimeout(t);
+      t = setTimeout(update, 120);
+    });
+    inp.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") { inp.value = ""; update(); inp.blur(); }
+    });
+    if (clear) clear.addEventListener("click", function () {
+      inp.value = ""; update(); inp.focus();
+    });
+  }
+
   function initAbout() {
     var dim = $(".js-about-dim");
     if (!dim) return;
@@ -1285,6 +1418,8 @@
   safe("backup",      initBackup);
   safe("about",       initAbout);
   safe("menu",        initMenu);
+  safe("viewSwitch",  initViewSwitch);
+  safe("filter",      initFilter);
   safe("share",       initShare);
   safe("bookmarks",   initBookmarks);
   safe("courseStats", initCourseStats);

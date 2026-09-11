@@ -1745,3 +1745,103 @@ details.ex-hint>*:last-child,details.ex-sol>*:last-child{margin-bottom:14px}
   transition:none!important;
   animation:none!important;
 }
+
+/* ============================================================================
+   دسته‌بندی صفحهٔ اصلی
+   حالت پیش‌فرض: کاشی هر دسته. با سوییچر می‌شود به فهرست کامل مسیرها رفت.
+   ========================================================================== */
+.view-bar{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  margin:0 0 22px;
+}
+.vsearch{
+  position:relative;flex:1 1 260px;min-width:0;
+  display:flex;align-items:center;
+}
+.vsearch>svg{
+  position:absolute;inset-inline-start:14px;
+  width:17px;height:17px;color:var(--ink-faint);pointer-events:none;
+}
+.vsearch input{
+  width:100%;height:44px;
+  padding-inline:42px 40px;
+  border-radius:var(--r-md);
+  background:var(--surface);
+  border:1px solid var(--line-strong);
+  color:var(--ink);font-family:inherit;font-size:.92rem;
+  box-shadow:var(--shadow-1);
+  transition:border-color .18s,box-shadow .18s;
+}
+.vsearch input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px var(--tint-blue)}
+.vsearch input::placeholder{color:var(--ink-faint)}
+.vsearch input::-webkit-search-cancel-button{display:none}
+.vs-clear{
+  position:absolute;inset-inline-end:10px;
+  width:26px;height:26px;display:grid;place-items:center;
+  background:var(--surface-sunk);border:1px solid var(--line);border-radius:50%;
+  color:var(--ink-soft);cursor:pointer;
+}
+.vs-clear:hover{color:var(--danger);border-color:var(--danger)}
+.vs-clear svg{width:13px;height:13px}
+
+.view-sw{display:inline-flex;gap:3px;padding:3px;flex:none;
+  background:var(--surface-sunk);border:1px solid var(--line);border-radius:var(--r-md)}
+.view-sw button{
+  display:inline-flex;align-items:center;gap:7px;
+  height:36px;padding:0 13px;border:0;border-radius:9px;
+  background:transparent;color:var(--ink-soft);
+  font-family:inherit;font-size:.84rem;font-weight:700;cursor:pointer;
+  transition:background .16s,color .16s;
+}
+.view-sw button svg{width:15px;height:15px}
+.view-sw button:hover{color:var(--ink)}
+.view-sw button[aria-pressed="true"]{background:var(--surface);color:var(--blue);box-shadow:var(--shadow-1)}
+@media (max-width:560px){
+  .view-sw button span{display:none}
+  .view-sw button{padding:0 12px}
+}
+
+/* ── کاشی دسته ─────────────────────────────────────────────────────────── */
+.cat-tiles{
+  display:grid;gap:14px;margin-bottom:44px;
+  grid-template-columns:repeat(auto-fill,minmax(168px,1fr));
+}
+.cat-tile{
+  display:flex;flex-direction:column;align-items:center;text-align:center;gap:9px;
+  padding:22px 14px 18px;
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:var(--r-xl);
+  color:inherit;
+  box-shadow:var(--shadow-1);
+  transition:transform .2s cubic-bezier(.2,.8,.3,1),box-shadow .2s,border-color .2s;
+}
+.cat-tile:hover{
+  text-decoration:none;transform:translateY(-3px);
+  box-shadow:var(--shadow-3);border-color:var(--line-strong);
+}
+@media (prefers-reduced-motion:reduce){.cat-tile:hover{transform:none}}
+.cat-ico{
+  width:62px;height:62px;border-radius:50%;
+  display:grid;place-items:center;
+  background:var(--surface-sunk);
+  border:1px solid var(--line);
+  color:var(--blue);
+  transition:background .2s,color .2s;
+}
+.cat-tile:hover .cat-ico{background:var(--tint-blue);color:var(--violet)}
+.cat-ico svg{width:29px;height:29px;display:block}
+.cat-tile b{font-size:.93rem;font-weight:700;line-height:1.5;color:var(--ink)}
+.cat-tile>span{font-size:.74rem;color:var(--ink-faint);font-family:var(--num)}
+
+/* ── نتیجهٔ جستجو ──────────────────────────────────────────────────────── */
+mark.hit{
+  background:var(--tint-warn);color:inherit;
+  border-radius:4px;padding:0 2px;
+  box-shadow:inset 0 -2px 0 var(--warn);
+}
+.no-hit{
+  text-align:center;color:var(--ink-faint);
+  padding:44px 20px;font-size:.95rem;
+}
+.cat-block[hidden],.course[hidden],.cat-tile[hidden]{display:none!important}

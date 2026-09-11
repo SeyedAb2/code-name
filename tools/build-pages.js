@@ -80,6 +80,33 @@ const CATS = [
     den: "What separates a good programmer from a software engineer." }
 ];
 
+/* نشان هر دسته — جدا از CATS نگه داشته شده تا آن جدول خوانا بماند */
+const CAT_ICO = {
+  roots:    '<circle cx="12" cy="12" r="8.6"/><path d="M12 6.4V12l3.8 2.3" stroke-linecap="round"/><path d="M3.6 8.8h2.4M18 8.8h2.4" stroke-linecap="round" opacity=".45"/>',
+  basics:   '<path d="M14.6 4.4a3.9 3.9 0 0 0 5 5l-9.6 9.6a2.4 2.4 0 0 1-3.4-3.4z"/><path d="M6.4 17.6h.02" stroke-linecap="round"/>',
+  infra:    '<rect x="3" y="4" width="18" height="6" rx="1.8"/><rect x="3" y="14" width="18" height="6" rx="1.8"/><path d="M6.6 7h.02M6.6 17h.02" stroke-linecap="round"/>',
+  arch:     '<path d="M3.4 20.4h17.2M5.8 20.4V9.6L12 4.6l6.2 5v10.8"/><path d="M9.8 20.4v-5.2h4.4v5.2"/>',
+  backend:  '<ellipse cx="12" cy="6" rx="7.4" ry="3"/><path d="M4.6 6v12c0 1.7 3.3 3 7.4 3s7.4-1.3 7.4-3V6"/><path d="M4.6 12c0 1.7 3.3 3 7.4 3s7.4-1.3 7.4-3"/>',
+  frontend: '<rect x="2.6" y="4" width="18.8" height="13" rx="2.2"/><path d="M8.4 20.4h7.2M12 17v3.4" stroke-linecap="round"/>',
+  ai:       '<rect x="6.4" y="6.4" width="11.2" height="11.2" rx="2.4"/><rect x="9.8" y="9.8" width="4.4" height="4.4" rx="1"/><path d="M9.6 6.4V3.8M14.4 6.4V3.8M9.6 20.2v-2.6M14.4 20.2v-2.6M6.4 9.6H3.8M6.4 14.4H3.8M20.2 9.6h-2.6M20.2 14.4h-2.6" stroke-linecap="round"/>',
+  data:     '<path d="M3.4 12h4l2.2-5.6 3.4 11.2L15.4 12h5.2" stroke-linecap="round" stroke-linejoin="round"/>',
+  publish:  '<path d="M12 2.8 20.4 7v10L12 21.2 3.6 17V7z"/><path d="M3.6 7 12 11.2 20.4 7M12 11.2v10"/>',
+  projects: '<rect x="3.4" y="3.4" width="7.2" height="7.2" rx="1.6"/><rect x="13.4" y="3.4" width="7.2" height="7.2" rx="1.6"/><rect x="3.4" y="13.4" width="7.2" height="7.2" rx="1.6"/><rect x="13.4" y="13.4" width="7.2" height="7.2" rx="1.6"/>',
+  career:   '<circle cx="12" cy="8" r="3.6"/><path d="M4.8 20.2a7.2 7.2 0 0 1 14.4 0" stroke-linecap="round"/>'
+};
+const catIco = id => CAT_ICO[id] || CAT_ICO.projects;
+/* یک کاشی دسته */
+const catTile = (cat, root = "") => {
+  const list = COURSES.filter(c => c.cat === cat.id);
+  const chs = list.reduce((s, c) => s + c.chapters.length, 0);
+  return `      <a class="cat-tile" href="${root}cat-${cat.id}.html">
+        <span class="cat-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">${catIco(cat.id)}</svg></span>
+        <b lang="fa">${cat.fa}</b><b lang="en">${cat.en}</b>
+        <span lang="fa">${fa(list.length)} مسیر · ${fa(chs)} فصل</span>
+        <span lang="en">${list.length} tracks · ${chs} chapters</span>
+      </a>`;
+};
+
 /* ───────────────────────────── نشان و آیکون‌ها ───────────────────────────── */
 /* نشان کدنامه: یک کتاب باز با نشانهٔ کد داخلش */
 const MARK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -118,6 +145,8 @@ const ICO = {
   down:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 20h14"/></svg>`,
   up:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V9M7.5 13.5 12 9l4.5 4.5M5 4h14"/></svg>`,
   bars:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>`,
+  grid:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3.4" y="3.4" width="7.2" height="7.2" rx="1.6"/><rect x="13.4" y="3.4" width="7.2" height="7.2" rx="1.6"/><rect x="3.4" y="13.4" width="7.2" height="7.2" rx="1.6"/><rect x="13.4" y="13.4" width="7.2" height="7.2" rx="1.6"/></svg>`,
+  rows:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6.5h16M4 12h16M4 17.5h16"/></svg>`,
   list:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 7h12M8 12h12M8 17h9"/><circle cx="4.3" cy="7" r="1.1" fill="currentColor" stroke="none"/><circle cx="4.3" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="4.3" cy="17" r="1.1" fill="currentColor" stroke="none"/></svg>`,
   close:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg>`,
   star:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="m12 3.6 2.6 5.3 5.8.85-4.2 4.1 1 5.75L12 16.9l-5.2 2.7 1-5.75-4.2-4.1 5.8-.85z"/></svg>`,
@@ -493,9 +522,15 @@ ${scripts("../", c.id)}
 
 /* ───────────────────────────── صفحهٔ اصلی ───────────────────────────── */
 function homePage() {
-  const card = c => {
+  const card = courseCard;
+  return homeBody(card);
+}
+
+/* کارت یک مسیر — صفحهٔ اصلی و صفحهٔ دسته هر دو از همین استفاده می‌کنند */
+function courseCard(c, root = "") {
+  {
     const ready = c.readyCount > 0;
-    return `      <div class="course" style="--lb:${c.accent}22">
+    return `      <div class="course" data-course-card="${c.id}" data-cat="${c.cat}" style="--lb:${c.accent}22">
         ${ready ? "" : `<span class="badge-soon"><span lang="fa">در نوبت نوشتن</span><span lang="en">Planned</span></span>`}
         <div class="course-top">
           <span class="logo-box" style="${accVars(c)}" aria-hidden="true">
@@ -516,29 +551,16 @@ function homePage() {
         <div class="course-prog" data-prog-course="${c.id}"><div class="pbar"><i></i></div><b>۰٪</b></div>
         <div class="course-cta" data-resume="${c.id}"></div>
       </div>`;
-  };
+  }
+}
 
-  const blocks = CATS.map(cat => {
-    const list = COURSES.filter(c => c.cat === cat.id);
-    if (!list.length) return "";
-    const chs = list.reduce((s, c) => s + c.chapters.length, 0);
-    return `  <section class="cat-block" id="cat-${cat.id}">
-    <header class="cat">
-      <div class="cat-t">
-        <h2 lang="fa">${cat.fa}</h2><h2 lang="en">${cat.en}</h2>
-        <p lang="fa">${cat.dfa}</p><p lang="en">${cat.den}</p>
-      </div>
-      <span class="cat-n">
-        <b>${fa(list.length)}</b>
-        <span lang="fa">مسیر</span><span lang="en">tracks</span>
-        <i lang="fa">${fa(chs)} فصل</i><i lang="en">${chs} chapters</i>
-      </span>
-    </header>
-    <div class="grid-courses">
-${list.map(card).join("\n")}
-    </div>
-  </section>`;
-  }).join("\n");
+/* بدنهٔ صفحهٔ اصلی */
+function homeBody(card) {
+  /* حالت «همهٔ مسیرها»: یک شبکهٔ تخت، بدون سرفصل دسته.
+     گروه‌بندی کار حالت «دسته‌ها» است؛ تکرارش اینجا فقط شلوغی می‌سازد. */
+  const blocks = `  <div class="grid-courses">
+${COURSES.map(card).join("\n")}
+  </div>`;
 
   return `${head(
     `${BRAND.fa} — ${TAGLINE.fa}`,
@@ -584,7 +606,31 @@ ${topbar("", "")}
 </section>
 
 <div class="shell">
+  <div class="view-bar">
+    <div class="vsearch">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+      <input type="search" class="js-filter" autocomplete="off" spellcheck="false"
+             placeholder="جستجو در نام و توضیح مسیرها…" aria-label="جستجو در مسیرها">
+      <button class="vs-clear js-filter-clear" type="button" aria-label="پاک کردن" hidden>${ICO.close}</button>
+    </div>
+    <div class="view-sw" role="group" aria-label="حالت نمایش">
+      <button type="button" data-view="tiles" aria-pressed="true">${ICO.grid}<span lang="fa">دسته‌ها</span><span lang="en">Categories</span></button>
+      <button type="button" data-view="list" aria-pressed="false">${ICO.rows}<span lang="fa">همهٔ مسیرها</span><span lang="en">All tracks</span></button>
+    </div>
+  </div>
+
+  <div class="cat-tiles" data-view-pane="tiles">
+${CATS.filter(x => COURSES.some(c => c.cat === x.id)).map(x => catTile(x)).join("\n")}
+  </div>
+
+  <div data-view-pane="list" hidden>
 ${blocks}
+  </div>
+
+  <p class="no-hit" hidden>
+    <span lang="fa">هیچ مسیری با این عبارت پیدا نشد.</span>
+    <span lang="en">No track matches that.</span>
+  </p>
 
 </main>
 ${searchBox()}
@@ -1086,6 +1132,84 @@ ${pre.map(x => card(x, true)).concat(soft.map(x => card(x, false))).join("\n")}
 }
 
 /* ─────────────────────────── صفحهٔ علاقه‌مندی‌ها ─────────────────────────── */
+/* ═══════════════════════ صفحهٔ یک دسته ═══════════════════════
+   فقط مسیرهای همان دسته، با جستجوی درون‌صفحه‌ای روی همان‌ها. */
+function categoryPage(cat) {
+  const list = COURSES.filter(c => c.cat === cat.id);
+  const chs = list.reduce((s, c) => s + c.chapters.length, 0);
+  const exs = list.reduce((s, c) => s + c.exTotal, 0);
+  const hrs = list.reduce((s, c) => s + c.hours, 0);
+
+  return `${head(
+    `${cat.fa} — ${BRAND.fa}`,
+    cat.dfa,
+    FAVICON("#4F6BF5", catIco(cat.id)),
+    "",
+    { path: `cat-${cat.id}.html`, og: "home" }
+  )}
+<body data-page="category" data-cat="${cat.id}">
+${loader()}
+<div class="readbar" aria-hidden="true"></div>
+${topbar("", crumb([
+    { label: `<span lang="fa">خانه</span><span lang="en">Home</span>`, href: "index.html" },
+    { label: `<span lang="fa">${cat.fa}</span><span lang="en">${cat.en}</span>` }
+  ]))}
+
+<div class="shell">
+<main class="content">
+
+  <div class="masthead has-mark">
+    <div class="mast-head">
+      <span class="mast-mark" style="--acc:#4F6BF5" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">${catIco(cat.id)}</svg>
+      </span>
+      <div class="mast-t">
+        <h1 lang="fa">${cat.fa}</h1><h1 lang="en">${cat.en}</h1>
+        <span class="mast-cat" lang="fa">دسته‌بندی</span><span class="mast-cat" lang="en">Category</span>
+      </div>
+      <a class="eyebrow mast-badge" href="index.html">
+        <span lang="fa">همهٔ دسته‌ها</span><span lang="en">All categories</span>
+      </a>
+    </div>
+    <p class="sub" lang="fa">${cat.dfa}</p>
+    <p class="sub" lang="en">${cat.den}</p>
+    <div class="facts">
+      ${factCell(ICO.grid,  `<b>${fa(list.length)}</b>`, "مسیر", "tracks")}
+      ${factCell(ICO.book,  `<b>${fa(chs)}</b>`, "فصل", "chapters")}
+      ${factCell(ICO.check, `<b>${fa(exs)}</b>`, "تمرین", "exercises")}
+      ${factCell(ICO.clock, `<b>≈ ${fa(hrs)}<span class="u" lang="fa">ساعت</span><span class="u" lang="en">h</span></b>`, "زمان تخمینی", "estimated time")}
+    </div>
+  </div>
+
+  <div class="view-bar">
+    <div class="vsearch">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+      <input type="search" class="js-filter" autocomplete="off" spellcheck="false"
+             placeholder="جستجو در این دسته…" aria-label="جستجو در این دسته">
+      <button class="vs-clear js-filter-clear" type="button" aria-label="پاک کردن" hidden>${ICO.close}</button>
+    </div>
+  </div>
+
+  <div class="grid-courses" data-view-pane="list">
+${list.map(c => courseCard(c)).join("\n")}
+  </div>
+  <p class="no-hit" hidden>
+    <span lang="fa">هیچ مسیری با این عبارت پیدا نشد.</span>
+    <span lang="en">No track matches that.</span>
+  </p>
+
+
+</main>
+</div>
+${searchBox()}
+${aboutModal()}
+${footer("")}
+${scripts("")}
+</body>
+</html>
+`;
+}
+
 function bookmarksPage() {
   return `${head(
     `علاقه‌مندی‌ها — ${BRAND.fa}`,
@@ -1234,6 +1358,10 @@ console.log(`  ✓ ${assetN} دارایی جاوااسکریپت (${(assetBytes 
 write("index.html", homePage());
 write("contributing.html", contributingPage());
 write("bookmarks.html", bookmarksPage());
+CATS.forEach(cat => {
+  if (!COURSES.some(c => c.cat === cat.id)) return;
+  write(`cat-${cat.id}.html`, categoryPage(cat));
+});
 COURSES.forEach(c => {
   /* ۰۱ داکر خانهٔ دست‌نویس و مفصل‌تری دارد؛ بازنویسی‌اش نکن */
   if (c.id === "01-docker") { console.log("  – " + c.dir + "/index.html (دست‌نویس، رد شد)"); return; }
