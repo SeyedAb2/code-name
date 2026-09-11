@@ -148,3 +148,10 @@ export const UploadIcon = ({ size = 18, className }: P) => (
     <path d="M12 20V9M7.5 13.5 12 9l4.5 4.5M5 4h14" />
   </svg>
 );
+
+export const MapIcon = ({ size = 18, className }: P) => (
+  <svg {...base(size, className)} strokeWidth={1.9}>
+    <path d="M9 4.2 3.6 6.4v13.4L9 17.6l6 2.2 5.4-2.2V4.2L15 6.4z" />
+    <path d="M9 4.2v13.4M15 6.4v13.4" />
+  </svg>
+);

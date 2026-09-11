@@ -9,7 +9,7 @@ import IconButton from "@/components/ui/IconButton";
 import ThemeSwitch from "./ThemeSwitch";
 import LangSwitch from "./LangSwitch";
 import {
-  SearchIcon, StarIcon, ShareIcon, CodeIcon, HeartIcon, CloseIcon,
+  SearchIcon, StarIcon, ShareIcon, CodeIcon, HeartIcon, CloseIcon, MapIcon,
 } from "@/components/ui/Icons";
 import s from "./MobileMenu.module.scss";
 
@@ -46,6 +46,10 @@ export default function MobileMenu({
           {bookmarks.length > 0 && (
             <span className={s.badge}>{num(bookmarks.length, lang)}</span>
           )}
+        </Link>
+
+        <Link href="/roadmap" className={s.item} onClick={onClose}>
+          <MapIcon /> {t("roadmaps", lang)}
         </Link>
 
         <button type="button" className={s.item} onClick={() => { onClose(); onShare(); }}>

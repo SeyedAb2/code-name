@@ -38,6 +38,7 @@ export const DICT = {
   share: { fa: "اشتراک‌گذاری", en: "Share" },
   contribute: { fa: "مشارکت در پروژه", en: "Contribute" },
   about: { fa: "دربارهٔ پروژه", en: "About" },
+  roadmaps: { fa: "رودمپ‌ها", en: "Roadmaps" },
   menu: { fa: "منو", en: "Menu" },
   close: { fa: "بستن", en: "Close" },
   theme: { fa: "تم", en: "Theme" },

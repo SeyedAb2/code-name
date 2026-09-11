@@ -1,0 +1,96 @@
+@use "../../styles/tokens" as *;
+
+.intro {
+  max-width: 70ch;
+  margin: 0 0 34px;
+  color: var(--ink-soft);
+  font-size: 1rem;
+  line-height: 1.85;
+}
+
+.field { margin-bottom: 36px; }
+
+.fieldHead {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+
+  h2 { font-size: 1.3rem; margin: 0 0 4px; }
+  p { margin: 0; font-size: .88rem; color: var(--ink-soft); }
+}
+
+.grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+  color: var(--ink);
+  text-decoration: none;
+  transition: transform .18s, box-shadow .18s, border-color .18s;
+
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-2);
+    border-color: var(--acc, var(--blue));
+    text-decoration: none;
+    color: var(--ink);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card:hover { transform: none; }
+}
+
+.cardTop { display: flex; align-items: center; gap: 12px; }
+
+.icon {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  color: var(--acc, var(--blue));
+  background: color-mix(in srgb, var(--acc, var(--blue)) 13%, transparent);
+}
+
+.titles {
+  min-width: 0;
+  h3 { font-size: 1.05rem; margin: 0; }
+  span { font-size: .74rem; color: var(--ink-faint); font-family: var(--mono); }
+}
+
+.desc {
+  margin: 0;
+  font-size: .875rem;
+  line-height: 1.7;
+  color: var(--ink-soft);
+  flex: 1;
+  /* توضیح‌ها طول متفاوتی دارند؛ سه خط، ارتفاع کارت‌ها را یکدست می‌کند */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.meta {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: .74rem;
+  color: var(--ink-faint);
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+
+  b { font-family: var(--num); color: var(--ink-soft); }
+}

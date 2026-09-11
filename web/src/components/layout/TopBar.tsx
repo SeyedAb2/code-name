@@ -10,7 +10,7 @@ import IconButton from "@/components/ui/IconButton";
 import ThemeSwitch from "./ThemeSwitch";
 import LangSwitch from "./LangSwitch";
 import {
-  SearchIcon, StarIcon, ShareIcon, CodeIcon, DotsIcon, BarsIcon,
+  SearchIcon, StarIcon, ShareIcon, CodeIcon, DotsIcon, BarsIcon, MapIcon,
 } from "@/components/ui/Icons";
 import s from "./TopBar.module.scss";
 
@@ -75,6 +75,10 @@ export default function TopBar({
           count={bookmarks.length}
         >
           <StarIcon />
+        </IconButton>
+
+        <IconButton label={t("roadmaps", lang)} href="/roadmap">
+          <MapIcon />
         </IconButton>
 
         <IconButton label={t("share", lang)} onClick={onShare}>

@@ -1,0 +1,198 @@
+@use "../../styles/tokens" as *;
+
+.head {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  padding: 28px clamp(20px, 4vw, 36px);
+  box-shadow: var(--shadow-2);
+  margin-bottom: 30px;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    inset-inline-start: 0;
+    width: 100%;
+    height: 4px;
+    background: var(--acc, var(--blue));
+  }
+}
+
+.headTop { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+
+.icon {
+  width: 58px;
+  height: 58px;
+  flex: none;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  color: var(--acc, var(--blue));
+  background: color-mix(in srgb, var(--acc, var(--blue)) 13%, transparent);
+}
+
+.titles {
+  h1 { font-size: 1.8rem; margin: 0 0 3px; }
+  span { font-family: var(--mono); font-size: .82rem; color: var(--ink-faint); }
+}
+
+.intro {
+  margin: 0 0 18px;
+  color: var(--ink-soft);
+  font-size: 1rem;
+  line-height: 1.85;
+  max-width: var(--measure);
+}
+
+.facts { display: flex; gap: 22px; flex-wrap: wrap; }
+
+.fact {
+  b {
+    display: block;
+    font-family: var(--num);
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  span { font-size: .74rem; color: var(--ink-faint); }
+}
+
+.prereq {
+  margin-top: 18px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--tint-warn);
+  border-inline-start: 3px solid var(--warn);
+  font-size: .875rem;
+  color: var(--ink-soft);
+
+  a { font-weight: 700; }
+}
+
+/* ── مرحله‌ها ────────────────────────────────────────────────────────────── */
+.stage {
+  position: relative;
+  padding-inline-start: 42px;
+  padding-bottom: 32px;
+  /* خط عمودی که مرحله‌ها را به هم وصل می‌کند */
+  border-inline-start: 2px solid var(--line);
+  margin-inline-start: 15px;
+
+  &:last-child { border-inline-start-color: transparent; padding-bottom: 0; }
+}
+
+.stageNum {
+  position: absolute;
+  inset-inline-start: -17px;
+  top: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: var(--num);
+  font-size: .85rem;
+  font-weight: 700;
+  color: var(--acc, var(--blue));
+  background: var(--canvas);
+  border: 2px solid var(--acc, var(--blue));
+}
+
+.stageHead {
+  margin-bottom: 6px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+
+  h2 { font-size: 1.22rem; margin: 0; }
+}
+
+.months {
+  font-family: var(--num);
+  font-size: .74rem;
+  color: var(--ink-faint);
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  padding: 2px 9px;
+  border-radius: 99px;
+}
+
+.outcome {
+  margin: 0 0 16px;
+  font-size: .9rem;
+  color: var(--ink-soft);
+  line-height: 1.75;
+
+  &::before {
+    content: "◎ ";
+    color: var(--acc, var(--blue));
+    font-weight: 700;
+  }
+}
+
+.skills { display: flex; flex-direction: column; gap: 10px; }
+
+.skill {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 13px 15px;
+  box-shadow: var(--shadow-1);
+}
+
+.skillHead {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  margin-bottom: 5px;
+
+  h3 { font-size: .97rem; margin: 0; }
+}
+
+.kind {
+  font-size: .66rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 99px;
+  border: 1px solid transparent;
+}
+
+.hard { color: var(--blue); background: var(--tint-blue); border-color: color-mix(in srgb, var(--blue) 25%, transparent); }
+.soft { color: var(--violet); background: var(--tint-violet); border-color: color-mix(in srgb, var(--violet) 25%, transparent); }
+
+.why {
+  margin: 0;
+  font-size: .875rem;
+  line-height: 1.72;
+  color: var(--ink-soft);
+}
+
+.trackLinks {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+
+  a {
+    font-size: .74rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 99px;
+    border: 1px solid var(--line-strong);
+    background: var(--surface-sunk);
+    color: var(--ink-soft);
+    text-decoration: none;
+
+    &:hover {
+      border-color: var(--blue);
+      color: var(--blue);
+      background: var(--tint-blue);
+      text-decoration: none;
+    }
+  }
+}
