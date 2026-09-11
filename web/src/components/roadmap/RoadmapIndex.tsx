@@ -31,7 +31,7 @@ export default function RoadmapIndex({
       { label: { fa: "خانه", en: "Home" }, href: "/" },
       { label: { fa: "رودمپ‌ها", en: "Roadmaps" } },
     ]}>
-      <h1 style={{ marginBottom: 14 }}>{fa ? "رودمپ‌ها" : "Roadmaps"}</h1>
+      <h1 className={s.title}>{fa ? "رودمپ‌ها" : "Roadmaps"}</h1>
 
       <p className={s.intro}>
         {fa

@@ -1,0 +1,40 @@
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin: 0 0 16px;
+
+  h1 { font-size: clamp(1.5rem, 3.4vw, 2rem); margin: 0 0 6px; }
+  p { margin: 0; color: var(--ink-soft); font-size: .95rem; line-height: 1.75; max-width: 68ch; }
+}
+
+.icon {
+  width: 52px;
+  height: 52px;
+  flex: none;
+  border-radius: 15px;
+  display: grid;
+  place-items: center;
+  color: var(--blue);
+  background: var(--tint-blue);
+  border: 1px solid var(--line);
+}
+
+.stats {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding-bottom: 18px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid var(--line);
+  font-size: .82rem;
+  color: var(--ink-faint);
+
+  b { font-family: var(--num); font-size: 1.05rem; color: var(--ink); margin-inline-end: 4px; }
+}
+
+.grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+}

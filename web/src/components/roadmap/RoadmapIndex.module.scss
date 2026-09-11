@@ -1,5 +1,8 @@
 @use "../../styles/tokens" as *;
 
+/* ‏@use باید اولین دستور فایل باشد — هر قاعده‌ای قبلش، خطای کامپایل است */
+.title { margin: 0 0 14px; }
+
 .intro {
   max-width: 70ch;
   margin: 0 0 34px;

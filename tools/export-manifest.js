@@ -102,3 +102,35 @@ const totReady = tracks.reduce((s, t) => s + t.stats.ready, 0);
 console.log(`✓ ${path.relative(ROOT, OUT)}`);
 console.log(`  ${cats.length} دسته · ${tracks.length} مسیر · ${totCh} فصل · ${totEx} تمرین · ${totReady} فصل آماده`);
 console.log(`  ${(fs.statSync(OUT).size / 1024).toFixed(0)} KB`);
+
+/* ── نمایهٔ جستجو ────────────────────────────────────────────────────────────
+   جدا از مانیفست و تنبل بارگذاری می‌شود: تا کسی جستجو را باز نکند، دانلود
+   نمی‌شود. کلیدها یک‌حرفی‌اند چون ۱۳۸۹ ردیف در آن است و نام‌های بلند،
+   چند ده کیلوبایت تکرار خالص می‌شوند. */
+const FA_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
+const faNum = (n) => String(n).replace(/\d/g, (d) => FA_DIGITS[+d]);
+
+const SEARCH_OUT = path.join(ROOT, "web", "public", "search-index.json");
+
+const rows = [];
+w.COURSES.forEach((c) => {
+  if (c.locked) return;
+  (c.ch || []).forEach((a) => {
+    const ch = expand(a);
+    const slug = ch.file.replace(/\.html$/, "");
+    rows.push({
+      tf: ch.fa.t,
+      te: ch.en.t,
+      nf: `${c.fa.name} · فصل ${faNum(parseInt(ch.n, 10))}`,
+      ne: `${c.en.name} · Ch. ${parseInt(ch.n, 10)}`,
+      u: ch.ready ? `/track/${c.id}/${slug}` : `/track/${c.id}`,
+      r: ch.ready ? 1 : 0,
+      h: `${ch.fa.t} ${ch.fa.d} ${ch.en.t} ${ch.en.d} ${ch.kw} ${c.fa.name} ${c.en.name}`.toLowerCase(),
+    });
+  });
+});
+
+fs.mkdirSync(path.dirname(SEARCH_OUT), { recursive: true });
+fs.writeFileSync(SEARCH_OUT, JSON.stringify(rows), "utf8");
+console.log(`✓ web/public/search-index.json`);
+console.log(`  ${rows.length} ردیف · ${(fs.statSync(SEARCH_OUT).size / 1024).toFixed(0)} KB`);

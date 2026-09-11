@@ -1,0 +1,293 @@
+@use "../../styles/tokens" as *;
+
+.head {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  padding: 28px clamp(20px, 4vw, 36px);
+  box-shadow: var(--shadow-2);
+  margin: 0 0 30px;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    inset-inline-start: 0;
+    width: 100%;
+    height: 4px;
+    background: var(--acc, var(--blue));
+  }
+
+  /* هالهٔ تزئینی با گرادیان شعاعی، نه filter:blur — بدون لایهٔ اضافه */
+  &::after {
+    content: "";
+    position: absolute;
+    inset-inline-end: -70px;
+    top: -90px;
+    width: 260px;
+    height: 260px;
+    border-radius: 50%;
+    pointer-events: none;
+    background: radial-gradient(circle,
+      color-mix(in srgb, var(--acc, var(--blue)) 18%, transparent) 0%,
+      transparent 70%);
+  }
+}
+
+.headTop {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.mark {
+  width: 58px;
+  height: 58px;
+  flex: none;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  color: var(--acc, var(--blue));
+  background: color-mix(in srgb, var(--acc, var(--blue)) 13%, transparent);
+  border: 1px solid var(--line);
+}
+
+.titles {
+  flex: 1;
+  min-width: 0;
+
+  h1 { font-size: clamp(1.5rem, 3.4vw, 2rem); margin: 0 0 3px; }
+  span { font-family: var(--mono); font-size: .8rem; color: var(--ink-faint); }
+}
+
+.star {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink-faint);
+  cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s;
+
+  &:hover { color: var(--warn); border-color: var(--warn); }
+  &[aria-pressed="true"] {
+    color: var(--warn);
+    border-color: var(--warn);
+    background: var(--tint-warn);
+  }
+}
+
+.intro {
+  margin: 0 0 20px;
+  color: var(--ink-soft);
+  font-size: 1rem;
+  line-height: 1.85;
+  max-width: var(--measure);
+  position: relative;
+  z-index: 1;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.fact {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 13px 15px;
+  box-shadow: var(--shadow-1);
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    inset-inline-start: 0;
+    width: 100%;
+    height: 2.5px;
+    background: var(--fc, var(--blue));
+  }
+
+  b {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    white-space: nowrap;
+    font-family: var(--num);
+    font-size: 1.38rem;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.2;
+    letter-spacing: -.025em;
+  }
+
+  /* واحد نباید عدد را به خط بعد ببرد — قبلاً «≈ ۱۷ ساعت» سه خط می‌شد */
+  i {
+    font-style: normal;
+    font-size: .7rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+  }
+
+  > span {
+    display: block;
+    margin-top: 3px;
+    font-size: .735rem;
+    color: var(--ink-faint);
+  }
+}
+
+.factIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 9px;
+  color: var(--fc, var(--blue));
+  background: color-mix(in srgb, var(--fc, var(--blue)) 14%, transparent);
+}
+
+.fact:nth-child(1) { --fc: var(--blue); }
+.fact:nth-child(2) { --fc: var(--violet); }
+.fact:nth-child(3) { --fc: var(--warn); }
+.fact:nth-child(4) { --fc: var(--safe); }
+
+.cta { margin-top: 20px; position: relative; z-index: 1; }
+
+/* ── پیشرفت ──────────────────────────────────────────────────────────────── */
+.progressBox {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-1);
+  margin-bottom: 12px;
+
+  > div:first-child { flex: 1; min-width: 180px; }
+}
+
+.note {
+  font-size: .85rem;
+  color: var(--ink-soft);
+  line-height: 1.75;
+  margin: 0;
+}
+
+/* ── فهرست فصل‌ها ────────────────────────────────────────────────────────── */
+.section { margin-bottom: 40px; }
+
+.sectionHead {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 18px;
+
+  h2 { font-size: 1.4rem; margin: 0 0 4px; }
+  p { margin: 0; font-size: .88rem; color: var(--ink-soft); }
+}
+
+.chapters {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
+
+.chapter {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 15px 16px;
+  box-shadow: var(--shadow-1);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color .18s, transform .18s, box-shadow .18s;
+
+  &:hover {
+    border-color: var(--acc, var(--blue));
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-2);
+    text-decoration: none;
+    color: inherit;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chapter:hover { transform: none; }
+}
+
+.soon {
+  opacity: .55;
+  pointer-events: none;
+}
+
+.chNum {
+  font-family: var(--num);
+  font-weight: 700;
+  font-size: .88rem;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--surface-sunk);
+  color: var(--ink-faint);
+  border: 1px solid var(--line);
+}
+
+.chapter:hover .chNum {
+  background: color-mix(in srgb, var(--acc, var(--blue)) 14%, transparent);
+  color: var(--acc, var(--blue));
+  border-color: transparent;
+}
+
+.chDone .chNum {
+  background: var(--tint-safe);
+  color: var(--safe);
+  border-color: transparent;
+}
+
+.chBody {
+  min-width: 0;
+  flex: 1;
+
+  h3 { margin: 0 0 3px; font-size: .97rem; line-height: 1.5; }
+  p { margin: 0 0 9px; font-size: .82rem; color: var(--ink-soft); line-height: 1.65; }
+}
+
+.tag {
+  display: inline-block;
+  font-size: .66rem;
+  font-weight: 700;
+  color: var(--ink-faint);
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  padding: 2px 8px;
+  border-radius: 99px;
+}
+
+.cap1 { color: var(--safe); background: var(--tint-safe); border-color: color-mix(in srgb, var(--safe) 28%, transparent); }
+.cap2 { color: var(--blue); background: var(--tint-blue); border-color: color-mix(in srgb, var(--blue) 28%, transparent); }
+.cap3 { color: var(--violet); background: var(--tint-violet); border-color: color-mix(in srgb, var(--violet) 28%, transparent); }

@@ -3,7 +3,8 @@
 .shell {
   max-width: $bp-xl;
   margin: 0 auto;
-  padding: 0 clamp(14px, 3vw, 28px) 90px;
+  /* فاصله از نوار چسبان بالا — بدون این، تیتر صفحه به هدر می‌چسبد */
+  padding: clamp(22px, 3.5vw, 34px) clamp(14px, 3vw, 28px) 90px;
 }
 
 .footer {
