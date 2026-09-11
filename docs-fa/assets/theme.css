@@ -1228,20 +1228,7 @@ details.ex-hint>*:last-child,details.ex-sol>*:last-child{margin-bottom:14px}
   :root:not([data-theme="light"]) .logo-box{color:var(--acc-d,var(--acc,var(--blue)))}
 }
 .logo-box svg{width:30px;height:30px;display:block}
-/* شمارهٔ مسیر — کوچک، در گوشهٔ خود جعبهٔ لوگو، نه کنار عنوان */
-.logo-n{
-  position:absolute;bottom:-5px;inset-inline-start:-5px;
-  min-width:19px;height:19px;padding:0 4px;
-  display:grid;place-items:center;
-  font-family:var(--num);font-style:normal;
-  font-size:.62rem;font-weight:700;line-height:1;
-  color:var(--ink-faint);
-  background:var(--surface);
-  border:1px solid var(--line);
-  border-radius:99px;
-}
-.course:hover .logo-n{color:var(--ink);border-color:var(--line-strong)}
-.course-name{min-width:0}
+.course:hover .course-name{min-width:0}
 .course h2{font-size:1.13rem;margin:0 0 3px;letter-spacing:-.01em}
 .course .en-name{font-family:var(--mono);font-size:.72rem;color:var(--ink-faint);display:block}
 .course .desc{font-size:.885rem;color:var(--ink-soft);line-height:1.72;margin:0 0 16px;flex:1}

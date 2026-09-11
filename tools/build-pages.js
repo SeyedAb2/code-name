@@ -500,7 +500,6 @@ function homePage() {
         <div class="course-top">
           <span class="logo-box" style="${accVars(c)}" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round">${c.ico}</svg>
-            <i class="logo-n">${fa(c.id.slice(0, 2))}</i>
           </span>
           <div class="course-name">
             <h2><a href="${c.dir}/index.html"><span lang="fa">${c.fa.name}</span><span lang="en">${c.en.name}</span></a></h2>
