@@ -9,9 +9,7 @@ const fs = require("fs");
 const path = require("path");
 const ROOT = path.join(__dirname, "..", "docs-fa");
 
-const MARK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-<path d="M3.6 4.8A1.8 1.8 0 0 1 5.4 3H20v18H5.4a1.8 1.8 0 0 1-1.8-1.8z"/>
-<path d="M7.6 18.2H20"/><path d="m10.4 8.6-2.3 2.9 2.3 2.9M14.4 8.6l2.3 2.9-2.3 2.9"/></svg>`;
+const { MARK, BRAND_FAVICON } = require("./brand");
 
 const LOADER = `
 <div class="loader" aria-hidden="true">

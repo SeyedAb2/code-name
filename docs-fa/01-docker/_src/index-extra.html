@@ -1,0 +1,112 @@
+<!-- بخش‌های اختصاصی خانهٔ داکر. build-pages.js این را داخل صفحهٔ تولیدی می‌گذارد. -->
+<section id="before">
+  <h2><span lang="fa">قبل از شروع</span><span lang="en">Before you start</span></h2>
+  <p class="lede" lang="fa">
+    برای این مسیر به دانش قبلی داکر نیاز نداری. اما سه چیز کمک می‌کند.
+  </p>
+  <p class="lede" lang="en">
+    You need no prior Docker knowledge. Three things will help, though.
+  </p>
+
+  <div class="cards">
+    <div class="card">
+      <span class="card-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="16" rx="3"/><path d="m7 10 2.6 2.2L7 14.4"/></svg></span>
+      <h3 lang="fa">آشنایی مقدماتی با ترمینال</h3><h3 lang="en">Basic terminal comfort</h3>
+      <p lang="fa">اینکه بدانی <code>cd</code> و <code>ls</code> چه می‌کنند کافی است. بقیه را در راه یاد می‌گیری.</p>
+      <p lang="en">Knowing what <code>cd</code> and <code>ls</code> do is enough. The rest you pick up on the way.</p>
+    </div>
+    <div class="card v">
+      <span class="card-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13M7 11l5 5 5-5M5 20h14"/></svg></span>
+      <h3 lang="fa">یک ماشین برای تمرین</h3><h3 lang="en">A machine to practise on</h3>
+      <p lang="fa">ویندوز با WSL2، یا هر توزیع لینوکس، یا مک. فصل ۲ هر سه را پوشش می‌دهد.</p>
+      <p lang="en">Windows with WSL2, any Linux distribution, or a Mac. Chapter 2 covers all three.</p>
+    </div>
+    <div class="card g">
+      <span class="card-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h9"/></svg></span>
+      <h3 lang="fa">یک پروژهٔ واقعی خودت</h3><h3 lang="en">A real project of your own</h3>
+      <p lang="fa">هرچه داری — یک اسکریپت پایتون، یک اپ Node، یک سایت PHP. از فصل ۴ رویش کار می‌کنیم.</p>
+      <p lang="en">Whatever you have — a Python script, a Node app, a PHP site. From chapter 4 we work on it.</p>
+    </div>
+  </div>
+
+  <div class="note warn">
+    <div class="note-t">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.3 3.9 1.9 18a2 2 0 0 0 1.7 3h16.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17v.01"/></svg>
+      <span lang="fa">این مسیر با ویدیو فرق دارد</span><span lang="en">This is not a video course</span>
+    </div>
+    <p lang="fa">
+      اینجا چیزی «تماشا» نمی‌کنی. متن را می‌خوانی، دستور را در ترمینال خودت اجرا می‌کنی،
+      خروجی‌ات را با خروجی نوشته‌شده مقایسه می‌کنی. اگر فقط بخوانی و اجرا نکنی،
+      هفتهٔ بعد چیزی یادت نمی‌ماند. این تهدید نیست، توصیف واقعیت است.
+    </p>
+    <p lang="en">
+      You do not watch anything here. You read, you run the command in your own terminal, you compare
+      your output with the one printed. If you only read and never run, none of it survives the week.
+      That is not a threat, it is a description.
+    </p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ فصل‌ها ═══════════════════════════════ -->
+
+<section id="arc">
+  <h2><span lang="fa">قوس این مسیر</span><span lang="en">The arc of this track</span></h2>
+  <p class="lede" lang="fa">
+    پانزده فصل زیاد به نظر می‌رسد، اما در واقع چهار حرکت است.
+  </p>
+  <p class="lede" lang="en">
+    Fifteen chapters sounds like a lot; it is really four movements.
+  </p>
+
+  <ol class="ranked">
+    <li>
+      <b lang="fa">فهمیدن و راه انداختن — فصل ۱ تا ۳</b>
+      <b lang="en">Understand and run it — chapters 1 to 3</b>
+      <p lang="fa">داکر چه دردی را درمان می‌کند، چطور نصبش کنیم، و چطور با یک کانتینر زنده کار کنیم.
+        در پایان فصل ۳ می‌توانی هر نرم‌افزار آماده‌ای را بدون نصب اجرا کنی.</p>
+      <p lang="en">What pain Docker treats, how to install it, and how to work with a live container.
+        By the end of chapter 3 you can run any packaged software without installing it.</p>
+    </li>
+    <li>
+      <b lang="fa">ساختن ایمیج خودت — فصل ۴ و ۵</b>
+      <b lang="en">Build your own image — chapters 4 and 5</b>
+      <p lang="fa">از مصرف‌کننده به سازنده. <code>Dockerfile</code>، لایه‌ها، کش، و کوچک‌کردن ایمیج.</p>
+      <p lang="en">From consumer to producer: the <code>Dockerfile</code>, layers, cache, and slimming images down.</p>
+    </li>
+    <li>
+      <b lang="fa">چند سرویس کنار هم — فصل ۶ تا ۱۱</b>
+      <b lang="en">Many services together — chapters 6 to 11</b>
+      <p lang="fa">داده، شبکه، Compose، پیکربندی، سلامت و انتشار. اینجا از «یک کانتینر» به «یک سامانه» می‌رسیم.</p>
+      <p lang="en">Data, networking, Compose, configuration, health and publishing. This is where one container becomes a system.</p>
+    </li>
+    <li>
+      <b lang="fa">تولید واقعی — فصل ۱۲ تا ۱۵</b>
+      <b lang="en">Real production — chapters 12 to 15</b>
+      <p lang="fa">عیب‌یابی وقتی خراب شد، امنیت، استقرار روی VPS، و پروژهٔ نهایی که همه‌چیز را به هم وصل می‌کند.</p>
+      <p lang="en">Debugging when it breaks, security, deploying to a VPS, and the capstone that ties it all together.</p>
+    </li>
+  </ol>
+</section>
+
+<div class="capsule">
+  <span class="tagline">
+    <span lang="fa">پروژهٔ نهایی</span><span lang="en">Capstone</span>
+  </span>
+  <h3 lang="fa">در پایان چه چیزی ساخته‌ای؟</h3>
+  <h3 lang="en">What will you have built?</h3>
+  <p lang="fa">
+    یک سامانهٔ سه‌سرویسه روی یک سرور واقعی: اپ وب، پایگاه‌دادهٔ PostgreSQL با داده‌ای که با
+    حذف کانتینر از بین نمی‌رود، و یک reverse proxy جلوی هر دو. به‌اضافهٔ پشتیبان‌گیری خودکار
+    شبانه، <code>healthcheck</code> روی هر سرویس، و سیاست ری‌استارت طوری که با ریبوت سرور
+    همه‌چیز خودش بالا بیاید. کل توصیف سامانه در یک فایل <code>compose.yml</code> جا می‌شود
+    که می‌توانی به کسی بدهی و او دقیقاً همان را بالا بیاورد.
+  </p>
+  <p lang="en">
+    A three-service system on a real server: a web app, a PostgreSQL database whose data survives
+    the container being deleted, and a reverse proxy in front of both. Plus a nightly automated
+    backup, a <code>healthcheck</code> on every service, and restart policies so that a server
+    reboot brings everything back on its own. The whole system fits in one <code>compose.yml</code>
+    that you can hand to someone else who will get exactly the same thing.
+  </p>
+</div>
+

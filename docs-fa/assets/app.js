@@ -851,7 +851,7 @@
       });
     }
     var saved = store.get(K_VIEW);
-    apply(saved === "list" ? "list" : "tiles");
+    apply(saved === "tiles" ? "tiles" : "list");   /* پیش‌فرض: فهرست کامل */
 
     sw.addEventListener("click", function (e) {
       var b = e.target.closest("button[data-view]");

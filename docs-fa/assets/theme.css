@@ -186,13 +186,12 @@ kbd{
 @keyframes loaderOut{to{opacity:0;visibility:hidden;pointer-events:none}}
 .loader-in{display:flex;flex-direction:column;align-items:center;gap:20px}
 .loader-mark{
-  width:66px;height:66px;border-radius:20px;
-  background:var(--brand-grad);
-  display:grid;place-items:center;color:#fff;
-  box-shadow:0 16px 40px -12px rgba(79,107,245,.6);
+  width:66px;height:66px;
+  display:grid;place-items:center;
+  filter:drop-shadow(0 14px 32px rgba(79,107,245,.5));
   animation:markIn .7s cubic-bezier(.2,.9,.3,1.2) both;
 }
-.loader-mark svg{width:34px;height:34px;display:block}
+.loader-mark img{width:66px;height:66px;display:block;border-radius:18px}
 @keyframes markIn{
   from{opacity:0;transform:scale(.75) translateY(10px)}
   to{opacity:1;transform:none}
@@ -373,13 +372,13 @@ body{opacity:1}
 
 .brand{display:flex;align-items:center;gap:10px;font-weight:700;color:var(--ink);flex:none}
 .brand:hover{text-decoration:none}
+/* لوگو خودش مربع گرادیانی است — جعبهٔ گرادیانی دورش اضافه بود */
 .brand-mark{
-  width:30px;height:30px;border-radius:9px;flex:none;
-  background:var(--brand-grad);
-  display:grid;place-items:center;color:#fff;
-  box-shadow:0 4px 12px -3px rgba(79,107,245,.55);
+  width:30px;height:30px;flex:none;
+  display:grid;place-items:center;
+  filter:drop-shadow(0 3px 8px rgba(79,107,245,.45));
 }
-.brand-mark svg{width:17px;height:17px;display:block}
+.brand-mark img{width:30px;height:30px;display:block;border-radius:8px}
 .brand-txt{font-size:.95rem;letter-spacing:-.01em}
 .brand-txt b{font-weight:700}
 .loader-name b{font-weight:inherit}
@@ -1448,12 +1447,11 @@ details.ex-hint>*:last-child,details.ex-sol>*:last-child{margin-bottom:14px}
   background:var(--surface-sunk);border:1px solid var(--line);
 }
 .dev-av{
-  width:46px;height:46px;flex:none;border-radius:13px;
-  display:grid;place-items:center;color:#fff;background:var(--brand-grad);
-  box-shadow:0 8px 20px -9px rgba(79,107,245,.65);
+  width:46px;height:46px;flex:none;
+  display:grid;place-items:center;
+  filter:drop-shadow(0 6px 16px rgba(79,107,245,.45));
 }
-/* بدون display:block، آیکون روی خط پایهٔ متن می‌نشیند و کمی بالا می‌افتد */
-.dev-av svg{width:23px;height:23px;display:block;color:#fff;stroke:#fff}
+.dev-av img{width:46px;height:46px;display:block;border-radius:12px}
 .dev-card b{display:block;font-size:.98rem;line-height:1.5}
 .dev-card span{display:block;font-size:.78rem;color:var(--ink-faint)}
 
@@ -1844,4 +1842,49 @@ mark.hit{
   text-align:center;color:var(--ink-faint);
   padding:44px 20px;font-size:.95rem;
 }
-.cat-block[hidden],.course[hidden],.cat-tile[hidden]{display:none!important}
+/* ‏[hidden] در استایل پیش‌فرض مرورگر display:none است، ولی هر قاعدهٔ
+   نویسنده — مثل .cat-tiles{display:grid} — بر آن می‌چربد و عنصر با وجود
+   ‏hidden دیده می‌شود. برای همین صریح می‌نویسیم. */
+[hidden]{display:none!important}
+
+/* ============================================================================
+   نوار اسکرول
+   نوار پیش‌فرض سیستم با تم سایت نمی‌خواند — مخصوصاً در حالت تاریک که
+   سفید می‌ماند. این قاعده‌ها هم روی موتور Blink/WebKit کار می‌کنند و هم
+   روی Firefox (با scrollbar-color).
+   ========================================================================== */
+:root{
+  --sb-thumb:color-mix(in srgb,var(--ink-faint) 45%,transparent);
+  --sb-thumb-hover:var(--blue);
+  --sb-track:transparent;
+}
+html{
+  scrollbar-color:var(--sb-thumb) var(--sb-track);   /* Firefox */
+  scrollbar-width:thin;
+}
+*::-webkit-scrollbar{width:11px;height:11px}
+*::-webkit-scrollbar-track{background:var(--sb-track)}
+*::-webkit-scrollbar-thumb{
+  background:var(--sb-thumb);
+  border-radius:99px;
+  /* حاشیهٔ شفاف باعث می‌شود دستگیره باریک‌تر از شیار دیده شود */
+  border:3px solid transparent;
+  background-clip:content-box;
+  transition:background-color .18s;
+}
+*::-webkit-scrollbar-thumb:hover{
+  background:var(--sb-thumb-hover);
+  background-clip:content-box;
+}
+*::-webkit-scrollbar-corner{background:transparent}
+
+/* داخل بلوک کد، شیار روی زمینهٔ تیره است و باید روشن‌تر باشد */
+.term pre::-webkit-scrollbar-thumb,
+.code pre::-webkit-scrollbar-thumb{
+  background:rgba(255,255,255,.22);background-clip:content-box;
+}
+.term pre::-webkit-scrollbar-thumb:hover,
+.code pre::-webkit-scrollbar-thumb:hover{
+  background:rgba(255,255,255,.4);background-clip:content-box;
+}
+.term pre,.code pre{scrollbar-color:rgba(255,255,255,.28) transparent}

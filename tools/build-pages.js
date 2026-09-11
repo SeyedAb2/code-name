@@ -109,9 +109,7 @@ const catTile = (cat, root = "") => {
 
 /* ───────────────────────────── نشان و آیکون‌ها ───────────────────────────── */
 /* نشان کدنامه: یک کتاب باز با نشانهٔ کد داخلش */
-const MARK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-<path d="M3.6 4.8A1.8 1.8 0 0 1 5.4 3H20v18H5.4a1.8 1.8 0 0 1-1.8-1.8z"/>
-<path d="M7.6 18.2H20"/><path d="m10.4 8.6-2.3 2.9 2.3 2.9M14.4 8.6l2.3 2.9-2.3 2.9"/></svg>`;
+const { MARK, FAVICON_LINKS } = require("./brand");
 
 /* رنگ نشان دوره.
    رنگ برند بعضی ابزارها در یکی از دو تم خوانا نیست (Next.js تقریباً سیاه است،
@@ -162,10 +160,10 @@ const ICO = {
 };
 
 /* ───────────────────────────── قطعه‌های مشترک ───────────────────────────── */
-const loader = () => `
+const loader = (root = "") => `
 <div class="loader" aria-hidden="true">
   <div class="loader-in">
-    <span class="loader-mark">${MARK}</span>
+    <span class="loader-mark">${MARK(root, 34)}</span>
     <span class="loader-name"><b lang="fa">${BRAND.fa}</b><b lang="en">${BRAND.en}</b><i>${BRAND.en}</i></span>
     <span class="loader-bar"><i></i></span>
   </div>
@@ -174,7 +172,7 @@ const loader = () => `
 const topbar = (root, crumbs) => `
 <header class="topbar">
   <a class="brand" href="${root}index.html">
-    <span class="brand-mark" aria-hidden="true">${MARK}</span>
+    <span class="brand-mark" aria-hidden="true">${MARK(root, 30)}</span>
     <span class="brand-txt"><b lang="fa">${BRAND.fa}</b><b lang="en">${BRAND.en}</b><i lang="fa">${TAGLINE.fa}</i><i lang="en">${TAGLINE.en}</i></span>
   </a>
 ${crumbs}
@@ -277,7 +275,7 @@ const aboutModal = (root = "") => `
       <!-- توسعه‌دهنده -->
       <section data-pane="dev" class="on">
         <div class="dev-card">
-          <span class="dev-av" aria-hidden="true">${MARK}</span>
+          <span class="dev-av" aria-hidden="true">${MARK(root, 46)}</span>
           <div>
             <b lang="fa">${DEV.name.fa}</b><b lang="en">${DEV.name.en}</b>
             <span lang="fa">${DEV.role.fa}</span><span lang="en">${DEV.role.en}</span>
@@ -403,7 +401,7 @@ const head = (title, desc, favicon, root, seo = {}) => {
 ${seo.jsonld ? `<script type="application/ld+json">${JSON.stringify(seo.jsonld)}</script>` : ""}
 <link rel="preload" href="${root}assets/fonts/Vazirmatn-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="${root}assets/theme.css">
-<link rel="icon" href="${favicon}">
+${FAVICON_LINKS(root)}
 </head>`;
 };
 
@@ -423,7 +421,7 @@ function coursePage(c) {
   return `${head(
     `${c.fa.name} — ${BRAND.fa}`,
     c.fa.desc.replace(/"/g, "'"),
-    FAVICON(c.accent, c.ico),
+    "",
     "../",
     {
       path: c.dir + "/",
@@ -448,7 +446,7 @@ function coursePage(c) {
     }
   )}
 <body data-page="course" data-course="${c.id}">
-${loader()}
+${loader("../")}
 <div class="readbar" aria-hidden="true"></div>
 ${topbar("../", crumb([
     { label: `<span lang="fa">خانه</span><span lang="en">Home</span>`, href: "../index.html" },
@@ -556,16 +554,35 @@ function courseCard(c, root = "") {
 
 /* بدنهٔ صفحهٔ اصلی */
 function homeBody(card) {
-  /* حالت «همهٔ مسیرها»: یک شبکهٔ تخت، بدون سرفصل دسته.
-     گروه‌بندی کار حالت «دسته‌ها» است؛ تکرارش اینجا فقط شلوغی می‌سازد. */
-  const blocks = `  <div class="grid-courses">
-${COURSES.map(card).join("\n")}
-  </div>`;
+  /* حالت «همهٔ مسیرها»: مسیرها زیر سرفصل دستهٔ خودشان، هرکدام در باکس خودش.
+     حالت «دسته‌ها» فقط کاشی عنوان را نشان می‌دهد. */
+  const blocks = CATS.map(cat => {
+    const list = COURSES.filter(c => c.cat === cat.id);
+    if (!list.length) return "";
+    const chs = list.reduce((s, c) => s + c.chapters.length, 0);
+    return `  <section class="cat-block" id="cat-${cat.id}">
+    <header class="cat">
+      <div class="cat-t">
+        <h2 lang="fa"><a href="cat-${cat.id}.html">${cat.fa}</a></h2>
+        <h2 lang="en"><a href="cat-${cat.id}.html">${cat.en}</a></h2>
+        <p lang="fa">${cat.dfa}</p><p lang="en">${cat.den}</p>
+      </div>
+      <span class="cat-n">
+        <b>${fa(list.length)}</b>
+        <span lang="fa">مسیر</span><span lang="en">tracks</span>
+        <i lang="fa">${fa(chs)} فصل</i><i lang="en">${chs} chapters</i>
+      </span>
+    </header>
+    <div class="grid-courses">
+${list.map(card).join("\n")}
+    </div>
+  </section>`;
+  }).join("\n");
 
   return `${head(
     `${BRAND.fa} — ${TAGLINE.fa}`,
     "مرجع‌های آموزشی فارسی برای مهندسی نرم‌افزار: داکر، کوبرنتیز، معماری، میکروسرویس، ‎C#‎، پایتون، ری‌اکت، فلاتر و بیشتر.",
-    FAVICON("#4F6BF5", `<path d="M3.6 4.8A1.8 1.8 0 0 1 5.4 3H20v18H5.4a1.8 1.8 0 0 1-1.8-1.8z"/><path d="M7.6 18.2H20"/><path d="m10.4 8.6-2.3 2.9 2.3 2.9M14.4 8.6l2.3 2.9-2.3 2.9"/>`),
+    "",
     "",
     {
       path: "",
@@ -614,16 +631,16 @@ ${topbar("", "")}
       <button class="vs-clear js-filter-clear" type="button" aria-label="پاک کردن" hidden>${ICO.close}</button>
     </div>
     <div class="view-sw" role="group" aria-label="حالت نمایش">
-      <button type="button" data-view="tiles" aria-pressed="true">${ICO.grid}<span lang="fa">دسته‌ها</span><span lang="en">Categories</span></button>
-      <button type="button" data-view="list" aria-pressed="false">${ICO.rows}<span lang="fa">همهٔ مسیرها</span><span lang="en">All tracks</span></button>
+      <button type="button" data-view="tiles" aria-pressed="false">${ICO.grid}<span lang="fa">دسته‌ها</span><span lang="en">Categories</span></button>
+      <button type="button" data-view="list" aria-pressed="true">${ICO.rows}<span lang="fa">همهٔ مسیرها</span><span lang="en">All tracks</span></button>
     </div>
   </div>
 
-  <div class="cat-tiles" data-view-pane="tiles">
+  <div class="cat-tiles" data-view-pane="tiles" hidden>
 ${CATS.filter(x => COURSES.some(c => c.cat === x.id)).map(x => catTile(x)).join("\n")}
   </div>
 
-  <div data-view-pane="list" hidden>
+  <div data-view-pane="list">
 ${blocks}
   </div>
 
@@ -653,7 +670,7 @@ ${body}
   return `${head(
     `راهنمای مشارکت — ${BRAND.fa}`,
     "چطور در کدنامه یک فصل یا یک دورهٔ کامل اضافه کنیم.",
-    FAVICON("#15A34A", `<path d="m9 8-4 4 4 4M15 8l4 4-4 4"/>`),
+    "",
     "",
     { path: "contributing.html", og: "home" }
   )}
@@ -1017,7 +1034,7 @@ function chapterPage(c, ch, inner, meta) {
   return `${head(
     `فصل ${nFa} — ${title} | ${c.fa.name} | ${BRAND.fa}`,
     desc,
-    FAVICON(c.accent, c.ico),
+    "",
     "../../",
     {
       path: `${c.dir}/ch/${ch.file}`,
@@ -1037,7 +1054,7 @@ function chapterPage(c, ch, inner, meta) {
     }
   )}
 <body data-page="chapter" data-course="${c.id}" data-chapter="${ch.n}">
-${loader()}
+${loader("../../")}
 <div class="readbar" aria-hidden="true"></div>
 ${topbar("../../", crumb([
     { label: `<span lang="fa">خانه</span><span lang="en">Home</span>`, href: "../../index.html" },
@@ -1143,7 +1160,7 @@ function categoryPage(cat) {
   return `${head(
     `${cat.fa} — ${BRAND.fa}`,
     cat.dfa,
-    FAVICON("#4F6BF5", catIco(cat.id)),
+    "",
     "",
     { path: `cat-${cat.id}.html`, og: "home" }
   )}
@@ -1214,7 +1231,7 @@ function bookmarksPage() {
   return `${head(
     `علاقه‌مندی‌ها — ${BRAND.fa}`,
     "مسیرهایی که ذخیره کرده‌ای، با درصد پیشرفت هرکدام.",
-    FAVICON("#B45309", `<path d="m12 3.6 2.6 5.3 5.8.85-4.2 4.1 1 5.75L12 16.9l-5.2 2.7 1-5.75-4.2-4.1 5.8-.85z"/>`),
+    "",
     "",
     { path: "bookmarks.html", og: "home" }
   )}
