@@ -10,7 +10,7 @@ import type { Track, Category } from "./types";
 export const CATEGORIES: Category[] = [
   {
     "id": "roots",
-    "ico": "<circle cx=\"12\" cy=\"12\" r=\"8.6\"/><path d=\"M12 6.4V12l3.8 2.3\" stroke-linecap=\"round\"/><path d=\"M3.6 8.8h2.4M18 8.8h2.4\" stroke-linecap=\"round\" opacity=\".45\"/>",
+    "ico": "<path d=\"M7 3.2h10M7 20.8h10\" stroke-linecap=\"round\"/><path d=\"M8 3.2v3.1c0 2 1.5 3.6 3.1 4.7.6.4.6 1.6 0 2C9.5 14.1 8 15.7 8 17.7v3.1M16 3.2v3.1c0 2-1.5 3.6-3.1 4.7-.6.4-.6 1.6 0 2 1.6 1.1 3.1 2.7 3.1 4.7v3.1\" stroke-linejoin=\"round\"/>",
     "fa": {
       "name": "بنیان‌ها و تاریخچه",
       "desc": "اینکه هر چیزی از کجا آمد و چه دردی را درمان کرد. اگر تازه‌کاری، از اینجا شروع کن."
@@ -34,7 +34,7 @@ export const CATEGORIES: Category[] = [
   },
   {
     "id": "infra",
-    "ico": "<rect x=\"3\" y=\"4\" width=\"18\" height=\"6\" rx=\"1.8\"/><rect x=\"3\" y=\"14\" width=\"18\" height=\"6\" rx=\"1.8\"/><path d=\"M6.6 7h.02M6.6 17h.02\" stroke-linecap=\"round\"/>",
+    "ico": "<rect x=\"3.4\" y=\"3.4\" width=\"17.2\" height=\"6\" rx=\"1.8\"/><rect x=\"3.4\" y=\"14.6\" width=\"17.2\" height=\"6\" rx=\"1.8\"/><path d=\"M6.8 6.4h.02M6.8 17.6h.02\" stroke-linecap=\"round\"/><path d=\"M16 6.4h2.2M16 17.6h2.2\" stroke-linecap=\"round\" opacity=\".6\"/>",
     "fa": {
       "name": "زیرساخت و عملیات",
       "desc": "بردن کد از لپ‌تاپ به سروری که شب هم بیدار می‌ماند."
@@ -46,7 +46,7 @@ export const CATEGORIES: Category[] = [
   },
   {
     "id": "arch",
-    "ico": "<path d=\"M3.4 20.4h17.2M5.8 20.4V9.6L12 4.6l6.2 5v10.8\"/><path d=\"M9.8 20.4v-5.2h4.4v5.2\"/>",
+    "ico": "<path d=\"M12 2.6 21 7.2 12 11.8 3 7.2z\" stroke-linejoin=\"round\"/><path d=\"m3 12 9 4.6 9-4.6\" stroke-linejoin=\"round\"/><path d=\"m3 16.8 9 4.6 9-4.6\" stroke-linejoin=\"round\" opacity=\".55\"/>",
     "fa": {
       "name": "معماری و مهندسی",
       "desc": "تصمیم‌هایی که عوض کردنشان بعداً گران است — و چطور درست بگیری‌شان."
@@ -58,7 +58,7 @@ export const CATEGORIES: Category[] = [
   },
   {
     "id": "backend",
-    "ico": "<ellipse cx=\"12\" cy=\"6\" rx=\"7.4\" ry=\"3\"/><path d=\"M4.6 6v12c0 1.7 3.3 3 7.4 3s7.4-1.3 7.4-3V6\"/><path d=\"M4.6 12c0 1.7 3.3 3 7.4 3s7.4-1.3 7.4-3\"/>",
+    "ico": "<rect x=\"3\" y=\"4.6\" width=\"18\" height=\"6\" rx=\"1.8\"/><rect x=\"3\" y=\"13.4\" width=\"18\" height=\"6\" rx=\"1.8\"/><path d=\"M6.6 7.6h.02M6.6 16.4h.02\" stroke-linecap=\"round\"/><path d=\"M13 7.6h4.6M13 16.4h4.6\" stroke-linecap=\"round\" opacity=\".55\"/>",
     "fa": {
       "name": "بک‌اند",
       "desc": "زبان‌ها و فریم‌ورک‌های سمت سرور، هرکدام از مقدماتی تا پیشرفته."
@@ -94,7 +94,7 @@ export const CATEGORIES: Category[] = [
   },
   {
     "id": "data",
-    "ico": "<path d=\"M3.4 12h4l2.2-5.6 3.4 11.2L15.4 12h5.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
+    "ico": "<ellipse cx=\"12\" cy=\"5.8\" rx=\"7.4\" ry=\"2.9\"/><path d=\"M4.6 5.8v12.4c0 1.6 3.3 2.9 7.4 2.9s7.4-1.3 7.4-2.9V5.8\"/><path d=\"M4.6 12c0 1.6 3.3 2.9 7.4 2.9s7.4-1.3 7.4-2.9\"/>",
     "fa": {
       "name": "داده و بی‌درنگ",
       "desc": "ذخیره کردن، پیدا کردن و زنده رساندن داده."
@@ -130,7 +130,7 @@ export const CATEGORIES: Category[] = [
   },
   {
     "id": "career",
-    "ico": "<circle cx=\"12\" cy=\"8\" r=\"3.6\"/><path d=\"M4.8 20.2a7.2 7.2 0 0 1 14.4 0\" stroke-linecap=\"round\"/>",
+    "ico": "<path d=\"M3.4 20.6h4.2v-5.2H3.4zM9.9 20.6h4.2V10.2H9.9zM16.4 20.6h4.2V5H16.4z\" stroke-linejoin=\"round\"/><path d=\"M4.6 9.4 9 5l2.8 2.6L17.6 2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" opacity=\".6\"/><path d=\"M14.4 2h3.4v3.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" opacity=\".6\"/>",
     "fa": {
       "name": "مهارت و مسیر شغلی",
       "desc": "آنچه بین یک برنامه‌نویس خوب و یک مهندس نرم‌افزار فرق می‌گذارد."
