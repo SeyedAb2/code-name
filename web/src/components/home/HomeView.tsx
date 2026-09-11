@@ -24,7 +24,7 @@ interface Props {
 export default function HomeView({ tracks, categories }: Props) {
   const { lang } = usePrefs();
   const fa = lang === "fa";
-  const [view, setView] = useState<View>("list");
+  const [view, setView] = useState<View>("tiles");   /* پیش‌فرض: دسته‌ها */
   const [q, setQ] = useState("");
 
   /* نمای انتخابی کاربر بین بازدیدها می‌ماند */
@@ -126,7 +126,7 @@ export default function HomeView({ tracks, categories }: Props) {
           searching ? (
             matches.length ? (
               <div className={s.grid}>
-                {matches.map((tr) => <TrackCard key={tr.id} track={tr} />)}
+                {matches.map((tr, i) => <TrackCard key={tr.id} track={tr} index={i} term={q} />)}
               </div>
             ) : (
               <p className={s.noHits}>{t("noResults", lang)}</p>
@@ -150,7 +150,7 @@ export default function HomeView({ tracks, categories }: Props) {
                     </span>
                   </header>
                   <div className={s.grid}>
-                    {list.map((tr) => <TrackCard key={tr.id} track={tr} />)}
+                    {list.map((tr, i) => <TrackCard key={tr.id} track={tr} index={i} />)}
                   </div>
                 </section>
               );

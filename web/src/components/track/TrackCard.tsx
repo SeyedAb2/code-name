@@ -3,16 +3,17 @@
 import Link from "next/link";
 import { usePrefs } from "@/context/PrefsContext";
 import { useProgress } from "@/context/ProgressContext";
-import { num, pct, hours, t } from "@/lib/i18n";
+import { num, hours, t } from "@/lib/i18n";
 import type { TrackSummary } from "@/lib/view";
 import GlyphIcon from "@/components/ui/GlyphIcon";
+import Highlight from "@/components/ui/Highlight";
 import ProgressBar from "@/components/ui/ProgressBar";
 import Button, { GoArrow } from "@/components/ui/Button";
 import { StarIcon, BookIcon, ClockIcon, CheckBoxIcon } from "@/components/ui/Icons";
 import { resumeTarget } from "@/lib/track";
 import s from "./TrackCard.module.scss";
 
-export default function TrackCard({ track }: { track: TrackSummary }) {
+export default function TrackCard({ track, index = 0, term = "" }: { track: TrackSummary; index?: number; term?: string }) {
   const { lang, theme } = usePrefs();
   const { trackPct, isBookmarked, toggleBookmark, getChapter } = useProgress();
 
@@ -31,7 +32,7 @@ export default function TrackCard({ track }: { track: TrackSummary }) {
   return (
     <article
       className={[s.card, track.locked ? s.locked : ""].filter(Boolean).join(" ")}
-      style={{ ["--acc" as string]: accent }}
+      style={{ ["--acc" as string]: accent, ["--i" as string]: index }}
     >
       {track.stats.ready === 0 && (
         <span className={s.badge}>{t("planned", lang)}</span>
@@ -44,7 +45,7 @@ export default function TrackCard({ track }: { track: TrackSummary }) {
 
         <div className={s.name}>
           <h3>
-            <Link href={`/track/${track.id}`}>{text.name}</Link>
+            <Link href={`/track/${track.id}`}><Highlight text={text.name} term={term} /></Link>
           </h3>
           {lang === "fa" && <span className={s.latin}>{track.en.name}</span>}
         </div>
@@ -61,7 +62,7 @@ export default function TrackCard({ track }: { track: TrackSummary }) {
         </button>
       </div>
 
-      <p className={s.desc}>{text.desc}</p>
+      <p className={s.desc}><Highlight text={text.desc} term={term} /></p>
 
       <div className={s.meta}>
         <span><BookIcon size={13} /> {num(track.stats.chapters, lang)} {t("chapters", lang)}</span>
@@ -71,7 +72,6 @@ export default function TrackCard({ track }: { track: TrackSummary }) {
 
       <div className={s.progress}>
         <ProgressBar value={progress} label={text.name} />
-        <b>{pct(progress, lang)}</b>
       </div>
 
       {resume ? (

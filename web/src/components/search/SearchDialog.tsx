@@ -6,6 +6,7 @@ import { usePrefs } from "@/context/PrefsContext";
 import { t } from "@/lib/i18n";
 import Modal from "@/components/ui/Modal";
 import { SearchIcon } from "@/components/ui/Icons";
+import Highlight from "@/components/ui/Highlight";
 import s from "./SearchDialog.module.scss";
 
 /** یک ردیف نمایهٔ جستجو. کوتاه نگه داشته شده چون ۱۳۸۹ تاست. */
@@ -69,21 +70,6 @@ export default function SearchDialog({
       ?.scrollIntoView({ block: "nearest" });
   }, [sel]);
 
-  /** واژهٔ جستجو را داخل عنوان برجسته می‌کند. */
-  const mark = (text: string) => {
-    const term = q.trim();
-    if (!term) return text;
-    const i = text.toLowerCase().indexOf(term.toLowerCase());
-    if (i < 0) return text;
-    return (
-      <>
-        {text.slice(0, i)}
-        <mark>{text.slice(i, i + term.length)}</mark>
-        {text.slice(i + term.length)}
-      </>
-    );
-  };
-
   return (
     <Modal open={open} onClose={onClose} label={t("search", lang)}>
       <div style={{ margin: -16 }}>
@@ -116,7 +102,7 @@ export default function SearchDialog({
               onClick={(e) => { e.preventDefault(); go(r); }}
               onMouseEnter={() => setSel(i)}
             >
-              {mark(lang === "fa" ? r.tf : r.te)}
+              <Highlight text={lang === "fa" ? r.tf : r.te} term={q} />
               <small>{lang === "fa" ? r.nf : r.ne}</small>
             </a>
           ))}

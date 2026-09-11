@@ -1,7 +1,16 @@
+.row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
 .bar {
-  height: 7px;
+  flex: 1;
+  min-width: 0;
+  height: 8px;
   border-radius: 99px;
-  background: var(--surface-sunk);
+  /* شیار باید در ۰٪ هم دیده شود — قبلاً هم‌رنگ کارت بود و ناپدید می‌شد */
+  background: color-mix(in srgb, var(--ink-faint) 20%, transparent);
   border: 1px solid var(--line);
   overflow: hidden;
 }
@@ -11,10 +20,25 @@
   height: 100%;
   border-radius: 99px;
   background: var(--brand-grad);
-  transition: width .5s cubic-bezier(.2, .8, .3, 1);
+  transition: width .55s cubic-bezier(.2, .8, .3, 1);
 }
 
-.sm { height: 5px; }
+.sm { height: 6px; }
 
 /* رسیدن به ۱۰۰٪ باید دیده شود، نه اینکه فقط نوار پر باشد */
 .done .fill { background: linear-gradient(120deg, #15A34A, #34D399); }
+
+.value {
+  flex: none;
+  font-family: var(--num);
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--ink-faint);
+  /* عرض ثابت تا با تغییر عدد، نوار جابه‌جا نشود — ولی نه بیشتر از لازم */
+  min-width: 3.2ch;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.done + .value,
+.value.complete { color: var(--safe); }

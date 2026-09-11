@@ -17,11 +17,12 @@
   contain-intrinsic-size: auto 300px;
 
   &:hover {
-    transform: translateY(-3px);
+    transform: translateY(-4px);
     box-shadow: var(--shadow-3);
-    border-color: var(--line-strong);
+    border-color: color-mix(in srgb, var(--acc, var(--blue)) 45%, var(--line-strong));
   }
 
+  /* نوار رنگی بالای کارت — از وسط باز می‌شود، نه اینکه ناگهان ظاهر شود */
   &::before {
     content: "";
     position: absolute;
@@ -30,10 +31,43 @@
     width: 100%;
     height: 3px;
     background: var(--acc, var(--blue));
-    opacity: 0;
-    transition: opacity .2s;
+    transform: scaleX(0);
+    transform-origin: center;
+    transition: transform .32s cubic-bezier(.2, .8, .3, 1);
   }
-  &:hover::before { opacity: 1; }
+  &:hover::before { transform: scaleX(1); }
+
+  /* درخشش ملایمی که از پشت نشان بیرون می‌زند */
+  &::after {
+    content: "";
+    position: absolute;
+    inset-inline-start: -40px;
+    top: -60px;
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    background: radial-gradient(circle,
+      color-mix(in srgb, var(--acc, var(--blue)) 22%, transparent) 0%,
+      transparent 70%);
+    opacity: 0;
+    transition: opacity .35s;
+    pointer-events: none;
+  }
+  &:hover::after { opacity: 1; }
+}
+
+/* ورود کارت‌ها هنگام بارگذاری — با تأخیر پلکانی تا پشت سر هم بیایند.
+   ‏--i را کامپوننت از روی جای کارت در فهرست می‌گذارد. */
+@include motion {
+  .card {
+    animation: cardIn .44s cubic-bezier(.2, .8, .3, 1) both;
+    animation-delay: calc(var(--i, 0) * 45ms);
+  }
+}
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -57,6 +91,12 @@
   color: var(--acc, var(--blue));
   background: color-mix(in srgb, var(--acc, var(--blue)) 13%, transparent);
   border: 1px solid var(--line);
+  transition: transform .3s cubic-bezier(.2, .8, .3, 1), background .3s;
+}
+
+.card:hover .logo {
+  transform: scale(1.07) rotate(-3deg);
+  background: color-mix(in srgb, var(--acc, var(--blue)) 20%, transparent);
 }
 
 .name {
@@ -116,20 +156,7 @@
   span { display: inline-flex; align-items: center; gap: 5px; }
 }
 
-.progress {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 14px;
-
-  b {
-    font-family: var(--num);
-    font-size: .8rem;
-    color: var(--ink-soft);
-    min-width: 40px;
-    text-align: end;
-  }
-}
+.progress { margin-bottom: 14px; }
 
 .badge {
   position: absolute;
