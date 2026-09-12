@@ -1,0 +1,787 @@
+/* ============================================================================
+   رودمپ مهندسی برق (۲): مخابرات، کنترل، بیوالکتریک
+
+   این سه گرایش هر کدام دو چهره دارند: نظری (دانشگاه و پژوهش) و صنعتی
+   (اپراتور، پالایشگاه، بیمارستان). رودمپ‌ها هر دو را کنار هم می‌آورند
+   تا خواننده بداند برای کدام مسیر چه چیزی لازم است.
+   ========================================================================== */
+import type { Roadmap } from "./types";
+
+export const EE_SYSTEMS_ROADMAPS: Roadmap[] = [
+  /* ═══════════════════════════════ مخابرات ═══════════════════════════════ */
+  {
+    id: "ee-telecom",
+    field: "ee",
+    accent: "#2563EB",
+    ico: '<path d="M12 10.4v10.8M8.8 21.2 12 10.4l3.2 10.8M9.8 17.6h4.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="8.2" r="1.6"/><path d="M8.4 11.6a5 5 0 0 1 0-6.8M15.6 4.8a5 5 0 0 1 0 6.8M5.8 14a8.6 8.6 0 0 1 0-11.6M18.2 2.4a8.6 8.6 0 0 1 0 11.6" stroke-linecap="round"/>',
+    after: ["ee-foundations"],
+    next: ["network-engineer"],
+    fa: {
+      name: "مهندسی برق — مخابرات",
+      role: "Telecommunications Engineer",
+      intro:
+        "مخابرات دانش فرستادن اطلاعات از یک نقطه به نقطهٔ دیگر است — با سیم، فیبر یا موج رادیویی — با کمترین توان و بیشترین اطمینان. هر تماس، پیام و ویدیویی که روی گوشی می‌بینی از زنجیره‌ای می‌گذرد که این رشته طراحی‌اش می‌کند: مدولاسیون، کدگذاری، آنتن، شبکه. این رودمپ از احتمال و پردازش سیگنال شروع می‌کند و تا 5G، مخابرات نوری و رادیوی نرم‌افزاری می‌رود.",
+    },
+    en: {
+      name: "Electrical engineering — telecommunications",
+      role: "Telecommunications Engineer",
+      intro:
+        "Telecommunications is the science of moving information from one point to another — over wire, fibre or radio — with the least power and the most reliability. Every call, message and video on your phone passes through a chain this field designs: modulation, coding, antennas, networks. This roadmap starts from probability and signal processing and goes to 5G, optical communications and software-defined radio.",
+    },
+    stages: [
+      {
+        id: "tc-math",
+        fa: "احتمال و پردازش سیگنال",
+        en: "Probability and signal processing",
+        outcomeFa: "نویز را آماری توصیف می‌کنی، فیلتر دیجیتال طراحی می‌کنی و یک لینک مخابراتی را سرتاسر شبیه‌سازی می‌کنی.",
+        outcomeEn: "You describe noise statistically, design digital filters and simulate a communication link end to end.",
+        months: [3, 5],
+        skills: [
+          {
+            fa: "فرایندهای تصادفی", en: "Random processes", kind: "hard",
+            whyFa: "نویز دشمن اصلی مخابرات است و فقط با زبان فرایندهای تصادفی قابل توصیف است.",
+            whyEn: "Noise is telecoms' main enemy and can only be described in the language of random processes.",
+            items: ["Stationarity & ergodicity", "Autocorrelation & PSD", "AWGN", "Filtering random signals"],
+          },
+          {
+            fa: "پردازش سیگنال دیجیتال", en: "Digital signal processing", kind: "hard",
+            whyFa: "هر گیرندهٔ امروزی در اصل یک پردازندهٔ سیگنال دیجیتال است که جلویش یک آنتن گذاشته‌اند.",
+            whyEn: "Every modern receiver is essentially a digital signal processor with an antenna in front of it.",
+            items: ["DFT & FFT", "FIR & IIR filters", "Decimation & interpolation", "Windowing", "Fixed-point effects"],
+          },
+          {
+            fa: "MATLAB و پایتون", en: "MATLAB and Python", kind: "hard",
+            whyFa: "پیش از سخت‌افزار، کل زنجیره را در نرم‌افزار می‌سازی و نرخ خطای بیت را اندازه می‌گیری.",
+            whyEn: "Before any hardware, you build the whole chain in software and measure the bit error rate.",
+            items: ["Communications Toolbox", "NumPy / SciPy", "End-to-end link simulation"],
+            tracks: ["12-python"],
+          },
+        ],
+      },
+      {
+        id: "tc-comm",
+        fa: "سیستم‌های مخابراتی",
+        en: "Communication systems",
+        outcomeFa: "مدولاسیون آنالوگ و دیجیتال را طراحی و مقایسه می‌کنی و می‌فهمی چرا همهٔ استانداردهای امروزی OFDM دارند.",
+        outcomeEn: "You design and compare analogue and digital modulation and understand why every modern standard uses OFDM.",
+        months: [3, 5],
+        skills: [
+          {
+            fa: "مدولاسیون آنالوگ", en: "Analogue modulation", kind: "hard",
+            whyFa: "رادیوی FM هنوز هست و ایدهٔ گیرندهٔ سوپرهترودین در هر گیرندهٔ امروزی زنده است.",
+            whyEn: "FM radio is still around, and the superheterodyne idea lives on in every modern receiver.",
+            items: ["AM / FM / PM", "Bandwidth", "Superheterodyne receiver"],
+          },
+          {
+            fa: "مدولاسیون دیجیتال", en: "Digital modulation", kind: "hard",
+            whyFa: "انتخاب بین QPSK و 64-QAM یعنی انتخاب بین برد و سرعت؛ نمودار صورت‌فلکی این را نشان می‌دهد.",
+            whyEn: "Choosing between QPSK and 64-QAM is choosing between range and speed; the constellation diagram shows why.",
+            items: ["ASK / FSK / PSK", "QAM", "Constellations", "Bit error rate", "Pulse shaping & ISI"],
+          },
+          {
+            fa: "همگام‌سازی و هم‌سان‌سازی", en: "Synchronisation and equalisation", kind: "hard",
+            whyFa: "گیرنده باید فرکانس و زمان فرستنده را دقیقاً پیدا کند؛ بیشتر پیچیدگی گیرندهٔ واقعی همین‌جاست.",
+            whyEn: "The receiver must lock onto the transmitter's frequency and timing exactly; most real-receiver complexity lives here.",
+            items: ["Carrier & timing recovery", "Channel equalisation", "Matched filters"],
+          },
+          {
+            fa: "OFDM", en: "OFDM", kind: "hard",
+            whyFa: "Wi-Fi، 4G و 5G همه روی OFDM ساخته شده‌اند، چون با کانال چندمسیره خوب کنار می‌آید.",
+            whyEn: "Wi-Fi, 4G and 5G are all built on OFDM, because it copes well with multipath channels.",
+            items: ["Subcarriers", "Cyclic prefix", "Peak-to-average power ratio", "OFDMA"],
+          },
+        ],
+      },
+      {
+        id: "tc-info",
+        fa: "نظریهٔ اطلاعات و کدگذاری",
+        en: "Information theory and coding",
+        outcomeFa: "ظرفیت کانال را حساب می‌کنی و می‌فهمی کدهای تصحیح خطا چطور از نویز جان سالم به در می‌برند.",
+        outcomeEn: "You calculate channel capacity and understand how error-correcting codes survive noise.",
+        months: [2, 4],
+        skills: [
+          {
+            fa: "نظریهٔ اطلاعات", en: "Information theory", kind: "hard",
+            whyFa: "شانون حد نهایی را گفته است؛ هر سیستم مخابراتی با فاصله‌اش از ظرفیت سنجیده می‌شود.",
+            whyEn: "Shannon set the ultimate limit; every communication system is judged by its distance from capacity.",
+            items: ["Entropy", "Channel capacity", "Source coding", "Rate–distortion"],
+          },
+          {
+            fa: "کدگذاری کانال", en: "Channel coding", kind: "hard",
+            whyFa: "کدگذاری اجازه می‌دهد با نویز زیاد باز هم بی‌خطا بفرستی؛ در 5G از LDPC برای داده و Polar برای کنترل استفاده می‌شود.",
+            whyEn: "Coding lets you send error-free despite heavy noise; 5G uses LDPC for data and Polar codes for control.",
+            items: ["Hamming & block codes", "Convolutional codes & Viterbi", "Turbo codes", "LDPC", "Polar codes"],
+          },
+          {
+            fa: "فشرده‌سازی", en: "Compression", kind: "hard", level: "opt",
+            whyFa: "بیشتر ترافیک اینترنت ویدیوست؛ کدک خوب یعنی نصف پهنای باند برای همان کیفیت.",
+            whyEn: "Most internet traffic is video; a good codec means half the bandwidth for the same quality.",
+            items: ["Huffman coding", "Audio codecs", "H.264 / H.265 / AV1"],
+          },
+        ],
+      },
+      {
+        id: "tc-em",
+        fa: "آنتن، ماکروویو و انتشار",
+        en: "Antennas, microwaves and propagation",
+        outcomeFa: "آنتن ساده طراحی و شبیه‌سازی می‌کنی و بودجهٔ یک لینک رادیویی را حساب می‌کنی.",
+        outcomeEn: "You design and simulate simple antennas and calculate a radio link budget.",
+        months: [3, 5],
+        skills: [
+          {
+            fa: "آنتن", en: "Antennas", kind: "hard",
+            whyFa: "آنتن مرز بین مدار و فضای آزاد است؛ آرایهٔ آنتن و شکل‌دهی پرتو قلب 5G است.",
+            whyEn: "The antenna is the border between circuit and free space; antenna arrays and beamforming are at the heart of 5G.",
+            items: ["Radiation pattern & gain", "Dipole & patch antennas", "Arrays & beamforming", "Antenna measurements"],
+          },
+          {
+            fa: "مهندسی ماکروویو", en: "Microwave engineering", kind: "hard",
+            whyFa: "در فرکانس بالا مدار با قانون‌های موج رفتار می‌کند؛ پارامترهای S زبان مشترک طراح و اندازه‌گیر است.",
+            whyEn: "At high frequency circuits obey wave laws; S-parameters are the common language of designers and testers.",
+            items: ["Transmission lines & waveguides", "Smith chart", "S-parameters", "Microwave filters & couplers"],
+          },
+          {
+            fa: "انتشار موج", en: "Propagation", kind: "hard",
+            whyFa: "بودجهٔ لینک اولین محاسبه برای هر لینک رادیویی است: آیا سیگنال به اندازهٔ کافی قوی می‌رسد؟",
+            whyEn: "The link budget is the first calculation for any radio link: does the signal arrive strong enough?",
+            items: ["Free-space path loss", "Link budget", "Multipath & fading", "Rain & atmospheric loss"],
+            tracks: ["27-wireless"],
+          },
+          {
+            fa: "شبیه‌سازی الکترومغناطیسی", en: "EM simulation tools", kind: "hard", level: "alt",
+            whyFa: "آنتن و مدار ماکروویو را پیش از ساخت شبیه‌سازی می‌کنی؛ ساخت هر نمونه گران است.",
+            whyEn: "You simulate antennas and microwave circuits before building them; every prototype is expensive.",
+            items: ["CST Studio", "Ansys HFSS", "Keysight ADS"],
+          },
+        ],
+      },
+      {
+        id: "tc-wireless",
+        fa: "شبکه‌های بی‌سیم و سلولی",
+        en: "Wireless and cellular networks",
+        outcomeFa: "معماری 4G و 5G را از آنتن تا هسته می‌شناسی و یک شبکهٔ رادیویی را برنامه‌ریزی می‌کنی.",
+        outcomeEn: "You know 4G and 5G architecture from antenna to core and can plan a radio network.",
+        months: [3, 5],
+        skills: [
+          {
+            fa: "مبانی بی‌سیم", en: "Wireless fundamentals", kind: "hard",
+            whyFa: "محو شدن سیگنال در کانال بی‌سیم قاعده است نه استثنا؛ MIMO آن را به فرصت تبدیل می‌کند.",
+            whyEn: "Fading is the rule, not the exception, in wireless channels; MIMO turns it into an opportunity.",
+            items: ["Fading channels", "Diversity", "MIMO", "TDMA, CDMA, OFDMA"],
+            tracks: ["27-wireless"],
+          },
+          {
+            fa: "شبکهٔ سلولی: LTE و 5G", en: "Cellular: LTE and 5G NR", kind: "hard",
+            whyFa: "بزرگ‌ترین کارفرمایان این رشته اپراتورها و سازندگان تجهیزات شبکهٔ سلولی‌اند.",
+            whyEn: "The biggest employers in this field are mobile operators and cellular equipment vendors.",
+            items: ["RAN & core network", "LTE", "5G NR", "Beamforming & mmWave", "Network slicing"],
+            tracks: ["27-wireless"],
+          },
+          {
+            fa: "Wi-Fi و اینترنت اشیا", en: "Wi-Fi and IoT", kind: "hard",
+            whyFa: "میلیاردها دستگاه کم‌مصرف با فناوری‌هایی حرف می‌زنند که برد، سرعت و مصرف متفاوتی دارند؛ انتخاب درست مهم است.",
+            whyEn: "Billions of low-power devices talk over technologies with different range, speed and power draw; choosing well matters.",
+            items: ["Wi-Fi 6 / 7", "Bluetooth LE", "LoRaWAN", "NB-IoT", "Zigbee"],
+            tracks: ["27-wireless"],
+          },
+          {
+            fa: "برنامه‌ریزی شبکهٔ رادیویی", en: "Radio network planning", kind: "hard",
+            whyFa: "طراحی و بهینه‌سازی شبکهٔ رادیویی از مسیرهای شغلی اصلی این گرایش در اپراتورهاست.",
+            whyEn: "Designing and optimising radio networks is one of the main career paths into operators.",
+            items: ["Coverage & capacity planning", "Drive tests", "Planning tools (Atoll)"],
+          },
+          {
+            fa: "6G و پژوهش", en: "6G and research", kind: "hard", level: "opt",
+            whyFa: "برای کسی که ادامهٔ تحصیل می‌خواهد؛ این‌ها موضوع‌های داغ مقاله‌های امروزند.",
+            whyEn: "For those heading to graduate study; these are today's hot research topics.",
+            items: ["Reconfigurable intelligent surfaces", "THz communications", "Integrated sensing & communication", "AI-native air interface"],
+          },
+        ],
+      },
+      {
+        id: "tc-optical",
+        fa: "مخابرات نوری، ماهواره و رادار",
+        en: "Optical, satellite and radar",
+        outcomeFa: "لینک فیبر نوری را طراحی می‌کنی و اصول ماهواره و رادار را می‌شناسی.",
+        outcomeEn: "You design fibre links and know the principles of satellite and radar systems.",
+        months: [2, 3],
+        skills: [
+          {
+            fa: "فیبر نوری", en: "Optical fibre", kind: "hard",
+            whyFa: "ستون فقرات اینترنت نوری است؛ هر ترافیک بی‌سیمی بالاخره به یک فیبر می‌رسد.",
+            whyEn: "The internet's backbone is optical; all wireless traffic eventually reaches a fibre.",
+            items: ["Single-mode vs multimode", "Attenuation & dispersion", "WDM / DWDM", "EDFA amplifiers", "FTTH / PON"],
+          },
+          {
+            fa: "ماهواره", en: "Satellite", kind: "hard", level: "opt",
+            whyFa: "منظومه‌های ماهوارهٔ مدار پایین، اینترنت ماهواره‌ای را دوباره به میدان آورده‌اند.",
+            whyEn: "Low-Earth-orbit constellations have brought satellite internet back into play.",
+            items: ["GEO / LEO orbits", "Satellite link budgets", "VSAT", "LEO constellations"],
+          },
+          {
+            fa: "رادار", en: "Radar", kind: "hard", level: "opt",
+            whyFa: "از صنایع دفاعی تا خودروی خودران، رادار FMCW همه‌جا هست.",
+            whyEn: "From defence to self-driving cars, FMCW radar is everywhere.",
+            items: ["Radar equation", "Doppler", "FMCW radar", "SAR basics"],
+          },
+        ],
+      },
+      {
+        id: "tc-networks",
+        fa: "شبکه و رادیوی نرم‌افزاری",
+        en: "Networks and software-defined radio",
+        outcomeFa: "شبکهٔ IP را می‌فهمی و یک گیرندهٔ رادیویی را کاملاً در نرم‌افزار می‌سازی.",
+        outcomeEn: "You understand IP networks and build a radio receiver entirely in software.",
+        months: [2, 4],
+        skills: [
+          {
+            fa: "شبکه‌های کامپیوتری", en: "Computer networks", kind: "hard",
+            whyFa: "مخابرات امروز روی IP است؛ مهندس مخابرات بدون شبکهٔ کامپیوتری نیمه‌کاره است.",
+            whyEn: "Telecoms today runs on IP; a telecoms engineer without computer networking is only half-trained.",
+            items: ["OSI & TCP/IP", "IP routing", "Switching & VLANs", "QoS"],
+            tracks: ["25-network-foundations"],
+          },
+          {
+            fa: "SDN، NFV و Open RAN", en: "SDN, NFV and Open RAN", kind: "hard",
+            whyFa: "تجهیزات مخابراتی دارند نرم‌افزاری می‌شوند؛ کارکردی که قبلاً یک جعبهٔ اختصاصی بود، حالا یک کانتینر است.",
+            whyEn: "Telecom equipment is becoming software; what used to be a dedicated box is now a container.",
+            items: ["Software-defined networking", "Network function virtualisation", "Open RAN"],
+            tracks: ["62-virtualization"],
+          },
+          {
+            fa: "رادیوی نرم‌افزاری", en: "Software-defined radio", kind: "hard",
+            whyFa: "با یک SDR ارزان همهٔ نظریه را روی موج واقعی می‌بینی؛ بهترین پروژهٔ دانشجویی این گرایش.",
+            whyEn: "With a cheap SDR you see all the theory on real waves; the best student project in this field.",
+            items: ["GNU Radio", "RTL-SDR / HackRF / USRP", "A receiver in software"],
+          },
+        ],
+      },
+      {
+        id: "tc-career",
+        fa: "حرفه",
+        en: "The profession",
+        outcomeFa: "استاندارد را از منبع اصلی می‌خوانی، در میدان اندازه‌گیری می‌کنی و مسیر شغلی‌ات را انتخاب می‌کنی.",
+        outcomeEn: "You read standards at the source, measure in the field and choose your career path.",
+        months: [1, 2],
+        skills: [
+          {
+            fa: "نهادهای استاندارد", en: "Standards bodies", kind: "hard",
+            whyFa: "کلمهٔ آخر در مخابرات را متن استاندارد می‌گوید، نه کتاب؛ خواندن مشخصات 3GPP مهارت جداگانه‌ای است.",
+            whyEn: "In telecoms the specification has the last word, not the textbook; reading 3GPP specs is a skill of its own.",
+            items: ["3GPP", "ITU", "IEEE 802", "Reading specifications"],
+          },
+          {
+            fa: "اندازه‌گیری میدانی", en: "Field measurement", kind: "hard",
+            whyFa: "شبکهٔ واقعی با شبیه‌سازی فرق دارد؛ تحلیلگر طیف و OTDR حقیقت را نشان می‌دهند.",
+            whyEn: "Real networks differ from simulations; spectrum analysers and OTDRs show the truth.",
+            items: ["Spectrum analysers", "Drive testing", "OTDR for fibre"],
+          },
+          {
+            fa: "خواندن پژوهش", en: "Reading research", kind: "soft",
+            whyFa: "این رشته سریع جلو می‌رود؛ خواندن و بازتولید نتیجهٔ مقاله تو را جلوتر از کتاب‌ها نگه می‌دارد.",
+            whyEn: "The field moves fast; reading papers and reproducing their results keeps you ahead of the textbooks.",
+            items: ["IEEE Xplore", "Reproducing results", "Writing papers"],
+            tracks: ["64-docs-writing"],
+          },
+          {
+            fa: "مسیرهای شغلی", en: "Career paths", kind: "soft",
+            whyFa: "اپراتور، سازندهٔ تجهیزات، صنایع ماهواره و دفاعی، طراحی تراشهٔ رادیویی یا پژوهش — هر کدام بخشی از این رودمپ را پررنگ می‌کند.",
+            whyEn: "Operators, equipment vendors, satellite and defence, radio chip design or research — each emphasises a different part of this roadmap.",
+            items: ["Mobile operators", "Equipment vendors", "Satellite & defence", "RF / baseband chip design", "Graduate study"],
+          },
+        ],
+      },
+    ],
+  },
+
+  /* ════════════════════════════════ کنترل ════════════════════════════════ */
+  {
+    id: "ee-control",
+    field: "ee",
+    accent: "#0891B2",
+    ico: '<rect x="3" y="8.8" width="6" height="6.4" rx="1.4"/><rect x="15" y="8.8" width="6" height="6.4" rx="1.4"/><path d="M9 12h5.6M18 15.2v3.6H6v-3.6" stroke-linecap="round" stroke-linejoin="round"/><path d="m12.8 10 2 2-2 2" stroke-linecap="round" stroke-linejoin="round"/>',
+    after: ["ee-foundations"],
+    next: ["embedded", "ce-ai"],
+    fa: {
+      name: "مهندسی برق — کنترل",
+      role: "Control & Automation Engineer",
+      intro:
+        "مهندسی کنترل یعنی وادار کردن یک سیستم به رفتاری که می‌خواهی — دمای کوره، سرعت موتور، ارتفاع پهپاد یا فشار یک خط لوله — حتی وقتی اغتشاش و عدم قطعیت هست. این رشته هم نظری‌ترین گرایش برق است و هم کاربردی‌ترین: از پایداری لیاپانوف تا PLC در پالایشگاه. این رودمپ هر دو مسیر را می‌گوید: نظریهٔ کنترل، و اتوماسیون صنعتی که بیشترین بازار کار را دارد.",
+    },
+    en: {
+      name: "Electrical engineering — control",
+      role: "Control & Automation Engineer",
+      intro:
+        "Control engineering means making a system behave the way you want — a furnace's temperature, a motor's speed, a drone's altitude, a pipeline's pressure — even with disturbances and uncertainty. It is both the most theoretical and the most applied branch of EE: from Lyapunov stability to PLCs in a refinery. This roadmap covers both paths: control theory, and the industrial automation with the biggest job market.",
+    },
+    stages: [
+      {
+        id: "ct-model",
+        fa: "مدل‌سازی سیستم",
+        en: "System modelling",
+        outcomeFa: "برای یک سیستم فیزیکی تابع تبدیل و مدل فضای حالت می‌نویسی — یا از روی داده می‌سازی‌اش.",
+        outcomeEn: "You write a transfer function and state-space model for a physical system — or build one from data.",
+        months: [2, 3],
+        skills: [
+          {
+            fa: "مدل‌سازی ریاضی", en: "Mathematical modelling", kind: "hard",
+            whyFa: "کنترل‌کننده فقط به اندازهٔ مدلش خوب است.",
+            whyEn: "A controller is only as good as its model.",
+            items: ["Mechanical, electrical, thermal & fluid systems", "Transfer functions", "Block diagrams", "Signal-flow graphs"],
+          },
+          {
+            fa: "فضای حالت", en: "State space", kind: "hard",
+            whyFa: "زبان کنترل مدرن و چندمتغیره؛ کنترل‌پذیری می‌گوید اصلاً می‌شود سیستم را به جای دلخواه برد یا نه.",
+            whyEn: "The language of modern and multivariable control; controllability tells you whether the system can be steered at all.",
+            items: ["State variables", "State equations", "Controllability & observability", "Linearisation"],
+          },
+          {
+            fa: "شناسایی سیستم", en: "System identification", kind: "hard",
+            whyFa: "در صنعت معمولاً معادلهٔ سیستم را نداری؛ از روی دادهٔ آزمون می‌سازی‌اش.",
+            whyEn: "In industry you rarely have the system's equations; you build them from test data.",
+            items: ["Step-response tests", "Least squares", "ARX / ARMAX models", "System Identification Toolbox"],
+          },
+        ],
+      },
+      {
+        id: "ct-classic",
+        fa: "کنترل کلاسیک",
+        en: "Classical control",
+        outcomeFa: "حلقهٔ کنترل PID را طراحی و تنظیم می‌کنی و حاشیهٔ پایداری‌اش را تضمین می‌کنی.",
+        outcomeEn: "You design and tune PID loops and guarantee their stability margins.",
+        months: [2, 3],
+        skills: [
+          {
+            fa: "پایداری و پاسخ زمانی", en: "Stability and time response", kind: "hard",
+            whyFa: "فراجهش و زمان نشست همان مشخصاتی‌اند که کارفرما در قرارداد می‌نویسد.",
+            whyEn: "Overshoot and settling time are exactly the specifications a client writes into the contract.",
+            items: ["Poles & zeros", "Overshoot & settling time", "Steady-state error", "Routh–Hurwitz"],
+          },
+          {
+            fa: "مکان هندسی ریشه و روش‌های فرکانسی", en: "Root locus and frequency methods", kind: "hard",
+            whyFa: "حاشیهٔ بهره و فاز می‌گوید سیستم چقدر با خطای مدل هنوز پایدار می‌ماند.",
+            whyEn: "Gain and phase margins tell you how much modelling error the system can take and stay stable.",
+            items: ["Root locus", "Bode plots", "Nyquist criterion", "Gain & phase margins"],
+          },
+          {
+            fa: "کنترل‌کنندهٔ PID", en: "PID control", kind: "hard",
+            whyFa: "بیشتر حلقه‌های کنترل صنعتی PID هستند؛ تنظیم خوبش مهارتی است که مستقیماً پول و انرژی ذخیره می‌کند.",
+            whyEn: "Most industrial control loops are PID; tuning them well is a skill that directly saves money and energy.",
+            items: ["P, I & D actions", "Ziegler–Nichols tuning", "Anti-windup", "Derivative filtering", "Cascade & feedforward"],
+          },
+          {
+            fa: "طراحی جبران‌ساز", en: "Compensator design", kind: "hard",
+            whyFa: "وقتی PID کافی نیست، جبران‌ساز پیش‌فاز و پس‌فاز پاسخ فرکانسی را شکل می‌دهند.",
+            whyEn: "When PID is not enough, lead and lag compensators shape the frequency response.",
+            items: ["Lead & lag compensators", "Loop shaping"],
+          },
+        ],
+      },
+      {
+        id: "ct-modern",
+        fa: "کنترل مدرن و دیجیتال",
+        en: "Modern and digital control",
+        outcomeFa: "با فیدبک حالت و فیلتر کالمن کنترل‌کننده طراحی می‌کنی و آن را روی پردازنده پیاده می‌کنی.",
+        outcomeEn: "You design controllers with state feedback and Kalman filters and implement them on a processor.",
+        months: [2, 4],
+        skills: [
+          {
+            fa: "فیدبک حالت و رؤیتگر", en: "State feedback and observers", kind: "hard",
+            whyFa: "همهٔ حالت‌ها را نمی‌شود اندازه گرفت؛ رؤیتگر آن‌هایی را که سنسور ندارند تخمین می‌زند.",
+            whyEn: "Not every state can be measured; an observer estimates the ones without sensors.",
+            items: ["Pole placement", "Luenberger observer", "Separation principle"],
+          },
+          {
+            fa: "کنترل بهینه و فیلتر کالمن", en: "Optimal control and the Kalman filter", kind: "hard",
+            whyFa: "فیلتر کالمن از ناوبری فضاپیما تا GPS گوشی همه‌جا هست.",
+            whyEn: "The Kalman filter is everywhere, from spacecraft navigation to your phone's GPS.",
+            items: ["LQR", "Kalman filter", "LQG", "Riccati equation"],
+          },
+          {
+            fa: "کنترل دیجیتال", en: "Digital control", kind: "hard",
+            whyFa: "کنترل‌کنندهٔ امروز روی پردازنده اجرا می‌شود؛ نرخ نمونه‌برداری اشتباه، سیستم پایدار را ناپایدار می‌کند.",
+            whyEn: "Today's controllers run on processors; the wrong sampling rate can destabilise a stable system.",
+            items: ["Sampling & zero-order hold", "Z-transform", "Discretisation methods", "Implementation on microcontrollers"],
+            tracks: ["43-c"],
+          },
+        ],
+      },
+      {
+        id: "ct-adv",
+        fa: "کنترل پیشرفته",
+        en: "Advanced control",
+        outcomeFa: "برای سیستم غیرخطی یا نامطمئن کنترل‌کننده طراحی می‌کنی و MPC صنعتی را می‌فهمی.",
+        outcomeEn: "You design controllers for nonlinear or uncertain systems and understand industrial MPC.",
+        months: [3, 6],
+        skills: [
+          {
+            fa: "کنترل غیرخطی", en: "Nonlinear control", kind: "hard",
+            whyFa: "دنیای واقعی غیرخطی است؛ لیاپانوف ابزار اثبات پایداری وقتی خطی‌سازی کافی نیست.",
+            whyEn: "The real world is nonlinear; Lyapunov is the tool for proving stability when linearisation is not enough.",
+            items: ["Phase plane", "Lyapunov stability", "Feedback linearisation", "Sliding mode control"],
+          },
+          {
+            fa: "کنترل مقاوم و تطبیقی", en: "Robust and adaptive control", kind: "hard",
+            whyFa: "مدل هیچ‌وقت دقیق نیست؛ کنترل مقاوم با این واقعیت کنار می‌آید و کنترل تطبیقی خودش را با آن تنظیم می‌کند.",
+            whyEn: "The model is never exact; robust control lives with that fact and adaptive control adjusts itself to it.",
+            items: ["Uncertainty models", "H∞ control", "Model reference adaptive control", "Gain scheduling"],
+          },
+          {
+            fa: "کنترل پیش‌بین (MPC)", en: "Model predictive control", kind: "hard",
+            whyFa: "MPC استاندارد کنترل پیشرفته در پالایشگاه و پتروشیمی است، چون قیدها را مستقیماً در نظر می‌گیرد.",
+            whyEn: "MPC is the standard for advanced control in refineries and petrochemicals, because it handles constraints directly.",
+            items: ["Prediction horizon", "Constraints", "Quadratic programming", "Industrial MPC"],
+          },
+          {
+            fa: "کنترل مبتنی بر یادگیری", en: "Learning-based control", kind: "hard", level: "opt",
+            whyFa: "مرز پژوهش امروز؛ یادگیری تقویتی در رباتیک نتیجه داده، ولی تضمین ایمنی هنوز چالش است.",
+            whyEn: "Today's research frontier; reinforcement learning has delivered in robotics, but safety guarantees are still a challenge.",
+            items: ["Reinforcement learning", "Neural network controllers", "Safe learning"],
+            tracks: ["59-machine-learning"],
+          },
+        ],
+      },
+      {
+        id: "ct-auto",
+        fa: "اتوماسیون صنعتی",
+        en: "Industrial automation",
+        outcomeFa: "برنامهٔ PLC می‌نویسی، صفحهٔ HMI می‌سازی و تجهیزات را با شبکهٔ صنعتی به هم وصل می‌کنی.",
+        outcomeEn: "You write PLC programs, build HMI screens and connect equipment over industrial networks.",
+        months: [3, 5],
+        skills: [
+          {
+            fa: "برنامه‌نویسی PLC", en: "PLC programming", kind: "hard",
+            whyFa: "PLC مغز هر خط تولید است و از پرتقاضاترین مهارت‌های بازار کار کنترل.",
+            whyEn: "The PLC is the brain of every production line and one of the most in-demand skills in the control job market.",
+            items: ["IEC 61131-3", "Ladder (LD)", "Structured Text (ST)", "Function Block Diagram", "Siemens TIA Portal", "CODESYS"],
+          },
+          {
+            fa: "HMI و SCADA", en: "HMI and SCADA", kind: "hard",
+            whyFa: "اپراتور کارخانه را از پشت همین صفحه‌ها می‌گرداند؛ طراحی بد هشدار، در حادثه جان می‌گیرد.",
+            whyEn: "Operators run the plant through these screens; poor alarm design costs lives in an incident.",
+            items: ["WinCC", "HMI design", "Alarm management", "Historians"],
+          },
+          {
+            fa: "شبکه‌های صنعتی", en: "Industrial networks", kind: "hard",
+            whyFa: "تجهیزات کارخانه از سازنده‌های مختلف‌اند؛ پروتکل صنعتی زبان مشترکشان است.",
+            whyEn: "Plant equipment comes from different vendors; industrial protocols are their common language.",
+            items: ["Modbus", "Profibus / Profinet", "EtherNet/IP", "OPC UA"],
+            tracks: ["25-network-foundations"],
+          },
+          {
+            fa: "DCS و کنترل فرایند", en: "DCS and process control", kind: "hard",
+            whyFa: "پالایشگاه و نیروگاه با DCS کار می‌کنند؛ سیستم ابزار دقیق ایمنی آخرین لایهٔ جلوگیری از فاجعه است.",
+            whyEn: "Refineries and power plants run on a DCS; the safety instrumented system is the last layer preventing disaster.",
+            items: ["DCS platforms", "Batch control", "Safety instrumented systems (IEC 61511)"],
+          },
+          {
+            fa: "کنترل حرکت", en: "Motion control", kind: "hard", level: "opt",
+            whyFa: "برای ماشین‌سازی، بسته‌بندی و CNC؛ دقت در حد میکرون با درایو سروو.",
+            whyEn: "For machine building, packaging and CNC; micron-level precision with servo drives.",
+            items: ["Servo drives", "Stepper motors", "CNC", "Motion profiles"],
+          },
+        ],
+      },
+      {
+        id: "ct-instr",
+        fa: "ابزار دقیق",
+        en: "Instrumentation",
+        outcomeFa: "ترنسمیتر و شیر کنترلی را انتخاب، کالیبره و در نقشهٔ P&ID مستند می‌کنی.",
+        outcomeEn: "You select, calibrate and document transmitters and control valves on P&IDs.",
+        months: [2, 3],
+        skills: [
+          {
+            fa: "سنسور و ترنسمیتر", en: "Sensors and transmitters", kind: "hard",
+            whyFa: "کنترل‌کننده فقط عددی را می‌بیند که سنسور می‌دهد؛ سنسور کالیبره‌نشده یعنی کنترل دقیقِ مقدار اشتباه.",
+            whyEn: "The controller only sees the number the sensor gives; an uncalibrated sensor means precise control of the wrong value.",
+            items: ["Pressure, temperature, flow & level", "4–20 mA", "HART", "Calibration"],
+          },
+          {
+            fa: "شیر کنترلی و عملگر", en: "Control valves and actuators", kind: "hard",
+            whyFa: "بیشتر مشکلات حلقه‌های صنعتی در شیر است، نه در الگوریتم.",
+            whyEn: "Most industrial loop problems are in the valve, not the algorithm.",
+            items: ["Control valves", "Valve sizing", "Positioners", "Variable frequency drives"],
+          },
+          {
+            fa: "نقشه و مستندات", en: "Drawings and documentation", kind: "hard",
+            whyFa: "P&ID زبان مشترک مهندس فرایند، ابزار دقیق و پیمانکار است.",
+            whyEn: "The P&ID is the shared language of process engineers, instrumentation engineers and contractors.",
+            items: ["P&ID", "Loop diagrams", "ISA-5.1 symbols", "Instrument datasheets"],
+          },
+        ],
+      },
+      {
+        id: "ct-robotics",
+        fa: "رباتیک و سامانه‌های خودگردان",
+        en: "Robotics and autonomous systems",
+        outcomeFa: "حرکت یک بازوی رباتیک را مدل و کنترل می‌کنی و یک ربات را در شبیه‌ساز با ROS 2 می‌رانی.",
+        outcomeEn: "You model and control a robot arm and drive a robot in simulation with ROS 2.",
+        months: [2, 4],
+        skills: [
+          {
+            fa: "سینماتیک و دینامیک ربات", en: "Robot kinematics and dynamics", kind: "hard",
+            whyFa: "برای رساندن مچ ربات به یک نقطه، باید زاویهٔ هر مفصل را حساب کنی — سینماتیک معکوس همین است.",
+            whyEn: "To bring a robot's wrist to a point you must work out every joint angle — that is inverse kinematics.",
+            items: ["Forward & inverse kinematics", "Jacobian", "Dynamics", "Trajectory planning"],
+          },
+          {
+            fa: "ROS 2", en: "ROS 2", kind: "hard",
+            whyFa: "چارچوب استاندارد نرم‌افزار رباتیک در دانشگاه و صنعت.",
+            whyEn: "The standard robotics software framework in academia and industry.",
+            items: ["Nodes & topics", "Gazebo simulation", "Nav2", "MoveIt"],
+            tracks: ["12-python"],
+          },
+          {
+            fa: "تخمین حالت و پهپاد", en: "State estimation and drones", kind: "hard", level: "opt",
+            whyFa: "پهپاد بدون ترکیب داده‌های سنسورها حتی یک ثانیه در هوا نمی‌ماند.",
+            whyEn: "A drone without sensor fusion would not stay airborne for a second.",
+            items: ["Sensor fusion", "IMU", "Extended Kalman filter", "PX4 / ArduPilot"],
+          },
+        ],
+      },
+      {
+        id: "ct-career",
+        fa: "ابزار و حرفه",
+        en: "Tools and the profession",
+        outcomeFa: "با ابزارهای استاندارد صنعت کار می‌کنی، ایمنی را جدی می‌گیری و در راه‌اندازی سامانه با تیم همراهی.",
+        outcomeEn: "You work with industry-standard tools, take safety seriously and pull your weight during commissioning.",
+        months: [1, 2],
+        skills: [
+          {
+            fa: "MATLAB و Simulink", en: "MATLAB and Simulink", kind: "hard",
+            whyFa: "ابزار استاندارد طراحی و شبیه‌سازی کنترل؛ از Simulink حتی کد قابل اجرا روی سخت‌افزار تولید می‌شود.",
+            whyEn: "The standard control design and simulation tool; Simulink can even generate code that runs on hardware.",
+            items: ["Control System Toolbox", "Simulink", "Simscape", "Code generation"],
+          },
+          {
+            fa: "کنترل با پایتون", en: "Control with Python", kind: "hard", level: "opt",
+            whyFa: "جایگزین رایگان برای تحلیل و شبیه‌سازی؛ برای دادهٔ صنعتی هم عالی است.",
+            whyEn: "A free alternative for analysis and simulation; excellent for industrial data too.",
+            items: ["python-control", "NumPy / SciPy", "Jupyter"],
+            tracks: ["12-python"],
+          },
+          {
+            fa: "ایمنی و استاندارد", en: "Safety and standards", kind: "hard",
+            whyFa: "در صنایع فرایندی، خطای کنترل می‌تواند انفجار باشد؛ استانداردهای ایمنی عملکردی اختیاری نیستند.",
+            whyEn: "In process industries a control error can be an explosion; functional safety standards are not optional.",
+            items: ["IEC 61508 / 61511", "HAZOP basics", "ISA standards"],
+          },
+          {
+            fa: "راه‌اندازی و کار تیمی", en: "Commissioning and teamwork", kind: "soft",
+            whyFa: "آزمون کارخانه و سایت (FAT و SAT) جایی است که مهندس کنترل با مهندس فرایند، اپراتور و پیمانکار یک تیم می‌شود.",
+            whyEn: "Factory and site acceptance tests (FAT and SAT) are where the control engineer becomes one team with process engineers, operators and contractors.",
+            items: ["FAT / SAT", "Working with process engineers", "Shift handovers"],
+          },
+          {
+            fa: "مسیرهای شغلی", en: "Career paths", kind: "soft",
+            whyFa: "نفت و گاز و پتروشیمی، فولاد و سیمان، نیروگاه، رباتیک و پهپاد، خودروسازی یا پژوهش — هر کدام بخشی از این رودمپ را پررنگ می‌کنند.",
+            whyEn: "Oil, gas and petrochemicals, steel and cement, power plants, robotics and drones, automotive or research — each emphasises a different part.",
+            items: ["Oil, gas & petrochemicals", "Steel, cement & mining", "Power plants", "Robotics & drones", "Automotive", "Graduate study"],
+          },
+        ],
+      },
+    ],
+  },
+
+  /* ═══════════════════════════════ بیوالکتریک ═══════════════════════════════ */
+  {
+    id: "ee-bioelectric",
+    field: "ee",
+    accent: "#DB2777",
+    ico: '<path d="M12 20.4S3.6 15 3.6 9.2A4.4 4.4 0 0 1 12 7a4.4 4.4 0 0 1 8.4 2.2c0 5.8-8.4 11.2-8.4 11.2z" stroke-linejoin="round"/><path d="M5.4 12.2h3l1.6-2.6 2.4 5 1.6-2.4h4.6" stroke-linecap="round" stroke-linejoin="round"/>',
+    after: ["ee-foundations"],
+    next: ["ce-ai"],
+    fa: {
+      name: "بیوالکتریک (مهندسی پزشکی)",
+      role: "Biomedical Engineer — Bioelectric",
+      intro:
+        "بیوالکتریک — گرایشی از مهندسی پزشکی که در برخی دانشگاه‌ها زیر برق تدریس می‌شود — جایی است که برق و پزشکی به هم می‌رسند: دستگاه‌هایی که سیگنال قلب و مغز را ثبت می‌کنند، تصویرهایی که درون بدن را نشان می‌دهند و الگوریتم‌هایی که بیماری را زودتر تشخیص می‌دهند. این رودمپ از فیزیولوژی و سیگنال‌های حیاتی شروع می‌کند، از ابزار دقیق و تصویربرداری پزشکی می‌گذرد و به استانداردهای ایمنی و هوش مصنوعی پزشکی می‌رسد.",
+    },
+    en: {
+      name: "Bioelectric (biomedical engineering)",
+      role: "Biomedical Engineer — Bioelectric",
+      intro:
+        "Bioelectric engineering — a biomedical engineering track that some universities teach under electrical engineering — is where EE meets medicine: devices that record the heart and brain, images that show the inside of the body, and algorithms that spot disease earlier. This roadmap starts with physiology and biosignals, passes through instrumentation and medical imaging, and arrives at safety standards and medical AI.",
+    },
+    stages: [
+      {
+        id: "bio-life",
+        fa: "علوم زیستی برای مهندس",
+        en: "Life science for engineers",
+        outcomeFa: "با زبان پزشک آشنایی و می‌فهمی سیگنال الکتریکی در سلول و بافت از کجا می‌آید.",
+        outcomeEn: "You speak the clinician's language and understand where electrical signals in cells and tissue come from.",
+        months: [2, 3],
+        skills: [
+          {
+            fa: "فیزیولوژی", en: "Physiology", kind: "hard",
+            whyFa: "دستگاهی که برای قلب می‌سازی باید بداند قلب چطور کار می‌کند؛ وگرنه عدد درست را اشتباه تفسیر می‌کند.",
+            whyEn: "A device built for the heart must know how the heart works; otherwise it misreads correct numbers.",
+            items: ["Cells & membranes", "Nervous system", "Cardiovascular system", "Muscles", "Respiratory system"],
+          },
+          {
+            fa: "مبانی آناتومی", en: "Anatomy basics", kind: "hard",
+            whyFa: "برای حرف زدن با پزشک و خواندن گزارش بالینی، اصطلاح‌ها را باید بشناسی.",
+            whyEn: "To talk with clinicians and read clinical reports, you need the terminology.",
+            items: ["Medical terminology", "Organ systems", "Reading clinical reports"],
+          },
+          {
+            fa: "پدیده‌های بیوالکتریکی", en: "Bioelectric phenomena", kind: "hard",
+            whyFa: "پتانسیل عمل منشأ همهٔ سیگنال‌هایی است که ثبت می‌کنی؛ مدل هاجکین-هاکسلی آن را با زبان مدار توصیف می‌کند.",
+            whyEn: "The action potential is the source of every signal you record; the Hodgkin–Huxley model describes it in circuit terms.",
+            items: ["Action potentials", "Nernst & Goldman equations", "Hodgkin–Huxley model", "Volume conduction"],
+          },
+        ],
+      },
+      {
+        id: "bio-signals",
+        fa: "سیگنال‌های حیاتی",
+        en: "Biosignals",
+        outcomeFa: "سیگنال قلب و مغز را پاک‌سازی و تحلیل می‌کنی و ویژگی‌های تشخیصی از آن بیرون می‌کشی.",
+        outcomeEn: "You clean and analyse heart and brain signals and extract diagnostic features from them.",
+        months: [2, 4],
+        skills: [
+          {
+            fa: "انواع سیگنال زیستی", en: "Types of biosignal", kind: "hard",
+            whyFa: "هر سیگنال دامنه، باند فرکانسی و نویز خودش را دارد؛ طراحی بدون شناخت آن‌ها کورکورانه است.",
+            whyEn: "Each signal has its own amplitude, frequency band and noise; designing without knowing them is working blind.",
+            items: ["ECG", "EEG", "EMG", "EOG", "PPG"],
+          },
+          {
+            fa: "پردازش سیگنال پزشکی", en: "Biomedical signal processing", kind: "hard",
+            whyFa: "سیگنال خام پر از نویز حرکت و برق شهر است؛ الگوریتم Pan–Tompkins نمونهٔ کلاسیک تشخیص ضربان است.",
+            whyEn: "Raw signals are full of motion artefacts and mains hum; Pan–Tompkins is the classic heartbeat detector.",
+            items: ["Filtering & artefact removal", "QRS detection (Pan–Tompkins)", "Wavelets & time-frequency analysis", "Feature extraction"],
+          },
+          {
+            fa: "ابزار و داده", en: "Tools and datasets", kind: "hard",
+            whyFa: "پایگاه‌های داده باز مثل PhysioNet اجازه می‌دهند بدون بیمارستان، روی دادهٔ واقعی کار کنی.",
+            whyEn: "Open databases such as PhysioNet let you work on real data without a hospital.",
+            items: ["MATLAB", "Python: MNE, NeuroKit2", "PhysioNet"],
+            tracks: ["12-python"],
+          },
+        ],
+      },
+      {
+        id: "bio-instr",
+        fa: "ابزار دقیق پزشکی",
+        en: "Medical instrumentation",
+        outcomeFa: "تقویت‌کنندهٔ زیستی کم‌نویز و ایمن طراحی می‌کنی و ساختار دستگاه‌های رایج بیمارستانی را می‌شناسی.",
+        outcomeEn: "You design low-noise, safe biopotential amplifiers and know how common hospital devices are built.",
+        months: [2, 4],
+        skills: [
+          {
+            fa: "تقویت‌کنندهٔ زیستی", en: "Biopotential amplifiers", kind: "hard",
+            whyFa: "سیگنال قلب در حد میلی‌ولت است و تداخل برق شهر گاهی بسیار بزرگ‌تر؛ طراحی این تقویت‌کننده دقیقاً همین جنگ است.",
+            whyEn: "Heart signals are around a millivolt while mains interference can be far larger; designing this amplifier is exactly that fight.",
+            items: ["Electrodes", "Instrumentation amplifiers", "CMRR", "Driven right leg", "Isolation"],
+          },
+          {
+            fa: "دستگاه‌های پزشکی", en: "Medical devices", kind: "hard",
+            whyFa: "مهندس بالینی بیمارستان باید ساختار و خرابی‌های رایج هر دستگاه را بشناسد.",
+            whyEn: "A hospital clinical engineer must know how each device is built and how it commonly fails.",
+            items: ["Patient monitors", "Pulse oximeters", "Infusion pumps", "Defibrillators", "Ventilators"],
+          },
+          {
+            fa: "سیستم تعبیه‌شدهٔ پزشکی", en: "Embedded medical systems", kind: "hard",
+            whyFa: "ابزار پوشیدنی و پایش از راه دور، کم‌مصرف و بی‌سیم‌اند؛ این یعنی firmware و طراحی کم‌توان.",
+            whyEn: "Wearables and remote monitors are low-power and wireless; that means firmware and low-power design.",
+            items: ["Low-power microcontrollers", "Wearables", "Bluetooth LE"],
+            tracks: ["43-c"],
+          },
+        ],
+      },
+      {
+        id: "bio-imaging",
+        fa: "تصویربرداری پزشکی",
+        en: "Medical imaging",
+        outcomeFa: "اصول فیزیکی هر روش تصویربرداری را می‌دانی و تصویر پزشکی را پردازش و بخش‌بندی می‌کنی.",
+        outcomeEn: "You know the physics of each imaging method and process and segment medical images.",
+        months: [3, 5],
+        skills: [
+          {
+            fa: "روش‌های تصویربرداری", en: "Imaging modalities", kind: "hard",
+            whyFa: "هر روش چیز متفاوتی می‌بیند — استخوان، بافت نرم، جریان خون، متابولیسم — و هزینه و خطر متفاوتی دارد.",
+            whyEn: "Each method sees something different — bone, soft tissue, blood flow, metabolism — at a different cost and risk.",
+            items: ["X-ray & CT", "MRI", "Ultrasound", "PET / SPECT"],
+          },
+          {
+            fa: "پردازش تصویر پزشکی", en: "Medical image processing", kind: "hard",
+            whyFa: "بخش‌بندی تومور یا اندام پایهٔ اندازه‌گیری، جراحی رباتیک و برنامه‌ریزی درمان است.",
+            whyEn: "Segmenting a tumour or organ underpins measurement, robotic surgery and treatment planning.",
+            items: ["Enhancement & filtering", "Segmentation", "Registration", "DICOM"],
+          },
+          {
+            fa: "بازسازی تصویر", en: "Image reconstruction", kind: "hard", level: "opt",
+            whyFa: "دستگاه CT تصویر نمی‌گیرد، داده می‌گیرد؛ تصویر را الگوریتم بازسازی می‌سازد.",
+            whyEn: "A CT scanner does not take pictures; it collects data, and a reconstruction algorithm builds the image.",
+            items: ["Filtered back projection", "Iterative reconstruction", "k-space"],
+          },
+        ],
+      },
+      {
+        id: "bio-ai",
+        fa: "هوش مصنوعی پزشکی",
+        en: "Medical AI",
+        outcomeFa: "مدل یادگیری ماشین برای دادهٔ پزشکی می‌سازی و درست ارزیابی‌اش می‌کنی — نه فقط با دقت.",
+        outcomeEn: "You build machine-learning models for medical data and evaluate them properly — not just by accuracy.",
+        months: [2, 4],
+        skills: [
+          {
+            fa: "یادگیری ماشین", en: "Machine learning", kind: "hard",
+            whyFa: "طبقه‌بندی سیگنال و تصویر بدون مبانی یادگیری ماشین فقط اجرای کد دیگران است.",
+            whyEn: "Classifying signals and images without machine-learning fundamentals is just running other people's code.",
+            items: ["Classification & regression", "Cross-validation", "Class imbalance", "scikit-learn"],
+            tracks: ["59-machine-learning"],
+          },
+          {
+            fa: "یادگیری عمیق برای دادهٔ پزشکی", en: "Deep learning for medical data", kind: "hard",
+            whyFa: "U-Net برای بخش‌بندی تصویر پزشکی ساخته شد و امروز استاندارد این کار است.",
+            whyEn: "U-Net was created for medical image segmentation and is now the standard for it.",
+            items: ["CNNs for images", "U-Net segmentation", "Sequence models for signals", "Transfer learning"],
+            tracks: ["60-deep-learning"],
+          },
+          {
+            fa: "ارزیابی و سوگیری", en: "Evaluation and bias", kind: "hard",
+            whyFa: "دقت ۹۹٪ روی دادهٔ نامتوازن ممکن است یعنی مدل هیچ بیمار واقعی را تشخیص نمی‌دهد.",
+            whyEn: "99% accuracy on imbalanced data can mean the model detects no real patients at all.",
+            items: ["Sensitivity & specificity", "ROC & AUC", "Dataset shift", "Explainability"],
+          },
+        ],
+      },
+      {
+        id: "bio-reg",
+        fa: "استاندارد، ایمنی و حرفه",
+        en: "Standards, safety and the profession",
+        outcomeFa: "دستگاهی طراحی می‌کنی که از آزمون ایمنی رد نشود و با تیم بالینی زبان مشترک داری.",
+        outcomeEn: "You design devices that pass safety testing and share a common language with clinical teams.",
+        months: [1, 3],
+        skills: [
+          {
+            fa: "استانداردهای ایمنی", en: "Safety standards", kind: "hard",
+            whyFa: "جریان نشتی چند میکروآمپری از کنار قلب می‌تواند کشنده باشد؛ IEC 60601 حد مجاز را تعیین می‌کند.",
+            whyEn: "A few microamps of leakage current near the heart can be fatal; IEC 60601 sets the limits.",
+            items: ["IEC 60601", "Leakage currents", "ISO 14971 risk management", "Electrical safety testing"],
+          },
+          {
+            fa: "کیفیت و مقررات", en: "Quality and regulation", kind: "hard",
+            whyFa: "هیچ دستگاه پزشکی بدون سیستم کیفیت و مجوز به بازار نمی‌رسد؛ نرم‌افزار پزشکی هم استاندارد خودش را دارد.",
+            whyEn: "No medical device reaches the market without a quality system and approval; medical software has its own standard too.",
+            items: ["ISO 13485", "IEC 62304 (medical software)", "Clinical evaluation", "ادارهٔ کل تجهیزات پزشکی (سازمان غذا و دارو)"],
+          },
+          {
+            fa: "کار با کادر درمان", en: "Working with clinicians", kind: "soft",
+            whyFa: "بهترین دستگاه هم اگر با روال کار بخش جور نباشد، کنار گذاشته می‌شود؛ پیش از طراحی، کنار پرستار و پزشک بایست و ببین.",
+            whyEn: "Even the best device is shelved if it does not fit the ward's workflow; before designing, stand beside nurses and doctors and watch.",
+            items: ["Clinical workflows", "Medical terminology", "Ethics & patient privacy"],
+          },
+          {
+            fa: "مسیرهای شغلی", en: "Career paths", kind: "soft",
+            whyFa: "مهندسی بالینی بیمارستان، شرکت تجهیزات پزشکی، استارتاپ سلامت دیجیتال یا پژوهش — هر کدام ترکیب متفاوتی از این مهارت‌ها می‌خواهد.",
+            whyEn: "Hospital clinical engineering, medical device companies, digital-health start-ups or research — each needs a different mix of these skills.",
+            items: ["Clinical engineering", "Medical device companies", "Health-tech start-ups", "Research & graduate study"],
+          },
+        ],
+      },
+    ],
+  },
+];

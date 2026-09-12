@@ -1,0 +1,42 @@
+.group { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 13px;
+  border-radius: 99px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s;
+
+  &::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--c);
+  }
+
+  &:hover { color: var(--ink); border-color: var(--c); }
+  &:focus-visible { outline: 2px solid var(--c); outline-offset: 2px; }
+
+  &.on {
+    color: var(--c);
+    border-color: var(--c);
+    background: color-mix(in srgb, var(--c) 13%, var(--surface));
+  }
+}
+
+.doing { --c: var(--warn); }
+.done  { --c: var(--safe); }
+.skip  { --c: var(--ink-faint); }
+
+.sm .btn { height: 28px; padding: 0 10px; font-size: .72rem; }

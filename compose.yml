@@ -6,39 +6,44 @@
 #
 #     docker compose logs -f          دیدن لاگ
 #     docker compose down             خاموش کردن
+#
+#  برای انتشار روی دامنه، این را پشت یک Nginx با TLS بگذار؛ نمونهٔ
+#  پیکربندی‌اش در deploy/nginx.conf هست.
 # ============================================================================
 services:
-  docs:
+  web:
     build: .
     image: codenameh:local
     container_name: codenameh
 
     ports:
       # میزبان:کانتینر — اگر ۸۰۸۰ اشغال بود فقط عدد سمت چپ را عوض کن
-      - "8080:80"
+      - "8080:3000"
+
+    environment:
+      NODE_ENV: production
 
     # با ریبوت سرور خودش بالا می‌آید، ولی اگر خودت خاموشش کنی خاموش می‌ماند
     restart: unless-stopped
 
-    # فایل‌ها ساکن‌اند و کانتینر چیزی نمی‌نویسد جز کش موقت Nginx
+    # صفحه‌ها در زمان build ساخته شده‌اند؛ در زمان اجرا چیزی روی دیسک
+    # نوشته نمی‌شود جز کش موقت، و آن هم در حافظه می‌ماند
     read_only: true
     tmpfs:
-      - /var/cache/nginx
-      - /var/run
       - /tmp
+      - /app/.next/cache
 
     security_opt:
       - no-new-privileges:true
 
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ >/dev/null 2>&1 || exit 1"]
       interval: 30s
       timeout: 3s
-      start_period: 5s
+      start_period: 10s
       retries: 3
 
-    # سقف منابع: این فقط یک وب‌سرور ساکن است و به بیش از این نیاز ندارد
     deploy:
       resources:
         limits:
-          memory: 128M
+          memory: 512M

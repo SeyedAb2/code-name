@@ -1,0 +1,367 @@
+@use "../../styles/tokens" as *;
+
+/* ============================================================================
+   نمودار درختی رودمپ — از بالا به پایین، مثل roadmap.sh
+
+   ستون وسط «ستون فقرات» است و مرحله‌ها رویش می‌نشینند. مهارت‌های هر مرحله
+   دو طرفش شاخه می‌شوند. همهٔ خط‌ها با شبه‌عنصر کشیده می‌شوند نه با SVG،
+   تا با ارتفاع متغیر گره‌ها (متن دوخطی، زبان دیگر) خودشان جا بیفتند.
+
+   جهت‌ها منطقی‌اند (inline-start/end)، پس نمودار در انگلیسی خودبه‌خود
+   قرینه می‌شود.
+   ========================================================================== */
+
+.chart {
+  /* رنگ رودمپ را در تم روشن کمی تیره و در تاریک کمی روشن می‌کنیم، تا
+     رنگ‌های روشنی مثل آبی React روی زمینهٔ سفید گم نشوند */
+  --a: color-mix(in srgb, var(--acc, var(--blue)) 78%, #0B1020);
+  --branch: color-mix(in srgb, var(--a) 55%, var(--line-strong));
+  --arm: 20px;
+  --gap: 10px;
+  --node-w: 250px;
+  --hub-w: 268px;
+
+  max-width: 1080px;
+  margin-inline: auto;
+  padding-block: 6px;
+}
+
+:global(:root[data-theme="dark"]) .chart {
+  --a: color-mix(in srgb, var(--acc, var(--blue)) 70%, #FFFFFF);
+}
+
+/* ── ردیف: شاخهٔ شروع | مرحله | شاخهٔ پایان ───────────────────────────── */
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--hub-w) minmax(0, 1fr);
+}
+
+.hub  { grid-column: 2; grid-row: 1; }
+.sideA { grid-column: 1; grid-row: 1; }
+.sideB { grid-column: 3; grid-row: 1; }
+
+.hub {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-block: 16px;
+
+  /* ستون فقرات: سرتاسر ردیف، پشت گرهٔ مرحله. ردیف‌ها بی‌فاصله‌اند،
+     پس تکه‌ها به هم می‌چسبند و یک خط پیوسته می‌سازند. */
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 3px;
+    margin-left: -1.5px;
+    border-radius: 2px;
+    background: var(--a);
+  }
+}
+
+.capTop .hub::before { top: 50%; }
+.capEnd .hub::before { bottom: 50%; }
+.capTop .hub { padding-top: 4px; }
+.capEnd .hub { padding-bottom: 4px; }
+
+/* ── شاخه‌ها ────────────────────────────────────────────────────────────── */
+.side {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding-block: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--gap);
+
+  > li {
+    position: relative;
+    width: min(100%, var(--node-w));
+    margin: 0;
+  }
+
+  > li::before,
+  > li::after,
+  &::after {
+    content: "";
+    position: absolute;
+    pointer-events: none;
+  }
+
+  /* تیکهٔ افقی: از گره تا خط عمودی گروه */
+  > li::after {
+    top: 50%;
+    width: var(--arm);
+    border-top: 2px dashed var(--branch);
+  }
+
+  /* خط عمودی گروه، تکه‌تکه: هر گره سهم خودش را می‌کشد، پس با ارتفاع
+     متفاوت گره‌ها هم پیوسته می‌ماند */
+  > li::before {
+    width: 0;
+    top: calc(var(--gap) / -2);
+    bottom: calc(var(--gap) / -2);
+  }
+  > li:first-child::before { top: 50%; }
+  > li:last-child::before { bottom: 50%; }
+  > li:only-child::before { display: none; }
+
+  /* بازوی گروه: از خط عمودی تا گرهٔ مرحله */
+  &::after {
+    top: 50%;
+    width: var(--arm);
+    border-top: 2px dashed var(--branch);
+  }
+}
+
+.sideA {
+  align-items: flex-end;
+  padding-inline-end: calc(var(--arm) * 2);
+
+  > li::after  { inset-inline-end: calc(var(--arm) * -1); }
+  > li::before { inset-inline-end: calc(var(--arm) * -1); border-inline-end: 2px dashed var(--branch); }
+  &::after     { inset-inline-end: 0; }
+}
+
+.sideB {
+  align-items: flex-start;
+  padding-inline-start: calc(var(--arm) * 2);
+
+  > li::after  { inset-inline-start: calc(var(--arm) * -1); }
+  > li::before { inset-inline-start: calc(var(--arm) * -1); border-inline-start: 2px dashed var(--branch); }
+  &::after     { inset-inline-start: 0; }
+}
+
+/* ── گرهٔ مرحله ─────────────────────────────────────────────────────────── */
+.stage {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 2px solid var(--a);
+  background: color-mix(in srgb, var(--a) 15%, var(--surface));
+  box-shadow: var(--shadow-2);
+  color: var(--ink);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: transform .16s, box-shadow .16s;
+
+  &:hover { transform: translateY(-2px); box-shadow: var(--shadow-3); }
+  &:focus-visible { outline: 2px solid var(--a); outline-offset: 3px; }
+}
+
+.stageN {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--surface);
+  border: 2px solid var(--a);
+  font-family: var(--num);
+  font-size: .85rem;
+  font-weight: 800;
+}
+
+.stageBody { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.stageT { font-weight: 800; font-size: .94rem; line-height: 1.45; }
+.stageM { font-family: var(--num); font-size: .72rem; color: var(--ink-soft); }
+
+/* ── سر و ته نمودار ─────────────────────────────────────────────────────── */
+.cap {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 10px 20px;
+  border-radius: 99px;
+  border: 2px solid var(--a);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+  font-weight: 800;
+  font-size: .95rem;
+  text-align: center;
+}
+
+.goal {
+  border-color: var(--safe);
+  background: color-mix(in srgb, var(--safe) 12%, var(--surface));
+  font-family: var(--mono);
+  font-size: .85rem;
+
+  svg { color: var(--safe); flex: none; }
+}
+
+/* ── گرهٔ مهارت ─────────────────────────────────────────────────────────── */
+.node {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1.5px solid color-mix(in srgb, var(--a) 45%, var(--line-strong));
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  color: var(--ink);
+  font: inherit;
+  font-size: .84rem;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: start;
+  cursor: pointer;
+  transition: border-color .15s, background .15s, transform .15s;
+
+  &:hover { border-color: var(--a); transform: translateY(-1px); }
+  &:focus-visible { outline: 2px solid var(--a); outline-offset: 2px; }
+}
+
+.nodeT { flex: 1; min-width: 0; }
+
+.core { background: color-mix(in srgb, var(--a) 8%, var(--surface)); }
+.alt  { border-style: dashed; }
+.opt {
+  border-style: dotted;
+  background: var(--surface-sunk);
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.softTag {
+  flex: none;
+  font-size: .64rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 99px;
+  color: var(--violet);
+  background: var(--tint-violet);
+}
+
+.mark {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+
+.doing {
+  border-inline-start: 4px solid var(--warn);
+  .mark { background: var(--tint-warn); border: 2px solid var(--warn); }
+}
+
+.done {
+  background: var(--tint-safe);
+  border-color: color-mix(in srgb, var(--safe) 60%, transparent);
+  .mark { background: var(--safe); color: #fff; }
+  .nodeT {
+    text-decoration: line-through;
+    text-decoration-thickness: 2px;
+    text-decoration-color: color-mix(in srgb, var(--safe) 65%, transparent);
+  }
+}
+
+.skip {
+  opacity: .5;
+  .nodeT { text-decoration: line-through; }
+  .mark { border: 2px solid var(--ink-faint); }
+}
+
+/* ── ورود ردیف‌ها، یکی‌یکی ───────────────────────────────────────────────
+   فقط transform و opacity — چیزی که روی GPU می‌ماند و چیدمان را دوباره
+   حساب نمی‌کند. */
+@include motion {
+  .row {
+    animation: rise .5s cubic-bezier(.2, .8, .3, 1) both;
+    animation-delay: calc(var(--i, 0) * 70ms);
+  }
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(12px); }
+}
+
+/* ── زیر ۱۰۴۰ پیکسل: یک ستون، مثل درخت فایل ──────────────────────────────
+   ستون فقرات به لبهٔ شروع می‌رود، مرحله رویش، و مهارت‌ها زیرش با یک
+   خط‌چین عمودی. */
+@include below($bp-lg) {
+  .row {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    padding-inline-start: 26px;
+
+    &::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      inset-inline-start: 9px;
+      width: 3px;
+      border-radius: 2px;
+      background: var(--a);
+    }
+  }
+
+  .capTop::before { top: 50%; }
+  .capEnd::before { bottom: 50%; }
+
+  .hub {
+    justify-content: flex-start;
+    padding-block: 12px 8px;
+    &::before { display: none; }
+  }
+
+  /* نقطه‌ای روی ستون فقرات، هم‌تراز با هر مرحله */
+  .stage::before,
+  .cap::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    inset-inline-start: -25px;
+    width: 14px;
+    height: 14px;
+    margin-top: -7px;
+    border-radius: 50%;
+    background: var(--a);
+    border: 3px solid var(--canvas);
+  }
+
+  .goal::before { background: var(--safe); }
+
+  .side {
+    padding-block: 2px;
+    padding-inline: 18px 0;
+    margin-inline-start: 12px;
+    align-items: stretch;
+    gap: 8px;
+    border-inline-start: 2px dashed var(--branch);
+
+    &::after { display: none; }
+
+    > li { width: auto; }
+    > li::before { display: none; }
+    > li::after {
+      inset-inline-start: -18px;
+      inset-inline-end: auto;
+      width: 16px;
+    }
+  }
+
+  .sideA { padding-top: 4px; }
+  .row > .side:last-child { padding-bottom: 14px; }
+}

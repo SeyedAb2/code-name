@@ -1,0 +1,153 @@
+@use "tokens" as *;
+@use "fonts";
+
+/* ============================================================================
+   پایهٔ سراسری — کدنامه
+
+   فقط بازنشانی، توکن‌ها، تایپوگرافی پایه و چیزهایی که واقعاً سراسری‌اند.
+   هر چیز دیگری در ماژول SCSS خودِ کامپوننت است تا نام‌ها تصادم نکنند.
+   ========================================================================== */
+
+:root {
+  @include static-tokens;
+  @include light-tokens;
+}
+
+/* تم سیستمی — مگر آنکه کاربر صریحاً روشن را انتخاب کرده باشد */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { @include dark-tokens; }
+}
+/* انتخاب صریح کاربر بر سیستم می‌چربد */
+:root[data-theme="dark"] { @include dark-tokens; }
+:root[data-theme="light"] { @include light-tokens; }
+
+/* ── بازنشانی ─────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+  scroll-padding-top: calc(var(--bar-h) + 18px);
+  scrollbar-color: var(--sb-thumb) transparent;
+  scrollbar-width: thin;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    transition-duration: .001ms !important;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--fa);
+  font-size: 16.5px;
+  line-height: 1.85;
+  /* ‏ss01 در وزیرمتن رقم‌های لاتین را فارسی می‌کشد. آن را روشن نمی‌کنیم:
+     عددهای فارسی را خودمان در کد تبدیل می‌کنیم (num در i18n)، و اگر این
+     ویژگی روشن باشد، ایمیل، نام کاربری و نسخه‌ها هم فارسی می‌شوند — و در
+     حالت انگلیسی همهٔ عددها. */
+  font-feature-settings: "kern";
+  -webkit-font-smoothing: antialiased;
+  overflow-wrap: break-word;
+}
+
+:root[lang="en"] body {
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.75;
+}
+
+::selection { background: var(--sel); }
+
+a { color: var(--blue); text-decoration: none; }
+a:hover { color: var(--violet); text-decoration: underline; text-underline-offset: 3px; }
+
+:where(a, button, summary, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+img, svg { max-width: 100%; }
+hr { border: 0; border-top: 1px solid var(--line); margin: 34px 0; }
+
+/* ‏[hidden] در استایل مرورگر display:none است، ولی هر قاعدهٔ نویسنده —
+   مثل display:grid روی همان عنصر — بر آن می‌چربد و عنصر با وجود hidden
+   دیده می‌شود. این را قبلاً به شکل یک باگ واقعی دیدیم. */
+[hidden] { display: none !important; }
+
+/* ── تیترها و متن ─────────────────────────────────────────────────────────── */
+h1, h2, h3, h4 { line-height: 1.4; font-weight: 700; margin: 0; letter-spacing: -.01em; }
+h1 { font-size: 2.1rem; }
+h2 { font-size: 1.5rem; }
+h3 { font-size: 1.15rem; }
+h4 { font-size: 1rem; color: var(--ink-soft); }
+p { margin: 0 0 16px; }
+ul, ol { margin: 0 0 18px; padding-inline-start: 1.35em; }
+li { margin-bottom: 7px; }
+li::marker { color: var(--ink-faint); }
+strong, b { font-weight: 700; color: var(--ink); }
+small { font-size: .85em; color: var(--ink-soft); }
+
+kbd {
+  font-family: var(--mono);
+  font-size: .8em;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--surface-sunk);
+  border: 1px solid var(--line-strong);
+  border-bottom-width: 2px;
+  direction: ltr;
+  display: inline-block;
+}
+
+/* کد درون‌خطی — همیشه چپ‌چین، حتی وسط متن فارسی */
+:not(pre) > code {
+  font-family: var(--mono);
+  font-size: .875em;
+  direction: ltr;
+  unicode-bidi: isolate;
+  background: var(--tint-blue);
+  color: var(--blue);
+  padding: .12em .42em;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--blue) 18%, transparent);
+  white-space: nowrap;
+}
+
+/* ── نوار اسکرول ──────────────────────────────────────────────────────────── */
+*::-webkit-scrollbar { width: 11px; height: 11px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: var(--sb-thumb);
+  border-radius: 99px;
+  /* حاشیهٔ شفاف، دستگیره را باریک‌تر از شیار نشان می‌دهد */
+  border: 3px solid transparent;
+  background-clip: content-box;
+  transition: background-color .18s;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--sb-thumb-hover);
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-corner { background: transparent; }
+
+/* ── کمکی‌های دوزبانه ─────────────────────────────────────────────────────── */
+/* متنی که فقط در یک زبان دیده می‌شود. هر دو در HTML هستند تا موتور جستجو
+   هر دو را ببیند و سوییچ زبان نیازی به رفت‌وبرگشت سرور نداشته باشد. */
+:root[data-lang="fa"] [lang="en"] { display: none !important; }
+:root[data-lang="en"] [lang="fa"] { display: none !important; }
+
+/* فقط برای صفحه‌خوان */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

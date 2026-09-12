@@ -21,7 +21,7 @@ const path = require("path");
 const zlib = require("zlib");
 
 const SRC = path.join(__dirname, "..", "assets", "images", "logo.png");
-const OUT = path.join(__dirname, "..", "docs-fa", "assets", "images");
+const OUT = path.join(__dirname, "..", "public", "assets", "images");
 const SIZES = [256, 128, 64, 32];
 
 /* ───────────────────────────── خواندن PNG ───────────────────────────── */

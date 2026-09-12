@@ -55,6 +55,8 @@ test-results/
 .cache/
 
 # ─── دارایی‌های تولیدی ────────────────────────────────────────────────────
-# این‌ها را tools/make-logo.js از assets/images/logo.png می‌سازد و
-# tools/build-pages.js بقیه را. ردیابی می‌شوند تا سایت بدون Node هم
-# مستقیم از مخزن قابل باز کردن باشد — پس اینجا چیزی نادیده گرفته نمی‌شود.
+# نسخه‌های لوگو را tools/make-logo.js از assets/images/logo.png می‌سازد،
+# و src/lib/courses.data.ts و public/search-index.json را
+# tools/export-manifest.js از data/. هر دو خروجی عمداً ردیابی می‌شوند تا
+# `npm ci && npm run build` بدون اجرای ابزارها هم کار کند — پس اینجا چیزی
+# نادیده گرفته نمی‌شود.

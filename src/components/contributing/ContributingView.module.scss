@@ -1,0 +1,218 @@
+@use "../../styles/tokens" as *;
+
+.head { margin-bottom: 34px; }
+
+.head h1 { margin: 0 0 14px; }
+
+.lede {
+  max-width: var(--measure);
+  margin: 0 0 24px;
+  font-size: 1.02rem;
+  line-height: 1.9;
+  color: var(--ink-soft);
+}
+
+/* ── سه راه مشارکت ──────────────────────────────────────────────────────── */
+.ways {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.way {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 18px;
+  box-shadow: var(--shadow-1);
+
+  h2 { font-size: 1.02rem; margin: 0 0 6px; }
+  p { margin: 0; font-size: .88rem; line-height: 1.75; color: var(--ink-soft); }
+}
+
+.wayIcon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 11px;
+  color: var(--blue);
+  background: var(--tint-blue);
+}
+
+.way:nth-child(2) .wayIcon { color: var(--safe); background: var(--tint-safe); }
+.way:nth-child(3) .wayIcon { color: var(--violet); background: var(--tint-violet); }
+
+/* ── بخش‌ها ─────────────────────────────────────────────────────────────── */
+.section {
+  margin-bottom: 40px;
+
+  h2 {
+    font-size: 1.3rem;
+    margin: 0 0 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  > p {
+    max-width: var(--measure);
+    font-size: .95rem;
+    line-height: 1.9;
+    color: var(--ink-soft);
+  }
+}
+
+.code {
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: isolate;
+  margin: 16px 0;
+  padding: 15px 16px;
+  border-radius: var(--r-md);
+  background: var(--surface-code);
+  border: 1px solid var(--line-strong);
+  color: #D6DEEE;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.8;
+  overflow-x: auto;
+  box-shadow: var(--shadow-2);
+}
+
+/* ── جدول کلاس‌ها ───────────────────────────────────────────────────────── */
+.tableWrap {
+  overflow-x: auto;
+  margin: 18px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+
+  th, td {
+    padding: 10px 14px;
+    text-align: start;
+    border-bottom: 1px solid var(--line);
+    line-height: 1.7;
+  }
+
+  thead th {
+    background: var(--surface-sunk);
+    font-size: .78rem;
+    color: var(--ink-soft);
+    white-space: nowrap;
+  }
+
+  tbody tr:last-child td { border-bottom: 0; }
+  td:first-child { white-space: nowrap; }
+}
+
+/* ── معیار کیفیت ────────────────────────────────────────────────────────── */
+.checks {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  max-width: var(--measure);
+
+  li {
+    position: relative;
+    padding-inline-start: 30px;
+    font-size: .92rem;
+    line-height: 1.8;
+    color: var(--ink-soft);
+
+    &::before {
+      content: "✓";
+      position: absolute;
+      inset-inline-start: 0;
+      top: 2px;
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+      font-size: .72rem;
+      font-weight: 700;
+      color: var(--safe);
+      background: var(--tint-safe);
+    }
+  }
+}
+
+/* ── قدم‌های راه‌اندازی ─────────────────────────────────────────────────── */
+.steps { list-style: none; margin: 18px 0 0; padding: 0; }
+
+.step {
+  display: flex;
+  gap: 14px;
+  padding-bottom: 22px;
+
+  > div { min-width: 0; flex: 1; }
+  h3 { font-size: 1rem; margin: 3px 0 6px; }
+  p { margin: 0; font-size: .92rem; line-height: 1.85; color: var(--ink-soft); max-width: var(--measure); }
+}
+
+.stepN {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: var(--num);
+  font-size: .85rem;
+  font-weight: 700;
+  color: var(--blue);
+  background: var(--surface);
+  border: 2px solid var(--blue);
+}
+
+/* ── تماس ───────────────────────────────────────────────────────────────── */
+.contact {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  padding: 24px clamp(18px, 3vw, 28px);
+  box-shadow: var(--shadow-2);
+
+  h2 { font-size: 1.2rem; margin: 0 0 8px; }
+  > p { margin: 0 0 16px; font-size: .93rem; line-height: 1.85; color: var(--ink-soft); max-width: var(--measure); }
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 10px;
+    border: 1px solid var(--line-strong);
+    background: var(--surface-sunk);
+    color: var(--ink);
+    font-size: .86rem;
+    font-weight: 600;
+    text-decoration: none;
+    unicode-bidi: isolate;
+
+    &:hover { border-color: var(--blue); color: var(--blue); text-decoration: none; }
+  }
+}
+
+.thanks {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 0 0;
+  font-size: .88rem;
+  color: var(--ink-faint);
+
+  svg { color: var(--danger); flex: none; }
+}

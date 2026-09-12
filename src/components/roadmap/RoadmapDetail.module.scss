@@ -1,0 +1,527 @@
+@use "../../styles/tokens" as *;
+
+/* رنگ رودمپ، سازگار با هر دو تم — مثل نمودار */
+.page {
+  --a: color-mix(in srgb, var(--acc, var(--blue)) 78%, #0B1020);
+}
+
+:global(:root[data-theme="dark"]) .page {
+  --a: color-mix(in srgb, var(--acc, var(--blue)) 70%, #FFFFFF);
+}
+
+/* ── سربرگ ──────────────────────────────────────────────────────────────── */
+.head {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  padding: 28px clamp(20px, 4vw, 36px);
+  box-shadow: var(--shadow-2);
+  margin-bottom: 18px;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    inset-inline-start: 0;
+    width: 100%;
+    height: 4px;
+    background: var(--a);
+  }
+}
+
+.headTop { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+
+.icon {
+  width: 58px;
+  height: 58px;
+  flex: none;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  color: var(--a);
+  background: color-mix(in srgb, var(--a) 13%, transparent);
+}
+
+.titles {
+  min-width: 0;
+  h1 { font-size: 1.8rem; margin: 0 0 3px; }
+  span { font-family: var(--mono); font-size: .82rem; color: var(--ink-faint); }
+}
+
+.intro {
+  margin: 0 0 20px;
+  color: var(--ink-soft);
+  font-size: 1rem;
+  line-height: 1.85;
+  max-width: var(--measure);
+}
+
+/* آمارها: هر کدام جعبهٔ خودش با آیکون — مثل خانهٔ مسیرها */
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
+  gap: 10px;
+}
+
+.fact {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 13px 15px;
+  box-shadow: var(--shadow-1);
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    inset-inline-start: 0;
+    width: 100%;
+    height: 2.5px;
+    background: var(--fc, var(--blue));
+  }
+
+  b {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    white-space: nowrap;
+    font-family: var(--num);
+    font-size: 1.3rem;
+    font-weight: 800;
+    line-height: 1.25;
+    color: var(--ink);
+
+    i { font-style: normal; font-size: .72rem; font-weight: 600; color: var(--ink-soft); }
+  }
+
+  > span:last-child {
+    margin-top: 3px;
+    font-size: .74rem;
+    line-height: 1.5;
+    color: var(--ink-faint);
+  }
+}
+
+.factIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 9px;
+  color: var(--fc, var(--blue));
+  background: color-mix(in srgb, var(--fc, var(--blue)) 14%, transparent);
+}
+
+@include below(560px) {
+  .facts { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .fact { padding: 11px 12px; }
+  .fact b { font-size: 1.12rem; }
+}
+
+.prereq {
+  margin: 18px 0 0;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--tint-warn);
+  border-inline-start: 3px solid var(--warn);
+  font-size: .875rem;
+  color: var(--ink-soft);
+
+  a { font-weight: 700; }
+}
+
+/* ── پیشرفت ─────────────────────────────────────────────────────────────── */
+.progress {
+  display: grid;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-1);
+}
+
+.progressTop {
+  display: flex;
+  align-items: center;
+  gap: 8px 14px;
+  flex-wrap: wrap;
+
+  h2 { font-size: 1.02rem; margin: 0; }
+}
+
+.progressCount {
+  font-family: var(--num);
+  font-size: .8rem;
+  color: var(--ink-soft);
+  margin-inline-end: auto;
+}
+
+.hint { margin: 0; font-size: .8rem; line-height: 1.75; color: var(--ink-faint); }
+
+/* ── نوار ابزار: نوع نمایش + راهنمای رنگ‌ها ─────────────────────────────── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px 20px;
+  flex-wrap: wrap;
+  margin: 28px 0 10px;
+}
+
+.switch {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 36px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--ink-soft);
+    font: inherit;
+    font-size: .84rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+
+    &:hover { color: var(--ink); }
+
+    &[aria-selected="true"] {
+      background: var(--surface);
+      color: var(--ink);
+      box-shadow: var(--shadow-1);
+      svg { color: var(--a); }
+    }
+  }
+}
+
+.legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  font-size: .75rem;
+  color: var(--ink-soft);
+
+  li { display: inline-flex; align-items: center; gap: 7px; }
+
+  i {
+    width: 24px;
+    height: 13px;
+    flex: none;
+    border-radius: 4px;
+    border: 1.5px solid color-mix(in srgb, var(--a) 45%, var(--line-strong));
+    background: var(--surface);
+  }
+
+  .lgCore { background: color-mix(in srgb, var(--a) 12%, var(--surface)); }
+  .lgAlt  { border-style: dashed; }
+  .lgOpt  { border-style: dotted; background: var(--surface-sunk); }
+  .lgSoft { border-color: var(--violet); background: var(--tint-violet); border-radius: 99px; }
+  .lgDone { border-color: var(--safe); background: var(--tint-safe); }
+}
+
+/* ── نمای فهرست ─────────────────────────────────────────────────────────── */
+.list { padding-top: 10px; }
+
+/* اینجا عمداً content-visibility نداریم: شمارهٔ مرحله بیرون از جعبه
+   می‌نشیند و آن خاصیت، محتوا را به جعبه‌اش می‌بُرد و شماره نصفه می‌شد. */
+.stage {
+  position: relative;
+  padding-inline-start: 42px;
+  padding-bottom: 34px;
+  border-inline-start: 2px solid var(--line);
+  margin-inline-start: 15px;
+
+  &:last-child { border-inline-start-color: transparent; padding-bottom: 0; }
+}
+
+.stageNum {
+  position: absolute;
+  inset-inline-start: -18px;
+  top: -2px;
+  z-index: 1;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: var(--num);
+  font-size: .95rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--a);
+  background: var(--canvas);
+  border: 2px solid var(--a);
+  box-shadow: var(--shadow-1);
+}
+
+.stageHead {
+  margin-bottom: 6px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+
+  h2 { font-size: 1.22rem; margin: 0; }
+}
+
+.months {
+  display: inline-block;
+  font-family: var(--num);
+  font-size: .74rem;
+  color: var(--ink-faint);
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  padding: 2px 10px;
+  border-radius: 99px;
+  width: fit-content;
+}
+
+.outcome {
+  margin: 0 0 16px;
+  font-size: .9rem;
+  color: var(--ink-soft);
+  line-height: 1.75;
+
+  &::before { content: "◎ "; color: var(--a); font-weight: 700; }
+}
+
+.skills { display: grid; gap: 10px; }
+
+@include from($bp-md) {
+  .skills { grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
+}
+
+.skill {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 13px 15px;
+  box-shadow: var(--shadow-1);
+  transition: border-color .15s;
+
+  &:hover { border-color: var(--line-strong); }
+}
+
+.st_done  { border-color: color-mix(in srgb, var(--safe) 50%, transparent); background: color-mix(in srgb, var(--safe) 5%, var(--surface)); }
+.st_doing { border-inline-start: 4px solid var(--warn); }
+.st_skip  { opacity: .6; }
+
+.skillHead {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+
+  h3 { font-size: .97rem; margin: 0; margin-inline-end: 2px; }
+}
+
+.kind, .level {
+  font-size: .66rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 99px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.hard { color: var(--blue); background: var(--tint-blue); border-color: color-mix(in srgb, var(--blue) 25%, transparent); }
+.soft { color: var(--violet); background: var(--tint-violet); border-color: color-mix(in srgb, var(--violet) 25%, transparent); }
+
+.level { color: var(--ink-soft); background: var(--surface-sunk); border-color: var(--line-strong); }
+.lv_core { color: var(--a); border-color: color-mix(in srgb, var(--a) 35%, transparent); background: color-mix(in srgb, var(--a) 9%, transparent); }
+.lv_alt { border-style: dashed; }
+.lv_opt { border-style: dotted; }
+
+.why { margin: 0; font-size: .875rem; line-height: 1.75; color: var(--ink-soft); }
+
+.items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+
+  li {
+    font-size: .75rem;
+    line-height: 1.5;
+    padding: 3px 9px;
+    border-radius: 7px;
+    background: var(--surface-sunk);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    unicode-bidi: isolate;
+  }
+}
+
+.trackLinks {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+
+  a {
+    font-size: .74rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 99px;
+    border: 1px solid var(--line-strong);
+    background: var(--surface);
+    color: var(--ink-soft);
+    text-decoration: none;
+
+    &::before { content: "↗ "; color: var(--blue); }
+
+    &:hover {
+      border-color: var(--blue);
+      color: var(--blue);
+      background: var(--tint-blue);
+      text-decoration: none;
+    }
+  }
+}
+
+.skillFoot { margin-top: auto; padding-top: 6px; }
+
+/* ── قدم بعدی ───────────────────────────────────────────────────────────── */
+.nextBox {
+  margin-top: 36px;
+  padding: 18px 20px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+
+  h2 { font-size: 1rem; margin: 0 0 12px; }
+
+  div { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 10px;
+    border: 1px solid var(--line-strong);
+    background: var(--surface-sunk);
+    color: var(--ink);
+    font-size: .84rem;
+    font-weight: 600;
+    text-decoration: none;
+
+    &:hover { border-color: var(--a); color: var(--ink); text-decoration: none; }
+  }
+}
+
+/* ── کشوی جزئیات ────────────────────────────────────────────────────────── */
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 6px 20px calc(26px + env(safe-area-inset-bottom));
+
+  h3 {
+    margin: 8px 0 0;
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+    color: var(--ink-faint);
+  }
+}
+
+.badges { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+
+.stageChip {
+  border: 1px solid var(--line-strong);
+  background: var(--surface-sunk);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: .74rem;
+  font-weight: 600;
+  padding: 3px 11px;
+  border-radius: 99px;
+  cursor: pointer;
+
+  &:hover { color: var(--ink); border-color: var(--a); }
+}
+
+.sheetWhy { margin: 0; font-size: .95rem; line-height: 1.85; color: var(--ink); }
+
+.stageSkills {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  button {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
+    font-size: .86rem;
+    font-weight: 600;
+    text-align: start;
+    cursor: pointer;
+
+    &:hover { border-color: var(--a); }
+
+    span { flex: 1; min-width: 0; }
+    small { font-size: .68rem; font-weight: 600; color: var(--ink-faint); white-space: nowrap; }
+  }
+}
+
+.sheetNav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+
+  button {
+    font: inherit;
+    font-size: .8rem;
+    font-weight: 600;
+    padding: 8px 13px;
+    border-radius: 9px;
+    border: 1px solid var(--line-strong);
+    background: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
+
+    &:hover:not(:disabled) { border-color: var(--a); }
+    &:disabled { opacity: .4; cursor: default; }
+  }
+
+  span { font-family: var(--num); font-size: .78rem; color: var(--ink-faint); }
+}

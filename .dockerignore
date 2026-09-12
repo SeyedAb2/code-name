@@ -1,14 +1,26 @@
 # هرچه در ایمیج لازم نیست، وارد context هم نشود.
 # context کوچک‌تر = بیلد سریع‌تر (فصل ۴ داکر)
+
 .git
 .gitignore
+.claude/
+
+# نصب و بیلد داخل خود ایمیج انجام می‌شود
 node_modules
+.next
+out
+
+# ابزارهای نویسنده؛ دادهٔ تولیدی‌شان (src/lib/courses.data.ts) در مخزن هست
 tools
+data
+
+# مستندات مخزن، نه سایت
 *.md
-!docs-fa/**/*.md
-.vscode
-.idea
 Dockerfile
 .dockerignore
 compose.yml
-prompt.md
+deploy
+
+# موقت
+*.log
+*.tsbuildinfo

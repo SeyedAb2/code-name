@@ -1,0 +1,801 @@
+@use "tokens" as *;
+
+/* ============================================================================
+   متن فصل‌ها — کامپوننت‌های محتوا
+
+   متن هر فصل HTML نوشته‌شده با دست است و از این نام‌های کلاس استفاده می‌کند:
+   ‏.term ‏.ex ‏.note ‏.cards ‏.diagram ‏.pitfalls ‏.cheat ‏.capsule و بقیه.
+   همه زیر ‎.prose‎ محدود شده‌اند تا با ماژول‌های SCSS کامپوننت‌ها تصادم نکنند.
+
+   منبع: همان سیستم طراحی سایت ایستای قبلی، با یک تغییر — شیار نوار پیشرفت
+   در ۰٪ هم دیده می‌شود.
+   ========================================================================== */
+
+.prose {
+  /* ── بخش‌ها ──────────────────────────────────────────────────────────── */
+  section { scroll-margin-top: calc(var(--bar-h) + 20px); }
+
+  > section {
+    margin-bottom: 52px;
+    /* فصل‌ها بلندند؛ چیزی که بیرون از دید است رندر نشود.
+       ارتفاع تخمینی جلوی پریدن نوار اسکرول را می‌گیرد. */
+    content-visibility: auto;
+    contain-intrinsic-size: auto 900px;
+  }
+
+  section > h2 {
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 16px;
+  }
+
+  section > p,
+  section > ul,
+  section > ol { max-width: var(--measure); }
+
+  h3 { margin: 26px 0 8px; }
+  h4 { margin: 20px 0 6px; }
+
+  p.lede {
+    font-size: 1.09rem;
+    line-height: 1.8;
+    color: var(--ink-soft);
+    margin: 12px 0 22px;
+    max-width: var(--measure);
+  }
+
+  hr { border: 0; border-top: 1px solid var(--line); margin: 34px 0; }
+
+  /* ── سربرگ فصل ───────────────────────────────────────────────────────── */
+  .masthead {
+    position: relative;
+    overflow: hidden;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-xl);
+    padding: 30px clamp(20px, 4vw, 38px) 28px;
+    box-shadow: var(--shadow-2);
+    margin-bottom: 34px;
+
+    &::before {
+      content: "";
+      position: absolute;
+      inset-inline-start: 0;
+      top: 0;
+      height: 4px;
+      width: 100%;
+      background: var(--brand-grad);
+    }
+
+    &::after {
+      content: "";
+      position: absolute;
+      inset-inline-end: -70px;
+      top: -90px;
+      width: 260px;
+      height: 260px;
+      border-radius: 50%;
+      pointer-events: none;
+      background: radial-gradient(circle,
+        color-mix(in srgb, var(--violet) 16%, transparent) 0%,
+        color-mix(in srgb, var(--blue) 8%, transparent) 55%,
+        transparent 72%);
+    }
+
+    h1 { margin-bottom: 12px; max-width: 22ch; }
+
+    .sub {
+      color: var(--ink-soft);
+      font-size: 1.02rem;
+      max-width: var(--measure);
+      margin-bottom: 22px;
+    }
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: .73rem;
+    font-weight: 700;
+    letter-spacing: .05em;
+    color: var(--blue);
+    background: var(--tint-blue);
+    border: 1px solid color-mix(in srgb, var(--blue) 22%, transparent);
+    padding: 4px 11px;
+    border-radius: 99px;
+    margin-bottom: 14px;
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--brand-grad);
+      flex: none;
+    }
+  }
+
+  /* هر آمار یک کارت مستقل است، نه خانه‌ای از یک جدول */
+  .facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .fact {
+    position: relative;
+    overflow: hidden;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    padding: 14px 15px;
+    box-shadow: var(--shadow-1);
+
+    &::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      inset-inline-start: 0;
+      width: 100%;
+      height: 2.5px;
+      background: var(--fc, var(--blue));
+    }
+
+    &:nth-child(1) { --fc: var(--blue);   --fbg: var(--tint-blue); }
+    &:nth-child(2) { --fc: var(--violet); --fbg: var(--tint-violet); }
+    &:nth-child(3) { --fc: var(--warn);   --fbg: var(--tint-warn); }
+    &:nth-child(4) { --fc: var(--safe);   --fbg: var(--tint-safe); }
+
+    b {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+      white-space: nowrap;
+      font-family: var(--num);
+      font-size: 1.42rem;
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1.2;
+      letter-spacing: -.025em;
+
+      .u { font-size: .7rem; font-weight: 600; color: var(--ink-soft); }
+    }
+  }
+
+  .fact-ico {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    display: grid;
+    place-items: center;
+    margin-bottom: 10px;
+    background: var(--fbg, var(--tint-blue));
+    color: var(--fc, var(--blue));
+
+    svg { width: 15px; height: 15px; display: block; }
+  }
+
+  .fact-v {
+    min-width: 0;
+    display: block;
+
+    > span {
+      display: block;
+      margin-top: 3px;
+      font-size: .735rem;
+      color: var(--ink-faint);
+      line-height: 1.45;
+    }
+  }
+
+  @include below(560px) {
+    .facts { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .fact { padding: 11px 12px; }
+    .fact b { font-size: 1.16rem; }
+  }
+
+  /* ── کارت مفهوم ──────────────────────────────────────────────────────── */
+  .cards {
+    display: grid;
+    gap: 14px;
+    margin: 22px 0 26px;
+    grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    padding: 16px 17px;
+    box-shadow: var(--shadow-1);
+    transition: border-color .18s, box-shadow .18s;
+
+    &:hover { border-color: var(--line-strong); box-shadow: var(--shadow-2); }
+
+    h3 { margin: 0 0 6px; font-size: 1rem; }
+    p { margin: 0; font-size: .885rem; line-height: 1.72; color: var(--ink-soft); }
+    code { white-space: normal; }
+
+    &.v .card-ico { background: var(--tint-violet); color: var(--violet); }
+    &.g .card-ico { background: var(--tint-safe);   color: var(--safe); }
+    &.w .card-ico { background: var(--tint-warn);   color: var(--warn); }
+  }
+
+  .card-ico {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    display: grid;
+    place-items: center;
+    background: var(--tint-blue);
+    color: var(--blue);
+    margin-bottom: 11px;
+
+    svg { width: 16px; height: 16px; display: block; }
+  }
+
+  /* ── ترمینال و فایل کد ───────────────────────────────────────────────── */
+  .term, .code {
+    margin: 20px 0 24px;
+    border-radius: var(--r-md);
+    overflow: hidden;
+    border: 1px solid var(--line-strong);
+    background: var(--surface-code);
+    box-shadow: var(--shadow-2);
+  }
+
+  .term-bar, .code-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 38px;
+    padding-inline: 13px;
+    background: rgba(255, 255, 255, .045);
+    border-bottom: 1px solid rgba(255, 255, 255, .08);
+  }
+
+  .dots {
+    display: inline-flex;
+    gap: 6px;
+    flex: none;
+
+    i { width: 10px; height: 10px; border-radius: 50%; display: block; }
+    i:nth-child(1) { background: #FF5F57; }
+    i:nth-child(2) { background: #FEBC2E; }
+    i:nth-child(3) { background: #28C840; }
+  }
+
+  .term-label, .code-path {
+    font-family: var(--mono);
+    font-size: .74rem;
+    color: #8FA0BF;
+    direction: ltr;
+    unicode-bidi: isolate;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .code-path { color: #A9BAD9; font-weight: 600; }
+
+  .copy {
+    margin-inline-start: auto;
+    flex: none;
+    background: rgba(255, 255, 255, .07);
+    color: #B7C4DD;
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: .72rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+
+    &:hover { background: rgba(255, 255, 255, .14); color: #fff; }
+
+    &.ok {
+      background: rgba(52, 211, 153, .18);
+      color: #6EE7B7;
+      border-color: rgba(52, 211, 153, .35);
+    }
+  }
+
+  .term pre, .code pre {
+    margin: 0;
+    padding: 15px 16px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 13.5px;
+    line-height: 1.75;
+    color: #D6DEEE;
+    direction: ltr;
+    text-align: left;
+    tab-size: 2;
+    scrollbar-color: rgba(255, 255, 255, .28) transparent;
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, .22);
+      background-clip: content-box;
+    }
+  }
+
+  /* رنگ‌بندی دستی — بدون کتابخانهٔ برجسته‌سازی */
+  .term, .code {
+    .k { color: #8AB4F8; font-weight: 600; }   /* دستور / کلیدواژه */
+    .f { color: #F0B429; }                      /* سوئیچ */
+    .c { color: #6B7A99; font-style: italic; }  /* کامنت */
+    .s { color: #9FE6B8; }                      /* خروجی / رشته */
+    .w { color: #F5A3A3; font-weight: 600; }    /* خطا / هشدار */
+    .p { color: #C9A6FF; }                      /* مسیر / مقدار */
+    .d { color: #5E6B85; user-select: none; }   /* پرامپت — کپی نمی‌شود */
+  }
+
+  /* ── هشدار ───────────────────────────────────────────────────────────── */
+  .note {
+    position: relative;
+    margin: 20px 0 24px;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-inline-start: 3px solid var(--blue);
+    border-radius: var(--r-md);
+    background: var(--tint-blue);
+    box-shadow: var(--shadow-1);
+    max-width: var(--measure);
+
+    > *:last-child { margin-bottom: 0; }
+    p, li { font-size: .92rem; line-height: 1.75; color: var(--ink-soft); }
+
+    &.safe   { border-inline-start-color: var(--safe);   background: var(--tint-safe); }
+    &.warn   { border-inline-start-color: var(--warn);   background: var(--tint-warn); }
+    &.danger { border-inline-start-color: var(--danger); background: var(--tint-danger); }
+  }
+
+  .note-t {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-weight: 700;
+    font-size: .88rem;
+    margin-bottom: 6px;
+    color: var(--blue);
+
+    svg { width: 15px; height: 15px; flex: none; }
+  }
+
+  .note.safe .note-t   { color: var(--safe); }
+  .note.warn .note-t   { color: var(--warn); }
+  .note.danger .note-t { color: var(--danger); }
+
+  /* ── نمودار ──────────────────────────────────────────────────────────── */
+  figure { margin: 26px 0 30px; }
+
+  .diagram {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    padding: 20px 16px;
+    box-shadow: var(--shadow-1);
+    overflow-x: auto;
+
+    svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+
+    /* رنگ‌ها از توکن‌ها می‌آیند، پس نمودار در هر دو تم درست است */
+    svg .dg-fill     { fill: var(--surface-sunk); }
+    svg .dg-fill-b   { fill: var(--tint-blue); }
+    svg .dg-fill-v   { fill: var(--tint-violet); }
+    svg .dg-fill-g   { fill: var(--tint-safe); }
+    svg .dg-fill-w   { fill: var(--tint-warn); }
+    svg .dg-stroke   { stroke: var(--line-strong); fill: none; }
+    svg .dg-stroke-b { stroke: var(--blue);   fill: none; }
+    svg .dg-stroke-v { stroke: var(--violet); fill: none; }
+    svg .dg-stroke-g { stroke: var(--safe);   fill: none; }
+    svg .dg-stroke-w { stroke: var(--warn);   fill: none; }
+    svg .dg-t  { fill: var(--ink);      font-family: var(--fa);   font-size: 13px; }
+    svg .dg-ts { fill: var(--ink-soft); font-family: var(--fa);   font-size: 11.5px; }
+    svg .dg-tm { fill: var(--ink-soft); font-family: var(--mono); font-size: 11px; }
+    svg .dg-tb { fill: var(--blue);     font-family: var(--mono); font-size: 11px; }
+    svg .dg-arrow   { fill: var(--line-strong); }
+    svg .dg-arrow-b { fill: var(--blue); }
+  }
+
+  figcaption {
+    margin-top: 10px;
+    font-size: .82rem;
+    color: var(--ink-faint);
+    text-align: center;
+    line-height: 1.7;
+  }
+
+  /* ── جدول ────────────────────────────────────────────────────────────── */
+  .table-wrap {
+    overflow-x: auto;
+    margin: 22px 0 26px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    background: var(--surface);
+    box-shadow: var(--shadow-1);
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      min-width: min(560px, 100%);
+      font-size: .9rem;
+    }
+
+    th, td {
+      padding: 10px 14px;
+      text-align: start;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      line-height: 1.7;
+    }
+
+    thead th {
+      background: var(--surface-sunk);
+      font-size: .78rem;
+      font-weight: 700;
+      color: var(--ink-soft);
+      white-space: nowrap;
+      border-bottom: 1px solid var(--line-strong);
+    }
+
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr:hover { background: var(--tint-blue); }
+    td code { white-space: nowrap; }
+    .yes { color: var(--safe); font-weight: 700; }
+    .no  { color: var(--danger); font-weight: 700; }
+  }
+
+  /* ── مراحل شماره‌دار ─────────────────────────────────────────────────── */
+  ol.ranked {
+    list-style: none;
+    margin: 22px 0 26px;
+    padding: 0;
+    counter-reset: rk;
+    max-width: var(--measure);
+
+    > li {
+      counter-increment: rk;
+      position: relative;
+      padding-inline-start: 44px;
+      padding-bottom: 20px;
+      margin: 0;
+      /* شمارهٔ دایره‌ای ۱۵ پیکسل بیرون می‌زند؛ این حاشیه نگهش می‌دارد داخل
+         بخش، وگرنه content-visibility بخش، نصفش را می‌بُرد. */
+      margin-inline-start: 17px;
+      border-inline-start: 2px solid var(--line);
+
+      &:last-child { border-inline-start-color: transparent; padding-bottom: 0; }
+
+      &::before {
+        content: counter(rk);
+        position: absolute;
+        inset-inline-start: -15px;
+        top: -2px;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-family: var(--num);
+        font-size: .82rem;
+        font-weight: 700;
+        background: var(--surface);
+        color: var(--blue);
+        border: 2px solid var(--blue);
+      }
+
+      > b:first-child,
+      > strong:first-child { display: block; margin-bottom: 3px; }
+    }
+  }
+
+  /* ── تمرین ───────────────────────────────────────────────────────────── */
+  .ex {
+    margin: 22px 0;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-1);
+    overflow: hidden;
+    transition: border-color .18s;
+
+    &:hover { border-color: var(--line-strong); }
+    &.solved { border-color: color-mix(in srgb, var(--safe) 45%, transparent); }
+
+    > p, > ul, > ol, > .term, > .code, > details, > .note, > figure, > .table-wrap {
+      margin-inline: 16px;
+    }
+    > p { margin-top: 14px; max-width: none; }
+  }
+
+  .ex-h {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    flex-wrap: wrap;
+    padding: 12px 16px;
+    background: var(--surface-sunk);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .ex-n { font-weight: 700; font-size: .93rem; color: var(--ink); }
+
+  .ex-lvl {
+    font-size: .71rem;
+    font-weight: 700;
+    padding: 2px 9px;
+    border-radius: 99px;
+    border: 1px solid transparent;
+  }
+
+  .lvl-1 { color: var(--safe);   background: var(--tint-safe);   border-color: color-mix(in srgb, var(--safe) 26%, transparent); }
+  .lvl-2 { color: var(--blue);   background: var(--tint-blue);   border-color: color-mix(in srgb, var(--blue) 26%, transparent); }
+  .lvl-3 { color: var(--violet); background: var(--tint-violet); border-color: color-mix(in srgb, var(--violet) 26%, transparent); }
+
+  .ex-time {
+    font-size: .73rem;
+    color: var(--ink-faint);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+
+    &::before {
+      content: "";
+      width: 11px;
+      height: 11px;
+      flex: none;
+      border-radius: 50%;
+      border: 1.6px solid currentColor;
+    }
+  }
+
+  /* تیک «انجام شد» — ChapterView به سربرگ هر تمرین اضافه‌اش می‌کند */
+  .ex-done {
+    margin-inline-start: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: .74rem;
+    color: var(--ink-faint);
+    cursor: pointer;
+    user-select: none;
+    padding: 3px 9px;
+    border-radius: 99px;
+    border: 1px solid var(--line-strong);
+    background: var(--surface);
+    transition: color .15s, border-color .15s, background .15s;
+
+    &:hover { color: var(--safe); border-color: var(--safe); }
+    input { accent-color: var(--safe); width: 14px; height: 14px; margin: 0; cursor: pointer; }
+
+    &.on {
+      color: var(--safe);
+      border-color: var(--safe);
+      background: var(--tint-safe);
+      font-weight: 600;
+    }
+  }
+
+  .ex-goal {
+    font-size: .87rem;
+    color: var(--ink-soft);
+    background: var(--surface-sunk);
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--r-sm);
+    padding: 9px 12px;
+    margin-bottom: 14px !important;
+
+    &::before { content: "◎ "; color: var(--blue); font-weight: 700; }
+  }
+
+  /* آکاردئون راهنمایی و پاسخ — داخل .ex و داخل .capsule */
+  details.ex-hint,
+  details.ex-sol {
+    margin-bottom: 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    background: var(--surface);
+
+    > summary {
+      cursor: pointer;
+      padding: 9px 13px;
+      font-size: .86rem;
+      font-weight: 600;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: var(--r-sm);
+      transition: color .15s, background .15s;
+
+      &::-webkit-details-marker { display: none; }
+
+      /* مثلث رو به پایین که با باز شدن می‌چرخد — در RTL و LTR یکسان */
+      &::before {
+        content: "";
+        width: 0;
+        height: 0;
+        flex: none;
+        border-inline: 5px solid transparent;
+        border-top: 6px solid currentColor;
+        transition: transform .18s;
+      }
+    }
+
+    &[open] > summary::before { transform: rotate(180deg); }
+
+    /* تورفتگی با margin، نه padding — تا جعبهٔ ترمینال داخلش نشکند */
+    > *:not(summary) { margin-inline: 13px; }
+    > p:first-of-type { margin-top: 4px; }
+    > *:last-child { margin-bottom: 14px; }
+  }
+
+  .ex-hint > summary { color: var(--warn); &:hover { background: var(--tint-warn); } }
+  .ex-sol > summary  { color: var(--safe); &:hover { background: var(--tint-safe); } }
+  .ex-sol[open] { border-color: color-mix(in srgb, var(--safe) 38%, transparent); }
+
+  /* شمارندهٔ تمرین‌ها */
+  .ex-stat {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow-1);
+
+    .pbar { flex: 1; min-width: 140px; }
+    b { font-family: var(--num); font-size: .95rem; }
+  }
+
+  /* شیار باید در ۰٪ هم دیده شود */
+  .pbar {
+    height: 8px;
+    border-radius: 99px;
+    background: color-mix(in srgb, var(--ink-faint) 20%, transparent);
+    border: 1px solid var(--line);
+    overflow: hidden;
+
+    > i {
+      display: block;
+      height: 100%;
+      width: 0;
+      border-radius: 99px;
+      background: var(--brand-grad);
+      transition: width .5s cubic-bezier(.2, .8, .3, 1);
+    }
+  }
+
+  /* ── مرجع سریع ───────────────────────────────────────────────────────── */
+  .cheat {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-1);
+    margin: 22px 0;
+
+    table { border-collapse: collapse; width: 100%; font-size: .865rem; }
+    td { padding: 8px 14px; border-bottom: 1px solid var(--line); vertical-align: top; line-height: 1.7; }
+    tr:last-child td { border-bottom: 0; }
+    tr:hover { background: var(--surface-sunk); }
+    td:first-child { width: 1%; white-space: nowrap; }
+    td:last-child { color: var(--ink-soft); }
+
+    td:first-child code {
+      background: var(--surface-code);
+      color: #9FE6B8;
+      border-color: transparent;
+      font-size: .82em;
+    }
+  }
+
+  .cheat-h {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--brand-grad);
+    color: #fff;
+    font-weight: 700;
+    font-size: .93rem;
+
+    svg { width: 16px; height: 16px; }
+  }
+
+  /* ── دام‌ها ──────────────────────────────────────────────────────────── */
+  .pitfalls { margin: 22px 0; display: flex; flex-direction: column; gap: 12px; }
+
+  .pit {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-inline-start: 3px solid var(--danger);
+    border-radius: var(--r-md);
+    padding: 13px 16px;
+    box-shadow: var(--shadow-1);
+
+    dl {
+      margin: 0;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 4px 10px;
+      align-items: baseline;
+    }
+
+    dt { font-size: .75rem; font-weight: 700; color: var(--ink-faint); white-space: nowrap; padding-top: 2px; }
+    dd { margin: 0; font-size: .9rem; line-height: 1.7; color: var(--ink-soft); }
+    dd code { white-space: normal; }
+  }
+
+  /* پیام خطا یک <code> است؛ قاعدهٔ سراسری کد درون‌خطی را خنثی می‌کنیم */
+  .pit-e {
+    display: block;
+    font-family: var(--mono);
+    font-size: .8rem;
+    direction: ltr;
+    unicode-bidi: isolate;
+    text-align: left;
+    color: var(--danger);
+    background: var(--tint-danger);
+    padding: 8px 11px;
+    border-radius: var(--r-sm);
+    border: 0;
+    margin-bottom: 11px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    line-height: 1.7;
+  }
+
+  /* ── پروژهٔ پایان فصل ────────────────────────────────────────────────── */
+  .capsule {
+    position: relative;
+    overflow: hidden;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-xl);
+    padding: 24px clamp(18px, 3vw, 28px);
+    box-shadow: var(--shadow-2);
+    margin: 24px 0;
+
+    &::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      inset-inline-start: 0;
+      width: 100%;
+      height: 3px;
+      background: var(--brand-grad);
+    }
+
+    h3 { margin-top: 0; font-size: 1.2rem; }
+
+    .tagline {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: .73rem;
+      font-weight: 700;
+      color: var(--violet);
+      background: var(--tint-violet);
+      padding: 4px 11px;
+      border-radius: 99px;
+      margin-bottom: 12px;
+    }
+  }
+
+  @include below($bp-sm) {
+    .masthead { padding: 22px 18px; border-radius: var(--r-lg); }
+    .term pre, .code pre { font-size: 12.5px; padding: 13px; }
+    .ex-h { padding: 10px 13px; }
+    .ex > p, .ex > ul, .ex > ol, .ex > .term, .ex > .code, .ex > details, .ex > .note {
+      margin-inline: 13px;
+    }
+  }
+}

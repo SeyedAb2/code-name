@@ -1,0 +1,306 @@
+@use "../../styles/tokens" as *;
+
+/* نوار پیشرفت خواندن، چسبیده به بالای صفحه */
+.readbar {
+  position: fixed;
+  top: 0;
+  inset-inline-start: 0;
+  height: 3px;
+  background: var(--brand-grad);
+  z-index: 70;
+  pointer-events: none;
+  transition: width .1s linear;
+}
+
+.grid { display: block; }
+
+@include from($bp-lg) {
+  .grid {
+    display: grid;
+    grid-template-columns: var(--rail) minmax(0, 1fr);
+    gap: 44px;
+    align-items: start;
+  }
+}
+
+.main { min-width: 0; }
+
+/* ── ستون کناری ─────────────────────────────────────────────────────────── */
+.rail { position: relative; }
+
+@include from($bp-lg) {
+  .rail {
+    position: sticky;
+    top: calc(var(--bar-h) + 22px);
+    max-height: calc(100vh - var(--bar-h) - 44px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-inline-end: 4px;
+  }
+  .toggle, .dim, .panelHead { display: none; }
+}
+
+/* زیر ۱۰۴۰ پیکسل: فهرست به کشوی کناری تبدیل می‌شود */
+@include below($bp-lg) {
+  .rail {
+    position: sticky;
+    top: calc(var(--bar-h) + 8px);
+    z-index: 40;
+    margin-bottom: 18px;
+  }
+
+  .toggle {
+    width: 100%;
+    height: 46px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 15px;
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-md);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: .9rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: var(--shadow-2);
+
+    svg { color: var(--blue); flex: none; }
+  }
+
+  .dim {
+    position: fixed;
+    inset: 0;
+    z-index: 110;
+    background: rgba(8, 12, 22, .55);
+    animation: fade .18s ease;
+  }
+
+  .panel { display: none; }
+
+  .open .panel {
+    display: block;
+    position: fixed;
+    z-index: 120;
+    top: 0;
+    bottom: 0;
+    width: min(87vw, 335px);
+    background: var(--surface);
+    box-shadow: var(--shadow-3);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0 16px calc(24px + env(safe-area-inset-bottom));
+    animation: slideIn .28s cubic-bezier(.3, .9, .3, 1);
+  }
+
+  /* مختصات فیزیکی: در RTL خاصیت inline-end به «چپ» ترجمه می‌شود و کشو
+     از راست می‌آمد ولی سمت چپ می‌نشست — این باگ را قبلاً دیدیم. */
+  :global(:root[dir="rtl"]) .open .panel {
+    right: 0; left: auto;
+    border-left: 1px solid var(--line-strong);
+    --from: 102%;
+  }
+  :global(:root[dir="ltr"]) .open .panel {
+    left: 0; right: auto;
+    border-right: 1px solid var(--line-strong);
+    --from: -102%;
+  }
+
+  .panelHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--surface);
+    padding: 14px 0 12px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+    font-weight: 700;
+  }
+}
+
+@keyframes fade { from { opacity: 0; } }
+@keyframes slideIn { from { transform: translateX(var(--from, 102%)); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .dim, .open .panel { animation: none; }
+}
+
+.railH {
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 9px;
+  padding-inline-start: 11px;
+}
+
+/* ── فهرست مطالب ────────────────────────────────────────────────────────── */
+.toc {
+  list-style: none;
+  margin: 0 0 24px;
+  padding: 0;
+  border-inline-start: 2px solid var(--line);
+
+  li { margin: 0; }
+
+  a {
+    display: block;
+    padding: 6px 12px;
+    margin-inline-start: -2px;
+    border-inline-start: 2px solid transparent;
+    font-size: .855rem;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    text-decoration: none;
+    transition: color .15s, border-color .15s;
+
+    &:hover { color: var(--ink); text-decoration: none; }
+  }
+
+  .active {
+    color: var(--blue);
+    font-weight: 600;
+    border-inline-start-color: var(--blue);
+  }
+
+  @include below($bp-lg) {
+    a { padding: 9px 13px; font-size: .9rem; }
+  }
+}
+
+.tocNum {
+  font-family: var(--num);
+  font-size: .75em;
+  color: var(--ink-faint);
+  margin-inline-end: 6px;
+}
+
+/* ── پیشرفت این فصل ─────────────────────────────────────────────────────── */
+.progCard {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 13px 14px;
+  box-shadow: var(--shadow-1);
+  margin-bottom: 24px;
+}
+
+.progLabel {
+  display: block;
+  font-size: .76rem;
+  color: var(--ink-soft);
+  margin-bottom: 8px;
+}
+
+/* ── فصل‌های مسیر ───────────────────────────────────────────────────────── */
+.chlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+
+  li { margin: 0; }
+
+  a, span.row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: .83rem;
+    color: var(--ink-soft);
+    line-height: 1.5;
+    text-decoration: none;
+  }
+
+  a:hover { background: var(--surface-sunk); color: var(--ink); text-decoration: none; }
+
+  .cur { background: var(--tint-blue); color: var(--blue); font-weight: 600; }
+  .off { opacity: .45; }
+
+  @include below($bp-lg) {
+    a, span.row { padding: 9px 11px; font-size: .88rem; }
+  }
+}
+
+.chN {
+  font-family: var(--num);
+  font-size: .72rem;
+  font-weight: 700;
+  width: 21px;
+  height: 21px;
+  flex: none;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  background: var(--surface-sunk);
+  color: var(--ink-faint);
+  border: 1px solid var(--line);
+}
+
+.cur .chN { background: var(--blue); color: #fff; border-color: transparent; }
+.done .chN { background: var(--tint-safe); color: var(--safe); border-color: transparent; }
+
+.chT {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── ناوبری پایین ───────────────────────────────────────────────────────── */
+.pager {
+  display: grid;
+  gap: 12px;
+  margin-top: 52px;
+  padding-top: 28px;
+  border-top: 1px solid var(--line);
+  grid-template-columns: 1fr;
+
+  @include from(640px) { grid-template-columns: 1fr 1fr; }
+}
+
+.pagerLink {
+  display: block;
+  padding: 14px 17px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-1);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color .18s, box-shadow .18s;
+
+  &:hover {
+    border-color: var(--blue);
+    box-shadow: var(--shadow-2);
+    text-decoration: none;
+    color: inherit;
+  }
+}
+
+.pagerNext { text-align: end; }
+.pagerOff { opacity: .45; pointer-events: none; }
+
+.pagerDir {
+  display: block;
+  font-size: .73rem;
+  color: var(--ink-faint);
+  margin-bottom: 3px;
+}
+
+.pagerTitle {
+  display: block;
+  font-weight: 700;
+  color: var(--ink);
+  font-size: .94rem;
+  line-height: 1.5;
+}
