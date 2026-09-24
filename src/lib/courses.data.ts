@@ -318,18 +318,18 @@ export const TRACKS: Track[] = [
       {
         "n": "10",
         "file": "10-health.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 70,
+        "mins": 150,
         "fa": {
-          "t": "healthcheck، restart policy، لاگ",
-          "d": "کانتینری که بالا است اما کار نمی‌کند؛ و چطور داکر خودش بفهمد."
+          "t": "healthcheck، restart policy و لاگ",
+          "d": "فرق زنده‌بودن با آمادگی برنامه؛ بازیابی بعد از crash و پیدا کردن علت از روی log."
         },
         "en": {
-          "t": "Healthchecks, restart policies, logging",
-          "d": "A container that is up but not working — and how Docker can tell."
+          "t": "Healthchecks, restart policies, and logs",
+          "d": "Separate process state from application readiness, recover from crashes, and find the cause in logs."
         },
-        "kw": "healthcheck restart unless-stopped log driver rotation",
+        "kw": "healthcheck starting healthy unhealthy restart unless-stopped logs stdout stderr compose service_healthy",
         "cap": 0
       },
       {
@@ -455,9 +455,9 @@ export const TRACKS: Track[] = [
     "stats": {
       "chapters": 17,
       "exercises": 263,
-      "minutes": 1380,
+      "minutes": 1530,
       "capstones": 3,
-      "ready": 1
+      "ready": 2
     }
   },
   {
