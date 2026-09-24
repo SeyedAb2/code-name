@@ -29,15 +29,24 @@ export default function TrackCard({ track, index = 0, term = "" }: { track: Trac
     ? (lang === "fa" ? "حذف از علاقه‌مندی‌ها" : "Remove bookmark")
     : (lang === "fa" ? "افزودن به علاقه‌مندی‌ها" : "Add bookmark");
 
+  /* وضعیت نوشته شدن مسیر. قبلاً برچسبی روی گوشهٔ کارت می‌نشست و روی عنوان
+     می‌افتاد؛ حالا یک نشان کوچک در ردیف آمار است و متن را خراب نمی‌کند. */
+  const { chapters: total, ready } = track.stats;
+  const state = ready === 0 ? "planned" : ready < total ? "writing" : "done";
+  const stateLabel =
+    state === "planned"
+      ? t("planned", lang)
+      : state === "writing"
+        ? (lang === "fa"
+          ? `${num(ready, lang)} فصل منتشر شده`
+          : `${ready} of ${total} published`)
+        : (lang === "fa" ? "کامل" : "Complete");
+
   return (
     <article
       className={[s.card, track.locked ? s.locked : ""].filter(Boolean).join(" ")}
       style={{ ["--acc" as string]: accent, ["--i" as string]: index }}
     >
-      {track.stats.ready === 0 && (
-        <span className={s.badge}>{t("planned", lang)}</span>
-      )}
-
       <div className={s.top}>
         <span className={s.logo}>
           <GlyphIcon glyph={track.ico} size={30} />
@@ -68,6 +77,7 @@ export default function TrackCard({ track, index = 0, term = "" }: { track: Trac
         <span><BookIcon size={13} /> {num(track.stats.chapters, lang)} {t("chapters", lang)}</span>
         <span><ClockIcon size={13} /> ≈ {num(hours(track.stats.minutes), lang)} {t("hoursUnit", lang)}</span>
         <span><CheckBoxIcon size={13} /> {num(track.stats.exercises, lang)} {lang === "fa" ? "تمرین" : "ex."}</span>
+        <span className={[s.status, s[state]].join(" ")}>{stateLabel}</span>
       </div>
 
       <div className={s.progress}>

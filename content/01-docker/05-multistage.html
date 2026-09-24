@@ -1,0 +1,512 @@
+<!--meta
+title: multi-stage build و کوچک‌کردن image
+desc: چرا image سالم می‌تواند بزرگ باشد؛ جداسازی build و runtime با multi-stage build، COPY --from، cache و عیب‌یابی artifact.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">Docker · فصل ۵</span><span lang="en">Docker · Chapter 5</span></span>
+<h1 lang="fa">multi-stage build و کوچک‌کردن image</h1>
+<h1 lang="en">Multi-stage builds and reducing image size</h1>
+<p class="sub" lang="fa">در فصل قبل image خودت را build کردی. حالا سؤال تازه این است: چرا imageای که درست کار می‌کند، هنوز ابزارهایی را با خودش حمل می‌کند که برنامه در زمان اجرا به آن‌ها نیاز ندارد؟</p>
+<p class="sub" lang="en">In the previous chapter you built your own image. Now comes the next question: why can a working image still carry tools that the application never needs at runtime?</p>
+<div class="facts">
+<div class="fact"><b>۱۲۰</b><span lang="fa">دقیقهٔ مطالعه و اجرا</span><span lang="en">minutes</span></div>
+<div class="fact"><b>۱۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></div>
+<div class="fact"><b>۴</b><span lang="fa">نمودار مفهومی</span><span lang="en">diagrams</span></div>
+<div class="fact"><b>۱</b><span lang="fa">آزمایشگاه کامل</span><span lang="en">full lab</span></div>
+</div>
+</div>
+<section id="story">
+<h2><span lang="fa">image کار می‌کند؛ پس چرا هنوز سنگین است؟</span><span lang="en">The image works—so why is it still heavy?</span></h2>
+<p class="lede" lang="fa">فصل قبل بالاخره image خودت را ساختی و با <code>curl</code> هم دیدی که برنامه جواب می‌دهد. خیلی طبیعی است همین‌جا بگویی: «خب، تمام شد دیگر!» اما بیایید قبل از تمام‌کردن کار، درِ image را باز کنیم. برنامهٔ ما برای اجرا فقط یک فایل JavaScript و خود Node را لازم دارد؛ پس TypeScript، فایل‌های منبع و وابستگی‌های توسعه آن تو چه کار می‌کنند؟</p>
+<p class="lede" lang="en">In Chapter 4 you put a small application into an image and ran a container. If <code>curl</code> returns the expected response, it is tempting to call the job finished. Ask one more question: does the program really need TypeScript, the compiler, source files, and development dependencies while it is running?</p>
+<p lang="fa">قرار نیست مستقیم سراغ راه‌حل برویم. اول یک image تک‌مرحله‌ای می‌سازیم که کاملاً کار می‌کند، ولی عمداً وسایل کارگاه را هم با محصول نهایی داخل یک جعبه می‌گذارد. بعد اندازه‌اش می‌گیریم و می‌بینیم دقیقاً چه چیزهایی بی‌دلیل همراه برنامه مانده‌اند. وقتی مشکل را با چشم دیدیم، <em>multi-stage build</em> دیگر یک دستور حفظی نیست؛ جواب یک سؤال واقعی است.</p>
+<p lang="en">To answer, we will first build a single-stage image. It intentionally keeps everything: source files, <code>node_modules</code>, TypeScript, and the build output. That is not wrong as a starting point. The problem begins when we assume the build environment and the runtime environment must be identical.</p>
+<div class="diagram">
+<svg aria-labelledby="c5-flow-one" role="img" viewbox="0 0 900 260">
+<title id="c5-flow-one">Source becomes an artifact through build tools, then the runtime executes the artifact</title>
+<defs><marker id="c5-arrow-one" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<g class="dg-stroke-b" marker-end="url(#c5-arrow-one)" stroke-width="2">
+<path d="M185 130h72"></path><path d="M395 130h72"></path><path d="M605 130h72"></path>
+</g>
+<g text-anchor="middle">
+<rect class="dg-fill" height="88" rx="10" width="165" x="20" y="86"></rect>
+<text class="dg-t" x="102" y="119">source</text><text class="dg-ts" x="102" y="145">server.ts</text>
+<rect class="dg-fill-v" height="88" rx="10" width="138" x="257" y="86"></rect>
+<text class="dg-t" x="326" y="119">build tools</text><text class="dg-ts" x="326" y="145">npm + tsc</text>
+<rect class="dg-fill-g" height="88" rx="10" width="138" x="467" y="86"></rect>
+<text class="dg-t" x="536" y="119">artifact</text><text class="dg-ts" x="536" y="145">dist/server.js</text>
+<rect class="dg-fill-b" height="88" rx="10" width="200" x="677" y="86"></rect>
+<text class="dg-t" x="777" y="119">runtime</text><text class="dg-ts" x="777" y="145">node executes JS</text>
+</g>
+<text class="dg-ts" x="221" y="116">compile</text><text class="dg-ts" x="431" y="116">produce</text><text class="dg-ts" x="641" y="116">run</text>
+</svg>
+<p class="diagram-cap" lang="fa">پیکان‌ها فقط مسیر کار را نشان می‌دهند: کد منبع با ابزارهای build تبدیل به فایل قابل‌اجرا می‌شود و بخش زمان اجرا همان فایل را اجرا می‌کند. سؤال سادهٔ فصل این است: اگر اره و پیچ‌گوشتی برای ساخت محصول لازم بوده‌اند، چرا باید داخل جعبهٔ محصولی باشند که به مشتری می‌دهیم؟</p>
+<p class="diagram-cap" lang="en">Arrows show transformations: build tools turn source into an artifact, and the runtime executes that artifact. This chapter asks why the build tools should remain in the final image.</p>
+</div>
+<div class="note safe">
+<div class="note-t"><span lang="fa">اول waste را ببین</span><span lang="en">See the waste first</span></div>
+<p lang="fa">پس فعلاً چیزی را «بهینه» نکن. اول image را اندازه بگیر و <code>docker image history</code> را نگاه کن. تا وقتی نفهمیده‌ای چه چیزی جا گرفته، کوچک‌کردن image بیشتر شبیه حدس‌زدن است تا مهندسی.</p><div class="note safe">
+<div class="note-t"><span lang="fa">یک تصویر ساده برای ادامهٔ فصل</span><span lang="en">A simple picture for the rest of the chapter</span></div>
+<p lang="fa">مرحلهٔ <code>builder</code> را مثل کارگاه در نظر بگیر: کامپایلر، فایل‌های منبع و ابزارهای ساخت آنجاست. image نهایی مثل جعبه‌ای است که محصول آماده را تحویل می‌دهی. قرار نیست دستگاه برش و میز کار را هم داخل جعبه بگذاری؛ فقط چیزی را می‌بری که برای استفاده لازم است.</p>
+<p lang="en">Think of the <code>builder</code> stage as the workshop: compiler, source, and build tools live there. The final image is the box you ship. You do not ship the workbench and cutting tools with the finished product; you copy only what is needed to use it.</p>
+</div>
+<p lang="en">Before introducing the solution, measure the image and read its history. If you do not know what made it large, shrinking it is only guesswork.</p>
+</div>
+</section>
+<section id="measure-before">
+<h2><span lang="fa">آزمایش اول: image سالم را اندازه بگیر</span><span lang="en">Experiment one: measure the working image</span></h2>
+<p lang="fa">برای اینکه بحث گم نشود، یک پروژهٔ خیلی کوچک به نام <code>demo-ts</code> داریم. برنامه فقط یک پاسخ HTTP ساده می‌دهد. TypeScript را هم نه برای آموزش TypeScript، بلکه فقط برای این آورده‌ایم که یک مرحلهٔ واقعیِ «ساختن» داشته باشیم: چیزی وارد build شود و در پایان فایل دیگری از آن بیرون بیاید.</p>
+<p lang="en">Consider a small project named <code>demo-ts</code>. The program uses only Node’s built-in HTTP API; TypeScript is here only to make the difference between source and artifact visible, not to turn this into a TypeScript course.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">project shape · before Dockerfile</span><button class="copy">کپی</button></div>
+<pre dir="ltr">demo-ts/
+├── src/server.ts
+├── package.json
+├── package-lock.json
+├── tsconfig.json
+└── .dockerignore</pre>
+</div>
+<p lang="fa">در <code>package.json</code>، scriptِ <code>build</code>، TypeScript را اجرا می‌کند و خروجی را در <code>dist/server.js</code> می‌گذارد. <code>package-lock.json</code> هم باید کنار manifest باشد تا <code>npm ci</code> همان وابستگی tree قفل‌شده را نصب کند.</p>
+<p lang="en">In <code>package.json</code>, the <code>build</code> script runs TypeScript and writes <code>dist/server.js</code>. <code>package-lock.json</code> must sit beside the manifest so <code>npm ci</code> installs the locked dependency tree.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">representative measurement · values vary</span><button class="copy">کپی</button></div>
+<pre dir="ltr">$ docker image ls demo-ts
+REPOSITORY   TAG      IMAGE ID       CREATED          SIZE
+demo-ts      single   91ab...        seconds ago     182MB
+
+$ docker image history demo-ts:single
+IMAGE       CREATED        CREATED BY                         SIZE
+91ab...     seconds ago   CMD ["node","dist/server.js"]       0B
+&lt;missing&gt;   seconds ago   RUN npm run build                   4.8MB
+&lt;missing&gt;   seconds ago   COPY . .                            12.4MB
+&lt;missing&gt;   seconds ago   RUN npm ci                           66MB
+&lt;missing&gt;   seconds ago   FROM node:22-bookworm-slim            99MB</pre>
+</div>
+<p lang="fa">به عددها نچسب. این اندازه‌ها نمونه‌اند و روی سیستم تو با توجه به tag، معماری و image پایه فرق می‌کنند. چیزی که باید ببینی خودِ الگوست: image نهایی فقط <code>dist/server.js</code> را اجرا می‌کند، ولی هنوز فایل‌های منبع، TypeScript و وابستگی‌های توسعه را هم با خودش حمل می‌کند.</p>
+<p lang="en"><strong>This is not a measurement from one particular machine.</strong> The numbers are representative; tags, architecture, the base image, and build time change the size. The important clue is that source files and development dependencies live in the same image that is supposed to run only <code>dist/server.js</code>.</p>
+<div class="table-wrap">
+<table class="doc-table">
+<thead><tr><th>Single-stage content</th><th>Needed to build?</th><th>Needed to run this app?</th></tr></thead>
+<tbody>
+<tr><td>TypeScript compiler</td><td><span lang="fa">بله</span><span lang="en">Yes</span></td><td><span lang="fa">خیر</span><span lang="en">No</span></td></tr>
+<tr><td><code>src/server.ts</code></td><td><span lang="fa">بله</span><span lang="en">Yes</span></td><td><span lang="fa">خیر؛ runtime کد JS را می‌خواند</span><span lang="en">No; runtime reads JS</span></td></tr>
+<tr><td>dev <code>node_modules</code></td><td><span lang="fa">بله</span><span lang="en">Yes</span></td><td><span lang="fa">خیر</span><span lang="en">No</span></td></tr>
+<tr><td><code>dist/server.js</code></td><td><span lang="fa">خروجی build</span><span lang="en">Build output</span></td><td><span lang="fa">بله</span><span lang="en">Yes</span></td></tr>
+<tr><td>Node runtime</td><td><span lang="fa">برای اجرای script build هم می‌تواند لازم باشد</span><span lang="en">May also run the build script</span></td><td><span lang="fa">بله</span><span lang="en">Yes</span></td></tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="stage-model">
+<h2><span lang="fa">چند FROM یعنی چند محیط جدا</span><span lang="en">Multiple FROM instructions mean separate environments</span></h2>
+<p class="lede" lang="fa">اولین فکری که ممکن است به ذهن برسد این است: «آخر build فایل‌های اضافه را پاک می‌کنم.» می‌شود، اما راه تمیزتری داریم. در Dockerfile چند <code>FROM</code> می‌نویسیم و برای هر مرحله یک محیط جدا می‌سازیم. محیط اول کار ساخت را انجام می‌دهد؛ محیط آخر از یک image پایهٔ تازه شروع می‌شود و فقط چیزهایی را می‌گیرد که صریحاً به آن منتقل کنیم.</p>
+<p class="lede" lang="en">The solution is not manually deleting files from the same stage. We use multiple <code>FROM</code> instructions. Each <code>FROM</code> starts a new stage with its own base and filesystem; only what you explicitly bring to the final stage gets there.</p>
+<div class="diagram">
+<svg aria-labelledby="c5-compare" role="img" viewbox="0 0 960 330">
+<title id="c5-compare">Single-stage baggage compared with a builder and clean runtime stage</title>
+<defs><marker id="c5-arrow-compare" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<g class="dg-stroke-b" marker-end="url(#c5-arrow-compare)" stroke-width="2">
+<path d="M180 95h85"></path><path d="M180 235h85"></path><path d="M445 235h95"></path><path d="M700 235h85"></path>
+</g>
+<g text-anchor="middle">
+<rect class="dg-fill-w" height="80" rx="10" width="160" x="20" y="55"></rect><text class="dg-t" x="100" y="88">single-stage</text><text class="dg-ts" x="100" y="113">all contents remain</text>
+<rect class="dg-fill" height="80" rx="10" width="185" x="265" y="55"></rect><text class="dg-t" x="357" y="88">runtime</text><text class="dg-ts" x="357" y="113">app + tools + source</text>
+<rect class="dg-fill-v" height="80" rx="10" width="160" x="20" y="195"></rect><text class="dg-t" x="100" y="228">builder</text><text class="dg-ts" x="100" y="253">compiler + source</text>
+<rect class="dg-fill-g" height="80" rx="10" width="180" x="265" y="195"></rect><text class="dg-t" x="355" y="228">artifact</text><text class="dg-ts" x="355" y="253">dist/server.js</text>
+<rect class="dg-fill-b" height="80" rx="10" width="160" x="540" y="195"></rect><text class="dg-t" x="620" y="228">runtime stage</text><text class="dg-ts" x="620" y="253">clean base</text>
+<rect class="dg-fill" height="80" rx="10" width="155" x="785" y="195"></rect><text class="dg-t" x="862" y="228">final image</text><text class="dg-ts" x="862" y="253">only what runs</text>
+</g>
+<text class="dg-ts" x="220" y="84">keeps baggage</text><text class="dg-ts" x="217" y="224">builds</text><text class="dg-ts" x="490" y="224">COPY --from</text><text class="dg-ts" x="742" y="224">becomes</text>
+</svg>
+<p class="diagram-cap" lang="fa">در مسیر تک‌مرحله‌ای، یک فایل‌سیستم همه‌چیز را نگه می‌دارد. در مسیر چندمرحله‌ای، پیکان‌ها build و سپس انتقال صریح خروجی build را نشان می‌دهند؛ کامپایلر خودبه‌خود به image نهایی نمی‌رود.</p>
+<p class="diagram-cap" lang="en">In the single-stage path, one filesystem keeps everything. In the multi-stage path, arrows show the build and the explicit artifact transfer; the compiler does not appear in the final image automatically.</p>
+</div>
+<p lang="fa">مرحلهٔ اول را <code>builder</code> صدا می‌زنیم؛ چون کارش ساختن است. مرحلهٔ آخر جایی است که برنامه واقعاً اجرا می‌شود. اسم‌گذاری کمک می‌کند وقتی می‌نویسی <code>COPY --from=builder</code> دقیقاً معلوم باشد از کدام محیط چیزی برمی‌داری؛ لازم نیست شمارهٔ مرحله‌ها را حفظ کنی.</p>
+<p lang="en">In our example, we name the first stage <code>builder</code>. The last stage is the runtime. Naming matters because <code>COPY --from=builder</code> refers to a stage’s role rather than a fragile number. If you later add a test stage, the name remains readable.</p>
+<div class="note warn">
+<div class="note-t"><span lang="fa">نهایی یعنی آخرین FROM</span><span lang="en">Final means the last FROM</span></div>
+<p lang="fa">Docker همهٔ stageها را برای cache و build مقصد می‌شناسد، اما image معمولی که بدون <code>--target</code> می‌سازی از آخرین stage می‌آید. وجود builder به معنی وجود فایل‌های builder در نهایی نیست.</p>
+<p lang="en">Docker knows every stage for cache and build targets, but a normal build without <code>--target</code> produces the last stage. The existence of a builder does not put builder files in the final image.</p>
+</div>
+</section>
+<section id="example">
+<h2><span lang="fa">مثال کوچک: TypeScript فقط نقش build tool دارد</span><span lang="en">A small example: TypeScript is only the build tool</span></h2>
+<p lang="fa">برنامهٔ ما عمداً ساده است: یک HTTP server که روی پورت ۳۰۰۰ جواب می‌دهد. اگر این برنامه را با Node معمولی بنویسی، runtime فقط فایل JavaScript خروجی را می‌خواهد. پس می‌توانیم وابستگی‌های build را در جایی نگه داریم که خروجی build را می‌سازد.</p>
+<p lang="en">Our application is intentionally small: an HTTP server that answers on port 3000. If you wrote it directly in Node, the runtime would need only the generated JavaScript file. That lets us keep build dependencies where they produce the artifact.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">source + build contract</span><button class="copy">کپی</button></div>
+<pre dir="ltr">// src/server.ts
+import { createServer } from "node:http";
+
+const port = Number(process.env.PORT ?? 3000);
+const server = createServer((_request, response) =&gt; {
+  response.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
+  response.end("hello from a multi-stage image\n");
+});
+
+server.listen(port, "0.0.0.0", () =&gt; {
+  console.log("listening on " + port);
+});</pre>
+</div>
+<p lang="fa">در یک پروژهٔ واقعی، قبل از build باید <code>npm install --package-lock-only</code> یا نصب معمولی، lockfile را ایجاد کند. اینجا نسخهٔ lockfile را کنار پروژه فرض می‌کنیم؛ چون بدون آن <code>npm ci</code> عمداً متوقف می‌شود.</p>
+<p lang="en">In a real project, <code>npm install --package-lock-only</code> or a normal install must create the lockfile before the build. We assume the lockfile is committed beside the project; without it, <code>npm ci</code> intentionally stops.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">package.json · representative</span><button class="copy">کپی</button></div>
+<pre dir="ltr">{
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.0",
+    "typescript": "5.7.2"
+  }
+}</pre>
+</div>
+<div class="term">
+<div class="term-bar"><span class="term-label">tsconfig.json · output contract</span><button class="copy">کپی</button></div>
+<pre dir="ltr">{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rootDir": "src",
+    "outDir": "dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts"]
+}</pre>
+</div>
+<p lang="fa">این فایل فقط قرارداد خروجی را روشن می‌کند: هر فایل TypeScript از <code>src</code> به JavaScript در <code>dist</code> می‌رود. اگر این قرارداد عوض شود، مسیر <code>COPY --from</code> هم باید دوباره بررسی شود.</p>
+<p lang="en">This file makes the output contract explicit: TypeScript files under <code>src</code> become JavaScript under <code>dist</code>. If that contract changes, re-check the <code>COPY --from</code> path too.</p>
+<p lang="fa">این وابستگی‌ها برای کامپایل لازم‌اند، نه برای اجرای <code>dist/server.js</code>. چون برنامه فقط از API داخلی Node استفاده می‌کند، runtime به بستهٔ محیط واقعی جداگانه‌ای نیاز ندارد. این انتخاب، تفاوت دو stage را واضح و قابل‌اندازه‌گیری می‌کند.</p>
+<p lang="en">These dependencies are needed to compile, not to execute <code>dist/server.js</code>. Because the app uses only Node’s built-in APIs, the runtime needs no separate production package. That makes the difference between the two stages clear and measurable.</p>
+</section>
+<section id="single-stage">
+<h2><span lang="fa">نسخهٔ A: اول image کارا بساز</span><span lang="en">Version A: first build a working image</span></h2>
+<p class="lede" lang="fa">نسخهٔ A را عمداً ساده و تک‌مرحله‌ای نگه می‌داریم. هنوز دنبال image کوچک نیستیم؛ اول یک نسخهٔ سالم می‌خواهیم که بتوانیم بعداً منصفانه با نسخهٔ چندمرحله‌ای مقایسه‌اش کنیم. اگر نقطهٔ شروع سالم نباشد، هر مقایسه‌ای بعدش بی‌معنی می‌شود.</p>
+<p class="lede" lang="en">Version A is intentionally single-stage. We are not optimizing yet; we first need a runnable baseline so the later comparison means something.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">Dockerfile.single</span><button class="copy">کپی</button></div>
+<pre dir="ltr">FROM node:22-bookworm-slim
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+EXPOSE 3000
+CMD ["node", "dist/server.js"]</pre>
+</div>
+<p lang="fa">دستورها را یک بار آرام از بالا به پایین بخوان. فایل‌های وابستگی زودتر می‌آیند تا cache با هر تغییر کوچک کد از بین نرود؛ بعد کد منبع وارد می‌شود و TypeScript آن را می‌سازد. مشکل اینجاست که همان محیطی که ابزار ساخت را لازم داشته، قرار است image نهایی هم باشد؛ بنابراین همهٔ وسایل کارگاه همان‌جا می‌مانند.</p>
+<p lang="en">Read the instructions slowly: the manifest and lockfile come first so dependency caching is separated from source changes; then source is copied and compiled. The result still keeps <code>node_modules</code>, source, and compiler tools beside the artifact.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">build + verify · representative</span><button class="copy">کپی</button></div>
+<pre dir="ltr">$ docker build -f Dockerfile.single -t demo-ts:single .
+[+] Building 8.6s (10/10) FINISHED
+ =&gt; [internal] load build definition from Dockerfile.single
+ =&gt; [5/6] RUN npm run build
+ =&gt; exporting to image
+ =&gt; naming to docker.io/library/demo-ts:single
+
+$ docker run --rm -d --name demo-single -p 8080:3000 demo-ts:single
+7d91...
+$ curl -sS localhost:8080
+hello from a multi-stage image</pre>
+</div>
+<p lang="fa">این خروجی دو چیز را ثابت می‌کند: build خروجی build ساخته شده و runtime پاسخ می‌دهد. هنوز دربارهٔ اندازه یا امنیت نتیجه‌ای نگرفته‌ایم؛ برای آن باید image را جداگانه بررسی کنیم.</p>
+<p lang="en">This output proves two things: the build produced an artifact and the runtime answers. It says nothing yet about size or security; those require separate image inspection.</p>
+</section>
+<section id="multi-stage">
+<h2><span lang="fa">نسخهٔ B: builder و runtime را جدا کن</span><span lang="en">Version B: separate builder and runtime</span></h2>
+<p class="lede" lang="fa">حالا همان پروژه را دو اتاق می‌کنیم. اتاق اول، <code>builder</code>، همهٔ ابزارهای ساخت را دارد و فایل نهایی را تولید می‌کند. اتاق دوم از یک image پایهٔ تمیز شروع می‌شود. از اتاق اول فقط <code>dist</code> را برمی‌داریم و می‌آوریم اینجا. همین جدایی، تمام ایدهٔ multi-stage build است.</p>
+<p class="lede" lang="en">Now we have two <code>FROM</code> instructions. The first stage compiles the source. The second starts from a fresh base and takes only the output file from the builder. That separation is the heart of a multi-stage build.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">Dockerfile.multi</span><button class="copy">کپی</button></div>
+<pre dir="ltr">FROM node:22-bookworm-slim AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY tsconfig.json ./
+COPY src ./src
+RUN npm run build
+
+FROM node:22-bookworm-slim AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder /app/dist ./dist
+EXPOSE 3000
+CMD ["node", "dist/server.js"]</pre>
+</div>
+<p lang="fa"><code>FROM ... AS builder</code> stage را نام‌گذاری می‌کند. <code>COPY --from=builder /app/dist ./dist</code> می‌گوید کد منبع این COPY فایل‌سیستم stage builder است، نه build context میزبان. مقصد <code>./dist</code> هم نسبت به <code>WORKDIR /app</code> در runtime محاسبه می‌شود.</p>
+<p lang="en"><code>FROM ... AS builder</code> names the stage. <code>COPY --from=builder /app/dist ./dist</code> says that the source filesystem is the builder stage, not the host build context. The destination <code>./dist</code> is resolved relative to <code>WORKDIR /app</code> in the runtime stage.</p>
+<div class="table-wrap">
+<table class="doc-table">
+<thead><tr><th>Concern</th><th>Build stage</th><th>Runtime stage</th></tr></thead>
+<tbody>
+<tr><td>Base purpose</td><td><span lang="fa">محیط ساخت</span><span lang="en">Build environment</span></td><td><span lang="fa">محیط اجرا</span><span lang="en">Execution environment</span></td></tr>
+<tr><td>Source TypeScript</td><td><span lang="fa">کپی می‌شود</span><span lang="en">Copied</span></td><td><span lang="fa">کپی نمی‌شود</span><span lang="en">Not copied</span></td></tr>
+<tr><td>TypeScript and dev dependencies</td><td><span lang="fa">نصب و مصرف می‌شوند</span><span lang="en">Installed and used</span></td><td><span lang="fa">وارد نمی‌شوند</span><span lang="en">Never added</span></td></tr>
+<tr><td><code>dist/server.js</code></td><td><span lang="fa">تولید می‌شود</span><span lang="en">Produced</span></td><td><span lang="fa">با COPY --from وارد می‌شود</span><span lang="en">Copied with COPY --from</span></td></tr>
+<tr><td>Final command</td><td><span lang="fa">لازم نیست</span><span lang="en">Not required</span></td><td><span lang="fa">اینجا تعریف می‌شود</span><span lang="en">Defined here</span></td></tr>
+</tbody>
+</table>
+</div>
+<div class="note safe">
+<div class="note-t"><span lang="fa">چیزی خودکار عبور نمی‌کند</span><span lang="en">Nothing crosses automatically</span></div>
+<p lang="fa">این نکته خیلی مهم است: نصب کامپایلر در <code>builder</code> به این معنی نیست که در مرحلهٔ نهایی هم وجود دارد. دو مرحله فایل‌سیستم جدا دارند. اگر چیزی را لازم داری، باید آگاهانه منتقلش کنی؛ Docker قرار نیست حدس بزند کدام فایل برای اجرای برنامه مهم است.</p>
+<p lang="en">Installing a compiler in the builder does not make it present in the runtime. Stages do not share files by magic; transfer must be explicit through <code>COPY --from</code> or by choosing a previous stage as a base with <code>FROM</code>.</p>
+</div>
+</section>
+<section id="stage-copy">
+<h2><span lang="fa"><code>COPY --from</code> را مثل یک آدرس دقیق بخوان</span><span lang="en">Read COPY --from as a path contract</span></h2>
+<p lang="fa">این دستور را مثل یک آدرس سه‌قسمتی بخوان: <code>builder</code> می‌گوید از کدام مرحله بخوان؛ <code>/app/dist</code> می‌گوید فایل در آن مرحله کجاست؛ و <code>./dist</code> می‌گوید در مرحلهٔ فعلی کجا قرارش بده. اگر یکی از این سه را اشتباه بگیری، build همان‌جا می‌ایستد و هنوز اصلاً به اجرای container نرسیده‌ای.</p>
+<p lang="en">The three names in this instruction have different roles: <code>builder</code> is a stage name; <code>/app/dist</code> is an absolute path inside the builder filesystem; <code>./dist</code> is a destination in the runtime filesystem. If you confuse any of them with a laptop path, the build fails before runtime begins.</p>
+<div class="diagram">
+<svg aria-labelledby="c5-copy" role="img" viewbox="0 0 920 270">
+<title id="c5-copy">COPY from builder stage to runtime stage</title>
+<defs><marker id="c5-arrow-copy" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<g class="dg-stroke-b" marker-end="url(#c5-arrow-copy)" stroke-width="2">
+<path d="M220 130h95"></path><path d="M535 130h95"></path>
+</g>
+<g text-anchor="middle">
+<rect class="dg-fill-v" height="90" rx="10" width="200" x="20" y="85"></rect><text class="dg-t" x="120" y="119">builder</text><text class="dg-ts" x="120" y="146">/app/dist/server.js</text>
+<rect class="dg-fill-g" height="90" rx="10" width="220" x="315" y="85"></rect><text class="dg-t" x="425" y="119">COPY --from</text><text class="dg-ts" x="425" y="146">explicit transfer</text>
+<rect class="dg-fill-b" height="90" rx="10" width="270" x="630" y="85"></rect><text class="dg-t" x="765" y="119">runtime filesystem</text><text class="dg-ts" x="765" y="146">/app/dist/server.js</text>
+</g>
+<text class="dg-ts" x="267" y="117">reads from stage</text><text class="dg-ts" x="582" y="117">writes to final</text>
+</svg>
+<p class="diagram-cap" lang="fa">پیکان اول خواندن خروجی build از stage builder و پیکان دوم نوشتن آن در runtime را نشان می‌دهد؛ این مسیر درخواست شبکه یا copy از host نیست.</p>
+<p class="diagram-cap" lang="en">The first arrow reads the artifact from the builder and the second writes it into runtime; this is not a network request or a copy from the host.</p>
+</div>
+<p lang="fa">اگر شک کردی فایل واقعاً در <code>builder</code> ساخته شده یا نه، همان مرحله را جدا بساز: <code>docker build --target builder ...</code>. این مثل این است که قبل از بسته‌بندی محصول، وارد خود کارگاه شوی و قفسهٔ خروجی را نگاه کنی. فقط حواست باشد image حاصل از <code>--target builder</code> همان image نهایی برنامه نیست.</p>
+<p lang="en">For practice, build <code>docker build --target builder -t demo-ts:builder .</code> and inspect the stage separately. Targeting a stage helps debugging; do not confuse that tag with the final image.</p>
+</section>
+<section id="measure-after">
+<h2><span lang="fa">آزمایش دوم: قبل و بعد را با همان سؤال مقایسه کن</span><span lang="en">Experiment two: compare before and after with the same questions</span></h2>
+<p lang="fa">حالا وقت مقایسه است، ولی فقط یک چیز را تغییر بده: ساختار تک‌مرحله‌ای در برابر چندمرحله‌ای. برنامه، خانوادهٔ image پایه و دستور اجرا را ثابت نگه دار. اگر هم‌زمان همه‌چیز را عوض کنی، وقتی اندازه تغییر کرد دیگر نمی‌فهمی علتش multi-stage بوده یا تغییر دیگری.</p>
+<p lang="en">Run both images with the same base family, application, and command. If you also change the base, architecture, and application, you will not know whether the difference came from multi-stage or from those other changes.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">same questions · representative values</span><button class="copy">کپی</button></div>
+<pre dir="ltr">$ docker build -f Dockerfile.multi -t demo-ts:multi .
+[+] Building 5.1s (11/11) FINISHED
+ =&gt; [builder 5/5] RUN npm run build
+ =&gt; [runtime 1/2] COPY --from=builder /app/dist ./dist
+ =&gt; naming to docker.io/library/demo-ts:multi
+
+$ docker image ls demo-ts --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
+REPOSITORY   TAG      SIZE
+demo-ts      single   182MB
+demo-ts      multi    118MB
+
+$ docker image history demo-ts:multi
+IMAGE       CREATED        CREATED BY                         SIZE
+a82c...     seconds ago   CMD ["node","dist/server.js"]       0B
+&lt;missing&gt;   seconds ago   COPY /app/dist                    4.8MB
+&lt;missing&gt;   seconds ago   FROM node:22-bookworm-slim       99MB</pre>
+</div>
+<p lang="fa">در این نمونه image کوچک‌تر شده چون فایل‌های منبع، TypeScript و وابستگی‌های توسعه اصلاً وارد مرحلهٔ نهایی نشده‌اند. خبری از فشرده‌سازی جادویی نیست؛ فقط چیزهای غیرلازم را از همان ابتدا داخل جعبهٔ نهایی نگذاشته‌ایم.</p>
+<p lang="en">In this representative sample, the image is smaller because dev dependencies, the compiler, and source files never entered the final image—not because of magical compression. The runtime base still contributes substantially, and shared layers may not be stored twice locally.</p>
+<div class="table-wrap">
+<table class="doc-table">
+<thead><tr><th>Command</th><th>Question answered</th><th>Limit</th></tr></thead>
+<tbody>
+<tr><td><code>docker image ls</code></td><td><span lang="fa">اندازهٔ image/tag چقدر است؟</span><span lang="en">How large is the image/tag?</span></td><td><span lang="fa">رفتار runtime را ثابت نمی‌کند</span><span lang="en">Does not prove runtime behavior</span></td></tr>
+<tr><td><code>docker image history</code></td><td><span lang="fa">کدام instructionها layer ساخته‌اند؟</span><span lang="en">Which instructions made layers?</span></td><td><span lang="fa">جایگزین بررسی و test نیست</span><span lang="en">Not a substitute for inspect or tests</span></td></tr>
+<tr><td><code>docker inspect</code></td><td><span lang="fa">تنظیمات و دستور نهایی چیست؟</span><span lang="en">What are the final config and command?</span></td><td><span lang="fa">محتوای کامل هر layer را توضیح نمی‌دهد</span><span lang="en">Does not explain every layer’s content</span></td></tr>
+<tr><td><code>docker run</code> + <code>curl</code></td><td><span lang="fa">برنامه واقعاً اجرا و پاسخ‌گوست؟</span><span lang="en">Does the app run and answer?</span></td><td><span lang="fa">به‌تنهایی image اندازه را نمی‌سنجد</span><span lang="en">Does not measure image size alone</span></td></tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="cache">
+<h2><span lang="fa">cache بین stageها: سریع‌تر شدن با حذف فایل‌ها یکی نیست</span><span lang="en">Cache across stages: speed is not the same as final contents</span></h2>
+<p class="lede" lang="fa">اینجا دو موضوع خیلی راحت با هم قاطی می‌شوند. یکی این است که «چه چیزی داخل image نهایی می‌رود؟» و دیگری اینکه «در build بعدی کدام مرحله دوباره اجرا می‌شود؟» اولی دربارهٔ محتوای image نهایی است؛ دومی دربارهٔ cache و سرعت build. ممکن است مرحلهٔ builder کاملاً از cache استفاده شود، ولی هیچ‌کدام از فایل‌های اضافی آن وارد image نهایی نشوند.</p>
+<p class="lede" lang="en">Multi-stage has two separate questions: what enters the final image, and which steps rerun on the next build? The cache may speed up the builder even though builder files never enter the final image.</p>
+<div class="diagram">
+<svg aria-labelledby="c5-cache" role="img" viewbox="0 0 900 270">
+<title id="c5-cache">Cache behavior for dependency files and source files across a builder stage</title>
+<defs><marker id="c5-arrow-cache" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<g class="dg-stroke-b" marker-end="url(#c5-arrow-cache)" stroke-width="2">
+<path d="M180 85h80"></path><path d="M180 190h80"></path><path d="M475 85h105"></path><path d="M475 190h105"></path>
+</g>
+<g text-anchor="middle">
+<rect class="dg-fill" height="74" rx="10" width="165" x="15" y="48"></rect><text class="dg-t" x="97" y="78">package files</text><text class="dg-ts" x="97" y="103">manifest + lock</text>
+<rect class="dg-fill-v" height="74" rx="10" width="215" x="260" y="48"></rect><text class="dg-t" x="367" y="78">RUN npm ci</text><text class="dg-ts" x="367" y="103">expensive cache unit</text>
+<rect class="dg-fill-g" height="74" rx="10" width="180" x="580" y="48"></rect><text class="dg-t" x="670" y="78">compiled artifact</text><text class="dg-ts" x="670" y="103">dist/server.js</text>
+<rect class="dg-fill" height="74" rx="10" width="165" x="15" y="153"></rect><text class="dg-t" x="97" y="183">source files</text><text class="dg-ts" x="97" y="208">src/server.ts</text>
+<rect class="dg-fill-w" height="74" rx="10" width="215" x="260" y="153"></rect><text class="dg-t" x="367" y="183">RUN npm run build</text><text class="dg-ts" x="367" y="208">downstream step</text>
+<rect class="dg-fill-b" height="74" rx="10" width="180" x="580" y="153"></rect><text class="dg-t" x="670" y="183">runtime copy</text><text class="dg-ts" x="670" y="208">final stage input</text>
+</g>
+<text class="dg-ts" x="220" y="71">input</text><text class="dg-ts" x="220" y="176">input</text><text class="dg-ts" x="527" y="71">feeds</text><text class="dg-ts" x="527" y="176">feeds</text>
+</svg>
+<p class="diagram-cap" lang="fa">پیکان‌ها وابستگی را نشان می‌دهند: تغییر بسته files، <code>npm ci</code> و stepهای بعدی را invalid می‌کند؛ تغییر کد منبع فقط از layer وابسته به کد منبع به بعد اثر می‌گذارد.</p>
+<p class="diagram-cap" lang="en">Arrows show dependencies: changing package files invalidates <code>npm ci</code> and later steps; changing source affects only the source-dependent layer and what follows it.</p>
+</div>
+<div class="term">
+<div class="term-bar"><span class="term-label">four-build experiment</span><button class="copy">کپی</button></div>
+<pre dir="ltr"># 1 · fresh builder
+docker build -f Dockerfile.multi -t demo-ts:multi .
+
+# 2 · no file changed
+docker build -f Dockerfile.multi -t demo-ts:multi .
+
+# 3 · edit src/server.ts only
+docker build -f Dockerfile.multi -t demo-ts:multi .
+
+# 4 · edit package-lock.json
+docker build -f Dockerfile.multi -t demo-ts:multi .</pre>
+</div>
+<div class="table-wrap">
+<table class="doc-table">
+<thead><tr><th>Change</th><th>Expected builder output</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>Nothing</td><td><code>CACHED</code> for dependency and source steps</td><td><span lang="fa">ورودی‌ها همان‌اند</span><span lang="en">Inputs are unchanged</span></td></tr>
+<tr><td><code>src/server.ts</code> only</td><td><code>npm ci</code> cached; compile reruns</td><td><span lang="fa">وابستگی input عوض نشده</span><span lang="en">Dependency input did not change</span></td></tr>
+<tr><td><code>package-lock.json</code></td><td><code>npm ci</code> and downstream steps rerun</td><td><span lang="fa">درخت وابستگی عوض شده</span><span lang="en">Dependency tree changed</span></td></tr>
+<tr><td>Builder cache removed</td><td>All relevant steps rerun</td><td><span lang="fa">cache و image نهایی یکی نیستند</span><span lang="en">Cache and final image are different things</span></td></tr>
+</tbody>
+</table>
+</div>
+<p lang="fa">نکتهٔ مهم: cache می‌تواند لایه‌های builder را روی ماشین نگه دارد، اما این به معنی کپی‌شدن آن‌ها در image نهایی نیست. برای دیدن رفتار دقیق، <code>--progress=plain</code> بزن و به اولین stepی نگاه کن که دیگر <code>CACHED</code> نیست.</p>
+<p lang="en">Important: the cache may keep builder layers on the machine, but that does not copy them into the final image. Use <code>--progress=plain</code> and find the first step that is no longer <code>CACHED</code>.</p>
+</section>
+<section id="base-image">
+<h2><span lang="fa">کوچک‌تر همیشه یعنی Alpine نیست</span><span lang="en">Smaller does not automatically mean Alpine</span></h2>
+<p lang="fa">عمداً سراغ imageهای خیلی عجیب و کوچک نرفتیم. اگر هم‌زمان multi-stage را یاد بگیری و image پایه را هم عوض کنی، دوباره معلوم نیست نتیجه از کجا آمده. انتخاب image پایه باید با نیاز برنامه، کتابخانه‌های native، ابزارهای عیب‌یابی و قواعد تیم جور باشد؛ نه اینکه فقط کوچک‌ترین عدد جدول را انتخاب کنیم.</p>
+<p lang="en">We used <code>node:22-bookworm-slim</code> so the main question stays isolated. You can choose another runtime, but the choice should follow application needs, native-library compatibility, debugging tools, and team policy—not only the smallest number on the screen.</p>
+<div class="table-wrap">
+<table class="doc-table">
+<thead><tr><th>Choice</th><th>Useful when</th><th>Question to verify</th></tr></thead>
+<tbody>
+<tr><td>Debian slim</td><td><span lang="fa">سازگاری و عیب‌یابی مهم است</span><span lang="en">Compatibility and debugging matter</span></td><td><span lang="fa">library native و معماری درست است؟</span><span lang="en">Do native libraries and architecture match?</span></td></tr>
+<tr><td>Alpine</td><td><span lang="fa">با musl و محدودیت‌هایش آگاهانه انتخاب شده</span><span lang="en">You knowingly choose musl and its trade-offs</span></td><td><span lang="fa">برنامه و وابستگی‌ها روی musl تست شده‌اند؟</span><span lang="en">Have the app and dependencies been tested on musl?</span></td></tr>
+<tr><td>Distroless / minimal runtime</td><td><span lang="fa">خروجی build و روش عیب‌یابی آماده است</span><span lang="en">The artifact and debugging method are ready</span></td><td><span lang="fa">بدون shell چطور diagnose می‌کنیم؟</span><span lang="en">How will we diagnose without a shell?</span></td></tr>
+</tbody>
+</table>
+</div>
+<p lang="fa">کم‌شدن ابزارها و packageهای اضافی می‌تواند سطح حمله را کمتر کند، اما این یک میان‌بُر برای امنیت نیست. image کوچک هنوز ممکن است وابستگی آسیب‌پذیر، تنظیمات بد یا کاربر root داشته باشد. پس «کوچک‌تر» را با «امن» مساوی نگذار.</p>
+<p lang="en">Multi-stage often makes an image cleaner and can reduce attack surface because fewer tools and packages remain at runtime. But “smaller equals secure” is not a valid claim: you still need separate checks for non-root execution, patches, dependencies, configuration, and application behavior.</p>
+</section>
+<section id="failure">
+<h2><span lang="fa">وقتی COPY --from خراب می‌شود، هنوز به runtime نرسیده‌ای</span><span lang="en">When COPY --from fails, runtime has not started yet</span></h2>
+<p class="lede" lang="fa">حالا عمداً یک اشتباه ساده بساز: نام مرحله را در <code>COPY --from</code> غلط بنویس. ممکن است متن خطا کمی عجیب باشد و حتی شبیه تلاش برای پیدا کردن image دیگری دیده شود. قبل از دست‌کاری ده خط Dockerfile، فقط یک سؤال بپرس: «اسمی که اینجا نوشته‌ام دقیقاً با <code>FROM ... AS ...</code> یکی است؟»</p>
+<p class="lede" lang="en">Create this failure deliberately: write <code>COPY --from=build /app/dist ./dist</code> while the stage is actually named <code>builder</code>. The error may mention pulling or not finding an image named <code>build</code>; wording varies by builder.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">failure · representative output</span><button class="copy">کپی</button></div>
+<pre dir="ltr">[runtime 1/2] COPY --from=build /app/dist ./dist
+------
+&gt; [runtime 1/2] COPY --from=build /app/dist ./dist:
+------
+failed to solve: pull access denied for build,
+repository does not exist or may require authorization</pre>
+</div>
+<p lang="fa">این خطا هیچ ربطی به خراب‌بودن container نهایی ندارد؛ container هنوز ساخته نشده. اگر نام مرحله درست بود، قدم بعدی مسیر فایل است. <code>COPY --from</code> فایل را از داخل همان مرحله می‌خواند، نه از پوشه‌ای روی سیستم تو. همین تفکیک جلوی خیلی از تغییرهای تصادفی را می‌گیرد.</p>
+<p lang="en">Docker is not saying that the final container is broken; no container has been created yet. First compare the name with <code>FROM ... AS ...</code>. If the name is correct, check the path next: <code>COPY --from</code> reads from the root of the builder filesystem, not from the host’s current directory.</p>
+<div class="table-wrap">
+<table class="doc-table">
+<thead><tr><th>Failure symptom</th><th>Likely boundary</th><th>Evidence-first next step</th></tr></thead>
+<tbody>
+<tr><td>Unknown stage / pull denied</td><td><span lang="fa">نام stage</span><span lang="en">Stage name</span></td><td><code>FROM ... AS builder</code> و <code>--from=builder</code> را مقایسه کن</td></tr>
+<tr><td>Source path not found</td><td><span lang="fa">خروجی build مسیر</span><span lang="en">Artifact path</span></td><td><code>docker build --target builder --progress=plain .</code> و listing artifact</td></tr>
+<tr><td>Build succeeds, app exits</td><td><span lang="fa">runtime دستور / خروجی build</span><span lang="en">Runtime command / artifact</span></td><td><code>docker run</code>، <code>docker logs</code> و <code>docker inspect</code></td></tr>
+<tr><td>Build succeeds, browser empty</td><td><span lang="fa">port or app bind</span><span lang="en">Port or app bind</span></td><td>PORTS، listen address و <code>curl</code> را به ترتیب بخوان</td></tr>
+</tbody>
+</table>
+</div>
+<p lang="fa">دو خطا دیگر هم آموزشی‌اند: اگر <code>RUN npm run build</code> را حذف کنی، <code>/app/dist</code> تولید نمی‌شود؛ اگر به‌جای <code>/app/dist</code> مسیر خیالی مثل <code>/app/build</code> بدهی، builder خروجی build را پیدا نمی‌کند. هر دو قبل از runtime رخ می‌دهند.</p>
+<p lang="en">Two more failures are useful: if you remove <code>RUN npm run build</code>, <code>/app/dist</code> is never produced; if you use a fictional path such as <code>/app/build</code> instead of <code>/app/dist</code>, the builder cannot find the artifact. Both happen before runtime.</p>
+<div class="note warn">
+<div class="note-t"><span lang="fa">عیب‌یابی با مقصد</span><span lang="en">Debug with a target</span></div>
+<p lang="fa">با <code>docker build --target builder -t demo-ts:builder --progress=plain .</code> مرحلهٔ ساخت را جدا ببین. می‌توانی موقتاً بعد از build یک <code>RUN ls -la /app/dist</code> اضافه کنی و بعد از فهمیدن مسیر آن را حذف کنی.</p>
+<p lang="en">Use <code>docker build --target builder -t demo-ts:builder --progress=plain .</code> to see the build stage separately. You can temporarily add <code>RUN ls -la /app/dist</code> after the build and remove it once you understand the path.</p>
+</div>
+</section>
+<section id="exercises">
+<h2><span lang="fa">۱۸ تمرین: اول پیش‌بینی، بعد اجرا</span><span lang="en">18 exercises: predict first, then run</span></h2>
+<p class="lede" lang="fa">این ۱۸ تمرین قرار نیست هجده بار یک قالب تکراری را پر کنی. بعضی‌جا فقط پیش‌بینی می‌کنی، بعضی‌جا خروجی build را می‌خوانی و بعضی‌جا باید قبل از تغییر Dockerfile بگویی مشکل احتمالاً کجاست. جواب را زود باز نکن؛ اول یک دلیل برای حدست بنویس.</p>
+<p class="lede" lang="en">The exercises are intentionally varied. Some ask you to measure size and history, some test stage and cache reasoning, and some ask you to name the broken boundary before touching the Dockerfile.</p>
+<div class="ex-stat"><span lang="fa">حل‌شده</span><span lang="en">Solved</span><b>۰ / ۱۸</b><div class="pbar"><i></i></div></div>
++<div class="ex" id="ex-5-1"><div class="ex-h"><span class="ex-n">تمرین ۵٫1 · Exercise 5.1</span><span class="ex-lvl lvl-1">پیش‌بینی · Prediction</span><span class="ex-time">۴ min</span></div><p lang="fa">قبل از دیدن Dockerfile multi-stage، حدس بزن single-stage چه چیزهایی را کنار dist/server.js نگه می‌دارد.</p><p lang="en">Before seeing the multi-stage Dockerfile, predict what a single-stage image keeps beside dist/server.js.</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa"><strong>فکر اصلی:</strong> single-stage معمولاً کد منبع، tsconfig، بسته-lock، node_modules و خود TypeScript را هم نگه می‌دارد، چون همان stage هم build را انجام داده و هم image نهایی شده است.</p><p lang="en"><strong>Conclusion:</strong> a single-stage image usually keeps source, tsconfig, package-lock, node_modules, and TypeScript because the same stage both performed the build and became the final image.</p><p lang="fa"><strong>چطور چکش کنیم؟</strong> با <code>docker image history demo-ts:single</code> و اندازهٔ image بررسی کن؛ دام این است که «کار می‌کند» را با «فقط چیز لازم را دارد» یکی بدانی.</p><p lang="en"><strong>Evidence and trap:</strong> check with <code>docker image history demo-ts:single</code> and the image size; the trap is equating “it works” with “it contains only what is needed.”</p></details></div>
+<div class="ex" id="ex-5-2"><div class="ex-h"><span class="ex-n">تمرین ۵٫2 · Exercise 5.2</span><span class="ex-lvl lvl-1">مقدماتی · Beginner</span><span class="ex-time">۴ min</span></div><p lang="fa">از جدول پروژه، دو مورد را نام ببر که برای build لازم‌اند اما برای اجرای server.js لازم نیستند.</p><p lang="en">From the project table, name two things needed to build but not to run server.js.</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa"><strong>جواب:</strong> TypeScript و وابستگی‌های توسعهی <code>node_modules</code> نمونه‌های روشن‌اند. کد منبع TypeScript هم ورودی build است، اما Node در runtime فایل JavaScript خروجی را می‌خواند.</p><p lang="en"><strong>Answer:</strong> TypeScript and the development dependencies in <code>node_modules</code> are clear examples. TypeScript source is also a build input, while Node reads the generated JavaScript at runtime.</p><p lang="fa"><strong>شاهد و دام:</strong> <code>docker run</code> را با image multi اجرا کن؛ اگر فقط dist را کپی کرده‌ای، نبودن کد منبع نشانهٔ نقص نیست. دام، تلاش برای اجرای tsc در runtime است.</p><p lang="en"><strong>Evidence and trap:</strong> run the multi-stage image; if only dist was copied, the absence of source is not a defect. The trap is trying to run tsc in the runtime.</p></details></div>
+<div class="ex" id="ex-5-3"><div class="ex-h"><span class="ex-n">تمرین ۵٫3 · Exercise 5.3</span><span class="ex-lvl lvl-1">مقدماتی · Beginner</span><span class="ex-time">۴ min</span></div><p lang="fa">در یک Dockerfile دو <code>FROM</code> داریم. هرکدام چه مرزی ایجاد می‌کنند؟</p><p lang="en">A Dockerfile has two <code>FROM</code> instructions. What boundary does each one create?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa"><strong>پیش‌بینی درست:</strong> هر <code>FROM</code> یک stage تازه با پایه و فایل‌سیستم مستقل شروع می‌کند. stage دوم از اولی فایل نمی‌بیند مگر اینکه آن را با <code>COPY --from</code> یا الگوی صریح دیگری منتقل کنی.</p><p lang="en"><strong>Conclusion:</strong> each <code>FROM</code> starts a new stage with its own base and filesystem. The second stage cannot see the first stage’s files unless you transfer them explicitly with <code>COPY --from</code> or another explicit pattern.</p><p lang="fa"><strong>حواست به این دام باشد:</strong> در خروجی build دنبال نام‌های <code>[builder]</code> و <code>[runtime]</code> بگرد. دام این است که فکر کنی دو stage فقط دو نام برای یک container هستند.</p><p lang="en"><strong>Evidence and trap:</strong> look for <code>[builder]</code> and <code>[runtime]</code> in build output. The trap is treating two stages as two names for one container.</p></details></div>
+<div class="ex" id="ex-5-4"><div class="ex-h"><span class="ex-n">تمرین ۵٫4 · Exercise 5.4</span><span class="ex-lvl lvl-1">مقدماتی · Beginner</span><span class="ex-time">۴ min</span></div><p lang="fa">چرا <code>AS builder</code> بهتر از اشاره به stage شمارهٔ صفر است؟</p><p lang="en">Why is <code>AS builder</code> better than referring to stage zero?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa"><strong>راه فکرکردن:</strong> نام <code>builder</code> نقش را توضیح می‌دهد و با جابه‌جایی یا اضافه‌شدن stageها کمتر شکننده است. عدد صفر فقط جایگاه فعلی را می‌گوید، نه دلیل وجود stage را.</p><p lang="en"><strong>Answer:</strong> the name <code>builder</code> explains the role and is less fragile when stages are reordered or added. Zero tells you only the current position, not the stage’s purpose.</p><p lang="fa"><strong>شاهد و دام:</strong> <code>COPY --from=builder</code> را با <code>COPY --from=0</code> مقایسه کن. هر دو ممکن است کار کنند، اما دام دوم وقتی stage جدیدی جلوتر اضافه شود، مسیر اشتباه را انتخاب می‌کند.</p><p lang="en"><strong>Evidence and trap:</strong> compare <code>COPY --from=builder</code> with <code>COPY --from=0</code>. Both may work, but the numeric form can select the wrong stage when a new stage is inserted earlier.</p></details></div>
+<div class="ex" id="ex-5-5"><div class="ex-h"><span class="ex-n">تمرین ۵٫5 · Exercise 5.5</span><span class="ex-lvl lvl-1">مقدماتی · Beginner</span><span class="ex-time">۵ min</span></div><p lang="fa">سه بخش <code>COPY --from=builder /app/dist ./dist</code> را توضیح بده.</p><p lang="en">Explain the three parts of <code>COPY --from=builder /app/dist ./dist</code>.</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa"><strong>اینجا جواب روشن است:</strong> <code>builder</code> منبع stage است؛ <code>/app/dist</code> مسیر کد منبع در ریشهٔ فایل‌سیستم همان stage است؛ <code>./dist</code> مقصد در stage فعلی و نسبت‌داده‌شده به <code>WORKDIR</code> است.</p><p lang="en"><strong>Answer:</strong> <code>builder</code> selects the source stage; <code>/app/dist</code> is the source path from that stage’s filesystem root; <code>./dist</code> is the destination in the current stage, relative to its <code>WORKDIR</code>.</p><p lang="fa"><strong>دام:</strong> این دستور از host فایل نمی‌خواند. اگر می‌خواهی از context میزبان copy کنی، <code>--from</code> را حذف می‌کنی؛ اگر خروجی build stage را می‌خواهی، آن را نگه می‌داری.</p><p lang="en"><strong>Trap:</strong> this instruction does not read from the host. Remove <code>--from</code> to copy from build context; keep it when the artifact comes from a stage.</p></details></div>
+<div class="ex" id="ex-5-6"><div class="ex-h"><span class="ex-n">تمرین ۵٫6 · Exercise 5.6</span><span class="ex-lvl lvl-2">تمرین · Practice</span><span class="ex-time">۵ min</span></div><p lang="fa">اگر builder در <code>/app/dist/server.js</code> خروجی بسازد اما runtime از <code>/app/build</code> کپی کند، قبل از تغییر پایه چه چیزی را بررسی می‌کنی؟</p><p lang="en">If the builder produces /app/dist/server.js but runtime copies from /app/build, what do you check before changing the base image?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa"><strong>اینجا چه می‌بینیم؟</strong> اول قرارداد خروجی build را بررسی می‌کنم: script build، <code>tsconfig.json</code> و log مرحلهٔ کامپایل باید با مسیر <code>/app/dist</code> سازگار باشند. مشکل مسیر است، نه اندازهٔ پایه.</p><p lang="en"><strong>Conclusion:</strong> I first check the artifact contract: the build script, <code>tsconfig.json</code>, and compile log must agree with <code>/app/dist</code>. The problem is the path, not the base-image size.</p><p lang="fa"><strong>مدرک:</strong> builder را با <code>docker build --target builder --progress=plain .</code> بساز و listing مسیر را موقتاً اضافه کن. دام، حل‌کردن COPY اشتباه با <code>--no-cache</code> است.</p><p lang="en"><strong>Evidence:</strong> build the builder with <code>docker build --target builder --progress=plain .</code> and temporarily list the path. The trap is trying to fix a wrong COPY with <code>--no-cache</code>.</p></details></div>
+<div class="ex" id="ex-5-7"><div class="ex-h"><span class="ex-n">تمرین ۵٫7 · Exercise 5.7</span><span class="ex-lvl lvl-2">تحلیل · Analysis</span><span class="ex-time">۵ min</span></div><p lang="fa">دو Dockerfile هر دو image سالم می‌سازند؛ یکی single-stage و دیگری multi-stage است. در کدام خروجی دنبال توضیح اختلاف اندازه می‌گردی؟</p><p lang="en">Two Dockerfiles both produce working images; one is single-stage and one multi-stage. Which output explains the size difference?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa"><strong>اول این را ببین:</strong> <code>docker image ls</code> اختلاف اندازه را نشان می‌دهد و <code>docker image history</code> کمک می‌کند آن را به layerهای copy، نصب و پایه نسبت بدهی. بعد باید با run ثابت کنی هر دو واقعاً رفتار یکسان دارند.</p><p lang="en"><strong>Answer:</strong> <code>docker image ls</code> shows the size difference, while <code>docker image history</code> helps relate it to base, install, and copy layers. Then use run to prove both actually behave equivalently.</p><p lang="fa"><strong>دام:</strong> تاریخچه اندازه‌گیری سلامت برنامه نیست و اندازه هم proof امنیت نیست. سه پرسش اندازه، تاریخچه و runtime را جدا نگه دار.</p><p lang="en"><strong>Trap:</strong> history is not a runtime-health measurement, and size is not a security proof. Keep the size, history, and runtime questions separate.</p></details></div>
+<div class="ex" id="ex-5-8"><div class="ex-h"><span class="ex-n">تمرین ۵٫8 · Exercise 5.8</span><span class="ex-lvl lvl-2">خواندن خروجی · Read output</span><span class="ex-time">۵ min</span></div><p lang="fa">در <code>docker image history demo-ts:multi</code> فقط پایه و COPY خروجی build را می‌بینی. از این خروجی چه می‌فهمی و چه نمی‌فهمی؟</p><p lang="en">In docker image history demo-ts:multi you see only the base and artifact COPY. What does that tell you, and what does it not tell you?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa"><strong>جواب کوتاه:</strong> این نشانه با مدل ما سازگار است: نهایی stage از پایه خودش شروع شده و فقط خروجی build را گرفته است. اما تاریخچه فهرست کامل همهٔ فایل‌ها یا proof پاسخ‌گویی HTTP نیست.</p><p lang="en"><strong>Conclusion:</strong> that is consistent with the model: the final stage starts from its own base and takes only the artifact. History is not a complete file listing or proof of HTTP behavior.</p><p lang="fa"><strong>مدرک تکمیلی:</strong> برای تنظیمات از <code>docker inspect</code>، برای فایل قابل‌اجرا از اجرای container و برای پاسخ از <code>curl</code> استفاده کن. دام، نتیجه‌گیری بیش‌ازحد از یک دستور است.</p><p lang="en"><strong>Supporting evidence:</strong> use <code>docker inspect</code> for config, run the container for executable behavior, and <code>curl</code> for the response. The trap is overclaiming from one command.</p></details></div>
+<div class="ex" id="ex-5-9"><div class="ex-h"><span class="ex-n">تمرین ۵٫9 · Exercise 5.9</span><span class="ex-lvl lvl-2">پیش‌بینی cache · Cache prediction</span><span class="ex-time">۵ min</span></div><p lang="fa">فقط <code>src/server.ts</code> را تغییر داده‌ای. در build بعدی انتظار داری <code>npm ci</code> دوباره اجرا شود؟</p><p lang="en">You changed only src/server.ts. Should you expect npm ci to run again?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa"><strong>جواب کوتاه:</strong> اگر manifest و lockfile همان باشند و ترتیب Dockerfile درست باشد، نه. layer مربوط به <code>COPY package*.json</code> و <code>RUN npm ci</code> cache می‌ماند؛ کامپایل و layerهای بعدی دوباره اجرا می‌شوند.</p><p lang="en"><strong>Answer:</strong> not if the manifest and lockfile are unchanged and the Dockerfile order is sound. The package COPY and <code>RUN npm ci</code> layers stay cached; compile and later layers rerun.</p><p lang="fa"><strong>شاهد:</strong> با <code>--progress=plain</code> اولین خط غیر<code>CACHED</code> را پیدا کن. دام، جابه‌جاکردن <code>COPY . .</code> قبل از نصب است که cache وابستگی را بی‌دلیل invalid می‌کند.</p><p lang="en"><strong>Evidence:</strong> use <code>--progress=plain</code> and find the first line that is not <code>CACHED</code>. The trap is putting <code>COPY . .</code> before install and invalidating dependency cache unnecessarily.</p></details></div>
+<div class="ex" id="ex-5-10"><div class="ex-h"><span class="ex-n">تمرین ۵٫10 · Exercise 5.10</span><span class="ex-lvl lvl-2">استدلال cache · Cache reasoning</span><span class="ex-time">۵ min</span></div><p lang="fa">اگر <code>package-lock.json</code> تغییر کند، کدام stepها باید دوباره اجرا شوند و چرا؟</p><p lang="en">If package-lock.json changes, which steps should rerun and why?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa"><strong>نکتهٔ اصلی:</strong> از layerای که lockfile را مصرف می‌کند، <code>npm ci</code> باید دوباره اجرا شود و stepهای وابسته، از جمله کامپایل و COPY خروجی build، هم ممکن است rebuild شوند. تغییر وابستگی ورودی نصب را عوض کرده است.</p><p lang="en"><strong>Conclusion:</strong> the layer that consumes the lockfile must rerun <code>npm ci</code>, and dependent steps such as compile and artifact COPY may rebuild. The dependency input changed.</p><p lang="fa"><strong>دام:</strong> cache فقط چون دستور متن یکسان است حفظ نمی‌شود؛ ورودی‌های instruction هم مهم‌اند. خروجی نمونه‌ای را با cache واقعی ماشین خودت اشتباه نکن.</p><p lang="en"><strong>Trap:</strong> cache is not preserved merely because the command text is unchanged; instruction inputs matter too. Do not confuse representative output with your machine’s exact result.</p></details></div>
+<div class="ex" id="ex-5-11"><div class="ex-h"><span class="ex-n">تمرین ۵٫11 · Exercise 5.11</span><span class="ex-lvl lvl-2">آزمایش · Experiment</span><span class="ex-time">۶ min</span></div><p lang="fa">چرا <code>docker build --target builder</code> برای عیب‌یابی مفید است، اما نباید tag آن را image نهایی بدانی؟</p><p lang="en">Why is docker build --target builder useful for debugging, but not the final image?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa"><strong>چیزی که باید بماند:</strong> مقصد به تو اجازه می‌دهد stageای را که خروجی build می‌سازد جدا build و بررسی کنی. اما builder هنوز کامپایلر، کد منبع و وابستگی توسعه دارد و هدفش runtime تمیز نیست.</p><p lang="en"><strong>Answer:</strong> target lets you build and inspect the stage that produces the artifact. But the builder still contains compiler, source, and development dependencies; it is not intended to be the clean runtime.</p><p lang="fa"><strong>شاهد و دام:</strong> با <code>docker run --rm demo-ts:builder sh -lc 'find /app/dist -maxdepth 2 -type f -print'</code> بگیر و بعد نهایی tag را جدا اجرا کن. دام، اندازه‌گیری builder و گزارش‌کردن آن به‌عنوان محیط واقعی image است.</p><p lang="en"><strong>Evidence and trap:</strong> run <code>docker run --rm demo-ts:builder sh -lc 'find /app/dist -maxdepth 2 -type f -print'</code>, then run the final tag separately. The trap is measuring the builder and reporting it as the production image.</p></details></div>
+<div class="ex" id="ex-5-12"><div class="ex-h"><span class="ex-n">تمرین ۵٫12 · Exercise 5.12</span><span class="ex-lvl lvl-2">عیب‌یابی · Debugging</span><span class="ex-time">۶ min</span></div><p lang="fa">خطا می‌گوید stageای به نام <code>build</code> پیدا یا pull نشده، اما Dockerfile نوشته <code>AS builder</code>. مسیر تشخیص را بنویس.</p><p lang="en">The error says a stage named build could not be found or pulled, but the Dockerfile says AS builder. Write the diagnosis path.</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa"><strong>اگر درست فکر کرده باشی:</strong> نام‌های دو طرف قرارداد یکی نیستند. اول <code>FROM ... AS builder</code> را پیدا می‌کنم، سپس همهٔ <code>COPY --from</code>ها را به همان نام اصلاح می‌کنم و دوباره build می‌گیرم.</p><p lang="en"><strong>Conclusion:</strong> the two sides of the contract use different names. I find <code>FROM ... AS builder</code>, correct each <code>COPY --from</code> to that name, and rebuild.</p><p lang="fa"><strong>دام:</strong> این خطا هنوز runtime نیست؛ container و port نقشی ندارند. تغییر <code>docker run</code> یا پاک‌کردن container مسئلهٔ build را حل نمی‌کند.</p><p lang="en"><strong>Trap:</strong> this is not a runtime failure; containers and ports are irrelevant yet. Changing <code>docker run</code> or removing a container cannot fix a build-stage name.</p></details></div>
+<div class="ex" id="ex-5-13"><div class="ex-h"><span class="ex-n">تمرین ۵٫13 · Exercise 5.13</span><span class="ex-lvl lvl-2">عیب‌یابی مسیر · Path debugging</span><span class="ex-time">۶ min</span></div><p lang="fa">نام stage درست است اما <code>/app/dist</code> پیدا نمی‌شود. سه فرضیهٔ قابل‌آزمایش بنویس.</p><p lang="en">The stage name is correct but /app/dist is missing. Write three testable hypotheses.</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa"><strong>فرضیه‌ها:</strong> build اجرا نشده؛ خروجی در مسیر دیگری مثل <code>/app/build</code> است؛ یا <code>WORKDIR</code> و مسیر کد منبع آن چیزی نیست که فکر می‌کنیم. هر سه با log، تنظیمات و listing در builder قابل‌آزمایش‌اند.</p><p lang="en"><strong>Hypotheses:</strong> the build never ran; output is elsewhere such as <code>/app/build</code>; or <code>WORKDIR</code> and source paths differ from our assumption. All three can be tested with logs, configuration, and a builder listing.</p><p lang="fa"><strong>مدرک:</strong> <code>docker build --target builder --progress=plain .</code> بزن و موقتاً <code>RUN find /app -maxdepth 3 -type f</code> اضافه کن. دام، تغییر هم‌زمان چند مسیر است که علت را پنهان می‌کند.</p><p lang="en"><strong>Evidence:</strong> run <code>docker build --target builder --progress=plain .</code> and temporarily add <code>RUN find /app -maxdepth 3 -type f</code>. The trap is changing several paths at once and hiding the cause.</p></details></div>
+<div class="ex" id="ex-5-14"><div class="ex-h"><span class="ex-n">تمرین ۵٫14 · Exercise 5.14</span><span class="ex-lvl lvl-2">تصمیم فنی · Technical choice</span><span class="ex-time">۵ min</span></div><p lang="fa">برای این برنامه چرا <code>node:22-bookworm-slim</code> را به‌عنوان انتخاب آموزشی نگه داشتیم و فوراً به Alpine نرفتیم؟</p><p lang="en">Why did we keep node:22-bookworm-slim for this lesson instead of immediately switching to Alpine?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa"><strong>نتیجهٔ بررسی:</strong> چون می‌خواهیم اثر multi-stage را جدا از تفاوت libc، native module و ابزار عیب‌یابی بسنجیم. Debian slim مسیر قابل‌پیش‌بینی‌تری برای این مثال می‌دهد.</p><p lang="en"><strong>Answer:</strong> because we want to measure the effect of multi-stage separately from libc, native-module, and debugging-tool differences. Debian slim gives this example a more predictable baseline.</p><p lang="fa"><strong>دام:</strong> Alpine ممکن است انتخاب خوبی باشد، اما کوچک‌ترین پایه به‌تنهایی بهترین انتخاب نیست. باید سازگاری برنامه، وابستگی و روش تشخیص را تست کنی.</p><p lang="en"><strong>Trap:</strong> Alpine may be a good choice, but the smallest base is not automatically the best. Test application compatibility, dependencies, and your diagnostic method.</p></details></div>
+<div class="ex" id="ex-5-15"><div class="ex-h"><span class="ex-n">تمرین ۵٫15 · Exercise 5.15</span><span class="ex-lvl lvl-3">سناریو · Scenario</span><span class="ex-time">۶ min</span></div><p lang="fa">هم‌تیمی‌ات می‌گوید «image multi-stage کوچک‌تر است، پس امن است». ادعا را اصلاح کن.</p><p lang="en">A teammate says, “The multi-stage image is smaller, so it is secure.” Correct the claim.</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa"><strong>اصلاح:</strong> multi-stage معمولاً ابزار و بسته کمتری در runtime می‌گذارد و این می‌تواند سطح حمله و هزینهٔ نگهداری را کم کند؛ اما امنیت نتیجهٔ اندازهٔ تنها نیست.</p><p lang="en"><strong>Correction:</strong> multi-stage often leaves fewer tools and packages at runtime, which can reduce attack surface and maintenance cost; security is not a result of size alone.</p><p lang="fa"><strong>بررسی لازم:</strong> non-root بودن، patch level، وابستگی‌ها، تنظیمات و رفتار برنامه را جدا بررسی کن. دام، تبدیل یک نشانهٔ مثبت به تضمین کامل است.</p><p lang="en"><strong>Required checks:</strong> separately inspect non-root execution, patch level, dependencies, configuration, and application behavior. The trap is turning one positive signal into a complete guarantee.</p></details></div>
+<div class="ex" id="ex-5-16"><div class="ex-h"><span class="ex-n">تمرین ۵٫16 · Exercise 5.16</span><span class="ex-lvl lvl-3">آزمایش runtime · Runtime experiment</span><span class="ex-time">۶ min</span></div><p lang="fa">برای اثبات اینکه image نهایی واقعاً خروجی build را اجرا می‌کند، چه زنجیره‌ای از دستورها می‌زنی؟</p><p lang="en">What command chain proves that the final image actually runs the artifact?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa"><strong>زنجیره:</strong> با <code>docker image inspect</code> دستور را بخوان؛ با <code>docker run -d --name demo-multi -p 8080:3000 demo-ts:multi</code> اجرا کن؛ سپس <code>docker ps</code>، <code>docker logs</code> و <code>curl</code> را بخوان.</p><p lang="en"><strong>Chain:</strong> read the command with <code>docker image inspect</code>; run <code>docker run -d --name demo-multi -p 8080:3000 demo-ts:multi</code>; then read <code>docker ps</code>, <code>docker logs</code>, and <code>curl</code>.</p><p lang="fa"><strong>برای مطمئن‌شدن:</strong> اگر build موفق باشد اما container فوراً exit کند، به runtime دستور یا خروجی build برگرد. دام، نتیجه‌گیری سلامت runtime فقط از موفقیت build است.</p><p lang="en"><strong>Evidence and trap:</strong> if the build succeeds but the container exits immediately, return to the runtime command or artifact. The trap is inferring runtime health from build success alone.</p></details></div>
+<div class="ex" id="ex-5-17"><div class="ex-h"><span class="ex-n">تمرین ۵٫17 · Exercise 5.17</span><span class="ex-lvl lvl-3">مقایسه · Comparison</span><span class="ex-time">۷ min</span></div><p lang="fa">دو Dockerfile را مقایسه کن: یکی <code>COPY . .</code> را قبل از <code>npm ci</code> دارد و دیگری manifest را جدا copy می‌کند. کدام برای تغییر روزانهٔ کد منبع بهتر است؟</p><p lang="en">Compare two Dockerfiles: one copies COPY . . before npm ci, the other copies the manifest separately. Which is better for daily source changes?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa"><strong>جمع‌بندی این تمرین:</strong> نسخهٔ دوم بهتر است: تا وقتی manifest و lockfile تغییر نکرده‌اند، layer نصب وابستگی می‌تواند cache بماند. نسخهٔ اول با هر تغییر کد منبع ورودی نصب را هم تغییر می‌دهد.</p><p lang="en"><strong>Conclusion:</strong> the second is better: as long as the manifest and lockfile stay unchanged, the dependency-install layer can remain cached. The first changes the install input on every source edit.</p><p lang="fa"><strong>شاهد:</strong> یک کد منبع edit انجام بده و خروجی <code>--progress=plain</code> دو build را کنار هم بگذار. دام، انتظار cache بدون توجه به ترتیب instructionهاست.</p><p lang="en"><strong>Evidence:</strong> make one source edit and compare the two <code>--progress=plain</code> outputs. The trap is expecting cache without considering instruction order.</p></details></div>
+<div class="ex" id="ex-5-18"><div class="ex-h"><span class="ex-n">تمرین ۵٫18 · Exercise 5.18</span><span class="ex-lvl lvl-3">گزارش تشخیصی · Diagnostic report</span><span class="ex-time">۸ min</span></div><p lang="fa">سناریو: build موفق است، image multi کوچک‌تر است، اما مرورگر چیزی نشان نمی‌دهد. از خروجی build تا runtime چه گزارشی می‌نویسی؟</p><p lang="en">Scenario: the build succeeds, the multi-stage image is smaller, but the browser shows nothing. What report do you write from artifact to runtime?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa"><strong>ترتیب پیشنهادی:</strong> tag و تاریخچه image را ثبت کن؛ با مقصد builder وجود <code>/app/dist/server.js</code> را ثابت کن؛ دستور را با بررسی بخوان؛ با <code>docker ps -a</code> state و exit code را ببین؛ اگر Up است PORTS و listen address را با <code>curl</code> بررسی کن.</p><p lang="en"><strong>Suggested order:</strong> record the image tag and history; use the builder target to prove <code>/app/dist/server.js</code> exists; read the command with inspect; check state and exit code with <code>docker ps -a</code>; if it is Up, inspect PORTS and the listen address with <code>curl</code>.</p><p lang="fa"><strong>چرا این ترتیب؟</strong> چون هر مرحله پیش‌نیاز بعدی است و خطا در build را با خطا در runtime قاطی نمی‌کند. دام، تغییر تصادفی پایه یا port پیش از خواندن اولین مدرک است.</p><p lang="en"><strong>Why this order?</strong> Each step establishes a prerequisite for the next and keeps build failures separate from runtime failures. The trap is randomly changing the base or port before reading the first piece of evidence.</p></details></div>
+</section>
+<section id="lab">
+<h2><span lang="fa">آزمایشگاه کامل: از image سنگین تا runtime تمیز</span><span lang="en">Full lab: from a heavy image to a clean runtime</span></h2>
+<div class="capsule">
+<span class="tagline"><span lang="fa">حدود ۴۵ دقیقه</span><span lang="en">About 45 minutes</span></span>
+<h3 lang="fa">یک هم‌تیمی از تو image سبک‌تر می‌خواهد</h3>
+<h3 lang="en">A teammate asks for a leaner image</h3>
+<p lang="fa">این آزمایشگاه را مثل یک مأموریت کوچک انجام بده: یک image داری که کار می‌کند ولی زیادی بار همراهش است. اول وزنش را ثبت می‌کنی، بعد کارگاه و محصول را جدا می‌کنی، دوباره اندازه می‌گیری، cache را به‌هم می‌زنی و در آخر یک <code>COPY --from</code> خراب را از روی خروجی build پیدا می‌کنی. هدف فقط رسیدن به Dockerfile نهایی نیست؛ باید بتوانی توضیح بدهی چرا هر خط آنجاست.</p>
+<p lang="en">Start from the same <code>demo-ts</code> project. Build the single-stage version and collect evidence; then write the multi-stage version, compare size and history, observe cache with source and lockfile changes, deliberately break <code>COPY --from</code>, diagnose from build output, and clean everything up at the end.</p>
+<ol class="ranked">
+<li><b lang="fa">کد منبع</b><b lang="en">Source</b><p lang="fa">فایل‌های <code>server.ts</code>، manifest، lockfile و tsconfig را ثبت کن.</p><p lang="en">Record <code>server.ts</code>, the manifest, lockfile, and tsconfig.</p></li>
+<li><b lang="fa">baseline</b><b lang="en">Baseline</b><p lang="fa"><code>Dockerfile.single</code> را build کن؛ خروجی <code>docker image ls</code> و <code>docker image history</code> را ذخیره کن.</p><p lang="en">Build <code>Dockerfile.single</code>; save <code>docker image ls</code> and <code>docker image history</code> output.</p></li>
+<li><b lang="fa">runtime</b><b lang="en">Runtime</b><p lang="fa">هر دو tag را با <code>-p 8080:3000</code> اجرا کن و با <code>curl</code> ثابت کن که پاسخ یکی است.</p><p lang="en">Run both tags with <code>-p 8080:3000</code> and prove with <code>curl</code> that the response is equivalent.</p></li>
+<li><b lang="fa">multi-stage</b><b lang="en">Multi-stage</b><p lang="fa"><code>Dockerfile.multi</code> را مرحله‌به‌مرحله بنویس؛ قبل از build پیش‌بینی کن کدام فایل‌ها نهایی را ترک می‌کنند.</p><p lang="en">Write <code>Dockerfile.multi</code> step by step; predict which files leave the final image before building.</p></li>
+<li><b lang="fa">مقایسه</b><b lang="en">Compare</b><p lang="fa">اندازه، تاریخچه، دستور و مسیر خروجی build را در یک جدول کوتاه مقایسه کن. اعداد را نمونه‌ای یا واقعی برچسب بزن.</p><p lang="en">Compare size, history, command, and artifact path in a short table. Label values as representative or measured.</p></li>
+<li><b lang="fa">cache</b><b lang="en">Cache</b><p lang="fa">فقط کد منبع را تغییر بده و دوباره build کن؛ سپس lockfile را تغییر بده و تفاوت stepهای cached را یادداشت کن.</p><p lang="en">Change only source and rebuild; then change the lockfile and record which cached steps differ.</p></li>
+<li><b lang="fa">شکست</b><b lang="en">Break</b><p lang="fa">نام stage یا مسیر <code>COPY --from</code> را عمداً غلط کن. متن خطا، مرز خراب و fix را بنویس.</p><p lang="en">Deliberately break the stage name or <code>COPY --from</code> path. Record the error, broken boundary, and fix.</p></li>
+<li><b lang="fa">تحویل</b><b lang="en">Handoff</b><p lang="fa">tagهای آزمایشی و containerها را حذف کن و یک گزارش کوتاه با شواهد، محدودیت‌ها و نتیجه بنویس.</p><p lang="en">Remove test tags and containers and write a short report with evidence, limitations, and the result.</p></li>
+</ol>
+<details class="ex-sol">
+<summary>گزارش مرجع · Reference report</summary>
+<p lang="fa">گزارش خوب نمی‌گوید «multi-stage بهتر است» و تمام. می‌گوید baseline چه اندازه و چه layerهایی داشت؛ نهایی چه چیزهایی را نگه داشت؛ هر دو پاسخ یکسان دادند؛ cache با کدام تغییر شکست؛ خطاِ COPY در build رخ داد نه runtime؛ و پاک‌سازی با <code>docker image ls</code> و <code>docker ps -a</code> بررسی شد.</p>
+<p lang="en">A good report does not stop at “multi-stage is better.” It states the baseline size and layers, what the final image kept, whether both images answered equivalently, which change invalidated cache, that the COPY failure happened at build time rather than runtime, and that cleanup was checked with <code>docker image ls</code> and <code>docker ps -a</code>.</p>
+</details>
+</div>
+</section>
+<section id="handoff">
+<h2><span lang="fa">مدل نهایی را با خودت ببر</span><span lang="en">Carry the final model with you</span></h2>
+<p lang="fa">اگر بخواهیم کل فصل را در یک تصویر نگه داریم: <code>builder</code> کارگاه است، فایل خروجی محصول است و مرحلهٔ آخر جعبهٔ تحویل. multi-stage چیزی را جادویی پنهان نمی‌کند؛ فقط مجبورمان می‌کند آگاهانه بگوییم چه چیزی از کارگاه وارد جعبه شود. همین انتخاب صریح است که image نهایی را تمیزتر و قابل‌فهم‌تر می‌کند.</p>
+<p lang="en">Multi-stage is not a magic box that hides files. You create a build environment, produce an artifact with a path contract, start a fresh runtime, and explicitly transfer only what is needed. Then you measure size, history, command, and real behavior separately.</p>
+<div class="table-wrap">
+<table class="doc-table">
+<thead><tr><th>Claim</th><th>Evidence</th><th>Do not overclaim</th></tr></thead>
+<tbody>
+<tr><td>Final is smaller</td><td><code>docker image ls</code></td><td><span lang="fa">کوچک‌تر بودن به‌تنهایی امنیت نیست</span><span lang="en">Size alone is not security</span></td></tr>
+<tr><td>Artifact exists</td><td><code>docker build --target builder</code> + listing</td><td><span lang="fa">تاریخچه جای listing نیست</span><span lang="en">History is not a file listing</span></td></tr>
+<tr><td>Runtime works</td><td><code>docker run</code> + <code>curl</code></td><td><span lang="fa">build موفق، runtime سالم را تضمین نمی‌کند</span><span lang="en">A successful build does not guarantee runtime health</span></td></tr>
+<tr><td>Cache helps</td><td><code>--progress=plain</code> and <code>CACHED</code></td><td><span lang="fa">cache محتوای نهایی نیست</span><span lang="en">Cache is not final-image content</span></td></tr>
+</tbody>
+</table>
+</div>
+<div class="note safe">
+<div class="note-t"><span lang="fa">مرز فصل</span><span lang="en">Scope boundary</span></div>
+<p lang="fa">فصل بعد موضوع عوض می‌شود: این‌بار نه خود image، بلکه داده‌ای مهم است که نباید با حذف container از بین برود. همین‌طور قدم‌به‌قدم جلو می‌رویم؛ هر فصل یک مسئلهٔ واقعی را حل می‌کند و ابزار بعدی وقتی وارد می‌شود که واقعاً به آن نیاز پیدا کرده‌ایم.</p>
+<p lang="en">Later chapters cover data, networking, Compose, secrets, and deployment. This chapter solved one question deeply: how to separate build from runtime and prove what was transferred.</p>
+</div>
+</section>
+<section id="quick">
+<h2><span lang="fa">مرجع سریع</span><span lang="en">Quick reference</span></h2>
+<div class="cheat">
+<div class="cheat-row"><code>FROM base AS builder</code><span lang="fa">stage ساخت را نام‌گذاری می‌کند</span><span lang="en">names a build stage</span></div>
+<div class="cheat-row"><code>COPY --from=builder /src /dest</code><span lang="fa">خروجی build را از stage می‌خواند</span><span lang="en">copies an artifact from a stage</span></div>
+<div class="cheat-row"><code>docker build --target builder .</code><span lang="fa">stage میانی را برای عیب‌یابی می‌سازد</span><span lang="en">builds an intermediate stage for debugging</span></div>
+<div class="cheat-row"><code>docker image ls NAME</code><span lang="fa">اندازه و tag را نشان می‌دهد</span><span lang="en">shows size and tags</span></div>
+<div class="cheat-row"><code>docker image history NAME</code><span lang="fa">تاریخچه instructionها را نشان می‌دهد</span><span lang="en">shows instruction history</span></div>
+<div class="cheat-row"><code>docker build --progress=plain .</code><span lang="fa">cache و اولین step خراب را خواناتر می‌کند</span><span lang="en">makes cache and the first failing step visible</span></div>
+</div>
+<div class="note safe">
+<div class="note-t"><span lang="fa">منابع رسمی بررسی‌شده</span><span lang="en">Official references checked</span></div>
+<p lang="fa"><a href="https://docs.docker.com/build/building/multi-stage/">راهنمای multi-stage builds</a> · <a href="https://docs.docker.com/reference/dockerfile">مرجع Dockerfile و COPY --from</a> · <a href="https://docs.docker.com/build/cache/optimize/">بهینه‌سازی cache</a> · <a href="https://docs.docker.com/reference/cli/docker/image/history/">مرجع image تاریخچه</a></p>
+<p lang="en"><a href="https://docs.docker.com/build/building/multi-stage/">Multi-stage builds guide</a> · <a href="https://docs.docker.com/reference/dockerfile">Dockerfile and COPY --from reference</a> · <a href="https://docs.docker.com/build/cache/optimize/">Cache optimization</a> · <a href="https://docs.docker.com/reference/cli/docker/image/history/">Image history reference</a></p>
+</div>
+</section>

@@ -399,6 +399,17 @@
     svg .dg-tb { fill: var(--blue);     font-family: var(--mono); font-size: 11px; }
     svg .dg-arrow   { fill: var(--line-strong); }
     svg .dg-arrow-b { fill: var(--blue); }
+
+    /* Safe defaults for lesson SVGs that use native elements without classes. */
+    svg rect:not([class]) {
+      fill: var(--surface-sunk);
+      stroke: var(--line-strong);
+    }
+    svg text:not([class]) {
+      fill: var(--ink);
+      font-family: var(--mono);
+      font-size: 13px;
+    }
   }
 
   figcaption {
@@ -418,22 +429,27 @@
     background: var(--surface);
     box-shadow: var(--shadow-1);
 
-    table {
+    .doc-table {
       border-collapse: collapse;
       width: 100%;
-      min-width: min(560px, 100%);
+      min-width: 620px;
       font-size: .9rem;
+      background: var(--surface);
     }
 
-    th, td {
-      padding: 10px 14px;
+    .doc-table th, .doc-table td {
+      padding: 14px 16px;
       text-align: start;
       border-bottom: 1px solid var(--line);
       vertical-align: top;
       line-height: 1.7;
     }
 
-    thead th {
+    .doc-table thead {
+      background: var(--surface-sunk);
+    }
+
+    .doc-table thead th {
       background: var(--surface-sunk);
       font-size: .78rem;
       font-weight: 700;
@@ -442,11 +458,52 @@
       border-bottom: 1px solid var(--line-strong);
     }
 
-    tbody tr:last-child td { border-bottom: 0; }
-    tbody tr:hover { background: var(--tint-blue); }
-    td code { white-space: nowrap; }
+    .doc-table tbody tr:last-child td { border-bottom: 0; }
+    .doc-table tbody tr:hover { background: var(--tint-blue); }
+    .doc-table td code {
+      white-space: nowrap;
+      direction: ltr;
+      unicode-bidi: plaintext;
+    }
     .yes { color: var(--safe); font-weight: 700; }
     .no  { color: var(--danger); font-weight: 700; }
+  }
+
+  /* Legacy chapter tables are semantic but not wrapped. Keep them polished while
+     new content follows the stricter table-wrap convention in the authoring skill. */
+  > table {
+    display: table;
+    width: 100%;
+    min-width: 0;
+    margin: 22px 0 26px;
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    background: var(--surface);
+    box-shadow: var(--shadow-1);
+    font-size: .9rem;
+
+    th, td {
+      padding: 11px 14px;
+      text-align: start;
+      vertical-align: top;
+      line-height: 1.7;
+      border-bottom: 1px solid var(--line);
+    }
+
+    thead th {
+      background: var(--surface-sunk);
+      color: var(--ink-soft);
+      font-size: .78rem;
+      font-weight: 700;
+      white-space: nowrap;
+      border-bottom-color: var(--line-strong);
+    }
+
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr:hover { background: var(--tint-blue); }
   }
 
   /* ── مراحل شماره‌دار ─────────────────────────────────────────────────── */

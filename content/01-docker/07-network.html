@@ -1,0 +1,596 @@
+<!--meta
+title: شبکه: bridge، DNS داخلی و publish
+desc: با دو کانتینر ببینید localhost کجاست، bridge و DNS داخلی چطور کار می‌کنند، و چرا traffic داخلی به publish نیاز ندارد.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">Docker · فصل ۰۷</span><span lang="en">Docker · Chapter 7</span></span>
+<h1 lang="fa">شبکه: bridge، DNS داخلی و publish</h1>
+<h1 lang="en">Networking: bridge networks, internal DNS, and port publishing</h1>
+<p class="sub" lang="fa">دو تا container داریم و هر دو Running هستند. حالا چطور یکی باید دیگری را پیدا کند؟ جواب از <code>localhost</code> شروع نمی‌شود؛ باید caller، شبکه و port درست را پیدا کنیم.</p>
+<p class="sub" lang="en">We have two running containers. How does one find the other? The answer does not start with <code>localhost</code>; it starts by finding the caller, the network, and the right port.</p>
+<div class="facts">
+<div class="fact"><b>۱۲۰</b><span lang="fa">دقیقهٔ مطالعه و اجرا</span><span lang="en">minutes</span></div>
+<div class="fact"><b>۱۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></div>
+<div class="fact"><b>۴</b><span lang="fa">نمودار مفهومی</span><span lang="en">diagrams</span></div>
+<div class="fact"><b>۱</b><span lang="fa">آزمایشگاه کامل</span><span lang="en">full lab</span></div>
+</div>
+</div>
+<section id="story">
+<h2><span lang="fa">داده ماند؛ حالا web چطور پایگاه‌داده را پیدا کند؟</span><span lang="en">The data stayed; how does web find the database?</span></h2>
+<p class="lede" lang="fa">فصل قبل پایگاه‌داده‌مان را از عمر container جدا کردیم. حالا یک web داریم و یک پایگاه‌داده؛ هر دو هم Running هستند. سؤال بعدی خیلی طبیعی است: web آدرس پایگاه‌داده را چه بنویسد؟ اولین چیزی که خیلی‌ها امتحان می‌کنند <code>localhost</code> است. بیایید اول همین حدس را خراب کنیم.</p>
+<p class="lede" lang="en">In Chapter 6 we separated data from the container lifetime. Now take a more realistic step: one container runs the web app and another runs the database. Both are up, but web must reach the database. The natural first guess is: “Should I use <code>localhost</code>?”</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">Experiment A · localhost from the wrong place</span><button class="copy">کپی</button></div>
+<pre dir="ltr">$ docker network create demo-net
+demo-net
+
+$ docker run -d --name web --network demo-net nginx:alpine
+...
+
+$ docker run --rm --network demo-net curlimages/curl:latest \
+  -fsS --max-time 2 http://localhost
+curl: (7) Failed to connect to localhost port 80 after 0 ms: Couldn't connect to server
+
+$ docker run --rm --network demo-net curlimages/curl:latest \
+  -fsS http://web | head -n 2
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;</pre>
+</div>
+<p lang="fa">هر دو دستور از داخل یک container موقت اجرا می‌شوند. وقتی آنجا می‌نویسی <code>localhost</code>، در واقع داری به همان container موقت اشاره می‌کنی؛ Nginx داخل container دیگری به نام <code>web</code> است. وقتی به <code>http://web</code> می‌روی، این بار نامِ container مقصد را روی شبکهٔ مشترک استفاده کرده‌ای.</p>
+<p lang="en">Both commands ran from a temporary client container. In the first command, <code>localhost</code> means the loopback of that client; nginx is not inside the client. In the second, <code>web</code> is the container name on <code>demo-net</code>, and Docker resolves it to web's internal address.</p>
+<div class="note safe">
+<div class="note-t"><span lang="fa">مدل ذهنی اصلی</span><span lang="en">The main mental model</span></div>
+<p lang="fa">قاعده‌ای که کل فصل روی آن می‌ایستد همین است: <code>localhost</code> یعنی «همین‌جایی که من هستم». از روی host یعنی خود host؛ داخل <code>web</code> یعنی خود web؛ داخل <code>client</code> یعنی خود client. localhost هیچ‌وقت اسم مستعار «بقیهٔ containerها» نیست.</p>
+<p lang="en"><code>localhost</code> means “this network namespace where the command runs.” From the host it is the host; from web it is web; from client it is client.</p>
+</div>
+</section>
+<section id="scopes">
+<h2><span lang="fa">یک localhost، چند «همین‌جا»</span><span lang="en">Three localhosts: one word, several scopes</span></h2>
+<p lang="fa">فعلاً لازم نیست وارد جزئیات kernel شویم. هر container را مثل یک اتاق کوچک شبکه تصور کن؛ loopback، interface و دید خودش را دارد. Docker می‌تواند بین این اتاق‌ها راه بسازد، اما <code>localhost</code> همیشه داخل همان اتاق می‌ماند. همین تصویر ساده بعداً خیلی از خطاهای شبکه را توضیح می‌دهد.</p>
+<p lang="en">You do not need kernel details at the start. For this chapter, think of a network namespace as a network room: each container has its own loopback, interface, routes, and DNS view. Docker can connect those rooms with interfaces and a bridge, but <code>localhost</code> does not cross a room's wall.</p>
+<div class="diagram">
+<svg aria-labelledby="c7-scope-title" role="img" viewbox="0 0 980 330">
+<title id="c7-scope-title">The host, web container, and client container each have a separate localhost scope</title>
+<defs><marker id="c7-scope-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<g class="dg-stroke-b" marker-end="url(#c7-scope-arrow)" stroke-width="2">
+<path d="M490 116H370"></path><path d="M490 116H610"></path>
+</g>
+<g text-anchor="middle">
+<rect class="dg-fill" height="245" rx="16" width="930" x="25" y="46"></rect>
+<text class="dg-t" x="490" y="78">Docker host</text>
+<rect class="dg-fill-w" height="130" rx="12" width="220" x="75" y="108"></rect>
+<text class="dg-t" x="185" y="146">host localhost</text><text class="dg-ts" x="185" y="177">127.0.0.1:8080</text><text class="dg-ts" x="185" y="207">browser lives here</text>
+<rect class="dg-fill-v" height="130" rx="12" width="220" x="380" y="108"></rect>
+<text class="dg-t" x="490" y="146">web container</text><text class="dg-ts" x="490" y="177">its own localhost</text><text class="dg-ts" x="490" y="207">nginx :80</text>
+<rect class="dg-fill-g" height="130" rx="12" width="220" x="685" y="108"></rect>
+<text class="dg-t" x="795" y="146">client container</text><text class="dg-ts" x="795" y="177">its own localhost</text><text class="dg-ts" x="795" y="207">curl runs here</text>
+</g>
+<text class="dg-ts" x="430" y="101">published path only when configured</text><text class="dg-ts" x="550" y="101">network path is explicit</text>
+</svg>
+<p class="diagram-cap" lang="fa">کادرها سه محدوده مستقل را نشان می‌دهند، نه سه اسم برای یک آدرس. فلش host به web فقط مسیر publish شده را معنا می‌کند؛ فلش client به web مسیر شبکه داخلی را نشان می‌دهد. هیچ‌کدام <code>localhost</code> را به اتاق دیگری منتقل نمی‌کنند.</p>
+<p class="diagram-cap" lang="en">The boxes show three independent scopes, not three names for one address. The host-to-web arrow means a published path; the client-to-web arrow means an internal network path. Neither changes what <code>localhost</code> means inside another room.</p>
+</div>
+<p lang="fa">پس قبل از اینکه port را عوض کنی، یک سؤال خیلی ساده بپرس: «این دستور دقیقاً از کجا اجرا شده؟» اگر از <code>client</code> اجرا شده، <code>localhost:80</code> فقط دنبال سرویس داخل همان client می‌گردد. برای رسیدن به <code>web</code> باید واقعاً راهی بین دو container وجود داشته باشد و مقصد را هم درست صدا بزنی.</p>
+<p lang="en">When you see a failure, ask where the command ran before changing ports. If it ran in client, <code>localhost:80</code> needs a service inside that client. To reach web, you need a path between the containers and a destination name or address.</p>
+</section>
+<section id="bridge">
+<h2><span lang="fa">bridge چیست؟ یک شبکهٔ مشترک با درِ مشخص</span><span lang="en">What is a bridge? A shared network with a clear boundary</span></h2>
+<p lang="fa">حالا باید بین این «اتاق‌ها» یک راه مشترک بسازیم. bridge شبکه را می‌توانی مثل یک شبکهٔ محلی نرم‌افزاری ببینی: containerهایی که عضو آن هستند interface و آدرس می‌گیرند و می‌توانند به سرویس‌های هم دسترسی داشته باشند. container بیرون این شبکه، چنین مسیر داخلی‌ای را خودکار ندارد.</p>
+<p lang="en">When containers join a bridge network, Docker gives each one an interface and an address from that network's subnet. A bridge is a software local network: members can reach one another's ports, while containers on other networks do not normally have that internal path.</p>
+<p lang="fa">Docker از اول یک شبکهٔ <code>bridge</code> پیش‌فرض دارد. برای آزمایش‌های ساده بد نیست، اما وقتی چند سرویس متعلق به یک برنامه داری بهتر است شبکهٔ خودت را نام‌گذاری کنی؛ مثلاً <code>demo-net</code>. آن‌وقت دقیقاً معلوم است چه containerهایی عضو این مجموعه‌اند و نام‌ها در کدام شبکه معنی دارند.</p>
+<p lang="en">Separate two bridge cases. Docker Engine creates the default <code>bridge</code> network, and a container without <code>--network</code> normally joins it. A user-defined bridge is one you create with <code>docker network create</code> and name for an application stack.</p>
+<div class="table-wrap">
+<table class="doc-table">
+<thead><tr><th>ویژگی</th><th>default <code>bridge</code></th><th>user-defined bridge</th></tr></thead>
+<tbody>
+<tr><td>ورود container</td><td>پیش‌فرض، اگر network ندهی</td><td>با <code>--network NAME</code> یا <code>network connect</code></td></tr>
+<tr><td>پیداکردن با نام</td><td>automatic DNS برای container name ندارد؛ link قدیمی است</td><td>automatic DNS با name یا alias همان network</td></tr>
+<tr><td>مرزبندی stack</td><td>containerهای بی‌ربط هم در یک network مشترک‌اند</td><td>فقط اعضای متصل به همان network در scope هستند</td></tr>
+<tr><td>اتصال در طول عمر</td><td>مدیریت محدودتر و legacy</td><td><code>connect</code> و <code>disconnect</code> بدون recreate</td></tr>
+<tr><td>انتخاب عملی</td><td>برای آزمایش ساده یا سازگاری قدیمی</td><td>انتخاب معمول برای applicationهای چندcontainerی</td></tr>
+</tbody>
+</table>
+</div>
+<p lang="fa">این شبکهٔ جدا خودش به‌تنهایی سپر امنیتی کامل نیست. فقط مرز و پیدا کردن نام‌ها را مرتب‌تر می‌کند. هنوز باید آگاهانه تصمیم بگیری چه portی publish شود، چه سرویسی به چه شبکه‌ای وصل باشد و چه credentialی استفاده کند.</p>
+<p lang="en">“Better” does not mean automatically secure. A user-defined bridge gives a better scope and name-resolution model; you still choose published ports, credentials, and service access deliberately.</p>
+</section>
+<section id="create">
+<h2><span lang="fa">یک شبکه بساز و نام را به‌جای IP به‌کار ببر</span><span lang="en">Create a network and use the name instead of the IP</span></h2>
+<p lang="fa">آدرس IP داخلی container چیزی نیست که بخواهی داخل تنظیمات برنامه حک کنی. ممکن است <code>web</code> را حذف و دوباره بسازی و IP عوض شود. اسم <code>web</code> روی شبکهٔ خودت قرارداد بهتری است: برنامه مقصد را با نام می‌شناسد و Docker آدرس فعلی را پیدا می‌کند.</p>
+<p lang="en">When web is recreated, its internal IP may change. If the application config contains that IP, every recreate becomes a small incident. A container name on a user-defined network is a more stable contract for this purpose.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">create · attach · resolve</span><button class="copy">کپی</button></div>
+<pre dir="ltr">$ docker network create --driver bridge demo-net
+demo-net
+
+$ docker network ls
+NETWORK ID     NAME       DRIVER    SCOPE
+...            bridge     bridge    local
+...            demo-net   bridge    local
+
+$ docker run -d --name web --network demo-net nginx:alpine
+...
+
+$ docker run --rm --network demo-net curlimages/curl:latest   -fsS -v http://web
+
+# representative lines from curl
+* Connected to web (...) port 80
+&lt; HTTP/1.1 200 OK</pre>
+</div>
+<p lang="fa">در خروجی <code>curl -v</code> خطی شبیه <code>Connected to web</code> را پیدا کن. نکته همین است: ما IP را ننوشته‌ایم. client نام <code>web</code> را در همان شبکه پیدا کرده و بعد درخواست HTTP را به آدرس فعلی آن فرستاده است.</p>
+<p lang="en">In PowerShell, <code>Select-String</code> only shortens the displayed output; on Linux or macOS use <code>grep -E 'Connected|HTTP/'</code>. The useful line is <code>Connected to web</code>: client resolved web to an IP without us memorizing that IP.</p>
+<div class="diagram">
+<svg aria-labelledby="c7-dns-title" role="img" viewbox="0 0 950 280">
+<title id="c7-dns-title">A client resolves the name web through the user-defined network's internal DNS and requests web port 80</title>
+<defs><marker id="c7-dns-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<g class="dg-stroke-b" marker-end="url(#c7-dns-arrow)" stroke-width="2">
+<path d="M235 140h110"></path><path d="M585 140h110"></path>
+</g>
+<g text-anchor="middle">
+<rect class="dg-fill-g" height="114" rx="12" width="210" x="25" y="83"></rect>
+<text class="dg-t" x="130" y="121">client container</text><text class="dg-ts" x="130" y="153">curl http://web</text><text class="dg-ts" x="130" y="180">caller</text>
+<rect class="dg-fill-v" height="164" rx="12" width="240" x="345" y="58"></rect>
+<text class="dg-t" x="465" y="101">demo-net</text><text class="dg-ts" x="465" y="133">embedded DNS</text><text class="dg-ts" x="465" y="163">web → 172.19.0.2</text><text class="dg-ts" x="465" y="193">same network scope</text>
+<rect class="dg-fill" height="114" rx="12" width="230" x="695" y="83"></rect>
+<text class="dg-t" x="810" y="121">web container</text><text class="dg-ts" x="810" y="153">nginx :80</text><text class="dg-ts" x="810" y="180">destination</text>
+</g>
+<text class="dg-ts" x="290" y="130">name lookup</text><text class="dg-ts" x="640" y="130">HTTP request</text>
+</svg>
+<p class="diagram-cap" lang="fa">در نمودار دو اتفاق جدا داریم. اول نام <code>web</code> به آدرس داخلی فعلی‌اش پیدا می‌شود؛ بعد درخواست HTTP به port 80 آن آدرس می‌رود. جدا دیدن این دو مرحله مهم است، چون «نام پیدا نشد» با «نام پیدا شد ولی اتصال رد شد» دو مشکل متفاوت‌اند.</p>
+<p class="diagram-cap" lang="en">The first arrow is only name resolution: <code>web</code> becomes an internal address within <code>demo-net</code>. The second arrow is the actual HTTP request to web's port 80; keep the two steps distinct.</p>
+</div>
+<p lang="fa">این نام جادویی و global نیست. اگر client را از <code>demo-net</code> جدا کنی، دیگر همان DNS محدوده را ندارد و <code>web</code> پیدا نمی‌شود یا مسیرش در دسترس نیست. همین وابستگی به عضویت دلیل خوبی است که اسم شبکه را در کنار سرویس‌ها مدیریت کنی.</p>
+<p lang="en">This name is not magical or global. Disconnect client from <code>demo-net</code> and it no longer has that DNS scope or path to web. That membership dependency is why the network name belongs in the service setup.</p>
+</section>
+<section id="inspect">
+<h2><span lang="fa">وقتی ارتباط قطع شد، خود شبکه را نگاه کن</span><span lang="en">What does network inspect show?</span></h2>
+<p lang="fa">وقتی client به web نمی‌رسد، حدس‌زدن IP آخرین کاری است که می‌خواهیم بکنیم. خود <code>demo-net</code> را inspect کن. آنجا می‌بینی شبکه چه اسمی دارد، driver چیست و کدام containerها واقعاً عضو آن هستند. خیلی وقت‌ها مشکل همین است که یکی از دو طرف اصلاً روی شبکه‌ای که فکر می‌کردی نیست.</p>
+<p lang="en">When “client cannot reach web,” inspect the network instead of guessing an IP. The network name, driver, subnet, gateway, and connected containers appear together in this output.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">representative network inspect · addresses vary</span><button class="copy">کپی</button></div>
+<pre dir="ltr">$ docker network inspect demo-net
+[
+  {
+    "Name": "demo-net",
+    "Driver": "bridge",
+    "Scope": "local",
+    "IPAM": {
+      "Config": [{ "Subnet": "172.19.0.0/16", "Gateway": "172.19.0.1" }]
+    },
+    "Containers": {
+      "a1b2...": {
+        "Name": "web",
+        "IPv4Address": "172.19.0.2/16"
+      }
+    }
+  }
+]</pre>
+</div>
+<p lang="fa">خروجی را با سه سؤال بخوان: آیا شبکهٔ درست را نگاه می‌کنم؟ آیا <code>web</code> واقعاً در فهرست اعضاست؟ آیا آدرسی گرفته؟ IP برای عیب‌یابی خوب است، ولی آن را تبدیل به تنظیم دائمی برنامه نکن؛ اسم سرویس برای همین ساخته شده است.</p>
+<p lang="en">Use the output to answer three questions: did I inspect the right network name? Is web actually listed under <code>Containers</code>? Do the address and subnet match the situation? The IP is useful for diagnosis, but should not become permanent application configuration.</p>
+<p lang="fa">برای دیدن اتصال‌های خود container هم <code>docker inspect web --format '{{json .NetworkSettings.Networks}}'</code> بزن. این دو inspect مکمل‌اند: یکی از دید شبکه حرف می‌زند، دیگری از دید container.</p>
+<p lang="en">To see a container's own attachments, run <code>docker inspect web --format '{{json .NetworkSettings.Networks}}'</code>. The two inspections complement each other: one speaks from the network's view, the other from the container's view.</p>
+</section>
+<section id="ports">
+<h2><span lang="fa">port داخلی با port روی host یکی نیست</span><span lang="en">An internal port is not a host port</span></h2>
+<p lang="fa">Nginx داخل <code>web</code> روی port 80 گوش می‌دهد. اگر <code>client</code> روی همان شبکه باشد، می‌تواند مستقیم به <code>web:80</code> برود؛ این مسیر اصلاً لازم نیست از portهای host عبور کند. این همان جایی است که مفهوم شبکهٔ داخلی با publish از هم جدا می‌شود.</p>
+<p lang="en">nginx listens on port 80 inside web. That port belongs to web's world. When client on the same network requests <code>http://web:80</code>, it reaches the internal port directly and needs no <code>-p</code>.</p>
+<p lang="fa">مرورگر تو روی host عضو <code>demo-net</code> نیست. اگر می‌خواهی از <code>localhost:8080</code> وارد Nginx شوی، باید یک در روی host باز کنی: <code>-p 8080:80</code>. سمت چپ دری است که روی host می‌زنی؛ سمت راست port سرویس داخل container است.</p>
+<p lang="en">A browser on the host is not a member of <code>demo-net</code>. To let the host enter through <code>localhost:8080</code>, you need a mapping: <code>-p 8080:80</code>. The left number is the host port; the right number is the container port.</p>
+<div class="table-wrap">
+<table class="doc-table">
+<thead><tr><th>caller</th><th>آدرس مقصد</th><th><code>-p</code> لازم است؟</th><th>مسیر request</th></tr></thead>
+<tbody>
+<tr><td>client روی <code>demo-net</code></td><td><code>http://web:80</code></td><td>نه</td><td>client → bridge → web:80</td></tr>
+<tr><td>browser روی host</td><td><code>http://localhost:8080</code></td><td>بله، <code>8080:80</code></td><td>host:8080 → mapping → web:80</td></tr>
+<tr><td>container روی network دیگر</td><td><code>http://web:80</code></td><td>برای internal path کافی نیست</td><td>باید network مشترک یا مسیر دیگری داشته باشد</td></tr>
+</tbody>
+</table>
+</div>
+<div class="term">
+<div class="term-bar"><span class="term-label">host port collision · same host port twice</span><button class="copy">کپی</button></div>
+<pre dir="ltr">$ docker run -d --name web-copy --network demo-net \
+  -p 127.0.0.1:8080:80 nginx:alpine
+docker: Error response from daemon: driver failed programming external connectivity
+on endpoint web-copy (...): Bind for 127.0.0.1:8080 failed: port is already allocated.</pre>
+</div>
+<p lang="fa">این خطا دربارهٔ port داخلی nginx نیست؛ host port ۸۰۸۰ قبلاً مالک دارد. اول <code>docker ps</code> و نگاشت را پیدا کن، بعد host port را عوض کن یا اگر caller داخلی است اصلاً publish را حذف کن.</p>
+<p lang="en">This failure is not about nginx's internal port; host port 8080 is already owned. Find the existing mapping with <code>docker ps</code>, then change the host port or remove publishing if the caller is internal.</p>
+<div class="diagram">
+<svg aria-labelledby="c7-publish-title" role="img" viewbox="0 0 960 280">
+<title id="c7-publish-title">A host browser reaches web through a published host port, while the container still listens on port 80</title>
+<defs><marker id="c7-publish-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<g class="dg-stroke-b" marker-end="url(#c7-publish-arrow)" stroke-width="2">
+<path d="M245 140h90"></path><path d="M575 140h105"></path>
+</g>
+<g text-anchor="middle">
+<rect class="dg-fill-w" height="110" rx="12" width="225" x="20" y="85"></rect>
+<text class="dg-t" x="132" y="123">browser on host</text><text class="dg-ts" x="132" y="156">localhost:8080</text><text class="dg-ts" x="132" y="181">caller</text>
+<rect class="dg-fill-v" height="160" rx="12" width="240" x="335" y="60"></rect>
+<text class="dg-t" x="455" y="104">published mapping</text><text class="dg-ts" x="455" y="137">HOST 8080</text><text class="dg-ts" x="455" y="166">→ CONTAINER 80</text><text class="dg-ts" x="455" y="195">NAT / forwarding</text>
+<rect class="dg-fill" height="110" rx="12" width="250" x="680" y="85"></rect>
+<text class="dg-t" x="805" y="123">web container</text><text class="dg-ts" x="805" y="156">nginx:80</text><text class="dg-ts" x="805" y="181">destination</text>
+</g>
+<text class="dg-ts" x="290" y="130">host request</text><text class="dg-ts" x="627" y="130">forward to</text>
+</svg>
+<p class="diagram-cap" lang="fa">هر فلش درخواست مسیر را نشان می‌دهد. publish یک درِ host می‌سازد؛ port داخلی عوض نمی‌شود و nginx هنوز روی ۸۰ است. مسیر داخلی client به web از این نگاشت عبور نمی‌کند.</p>
+<p class="diagram-cap" lang="en">Each arrow is a request path. Publishing creates a host-side door; the internal port does not change and nginx still listens on 80. The internal client-to-web path does not need to cross this mapping.</p>
+</div>
+<p lang="fa">در اجرای امن‌ترِ محلی می‌توانی host IP را هم صریح بدهی: <code>-p 127.0.0.1:8080:80</code>. اگر IP host را ندهی، Docker معمولاً port را روی interfaceهای host منتشر می‌کند؛ پس publish را با «فقط برای مرورگر خودم» یکی ندان.</p>
+<p lang="en">For a safer local run, bind the host address explicitly: <code>-p 127.0.0.1:8080:80</code>. Without a host IP, Docker normally publishes on the host interfaces, so “published” does not automatically mean “only for my browser.”</p>
+</section>
+<section id="publish">
+<h2><span lang="fa">یک بار web را بدون publish و بار دوم با publish اجرا کن</span><span lang="en">Run web once without publishing, then with publishing</span></h2>
+<p lang="fa">حالا این دو مسیر را کنار هم ببین. بار اول Nginx فقط عضو شبکهٔ داخلی است: client باید به <code>web:80</code> برسد، ولی host هنوز دری روی 8080 ندارد. بار دوم همان web را با <code>-p</code> می‌سازیم؛ چیزی در ارتباط داخلی عوض نشده، فقط یک مسیر تازه از host به container اضافه شده است.</p>
+<p lang="en">This experiment puts the two traffic paths side by side. First web is only a network member. client should succeed, while host <code>localhost:8080</code> should not reach this web. Then we recreate web and add one host mapping.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">internal path versus host path</span><button class="copy">کپی</button></div>
+<pre dir="ltr">$ docker run --rm --network demo-net curlimages/curl:latest -fsS http://web:80 &gt; $null
+$LASTEXITCODE
+0
+
+# Run on the host; choose a free host port for this experiment.
+PS&gt; curl.exe --fail --max-time 2 http://127.0.0.1:8080
+curl: (7) Failed to connect to 127.0.0.1 port 8080
+
+$ docker rm -f web
+web
+
+$ docker run -d --name web --network demo-net \
+  -p 127.0.0.1:8080:80 nginx:alpine
+...
+
+PS&gt; curl.exe --fail http://127.0.0.1:8080 | Select-Object -First 1
+&lt;!DOCTYPE html&gt;
+
+$ docker port web
+80/tcp -&gt; 127.0.0.1:8080</pre>
+</div>
+<p lang="fa">اگر client قبل از publish هم به web می‌رسد، یعنی ارتباط داخلی به <code>-p</code> وابسته نیست. publish فقط برای callerای لازم است که بیرون آن شبکه است—مثل مرورگر روی host. اگر 8080 روی سیستم تو اشغال است، عدد دیگری انتخاب کن؛ مفهوم عوض نمی‌شود.</p>
+<p lang="en">The first line proves internal traffic does not depend on publishing. The second only tests host <code>localhost:8080</code>; another process may already own that port, so choose a free one on your machine. After recreation, client still uses <code>http://web:80</code> and the host browser has the new path.</p>
+<div class="note warn">
+<div class="note-t"><span lang="fa">EXPOSE همان publish نیست</span><span lang="en">EXPOSE is not publish</span></div>
+<p lang="fa"><code>EXPOSE 80</code> در Dockerfile فقط قرارداد/metadata دربارهٔ port مورد انتظار image است. دسترسی host با <code>-p</code> ساخته می‌شود؛ و دسترسی containerهای روی شبکه مشترک به‌طور معمول به <code>-p</code> نیاز ندارد.</p>
+<p lang="en"><code>EXPOSE 80</code> in a Dockerfile is a contract or metadata about the image's expected port. Host access is created with <code>-p</code>; containers on the same network normally do not need <code>-p</code> for their internal path.</p>
+</div>
+</section>
+<section id="default">
+<h2><span lang="fa">default bridge چه کم دارد؟</span><span lang="en">What is missing from the default bridge?</span></h2>
+<p lang="fa">شبکهٔ پیش‌فرض Docker خراب یا ممنوع نیست؛ برای آزمایش ساده کار می‌کند. مشکل این است که وقتی یک برنامه چند سرویس دارد، نام‌گذاری و مرزبندی روشن می‌خواهی. شبکهٔ نام‌دار خودت این رابطه را واضح‌تر می‌کند و پیدا کردن containerها با نام را هم ساده می‌کند.</p>
+<p lang="en">The default bridge is not necessarily “broken.” It is useful for quick experiments, and containers on it can communicate through internal IPs. The problem appears when you need service names, stack boundaries, and attach/detach behavior during a container's lifetime.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">the legacy name-resolution surprise</span><button class="copy">کپی</button></div>
+<pre dir="ltr">$ docker run -d --name legacy-web nginx:alpine
+...
+
+$ docker run --rm --network bridge curlimages/curl:latest \
+  -fsS --max-time 2 http://legacy-web
+curl: (6) Could not resolve host: legacy-web
+
+# The same container's IP may work on the default bridge,
+# but that IP is not a stable application name.</pre>
+</div>
+<p lang="fa">این رفتار با user-defined bridge فرق دارد: آنجا Docker embedded DNS نام container یا alias را در همان شبکه پاسخ می‌دهد. به همین دلیل برای web و پایگاه‌داده یک شبکه نام‌دار بساز؛ به link قدیمی یا نوشتن IP در تنظیمات برنگرد.</p>
+<p lang="en">This differs from a user-defined bridge, where Docker's embedded DNS resolves a container name or alias on that network. That is why you create a named network for web and database instead of returning to legacy links or putting an IP in application config.</p>
+</section>
+<section id="connect">
+<h2><span lang="fa">container را به شبکه وصل و جدا کن</span><span lang="en">Connect and disconnect a container</span></h2>
+<p lang="fa">اگر container از قبل روشن است، برای اضافه‌کردنش به یک شبکه لازم نیست حذفش کنی. <code>docker network connect</code> یک اتصال شبکهٔ تازه به همان container اضافه می‌کند و <code>disconnect</code> همان اتصال را برمی‌دارد. اینجا دقیقاً می‌توانی ببینی «عضویت در شبکه» یک ویژگی مستقل از خودِ روشن‌بودن container است.</p>
+<p lang="en">When you create a container with <code>--network</code>, the attachment exists from the start. If a container is already running, you do not need to remove it to add a user-defined network; <code>docker network connect</code> adds another interface.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">attach, observe, detach</span><button class="copy">کپی</button></div>
+<pre dir="ltr">$ docker network create side-net
+side-net
+
+$ docker run -d --name helper alpine sleep 3600
+...
+
+$ docker network connect side-net helper
+
+$ docker network inspect side-net
+...
+"Name": "helper",
+"IPv4Address": "172.20.0.2/16"
+
+$ docker network disconnect side-net helper
+
+$ docker network inspect side-net
+"Containers": {}</pre>
+</div>
+<p lang="fa">attach شدن یعنی کمکی حالا یک نقطهٔ اتصال در <code>side-net</code> دارد؛ detach شدن همان نقطهٔ اتصال را برمی‌دارد. اگر کمکی تنها شبکه خود را از دست بدهد، commandهای بعدی‌اش فقط loopback را می‌بینند و برای ارتباط شبکه‌ای شکست می‌خورند.</p>
+<p lang="en">Connecting means helper now has an endpoint in <code>side-net</code>; disconnecting removes that endpoint. If helper loses its only network, later commands see only loopback and network requests fail.</p>
+</section>
+<section id="multi">
+<h2><span lang="fa">یک container می‌تواند روی دو شبکه باشد</span><span lang="en">One container can belong to two networks</span></h2>
+<p lang="fa">یک برنامهٔ واقعی همیشه یک شبکه ندارد. شاید web روی شبکهٔ جلویی باشد، پایگاه‌داده روی شبکهٔ پشتی و یک gateway لازم باشد هر دو طرف را ببیند. قرار نیست برای راحتی همه را به همه‌جا وصل کنیم؛ هر container فقط شبکه‌هایی را می‌گیرد که واقعاً لازم دارد.</p>
+<p lang="en">A more realistic setup has web on <code>front-net</code>, database on <code>back-net</code>, and a gateway or worker that needs both. That dual attachment should not make every container see everything.</p>
+<div class="diagram">
+<svg aria-labelledby="c7-multi-title" role="img" viewbox="0 0 980 330">
+<title id="c7-multi-title">A gateway is attached to two isolated bridge networks while web and database stay on their own side</title>
+<defs><marker id="c7-multi-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<g class="dg-stroke-b" marker-end="url(#c7-multi-arrow)" stroke-width="2">
+<path d="M205 135h115"></path><path d="M660 135h115"></path><path d="M490 205v64"></path>
+</g>
+<g text-anchor="middle">
+<rect class="dg-fill-v" height="225" rx="14" width="305" x="20" y="45"></rect>
+<text class="dg-t" x="172" y="78">front-net</text><text class="dg-ts" x="172" y="108">web-facing scope</text>
+<rect class="dg-fill" height="76" rx="10" width="150" x="55" y="148"></rect>
+<text class="dg-t" x="130" y="180">web</text><text class="dg-ts" x="130" y="207">front only</text>
+<rect class="dg-fill-g" height="154" rx="14" width="340" x="320" y="84"></rect>
+<text class="dg-t" x="490" y="124">gateway / worker</text><text class="dg-ts" x="490" y="155">attached to both</text><text class="dg-ts" x="490" y="184">two interfaces</text>
+<rect class="dg-fill-v" height="225" rx="14" width="305" x="655" y="45"></rect>
+<text class="dg-t" x="807" y="78">back-net</text><text class="dg-ts" x="807" y="108">data-facing scope</text>
+<rect class="dg-fill" height="76" rx="10" width="150" x="775" y="148"></rect>
+<text class="dg-t" x="850" y="180">db</text><text class="dg-ts" x="850" y="207">back only</text>
+</g>
+<text class="dg-ts" x="260" y="126">request path</text><text class="dg-ts" x="715" y="126">request path</text><text class="dg-ts" x="530" y="264">attachment boundary</text>
+</svg>
+<p class="diagram-cap" lang="fa">فلش‌های افقی درخواست را نشان می‌دهند و فلش عمودی attachment را: gateway در هر دو شبکه عضو است، اما web و db فقط در محدوده خودشان هستند. همین عضویت تعیین می‌کند کدام نام قابل پیدا و کدام مسیر قابل استفاده باشد.</p>
+<p class="diagram-cap" lang="en">The horizontal arrows are request paths and the vertical arrow is an attachment. The gateway belongs to both networks, while web and db stay in their own scopes. Membership determines which names resolve and which paths exist.</p>
+</div>
+<div class="term">
+<div class="term-bar"><span class="term-label">isolation experiment</span><button class="copy">کپی</button></div>
+<pre dir="ltr">$ docker network create front-net
+front-net
+$ docker network create back-net
+back-net
+
+$ docker run -d --name web-front --network front-net nginx:alpine
+...
+$ docker run -d --name db-back --network back-net nginx:alpine
+...
+
+$ docker run --rm --network front-net curlimages/curl:latest \
+  -fsS --max-time 2 http://db-back
+curl: (6) Could not resolve host: db-back
+
+$ docker network connect front-net db-back
+
+$ docker run --rm --network front-net curlimages/curl:latest \
+  -fsS http://db-back | Select-Object -First 1
+&lt;!DOCTYPE html&gt;</pre>
+</div>
+<p lang="fa">وقتی یک container را به شبکهٔ دوم وصل می‌کنی، نام و مسیرهای آن در محدودهٔ همان شبکه هم قابل‌استفاده می‌شوند. این هنوز جای firewall و سیاست امنیتی را نمی‌گیرد؛ فقط کمک می‌کند معماری را به چند محدودهٔ قابل‌فهم تقسیم کنی.</p>
+<p lang="en">Here db-back belongs to both networks after connect, so a client on front-net can resolve it. This is not a complete security boundary; it is a practical path boundary. Use separate networks and limited membership for a clearer scope.</p>
+</section>
+<section id="failures">
+<h2><span lang="fa">وقتی «شبکه کار نمی‌کند»، مسیر درخواست را قدم‌به‌قدم دنبال کن</span><span lang="en">Debug from the request path</span></h2>
+<p lang="fa">«شبکه کار نمی‌کند» تقریباً هیچ اطلاعاتی به ما نمی‌دهد. اول بپرس درخواست از کجا شروع شده، چه نامی را صدا زده، دو container عضو چه شبکه‌ای هستند و برنامه روی کدام port گوش می‌دهد. همین چند سؤال معمولاً مشکل را از یک مه غلیظ به یک نقطهٔ مشخص تبدیل می‌کند.</p>
+<p lang="en">“The network does not work” is not yet a solvable problem. Turn the request into smaller questions: who is the caller? Where does it run? Which name or address does it use? Which networks attach the two containers? Which port is the service actually listening on? Is this internal traffic or host-to-container?</p>
+<div class="table-wrap">
+<table class="doc-table">
+<thead><tr><th>نشانه</th><th>مسیر محتمل خراب</th><th>اول چه چیزی را بررسی کن؟</th></tr></thead>
+<tbody>
+<tr><td><code>curl http://localhost</code> از client fail می‌شود</td><td>caller را به مقصد اشتباه گرفته‌ای</td><td><code>localhost</code> همان client است؛ name واقعی web را امتحان کن</td></tr>
+<tr><td>name resolve نمی‌شود</td><td>name اشتباه است یا caller در network مشترک نیست</td><td><code>docker network inspect</code> و spelling name/alias</td></tr>
+<tr><td>containerها networkهای متفاوت دارند</td><td>DNS scope و path مشترک ندارند</td><td>هر دو را به user-defined network مشترک وصل کن یا مسیر طراحی‌شده بده</td></tr>
+<tr><td>port host قبلاً گرفته شده</td><td>دو mapping یک HOST_PORT می‌خواهند</td><td><code>docker ps</code> و port آزاد؛ host port را عوض کن</td></tr>
+<tr><td><code>-p 80:8080</code> جواب نمی‌دهد</td><td>جهت mapping برعکس یا internal port غلط است</td><td>چپ host، راست container؛ port واقعی listen را inspect کن</td></tr>
+<tr><td>service فقط روی <code>127.0.0.1</code> گوش می‌دهد</td><td>از interface شبکهٔ container قابل رسیدن نیست</td><td>برای service بین containerها معمولاً <code>0.0.0.0</code> یا interface مناسب لازم است</td></tr>
+<tr><td>بعد از recreate آدرس عوض شده</td><td>IP را به‌عنوان config پایدار نگه داشته‌ای</td><td>در user-defined network با name سرویس کار کن</td></tr>
+<tr><td>client از host port داخلی را می‌زند</td><td>internal traffic را از publish برگردانده‌ای</td><td>روی network مشترک مستقیم <code>http://web:80</code> بزن</td></tr>
+</tbody>
+</table>
+</div>
+<div class="term">
+<div class="term-bar"><span class="term-label">name resolves, port is wrong</span><button class="copy">کپی</button></div>
+<pre dir="ltr">$ docker run --rm --network demo-net curlimages/curl:latest \
+  -fsS --max-time 2 http://web:8080
+curl: (7) Failed to connect to web port 8080: Couldn't connect to server
+
+# The same service answers on its internal port:
+$ docker run --rm --network demo-net curlimages/curl:latest \
+  -fsS http://web:80 | Select-Object -First 1
+&lt;!DOCTYPE html&gt;</pre>
+</div>
+<p lang="fa">در اینجا نام درست پیدا شده، اما port مقصد با سرویس گوش‌دهنده یکی نیست. این خطا از «Could not پیدا host» یک مرحله جلوتر است: DNS کار کرده و حالا باید port و bind آدرس را بررسی کنی.</p>
+<p lang="en">Here the name resolved, but the destination port does not match the listener. This is one step past “Could not resolve host”: DNS worked, so now inspect the port and bind address.</p>
+<p lang="fa">دو خطا را از هم جدا کن. اگر نام پیدا نمی‌شود، هنوز به مرحلهٔ اتصال نرسیده‌ای؛ عضویت شبکه و DNS را نگاه کن. اگر نام پیدا می‌شود ولی <code>connection refused</code> می‌گیری، یک قدم جلوتر رفته‌ای: مقصد پیدا شده، اما روی آن port سرویسی گوش نمی‌دهد یا مسیر port اشتباه است.</p>
+<p lang="en">Keep two nearby failures separate: “name not found” usually happens before a TCP connection; “connection refused” means the destination resolved but no listener or correct mapping exists there. That distinction changes the diagnosis path.</p>
+</section>
+<section id="exercises">
+<h2><span lang="fa">تمرین‌ها: قبل از تغییر دستور، مسیر را حدس بزن</span><span lang="en">Exercises: predict the path before changing the command</span></h2>
+<p class="lede" lang="fa">تمرین‌ها را با حفظ‌کردن دستور حل نکن. برای هر سناریو اول روی کاغذ چهار چیز بنویس: درخواست از کجا می‌آید؟ مقصد چه اسمی دارد؟ هر طرف عضو کدام شبکه است؟ port داخلی یا host port کدام است؟ وقتی این چهار مورد روشن شد، دستور تقریباً خودش معلوم می‌شود.</p>
+<p class="lede" lang="en">These exercises are not syntax memorization. For each one, name the caller, network, destination name, and port before choosing a command or diagnosis.</p>
+<div class="ex" id="ex-7-1">
+<h3><span lang="fa">۱. localhost از کجا می‌آید؟</span><span lang="en">1. Where does localhost come from?</span></h3>
+<p lang="fa">web و client روی <code>demo-net</code> هستند. اگر داخل client به <code>http://localhost:80</code> curl بزنی، انتظار موفقیت داری یا شکست؟</p>
+<p lang="en">web and client are on <code>demo-net</code>. If curl inside client requests <code>http://localhost:80</code>, do you expect success or failure?</p>
+<details class="ex-sol"><summary><span lang="fa">پاسخ و دلیل</span><span lang="en">Solution and reasoning</span></summary><p lang="fa">انتظار شکست دارم، چون localhost loopback client است. مقصد درست برای ترافیک داخلی <code>http://web:80</code> است؛ نام web از DNS همان شبکه پیدا می‌شود.</p><p lang="en">I expect failure because localhost is client’s loopback. The correct internal destination is <code>http://web:80</code>; web is resolved by that network’s DNS.</p></details>
+</div>
+<div class="ex" id="ex-7-2">
+<h3><span lang="fa">۲. مسیر را رسم کن</span><span lang="en">2. Draw the path</span></h3>
+<p lang="fa">برای مرورگر روی host که به web با <code>localhost:8080</code> می‌رسد، چهار گرهٔ مسیر را بنویس.</p>
+<p lang="en">Write the four path nodes for a host browser reaching web through <code>localhost:8080</code>.</p>
+<details class="ex-sol"><summary><span lang="fa">پاسخ و دلیل</span><span lang="en">Solution and reasoning</span></summary><p lang="fa">مرورگر روی host → host port 8080 → نگاشت publish → web container port 80. اگر <code>-p 127.0.0.1:8080:80</code> باشد، host آدرس هم بخشی از در ورودی است.</p><p lang="en">The path is browser on host → host port 8080 → published mapping → web container port 80. With <code>-p 127.0.0.1:8080:80</code>, the host address is also part of the entry point.</p></details>
+</div>
+<div class="ex" id="ex-7-3">
+<h3><span lang="fa">۳. publish لازم هست؟</span><span lang="en">3. Is publishing needed?</span></h3>
+<p lang="fa">یک API و یک worker روی یک user-defined bridge هستند و فقط worker باید API را صدا بزند. آیا <code>-p 9000:9000</code> لازم است؟</p>
+<p lang="en">An API and a worker share a user-defined bridge, and only worker needs to call the API. Is <code>-p 9000:9000</code> needed?</p>
+<details class="ex-sol"><summary><span lang="fa">پاسخ و دلیل</span><span lang="en">Solution and reasoning</span></summary><p lang="fa">نه. worker باید به نام API و port داخلی مثل <code>http://api:9000</code> وصل شود. publish فقط وقتی لازم است که host یا یک مسیر بیرون از آن شبکه به سرویس وارد شود.</p><p lang="en">No. worker should use the API name and internal port, such as <code>http://api:9000</code>. Publish is needed when the host or a client outside that network must enter the service.</p></details>
+</div>
+<div class="ex" id="ex-7-4">
+<h3><span lang="fa">۴. DNS از کجا آمد؟</span><span lang="en">4. Where did DNS come from?</span></h3>
+<p lang="fa">چرا <code>http://web</code> در <code>demo-net</code> کار می‌کند، اما اسم web در هر container دلخواهی global نیست؟</p>
+<p lang="en">Why does <code>http://web</code> work on <code>demo-net</code>, but web is not a global hostname in every container?</p>
+<details class="ex-sol"><summary><span lang="fa">پاسخ و دلیل</span><span lang="en">Solution and reasoning</span></summary><p lang="fa">Docker در user-defined شبکه embedded DNS دارد و نام container را در همان محدوده به آدرس نقطهٔ اتصال تبدیل می‌کند. container خارج از شبکه همان DNS عضویت و مسیر را ندارد.</p><p lang="en">Docker provides embedded DNS on a user-defined network and maps the container name to an endpoint in that scope. A container outside the network has neither that DNS membership nor that path.</p></details>
+</div>
+<div class="ex" id="ex-7-5">
+<h3><span lang="fa">۵. default یا user-defined؟</span><span lang="en">5. Default or user-defined?</span></h3>
+<p lang="fa">برای stack شامل web و پایگاه‌داده که باید با نام همدیگر را پیدا کنند، کدام شبکه را انتخاب می‌کنی و چرا؟</p>
+<p lang="en">For a web and database stack that must find each other by name, which network do you choose and why?</p>
+<details class="ex-sol"><summary><span lang="fa">پاسخ و دلیل</span><span lang="en">Solution and reasoning</span></summary><p lang="fa">user-defined bridge. نام‌گذاری، automatic DNS و امکان connect/disconnect روشن‌تری دارد و containerهای نامرتبط را از همان محدوده بیرون نگه می‌دارد.</p><p lang="en">A user-defined bridge. It provides a clearer naming, automatic DNS, and attach/detach model while keeping unrelated containers outside that scope.</p></details>
+</div>
+<div class="ex" id="ex-7-6">
+<h3><span lang="fa">۶. inspect را تفسیر کن</span><span lang="en">6. Interpret inspect</span></h3>
+<p lang="fa">در <code>docker network inspect demo-net</code> نام web در بخش <code>Containers</code> نیست. قبل از تغییر IP چه نتیجه‌ای می‌گیری؟</p>
+<p lang="en">web is absent from the <code>Containers</code> section of <code>docker network inspect demo-net</code>. What do you conclude before changing an IP?</p>
+<details class="ex-sol"><summary><span lang="fa">پاسخ و دلیل</span><span lang="en">Solution and reasoning</span></summary><p lang="fa">web عضو این شبکه نیست یا اسم شبکه را اشتباه inspect کرده‌ام. اول <code>docker inspect web</code> و <code>docker network ls</code> را مقایسه می‌کنم؛ IP راه‌حل عضویت نیست.</p><p lang="en">web is not attached to this network, or I inspected the wrong network name. I compare <code>docker inspect web</code> with <code>docker network ls</code>; an IP cannot repair missing membership.</p></details>
+</div>
+<div class="ex" id="ex-7-7">
+<h3><span lang="fa">۷. سمت چپ و راست <code>-p</code></span><span lang="en">7. The left and right of <code>-p</code></span></h3>
+<p lang="fa">nginx روی port داخلی ۸۰ است و مرورگر باید روی host port ۸۰۸۱ وارد شود. نگاشت درست را از بین <code>-p 80:8081</code> و <code>-p 8081:80</code> انتخاب کن.</p>
+<p lang="en">nginx listens on internal port 80 and the browser should enter through host port 8081. Choose between <code>-p 80:8081</code> and <code>-p 8081:80</code>.</p>
+<details class="ex-sol"><summary><span lang="fa">پاسخ و دلیل</span><span lang="en">Solution and reasoning</span></summary><p lang="fa"><code>-p 8081:80</code> درست است: host سمت چپ، container سمت راست است. گزینهٔ دیگر درخواست را به port داخلی ۸۰۸۱ می‌فرستد، جایی که nginx گوش نمی‌دهد.</p><p lang="en"><code>-p 8081:80</code> is correct: host is on the left and container on the right. The other option forwards to internal port 8081, where nginx is not listening.</p></details>
+</div>
+<div class="ex" id="ex-7-8">
+<h3><span lang="fa">۸. collision را پیدا کن</span><span lang="en">8. Find the collision</span></h3>
+<p lang="fa">دو container هر دو با <code>-p 127.0.0.1:8080:80</code> ساخته می‌شوند و دومی fail می‌شود. کدام بخش collision دارد؟</p>
+<p lang="en">Two containers both use <code>-p 127.0.0.1:8080:80</code> and the second fails. Which part collides?</p>
+<details class="ex-sol"><summary><span lang="fa">پاسخ و دلیل</span><span lang="en">Solution and reasoning</span></summary><p lang="fa">host port ۸۰۸۰ روی همان host/آدرس قبلاً گرفته شده است. container port هر دو می‌تواند ۸۰ باشد؛ host port دوم را مثل ۸۰۸۱ عوض کن یا consumer را از publish داخلی جدا کن.</p><p lang="en">The host port 8080 on that host/address is already allocated. Both container ports may be 80; change the second host port to 8081 or avoid publishing for internal consumers.</p></details>
+</div>
+<div class="ex" id="ex-7-9">
+<h3><span lang="fa">۹. نام عوض شده</span><span lang="en">9. The name changed</span></h3>
+<p lang="fa">client به <code>http://web:80</code> وصل نمی‌شود، اما inspect نشان می‌دهد container با نام <code>frontend</code> روی شبکه است. تشخیص چیست؟</p>
+<p lang="en">client cannot reach <code>http://web:80</code>, but inspect shows a container named <code>frontend</code> on the network. What is the diagnosis?</p>
+<details class="ex-sol"><summary><span lang="fa">پاسخ و دلیل</span><span lang="en">Solution and reasoning</span></summary><p lang="fa">DNS نام مورد درخواست با نام عضو شبکه یکی نیست. یا URL را به <code>http://frontend:80</code> تغییر بده یا هنگام connect یک alias مثل <code>web</code> بساز؛ IP را hard-code نکن.</p><p lang="en">The requested DNS name does not match the member's name. Use <code>http://frontend:80</code> or connect it with an alias such as <code>web</code>; do not hard-code its IP.</p></details>
+</div>
+<div class="ex" id="ex-7-10">
+<h3><span lang="fa">۱۰. دو شبکه متفاوت</span><span lang="en">10. Two different networks</span></h3>
+<p lang="fa">api روی <code>front-net</code> و db روی <code>back-net</code> هستند. client روی front، db را پیدا نمی‌کند. دو راه مفهومی برای اصلاح بنویس.</p>
+<p lang="en">api is on <code>front-net</code> and db on <code>back-net</code>. A client on front cannot resolve db. Give two conceptual fixes.</p>
+<details class="ex-sol"><summary><span lang="fa">پاسخ و دلیل</span><span lang="en">Solution and reasoning</span></summary><p lang="fa">راه معمول این است که db را هم با <code>docker network connect front-net db</code> عضو front کنی، اگر واقعاً باید آنجا دیده شود. راه دیگر طراحی یک gateway/worker با عضویت در هر دو شبکه است؛ publish کردن بی‌دلیل راه اول نیست.</p><p lang="en">The usual fix is to connect db to front with <code>docker network connect front-net db</code> if it truly belongs there. Another design is a gateway/worker attached to both networks; unnecessary publishing is not the first fix.</p></details>
+</div>
+<div class="ex" id="ex-7-11">
+<h3><span lang="fa">۱۱. connect یا ساخت دوباره؟</span><span lang="en">11. Connect or recreate?</span></h3>
+<p lang="fa">یک worker در حال اجراست و باید به <code>back-net</code> وصل شود. کدام دستور را انتخاب می‌کنی؟</p>
+<p lang="en">A worker is running and must join <code>back-net</code>. Which command do you choose?</p>
+<details class="ex-sol"><summary><span lang="fa">پاسخ و دلیل</span><span lang="en">Solution and reasoning</span></summary><p lang="fa"><code>docker network connect back-net worker</code>. این دستور نقطهٔ اتصال تازه می‌سازد و برای user-defined شبکه لازم نیست فقط به‌خاطر attach شدن worker را ساخت دوباره کنی.</p><p lang="en"><code>docker network connect back-net worker</code>. It adds an endpoint, and a user-defined network attachment does not require recreating the worker.</p></details>
+</div>
+<div class="ex" id="ex-7-12">
+<h3><span lang="fa">۱۲. سرویس گوش‌دهنده کجا است؟</span><span lang="en">12. Where is the listener?</span></h3>
+<p lang="fa">containerها روی شبکه مشترک‌اند و نام پیدا می‌شود، اما connection refused داری. service فقط روی <code>127.0.0.1:9000</code> bind شده است. چرا؟</p>
+<p lang="en">The containers share a network and the name resolves, but the connection is refused. The service binds only to <code>127.0.0.1:9000</code>. Why?</p>
+<details class="ex-sol"><summary><span lang="fa">پاسخ و دلیل</span><span lang="en">Solution and reasoning</span></summary><p lang="fa">service فقط روی loopback همان container گوش می‌دهد؛ درخواست از interface شبکه و آدرس container وارد می‌شود، پس سرویس گوش‌دهنده آن را نمی‌بیند. bind آدرس مناسب مثل <code>0.0.0.0</code> را با توجه به framework تنظیم کن.</p><p lang="en">The service listens only on its container-local loopback; the request arrives through the network interface and container address, so the listener cannot see it. Configure a suitable bind address such as <code>0.0.0.0</code> for the framework.</p></details>
+</div>
+<div class="ex" id="ex-7-13">
+<h3><span lang="fa">۱۳. IP بعد از ساخت دوباره</span><span lang="en">13. IP after recreation</span></h3>
+<p lang="fa">IP web قبل و بعد از ساخت دوباره فرق کرده، اما client با نام web همچنان کار می‌کند. این چه چیزی را ثابت می‌کند؟</p>
+<p lang="en">web's IP changed after recreation, but client still works with the name web. What does that prove?</p>
+<details class="ex-sol"><summary><span lang="fa">پاسخ و دلیل</span><span lang="en">Solution and reasoning</span></summary><p lang="fa">نام قرارداد بهتری از IP برای این stack است؛ DNS شبکهٔ فعلی نام را به نقطهٔ اتصال تازه وصل کرده است. تغییر IP طبیعی است و نباید تنظیمات برنامه را بشکند.</p><p lang="en">The name is a better contract for the stack; the network DNS maps it to the new endpoint. IP changes are normal and should not break application configuration.</p></details>
+</div>
+<div class="ex" id="ex-7-14">
+<h3><span lang="fa">۱۴. internal یا published؟</span><span lang="en">14. Internal or published?</span></h3>
+<p lang="fa">worker روی demo-net برای رسیدن به web از <code>http://localhost:8080</code> استفاده می‌کند، در حالی که web با <code>-p 127.0.0.1:8080:80</code> منتشر شده. اصلاح کوچک چیست؟</p>
+<p lang="en">A worker on demo-net uses <code>http://localhost:8080</code> to reach web, while web is published with <code>-p 127.0.0.1:8080:80</code>. What is the small fix?</p>
+<details class="ex-sol"><summary><span lang="fa">پاسخ و دلیل</span><span lang="en">Solution and reasoning</span></summary><p lang="fa">worker باید <code>http://web:80</code> را بزند. publish برای مرورگر host است؛ localhost داخل worker به خودش اشاره می‌کند و host نگاشت را دور می‌زند.</p><p lang="en">The worker should use <code>http://web:80</code>. Publishing is for the host browser; localhost inside worker points to itself and does not mean the host mapping.</p></details>
+</div>
+<div class="ex" id="ex-7-15">
+<h3><span lang="fa">۱۵. inspect دوطرفه</span><span lang="en">15. Inspect both sides</span></h3>
+<p lang="fa">برای فهمیدن اینکه db به <code>back-net</code> وصل است، یک دستور از دید شبکه و یک دستور از دید container بنویس.</p>
+<p lang="en">Write one command from the network view and one from the container view to verify db is attached to <code>back-net</code>.</p>
+<details class="ex-sol"><summary><span lang="fa">پاسخ و دلیل</span><span lang="en">Solution and reasoning</span></summary><p lang="fa"><code>docker network inspect back-net</code> فهرست Containers را نشان می‌دهد؛ <code>docker inspect db --format '{{json .NetworkSettings.Networks}}'</code> attachmentهای خود db را نشان می‌دهد. اگر یکی متفاوت بود، دستور یا نام اشتباه است.</p><p lang="en"><code>docker network inspect back-net</code> shows its Containers list; <code>docker inspect db --format '{{json .NetworkSettings.Networks}}'</code> shows db's attachments. If they disagree, a command or name is wrong.</p></details>
+</div>
+<div class="ex" id="ex-7-16">
+<h3><span lang="fa">۱۶. خطا را دسته‌بندی کن</span><span lang="en">16. Classify the failure</span></h3>
+<p lang="fa">فرق تشخیص بین <code>Could not resolve host: web</code> و <code>Connection refused</code> چیست؟</p>
+<p lang="en">How does the diagnosis differ between <code>Could not resolve host: web</code> and <code>Connection refused</code>?</p>
+<details class="ex-sol"><summary><span lang="fa">پاسخ و دلیل</span><span lang="en">Solution and reasoning</span></summary><p lang="fa">اولی یعنی نام به مقصد نرسیده: شبکه مشترک، spelling و alias را ببین. دومی یعنی نام/آدرس پیدا شده اما سرویس گوش‌دهنده، port داخلی یا bind interface درست نیست.</p><p lang="en">The first means the name did not resolve: check shared network membership, spelling, and aliases. The second means the address was reached but the listener, internal port, or bind interface is wrong.</p></details>
+</div>
+<div class="ex" id="ex-7-17">
+<h3><span lang="fa">۱۷. port collision را حل کن</span><span lang="en">17. Fix a port collision</span></h3>
+<p lang="fa">web1 روی host port ۸۰۸۰ است و web2 باید همزمان اجرا شود. دو انتخاب درست پیشنهاد بده.</p>
+<p lang="en">web1 owns host port 8080 and web2 must run at the same time. Give two correct options.</p>
+<details class="ex-sol"><summary><span lang="fa">پاسخ و دلیل</span><span lang="en">Solution and reasoning</span></summary><p lang="fa">اگر host باید web2 را ببیند، host port دیگری مثل <code>8081:80</code> انتخاب کن. اگر فقط یک container داخلی آن را می‌خواهد، web2 را بدون <code>-p</code> روی شبکه مشترک اجرا کن و با نام/port داخلی صدا بزن.</p><p lang="en">If the host must reach web2, choose another host port such as <code>8081:80</code>. If only an internal container needs it, run web2 without <code>-p</code> on a shared network and use its name/internal port.</p></details>
+</div>
+<div class="ex" id="ex-7-18">
+<h3><span lang="fa">۱۸. یک گزارش مسیر بنویس</span><span lang="en">18. Write a path report</span></h3>
+<p lang="fa">سناریو: مرورگر host جواب نمی‌گیرد، client روی demo-net جواب می‌گیرد، و web روی port ۸۰ است. گزارش کوتاهت برای بررسی کجا شروع می‌شود؟</p>
+<p lang="en">Scenario: the host browser fails, a client on demo-net succeeds, and web listens on port 80. Where does your short diagnosis report start?</p>
+<details class="ex-sol"><summary><span lang="fa">پاسخ و دلیل</span><span lang="en">Solution and reasoning</span></summary><p lang="fa">service و شبکه داخلی سالم‌اند؛ اول publish مسیر را می‌بینم: آیا web با <code>-p HOST:80</code> ساخته شده، HOST_PORT آزاد است، و مرورگر همان host port را می‌زند؟ بعد host IP binding و <code>docker port web</code> را چک می‌کنم.</p><p lang="en">The service and internal network path work, so I start with publishing: was web created with <code>-p HOST:80</code>, is the host port free, and is the browser using that host port? Then I check host-IP binding and <code>docker port web</code>.</p></details>
+</div>
+</section>
+<section id="lab">
+<h2><span lang="fa">آزمایشگاه کامل: web و client بدون Compose</span><span lang="en">Full lab: web and client without Compose</span></h2>
+<p class="lede" lang="fa">این آزمایشگاه را عمداً بدون Compose انجام می‌دهیم تا هیچ چیز پشت فایل YAML پنهان نشود. خودت شبکه را می‌سازی، web و client را وصل می‌کنی، یک اتصال را قطع می‌کنی و دوباره برمی‌گردانی. آخر کار باید بتوانی مسیر هر درخواست را با انگشت روی نمودار دنبال کنی.</p>
+<p class="lede" lang="en">We do this lab manually so every network line stays visible. By the end, you should be able to explain why client reaches web before publishing, why the host browser does not, and which path disconnect/reconnect removes.</p>
+<ol class="steps">
+<li><span lang="fa"><strong>پاک‌سازی اسم‌ها:</strong> اگر اجرای قبلی مانده، فقط container/networkهای همین آزمایشگاه یعنی <code>lab-net</code>، <code>lab-web</code> و <code>lab-client</code> را بررسی و پاک کن.</span><span lang="en"><strong>Clear names:</strong> if an earlier run remains, inspect and remove only this lab's <code>lab-net</code>, <code>lab-web</code>, and <code>lab-client</code>.</span></li>
+<li><span lang="fa"><strong>شبکه:</strong> <code>docker network create --driver bridge lab-net</code> بزن و با <code>docker network ls</code> وجودش را ببین.</span><span lang="en"><strong>Network:</strong> run <code>docker network create --driver bridge lab-net</code> and confirm it with <code>docker network ls</code>.</span></li>
+<li><span lang="fa"><strong>web بدون publish:</strong> <code>lab-web</code> را با <code>--network lab-net</code> و image <code>nginx:alpine</code> اجرا کن؛ فعلاً <code>-p</code> نده.</span><span lang="en"><strong>Web without publishing:</strong> run <code>lab-web</code> on <code>lab-net</code> with <code>nginx:alpine</code>; do not add <code>-p</code> yet.</span></li>
+<li><span lang="fa"><strong>client:</strong> client را با <code>curlimages/curl:latest</code> و همان شبکه اجرا کن و <code>http://lab-web:80</code> را بخوان.</span><span lang="en"><strong>Client:</strong> run the client with <code>curlimages/curl:latest</code> on the same network and request <code>http://lab-web:80</code>.</span></li>
+<li><span lang="fa"><strong>host:</strong> از host به یک port آزاد مثل ۸۰۸۰ curl بزن؛ باید mappingی برای این آزمایشگاه نداشته باشی. اگر port درگیر بود، عدد دیگری انتخاب کن.</span><span lang="en"><strong>Host:</strong> curl an unused host port such as 8080; this lab has no mapping yet. If the port is occupied, choose another.</span></li>
+<li><span lang="fa"><strong>publish:</strong> web را remove و با <code>-p 127.0.0.1:8080:80</code> دوباره بساز. هم host و هم client را دوباره امتحان کن.</span><span lang="en"><strong>Publish:</strong> remove web and recreate it with <code>-p 127.0.0.1:8080:80</code>. Test both host and client again.</span></li>
+<li><span lang="fa"><strong>inspect:</strong> <code>docker network inspect lab-net</code>، <code>docker inspect lab-web</code> و <code>docker port lab-web</code> را کنار هم بخوان.</span><span lang="en"><strong>Inspect:</strong> read <code>docker network inspect lab-net</code>, <code>docker inspect lab-web</code>, and <code>docker port lab-web</code> together.</span></li>
+<li><span lang="fa"><strong>disconnect:</strong> یک client دائمی بساز یا همین container را با <code>docker network disconnect lab-net lab-client</code> جدا کن؛ درخواست ناموفق را ببین، سپس با <code>docker network connect lab-net lab-client</code> برگردان و recovery را ثبت کن.</span><span lang="en"><strong>Disconnect:</strong> use a long-running client or the lab client, run <code>docker network disconnect lab-net lab-client</code>, observe the failed request, then reconnect and record recovery.</span></li>
+<li><span lang="fa"><strong>localhost عمدی:</strong> داخل client به <code>http://localhost:80</code> بزن و توضیح بده چرا publish host را دور می‌زنی. سپس دستور درست <code>http://lab-web:80</code> را اجرا کن.</span><span lang="en"><strong>Intentional localhost mistake:</strong> request <code>http://localhost:80</code> inside client and explain why it does not mean the host publish. Then run the correct <code>http://lab-web:80</code>.</span></li>
+<li><span lang="fa"><strong>پاک‌سازی:</strong> client و web را remove کن، شبکه را با نام دقیق remove کن و با <code>docker network ls</code> نتیجه را چک کن.</span><span lang="en"><strong>Cleanup:</strong> remove client and web, remove the network by its exact name, and verify with <code>docker network ls</code>.</span></li>
+</ol>
+<div class="term">
+<div class="term-bar"><span class="term-label">lab command path</span><button class="copy">کپی</button></div>
+<pre dir="ltr">$ docker network create lab-net
+lab-net
+
+$ docker run -d --name lab-web --network lab-net nginx:alpine
+...
+
+$ docker run --rm --network lab-net curlimages/curl:latest \
+  -fsS http://lab-web:80 | Select-Object -First 1
+&lt;!DOCTYPE html&gt;
+
+$ docker network inspect lab-net
+...
+"Name": "lab-web",
+"IPv4Address": "172.21.0.2/16"
+
+$ docker rm -f lab-web
+lab-web
+
+$ docker run -d --name lab-web --network lab-net \
+  -p 127.0.0.1:8080:80 nginx:alpine
+...
+
+PS&gt; curl.exe --fail http://127.0.0.1:8080 | Select-Object -First 1
+&lt;!DOCTYPE html&gt;
+
+$ docker run --rm --network lab-net curlimages/curl:latest \
+  -fsS http://lab-web:80 | Select-Object -First 1
+&lt;!DOCTYPE html&gt;</pre>
+</div>
+<p lang="fa">برای مرحلهٔ disconnect اگر client را با <code>--rm</code> یک‌بار اجرا کنی، بعد از پایان دیگر containerای برای disconnect نداری. یک container ماندگار با image ابزار و دستور خواب بساز یا client را از ابتدا long-running اجرا کن. هدف آزمایشگاه مشاهدهٔ تغییر عضویت است، نه حفظ یک دستور خاص.</p>
+<p lang="en">For the disconnect step, a one-shot <code>--rm</code> client is gone before you can disconnect it. Use a long-running tool container or start the client as a long-running process. The goal is to observe membership changing, not to memorize one command.</p>
+<p lang="fa">وقتی همه‌چیز را دستی انجام دادی، درد فصل بعد خودش معلوم می‌شود: اگر web، client، پایگاه‌داده و worker داشته باشی، نوشتن این همه نام، شبکه، volume و port با دستورهای جدا خیلی زود خسته‌کننده و خطاپذیر می‌شود. فصل ۸ دقیقاً از همین درد وارد Compose می‌شود.</p>
+<p lang="en">At the end, this manual setup reveals the next chapter's problem: managing web, client, database, and worker with long, scattered commands creates room for human error. We are not implementing Compose yet; we are only making its problem visible.</p>
+</section>
+<section id="handoff">
+<h2><span lang="fa">جمع‌بندی: مسیر را قبل از port عوض‌کردن ببین</span><span lang="en">Wrap-up: see the path before changing a port</span></h2>
+<p lang="fa">اگر فقط یک چیز از این فصل بماند، این باشد: قبل از تغییر port بپرس درخواست از کجا به کجا می‌رود. container دیگر معمولاً از شبکهٔ داخلی و نام سرویس استفاده می‌کند؛ مرورگر روی host از port publish شده. وقتی این دو مسیر را قاطی نکنی، نصف خطاهای Docker networking خیلی ساده‌تر می‌شوند.</p>
+<p lang="en">You created a network, named and attached containers, resolved a name through internal DNS, published a port for the host, and cleaned everything up. More important than the commands, two questions are now separate: how does another container find web, and how does the host browser enter web? The first needs a shared network and a name; the second needs a host mapping.</p>
+<div class="table-wrap">
+<table class="doc-table">
+<thead><tr><th>مقایسه</th><th>از کجا؟</th><th>با چه مقصدی؟</th><th>وابستگی اصلی</th></tr></thead>
+<tbody>
+<tr><td>localhost روی host</td><td>host/browser</td><td>host خودش</td><td>هیچ container دیگری را خودکار پیدا نمی‌کند</td></tr>
+<tr><td>localhost داخل container</td><td>همان container</td><td>loopback همان namespace</td><td>فقط serviceهای همان container</td></tr>
+<tr><td>name روی user-defined bridge</td><td>container عضو network</td><td>container دیگر همان network</td><td>membership و DNS داخلی</td></tr>
+<tr><td>published port</td><td>host یا client خارج از scope</td><td>HOST_PORT → CONTAINER_PORT</td><td>mapping آزاد و bind address درست</td></tr>
+<tr><td>container IP</td><td>diagnostic موقت</td><td>endpoint فعلی</td><td>با recreate ممکن است تغییر کند</td></tr>
+</tbody>
+</table>
+</div>
+<p lang="fa">حالا عمداً به جایی رسیده‌ایم که کار دستی آزاردهنده شده: شبکه ساختیم، container نام دادیم، volume وصل کردیم و port publish کردیم. فصل ۸ قرار نیست مفهوم تازه‌ای را جادویی حل کند؛ قرار است همین چیدمان را در یک فایل مرتب و تکرارپذیر بنویسد.</p>
+<p lang="en">Chapter 8 starts right here. With five services, creating networks, volumes, names, and publishing rules by hand is no longer just practice; you want one declarative file and one command. That chapter builds Compose; this one stays at the Docker CLI level so the paths are understood first.</p>
+</section>
+<section id="quick">
+<h2><span lang="fa">برگهٔ تقلب شبکه</span><span lang="en">Networking quick reference</span></h2>
+<div class="term">
+<div class="term-bar"><span class="term-label">commands worth remembering</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker network ls
+docker network create --driver bridge NAME
+docker network inspect NAME
+docker network connect NAME CONTAINER
+docker network disconnect NAME CONTAINER
+docker network rm NAME
+
+docker run --network NAME --name web IMAGE
+docker run --network NAME curlimages/curl:latest http://web:80
+docker run -p 127.0.0.1:8080:80 --name web nginx:alpine
+docker port web
+
+# host port 8080 → container port 80
+-p 8080:80</pre>
+</div>
+<p lang="fa">برای مطالعهٔ بیشتر، بخش‌های رسمی <a href="https://docs.docker.com/engine/network/drivers/bridge/">bridge شبکه driver</a>، <a href="https://docs.docker.com/engine/network/">networking overview</a>، <a href="https://docs.docker.com/engine/network/port-publishing/">port publishing</a> و <a href="https://docs.docker.com/reference/cli/docker/network/">docker شبکه CLI</a> را بخوان. مخصوصاً تفاوت default bridge، user-defined bridge و publish را با نسخهٔ Docker Engine خودت تطبیق بده.</p>
+<p lang="en">For further reading, use Docker's official <a href="https://docs.docker.com/engine/network/drivers/bridge/">bridge network driver</a>, <a href="https://docs.docker.com/engine/network/">networking overview</a>, <a href="https://docs.docker.com/engine/network/port-publishing/">port publishing</a>, and <a href="https://docs.docker.com/reference/cli/docker/network/">docker network CLI</a> documentation. Match the default bridge, user-defined bridge, and publishing details to your Docker Engine version.</p>
+</section>

@@ -182,9 +182,9 @@ export const TRACKS: Track[] = [
       {
         "n": "02",
         "file": "02-install.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 65,
+        "mins": 110,
         "fa": {
           "t": "نصب روی ویندوز، لینوکس و WSL2",
           "d": "Engine در برابر Desktop، راه‌اندازی WSL2 و رفع خطاهای رایج نصب."
@@ -199,9 +199,9 @@ export const TRACKS: Track[] = [
       {
         "n": "03",
         "file": "03-run.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 75,
+        "mins": 105,
         "fa": {
           "t": "اجرا، لاگ، exec و پورت",
           "d": "چرخهٔ کامل کار با یک کانتینر زنده: run، ps، logs، exec، stop، rm."
@@ -216,9 +216,9 @@ export const TRACKS: Track[] = [
       {
         "n": "04",
         "file": "04-dockerfile.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 85,
+        "mins": 110,
         "fa": {
           "t": "نوشتن Dockerfile؛ لایه‌ها و کش",
           "d": "هر دستور یک لایه است. ترتیب دستورها یعنی تفاوت بیلد ۲ ثانیه‌ای و ۲ دقیقه‌ای."
@@ -233,16 +233,16 @@ export const TRACKS: Track[] = [
       {
         "n": "05",
         "file": "05-multistage.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 75,
+        "mins": 120,
         "fa": {
           "t": "multi-stage build و کوچک‌کردن ایمیج",
-          "d": "جدا کردن محیط بیلد از محیط اجرا؛ از ۹۰۰ مگابایت به ۸۰ مگابایت."
+          "d": "جدا کردن محیط build از runtime و سنجش اندازهٔ واقعی artifact."
         },
         "en": {
           "t": "Multi-stage builds and slim images",
-          "d": "Separating build-time from run-time; from 900 MB down to 80 MB."
+          "d": "Separating build from runtime and measuring the real artifact."
         },
         "kw": "multi-stage builder alpine distroless slim size",
         "cap": 0
@@ -250,69 +250,69 @@ export const TRACKS: Track[] = [
       {
         "n": "06",
         "file": "06-data.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 80,
+        "mins": 120,
         "fa": {
-          "t": "داده: volume، bind mount، پشتیبان‌گیری",
-          "d": "کانتینر فناپذیر است، داده نباید باشد. سه راه نگه‌داشتن داده و یکی که درست است."
+          "t": "داده: volume، bind mount و پشتیبان‌گیری",
+          "d": "writable layer، named volume، bind mount و backup را با آزمایش واقعی و یک لَب PostgreSQL از هم جدا کن."
         },
         "en": {
-          "t": "Data: volumes, bind mounts, backups",
-          "d": "Containers are disposable; your data must not be. Three ways to persist, one that is right."
+          "t": "Data: volumes, bind mounts, and backups",
+          "d": "Compare the writable layer, named volumes, bind mounts, and backups through hands-on experiments and a PostgreSQL lab."
         },
-        "kw": "volume bind mount tmpfs backup restore دیتا",
+        "kw": "volume bind mount writable layer backup restore postgres data persistence",
         "cap": 0
       },
       {
         "n": "07",
         "file": "07-network.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 80,
+        "mins": 120,
         "fa": {
-          "t": "شبکه: bridge، DNS داخلی، publish",
-          "d": "چرا localhost داخل کانتینر خودِ کانتینر است، و کانتینرها چطور همدیگر را پیدا می‌کنند."
+          "t": "شبکه: bridge، DNS داخلی و publish",
+          "d": "localhost، network مشترک، DNS داخلی و تفاوت traffic داخل Docker با publish روی host را با دو container عیب‌یابی کن."
         },
         "en": {
-          "t": "Networking: bridge, internal DNS, publish",
-          "d": "Why localhost inside a container is the container, and how containers find each other."
+          "t": "Networking: bridge networks, internal DNS, and port publishing",
+          "d": "Diagnose localhost, shared networks, internal DNS, and the difference between Docker traffic and host publishing with two containers."
         },
-        "kw": "network bridge host dns publish expose port mapping",
+        "kw": "network bridge dns localhost publish port container name connect disconnect isolation",
         "cap": 0
       },
       {
         "n": "08",
         "file": "08-compose.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 90,
+        "mins": 140,
         "fa": {
-          "t": "Docker Compose",
-          "d": "چند سرویس، یک فایل، یک دستور. از توسعه تا production."
+          "t": "Docker Compose: چند سرویس، یک مدل",
+          "d": "با ساخت تدریجی compose.yaml، ارتباط web و PostgreSQL، شبکهٔ داخلی، volume ماندگار و عیب‌یابی چرخهٔ عمر آشنا شو."
         },
         "en": {
-          "t": "Docker Compose",
-          "d": "Many services, one file, one command — from development to production."
+          "t": "Docker Compose: many services, one model",
+          "d": "Build compose.yaml progressively, connect web to PostgreSQL, and investigate internal networking, persistent volumes, and lifecycle failures."
         },
-        "kw": "compose yaml services depends_on profiles override",
+        "kw": "compose yaml services postgres service dns depends_on named volume up down build recreate",
         "cap": 0
       },
       {
         "n": "09",
         "file": "09-env-secrets.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 70,
+        "mins": 150,
         "fa": {
-          "t": "متغیر محیطی و secret",
-          "d": "پیکربندی بیرون از ایمیج بماند؛ رمز هرگز داخل ایمیج نرود."
+          "t": "متغیرهای محیطی و secretها",
+          "d": "یک image را میان محیط‌ها به‌کار ببر؛ تنظیمات را جدا کن و رمز را از image، Git و خروجی‌های ناامن دور نگه دار."
         },
         "en": {
           "t": "Environment variables and secrets",
-          "d": "Configuration stays outside the image; secrets never go inside it."
+          "d": "Reuse one image across environments, separate configuration, and keep credentials out of images, Git, and unsafe output."
         },
-        "kw": "env environment secret dotenv config",
+        "kw": "env environment secret dotenv config interpolation env_file compose secrets rotation",
         "cap": 0
       },
       {
@@ -455,9 +455,9 @@ export const TRACKS: Track[] = [
     "stats": {
       "chapters": 17,
       "exercises": 263,
-      "minutes": 1530,
+      "minutes": 1815,
       "capstones": 3,
-      "ready": 2
+      "ready": 10
     }
   },
   {

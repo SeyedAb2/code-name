@@ -1,0 +1,636 @@
+<!--meta
+title: داده: volume، bind mount و پشتیبان‌گیری
+desc: تفاوت writable layer، named volume و bind mount را با آزمایش واقعی ببینید، دادهٔ PostgreSQL را نگه دارید و از آن backup و restore بگیرید.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">Docker · فصل ۰۶</span><span lang="en">Docker · Chapter 6</span></span>
+<h1 lang="fa">داده: volume، bind mount و پشتیبان‌گیری</h1>
+<h1 lang="en">Data: volumes, bind mounts, and backups</h1>
+<p class="sub" lang="fa">کانتینر را می‌توان دوباره ساخت؛ داده‌ای که داخلش جا مانده، همیشه قابل ساختن دوباره نیست. این فصل نشان می‌دهد فایل دقیقاً کجا می‌نشیند و چه چیزی آن را نگه می‌دارد.</p>
+<p class="sub" lang="en">A container can be rebuilt. The data left inside it cannot always be recreated. This chapter makes the storage location visible and shows what actually keeps data alive.</p>
+<div class="facts">
+<div class="fact"><b>۱۲۰</b><span lang="fa">دقیقهٔ مطالعه و اجرا</span><span lang="en">minutes</span></div>
+<div class="fact"><b>۱۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></div>
+<div class="fact"><b>۴</b><span lang="fa">نمودار مفهومی</span><span lang="en">diagrams</span></div>
+<div class="fact"><b>۱</b><span lang="fa">آزمایشگاه کامل</span><span lang="en">full lab</span></div>
+</div>
+</div>
+<section id="story">
+<h2><span lang="fa">اول یک فایل بساز؛ بعد کانتینر را دور بینداز</span><span lang="en">Create one file, then throw the container away</span></h2>
+<p class="lede" lang="fa">فرض کن برنامه‌ات یک فایل گزارش ساخته یا کاربر عکسی آپلود کرده. container را stop می‌کنی، دوباره start می‌کنی و فایل هنوز سر جایش است. خیالت راحت می‌شود. چند روز بعد نسخهٔ جدید برنامه را می‌آوری، container قدیمی را حذف می‌کنی و یکی تازه می‌سازی... فایل ناپدید شده. اینجا تازه معلوم می‌شود «با stop از بین نرفت» اصلاً به معنی «داده ماندگار است» نبوده.</p>
+<p class="lede" lang="en">Imagine creating a job report, an uploaded file, or a temporary record inside a container. Stop and start that same container and everything appears fine. The surprise comes when you remove the old container for a new version and create another one from the same image.</p>
+<p lang="fa">هر container یک لایهٔ قابل‌نوشتن مخصوص خودش دارد. هر تغییری که داخل فایل‌سیستم همان container بدهی، آنجا می‌نشیند. تا وقتی خود container را نگه داشته‌ای، آن لایه هم هست؛ اما وقتی container را حذف می‌کنی، خانهٔ آن تغییرها را هم دور انداخته‌ای. بیایید این را با یک آزمایش درست ببینیم، نه با تعریف حفظی.</p>
+<p lang="en">The reason is simple: an image is only a starting template, and every container has its own writable layer. Filesystem changes go there, but that layer belongs to that container's lifetime. Let us see it directly.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">Experiment A · writable layer</span><button class="copy">کپی</button></div>
+<pre dir="ltr">$ docker run -d --name data-story alpine sh -c 'sleep infinity'
+...
+
+$ docker exec data-story sh -c 'echo "draft-1" &gt; /tmp/report.txt'
+$ docker exec data-story cat /tmp/report.txt
+draft-1
+
+$ docker stop data-story
+data-story
+
+$ docker start data-story
+data-story
+
+$ docker exec data-story cat /tmp/report.txt
+draft-1
+
+$ docker rm -f data-story
+data-story
+
+$ docker run --rm alpine sh -c 'test -e /tmp/report.txt &amp;&amp; cat /tmp/report.txt || echo "file is gone"'
+file is gone</pre>
+</div>
+<p lang="fa">حالا آزمایش تمیز است: فایل را یک بار ساختیم، بعد همان container را stop/start کردیم و دیدیم فایل باقی ماند. وقتی خود container را حذف کردیم و یکی تازه از همان image ساختیم، فایل دیگر نبود. پس ماندگاریِ قبلی از image نیامده بود؛ از همان لایهٔ قابل‌نوشتنِ container قبلی آمده بود.</p>
+<p lang="en">The important distinction is this: <code>stop</code> stops the process while the writable layer still belongs to the container; <code>rm</code> removes the container and that layer. The last command created a new <code>alpine</code> container, not a continuation of the old one.</p>
+<div class="note warn">
+<div class="note-t"><span lang="fa">قاعدهٔ این فصل</span><span lang="en">This chapter's rule</span></div>
+<p lang="fa">اگر داده بعد از حذف و ساخت دوبارهٔ کانتینر باید بماند، آن را در writable layer رها نکن. محل ماندن داده را آگاهانه با volume یا bind mount انتخاب کن.</p>
+<p lang="en">If data must survive container removal and recreation, do not leave it in the writable layer. Choose its durable home deliberately with a volume or a bind mount.</p>
+</div>
+</section>
+<section id="writable-layer">
+<h2><span lang="fa">writable layer دقیقاً چه عمری دارد؟</span><span lang="en">What is the lifetime of the writable layer?</span></h2>
+<p lang="fa">فصل اول یک سرنخ به ما داده بود: image لایه‌های خواندنی دارد و container هنگام اجرا یک لایهٔ قابل‌نوشتن روی آن‌ها می‌گذارد. این لایه برای فایل موقت و تغییرات کوتاه‌مدت کاملاً طبیعی است. دردسر از جایی شروع می‌شود که چیزی مثل پایگاه‌داده، upload یا فایل مهم را هم همان‌جا بگذاریم و انتظار داشته باشیم بعد از حذف container زنده بماند.</p>
+<p lang="en">In Chapter 1 we saw that an image is made of read-only layers and a running container adds a read-write layer on top. When Docker changes a file, the changed version lives in that layer; the original image is untouched. This is useful for cache, temporary files, and short experiments, not for data that should live independently of a container.</p>
+<div class="diagram">
+<svg aria-labelledby="c6-layer-title" role="img" viewbox="0 0 980 330">
+<title id="c6-layer-title">A writable layer survives stop and start but disappears when the container is removed</title>
+<defs><marker id="c6-layer-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<g class="dg-stroke-b" marker-end="url(#c6-layer-arrow)" stroke-width="2">
+<path d="M205 96h90"></path><path d="M445 96h90"></path><path d="M685 96h90"></path>
+<path d="M330 232v45"></path><path d="M630 232v45"></path>
+</g>
+<g text-anchor="middle">
+<rect class="dg-fill" height="86" rx="12" width="185" x="20" y="53"></rect>
+<text class="dg-t" x="112" y="88">image</text><text class="dg-ts" x="112" y="114">read-only base</text>
+<rect class="dg-fill-v" height="86" rx="12" width="150" x="295" y="53"></rect>
+<text class="dg-t" x="370" y="88">container</text><text class="dg-ts" x="370" y="114">writable layer</text>
+<rect class="dg-fill-g" height="86" rx="12" width="150" x="535" y="53"></rect>
+<text class="dg-t" x="610" y="88">stop / start</text><text class="dg-ts" x="610" y="114">same file remains</text>
+<rect class="dg-fill" height="86" rx="12" width="185" x="775" y="53"></rect>
+<text class="dg-t" x="867" y="88">same container</text><text class="dg-ts" x="867" y="114">same layer</text>
+<rect class="dg-fill-w" height="38" rx="10" width="240" x="210" y="277"></rect>
+<text class="dg-t" x="330" y="302">rm → layer destroyed</text>
+<rect class="dg-fill-b" height="38" rx="10" width="240" x="510" y="277"></rect>
+<text class="dg-t" x="630" y="302">new container → empty</text>
+</g>
+<text class="dg-ts" x="250" y="82">start from</text><text class="dg-ts" x="490" y="82">same lifecycle</text><text class="dg-ts" x="730" y="82">still attached</text>
+<text class="dg-ts" x="353" y="255">destroy</text><text class="dg-ts" x="653" y="255">recreate</text>
+</svg>
+<p class="diagram-cap" lang="fa">فلش‌های ردیف بالا ادامهٔ همان کانتینر را نشان می‌دهند: <code>stop/start</code> فایل را نگه می‌دارد. فلش‌های پایین دو رویداد جدا را نشان می‌دهند: <code>rm</code> layer را از بین می‌برد و کانتینر تازه از image دوباره شروع می‌شود.</p>
+<p class="diagram-cap" lang="en">The top arrows show one container continuing: <code>stop/start</code> keeps its file. The lower arrows show two separate events: <code>rm</code> destroys the layer, and a new container starts again from the image.</p>
+</div>
+<div class="table-wrap">
+<table class="doc-table">
+<thead><tr><th>رویداد</th><th>چه چیزی می‌ماند؟</th><th>نتیجه برای فایل داخل writable layer</th></tr></thead>
+<tbody>
+<tr><td><code>docker stop</code></td><td>همان container و layer</td><td>فایل می‌ماند</td></tr>
+<tr><td><code>docker start</code></td><td>همان container و layer</td><td>فایل دوباره دیده می‌شود</td></tr>
+<tr><td><code>docker rm</code></td><td>container حذف می‌شود</td><td>فایل هم دیگر محل مستقلی ندارد</td></tr>
+<tr><td>ساخت container تازه</td><td>image و layer تازه</td><td>فایل قبلی وجود ندارد</td></tr>
+</tbody>
+</table>
+</div>
+<p lang="en">The short version is: the writable layer is attached to a container identity, not to the image name. Reusing the image does not bring back the old layer.</p>
+</section>
+<section id="volume-model">
+<h2><span lang="fa">named volume: خانه‌ای که Docker جدا نگه می‌دارد</span><span lang="en">Named volumes: a home Docker manages separately</span></h2>
+<p lang="fa">اینجاست که <em>named volume</em> وارد می‌شود. به‌جای اینکه داده را داخل عمر یک container زندانی کنیم، یک فضای جدا با اسم خودش می‌سازیم؛ مثلاً <code>demo-data</code>. container فقط این فضا را در یک مسیر می‌بیند. خود volume می‌تواند بماند، حتی اگر container امروز حذف و فردا از نو ساخته شود.</p><div class="note safe">
+<div class="note-t"><span lang="fa">یک تشبیه ساده</span><span lang="en">A simple analogy</span></div>
+<p lang="fa">container را مثل اتاق هتل ببین و volume را مثل صندوق امانات بیرون اتاق. اگر از اتاق بیرون بروی و اتاق را تحویل بدهی، وسایلی که داخل اتاق جا گذاشته‌ای می‌روند؛ اما چیزی که در صندوق امانات گذاشته‌ای به شمارهٔ اتاق وابسته نیست و می‌توانی از اتاق بعدی دوباره به آن دسترسی بگیری.</p>
+<p lang="en">Think of the container as a hotel room and the volume as a safe outside the room. If the room is discarded, things left inside it go away, while the safe has its own identity and can be attached to the next room.</p>
+</div>
+<p lang="en">For data generated or consumed by containers, a named volume is usually the natural choice. A volume has its own name, such as <code>demo-data</code>, and its lifetime is separate from a container. The container sees it at a path; Docker manages where it is stored.</p>
+<div class="diagram">
+<svg aria-labelledby="c6-volume-title" role="img" viewbox="0 0 930 270">
+<title id="c6-volume-title">A container writes through a mounted data path into a named volume that another container can reuse</title>
+<defs><marker id="c6-volume-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<g class="dg-stroke-b" marker-end="url(#c6-volume-arrow)" stroke-width="2">
+<path d="M255 135h115"></path><path d="M600 135h100"></path>
+</g>
+<g text-anchor="middle">
+<rect class="dg-fill" height="114" rx="12" width="230" x="25" y="78"></rect>
+<text class="dg-t" x="140" y="115">container A</text><text class="dg-ts" x="140" y="145">/data/report.txt</text><text class="dg-ts" x="140" y="170">read + write</text>
+<rect class="dg-fill-v" height="164" rx="12" width="230" x="370" y="53"></rect>
+<text class="dg-t" x="485" y="98">named volume</text><text class="dg-ts" x="485" y="130">demo-data</text><text class="dg-ts" x="485" y="158">Docker-managed</text><text class="dg-ts" x="485" y="186">outside container layer</text>
+<rect class="dg-fill-g" height="114" rx="12" width="205" x="700" y="78"></rect>
+<text class="dg-t" x="802" y="115">container B</text><text class="dg-ts" x="802" y="145">/data/report.txt</text><text class="dg-ts" x="802" y="170">same bytes</text>
+</g>
+<text class="dg-ts" x="310" y="125">mount at /data</text><text class="dg-ts" x="648" y="125">reuse same volume</text>
+</svg>
+<p class="diagram-cap" lang="fa">فلش اول می‌گوید مسیر <code>/data</code> داخل container به volume وصل شده و نوشتن از آن مسیر در <code>demo-data</code> ذخیره می‌شود. فلش دوم نشان می‌دهد container دیگری می‌تواند همان volume را دوباره mount کند.</p>
+<p class="diagram-cap" lang="en">The first arrow says that the container path <code>/data</code> is connected to the volume, so writes there land in <code>demo-data</code>. The second arrow shows another container mounting the same volume and seeing the same bytes.</p>
+</div>
+<p lang="fa">در نحوهٔ نوشتن پیشنهادی Docker، اول <code>--mount</code> را بخوان: نوع mount، منبع و مقصد را با نام صریح می‌نویسی. این شکل برای آموزش و پیدا کردن اشتباه‌ها خواناتر است.</p>
+<p lang="en">Read Docker's preferred syntax first: <code>--mount</code> states the mount type, source, and destination explicitly. It is easier to teach and easier to debug.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">create · attach · inspect</span><button class="copy">کپی</button></div>
+<pre dir="ltr">$ docker volume create demo-data
+demo-data
+
+$ docker run --rm --mount type=volume,src=demo-data,dst=/data alpine sh -c 'echo "kept" &gt; /data/note.txt; cat /data/note.txt'
+kept
+
+$ docker run --rm --mount type=volume,src=demo-data,dst=/data alpine cat /data/note.txt
+kept
+
+$ docker volume ls
+DRIVER    VOLUME NAME
+local     demo-data
+
+$ docker volume inspect demo-data
+[
+  {
+    "Name": "demo-data",
+    "Driver": "local",
+    "Mountpoint": ".../volumes/demo-data/_data"
+  }
+]</pre>
+</div>
+<p lang="fa">در <code>docker volume inspect</code> مسیر <code>Mountpoint</code> کمک می‌کند بفهمی Docker جایی خارج از لایهٔ container این داده را نگه می‌دارد. اما برنامه را به آن مسیر داخلیِ host گره نزن؛ برنامه باید همان مسیری را ببیند که داخل container mount کرده‌ای، مثل <code>/data</code>.</p>
+<p lang="en">The <code>Mountpoint</code> in <code>inspect</code> helps explain Docker's model, but do not make your application depend on that internal host path. Read and write through the mounted path, <code>/data</code>. The exact path differs across Docker Desktop, Linux, and a remote daemon.</p>
+</section>
+<section id="mount-syntax">
+<h2><span lang="fa">دو شکل نوشتن برای یک mount</span><span lang="en">Two syntaxes, one mount</span></h2>
+<p lang="fa">اول <code>--mount</code> را یاد بگیر چون مبدأ، مقصد و نوع mount را خوانا و جدا می‌نویسد. بعد شکل کوتاه <code>-v</code> را بشناس؛ چون در مثال‌ها و پروژه‌های زیادی می‌بینیش. مفهوم یکی است، فقط شکل نوشتن فرق دارد.</p>
+<p lang="en">Once the explicit form is clear, the shorter <code>-v</code> form is still worth recognizing because it appears in compose files, scripts, and older answers. Both commands below mount the same named volume at <code>/data</code>.</p>
+<div class="table-wrap">
+<table class="doc-table">
+<thead><tr><th>مدل</th><th>syntax پیشنهادی</th><th>shorthand</th><th>معنی source</th></tr></thead>
+<tbody>
+<tr><td>named volume</td><td><code>--mount type=volume,src=demo-data,dst=/data</code></td><td><code>-v demo-data:/data</code></td><td>نام volume در Docker</td></tr>
+<tr><td>bind mount</td><td><code>--mount type=bind,src=/host/site,dst=/site</code></td><td><code>-v /host/site:/site</code></td><td>مسیر واقعی روی host</td></tr>
+<tr><td>read-only</td><td><code>...,readonly</code></td><td><code>:ro</code></td><td>کانتینر اجازهٔ نوشتن ندارد</td></tr>
+</tbody>
+</table>
+</div>
+<p lang="fa">یک تفاوت را از همین‌جا محکم نگه دار: در volume، مبدأ یک <em>نام Docker</em> است؛ در bind mount، مبدأ یک <em>مسیر واقعی روی host</em>. پس <code>demo-data:/data</code> به معنی «پوشهٔ demo-داده کنار پروژه» نیست؛ این اسم یک volume است.</p>
+<p lang="en">For a volume, Docker can create the named volume. For a bind mount, the source is a host path. That difference causes a common mistake: <code>demo-data:/data</code> means a volume, not a folder called demo-data beside your project.</p>
+</section>
+<section id="mount-hiding">
+<h2><span lang="fa">mount روی مسیر موجود، فایل‌های زیرش را پنهان می‌کند</span><span lang="en">A mount hides what was already under its target</span></h2>
+<p lang="fa">mount را مثل «کپی‌کردن فایل داخل پوشه» تصور نکن. بیشتر شبیه این است که یک کشو را دقیقاً جلوی یک قفسه بگذاری: تا وقتی کشو آنجاست، قفسهٔ پشتش را نمی‌بینی. فایل‌های image پاک نشده‌اند؛ فقط مسیر mount شده روی آن‌ها قرار گرفته است.</p>
+<p lang="en">Mounting is not the same as copying a few files into a directory. Another filesystem is placed over the target, so the old contents are hidden until the mount is gone. We use <code>volume-nocopy</code> for an unambiguous volume demonstration because Docker can otherwise copy existing target contents into a new empty volume on first use.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">Experiment B · hidden target</span><button class="copy">کپی</button></div>
+<pre dir="ltr">$ docker volume create hide-demo
+hide-demo
+
+$ docker run --rm --mount type=volume,src=hide-demo,dst=/etc,volume-nocopy alpine sh -c 'ls -la /etc; test ! -e /etc/alpine-release &amp;&amp; echo "base file is hidden by the mount"'
+total 0
+drwxr-xr-x    2 root     root           ... .
+drwxr-xr-x    1 root     root           ... ..
+base file is hidden by the mount
+
+$ docker volume rm hide-demo
+hide-demo</pre>
+</div>
+<p lang="fa">در این آزمایش <code>/etc/alpine-release</code> هنوز داخل image وجود دارد. volume خالی فقط روی <code>/etc</code> نشسته و آن را از دید container پنهان کرده. اگر container را بدون آن mount اجرا کنی، فایل دوباره دیده می‌شود. این رفتار وقتی روی مسیرهای مهمی مثل <code>/app</code> یا پوشهٔ دادهٔ پایگاه‌داده mount می‌کنی، می‌تواند حسابی گیج‌کننده باشد.</p>
+<p lang="en">The file <code>/etc/alpine-release</code> comes from the image. In the second run, the empty mount hides it; the file was not deleted and the image was not changed. Run a fresh container without the mount and the image file is visible again. This matters for paths such as <code>/app</code>, <code>/var/lib/postgresql/data</code>, and build directories.</p>
+<div class="note warn">
+<div class="note-t"><span lang="fa">خطای واقعی</span><span lang="en">A realistic failure</span></div>
+<p lang="fa">اگر بعد از mount می‌گویی «فایل‌های image ناپدید شدند»، اول مقصد را بررسی کن. ممکن است فقط روی آن‌ها پوشانده باشی. container را بدون mount اجرا کن یا mount را به مسیر خالی و مخصوص داده منتقل کن؛ دنبال کپی‌کردن کورکورانهٔ فایل‌ها نباش.</p>
+<p lang="en">If files from the image seem to disappear after a mount, inspect the target first. They may simply be covered. Run without the mount or use a dedicated empty data path; do not blindly copy files until the model is clear.</p>
+</div>
+</section>
+<section id="bind">
+<h2><span lang="fa">bind mount: وقتی پوشهٔ host باید زنده دیده شود</span><span lang="en">Bind mounts: when a host folder should stay visible</span></h2>
+<p lang="fa">گاهی برعکس volume، دقیقاً می‌خواهی همان فایلی که روی سیستم خودت ویرایش می‌کنی داخل container هم فوراً دیده شود. اینجا <em>bind mount</em> مناسب است: Docker یک مسیر واقعی از host را داخل container نشان می‌دهد. فایل هنوز مال host است؛ Docker فقط راه دسترسی را وصل می‌کند.</p>
+<p lang="en">With a bind mount, the source is a real path on the host. This is useful for source code, a local config file, output that must appear immediately on your machine, and everyday VS Code work. Docker does not own the data; it makes the host path visible inside the container.</p>
+<div class="diagram">
+<svg aria-labelledby="c6-bind-title" role="img" viewbox="0 0 950 285">
+<title id="c6-bind-title">A host directory is bind-mounted into a container workspace and writes can flow back to the host</title>
+<defs><marker id="c6-bind-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<g class="dg-stroke-b" marker-end="url(#c6-bind-arrow)" stroke-width="2">
+<path d="M270 115h145"></path><path d="M415 175H270"></path>
+<path d="M675 115h120"></path><path d="M795 175H675"></path>
+</g>
+<g text-anchor="middle">
+<rect class="dg-fill" height="155" rx="12" width="245" x="25" y="64"></rect>
+<text class="dg-t" x="147" y="101">host directory</text><text class="dg-ts" x="147" y="133">./site</text><text class="dg-ts" x="147" y="162">index.html</text><text class="dg-ts" x="147" y="190">owned by host</text>
+<rect class="dg-fill-v" height="128" rx="12" width="260" x="415" y="78"></rect>
+<text class="dg-t" x="545" y="117">bind mount</text><text class="dg-ts" x="545" y="148">host path → /workspace</text><text class="dg-ts" x="545" y="178">rw by default</text>
+<rect class="dg-fill-g" height="155" rx="12" width="130" x="795" y="64"></rect>
+<text class="dg-t" x="860" y="101">container</text><text class="dg-ts" x="860" y="133">/workspace</text><text class="dg-ts" x="860" y="162">VS Code view</text><text class="dg-ts" x="860" y="190">can write</text>
+</g>
+<text class="dg-ts" x="342" y="105">read files</text><text class="dg-ts" x="342" y="194">save changes</text>
+<text class="dg-ts" x="732" y="105">visible</text><text class="dg-ts" x="732" y="194">writes host</text>
+</svg>
+<p class="diagram-cap" lang="fa">فلش رفت‌وبرگشت اول نشان می‌دهد فایل از <code>./site</code> خوانده می‌شود و ذخیرهٔ داخل کانتینر به host برمی‌گردد. فلش‌های دوم فقط قابل‌دیدن بودن همین مسیر را در <code>/workspace</code> نشان می‌دهند؛ Docker مالک پوشهٔ host نیست.</p>
+<p class="diagram-cap" lang="en">The first pair of arrows shows files read from <code>./site</code> and writes from the container returning to the host. The second pair shows the same path visible at <code>/workspace</code>; Docker does not own the host directory.</p>
+</div>
+<div class="term">
+<div class="term-bar"><span class="term-label">VS Code style · bind mount</span><button class="copy">کپی</button></div>
+<pre dir="ltr">$ mkdir -p site
+$ printf '&lt;h1&gt;hello from host&lt;/h1&gt;\n' &gt; site/index.html
+
+$ docker run --rm --mount type=bind,src="$PWD/site",dst=/workspace alpine \
+  sh -c 'cat /workspace/index.html; echo "&lt;p&gt;written in container&lt;/p&gt;" &gt; /workspace/generated.html'
+&lt;h1&gt;hello from host&lt;/h1&gt;
+
+$ ls site
+generated.html  index.html</pre>
+</div>
+<p lang="fa">روی Windows و PowerShell حواست به شکل مسیرها باشد. مهم نیست نمونهٔ دستور روی اینترنت POSIX نوشته شده یا PowerShell؛ چیزی که Docker لازم دارد یک مسیر واقعی و درست از host است. مزیت <code>--mount</code> اینجاست که اگر مبدأ پیدا نشود، خطا واضح‌تر است و اشتباه کمتر پنهان می‌ماند.</p>
+<p lang="en">In Windows PowerShell, use an absolute path or the PowerShell form for the host source instead of the POSIX form <code>$PWD/site</code>; the important part is that the host path exists. With <code>--mount</code>, a missing source is an error. With <code>-v</code>, Docker may create a source directory in some cases, which can hide a typo.</p>
+<p lang="fa">bind mount به‌طور پیش‌فرض writable است. اگر container فقط باید فایل‌ها را بخواند، <code>readonly</code> یا <code>:ro</code> بگذار: <code>docker run --rm --mount type=bind,src="$PWD/site",dst=/site,readonly alpine cat /site/index.html</code>. یادت باشد daemon روی کدام host اجرا می‌شود؛ در راه‌دور Docker، مسیر host، سیستم راه‌دور است نه لپ‌تاپ client.</p>
+<p lang="en">A bind mount is writable by default. If the container should only read files, use <code>readonly</code> or <code>:ro</code>. Also remember which host runs the daemon: with a remote Docker daemon, the path belongs to the remote host, not the laptop running the CLI.</p>
+</section>
+<section id="storage-choice">
+<h2><span lang="fa">کدام جا برای کدام داده؟</span><span lang="en">Which storage fits which data?</span></h2>
+<p lang="fa">اگر بین این سه انتخاب گیر کردی، سؤال را خیلی ساده کن: «این داده قرار است با همین container بمیرد؟ باید مستقل از container بماند؟ یا خودم روی host باید مستقیم فایلش را ببینم و ویرایشش کنم؟» جواب همین سه سؤال معمولاً تو را به writable layer، volume یا bind mount می‌رساند.</p>
+<p lang="en">Separate the three options with one question: should the data end with this container, should Docker keep it separately, or do I need to see and manage the files directly on the host?</p>
+<div class="table-wrap">
+<table class="doc-table">
+<thead><tr><th>محل</th><th>مالک و چرخهٔ عمر</th><th>نمونهٔ خوب</th><th>ریسک رایج</th></tr></thead>
+<tbody>
+<tr><td>writable layer</td><td>متعلق به همان container</td><td>cache یا آزمایش چنددقیقه‌ای</td><td>با <code>rm</code> از بین می‌رود</td></tr>
+<tr><td>named volume</td><td>Docker مدیریت می‌کند و مستقل می‌ماند</td><td>database، uploads، دادهٔ سرویس</td><td>volume اشتباه را mount یا حذف می‌کنی</td></tr>
+<tr><td>bind mount</td><td>host مالک مسیر و فایل‌هاست</td><td>source code، config محلی، output توسعه</td><td>permission و تغییر ناخواستهٔ host</td></tr>
+</tbody>
+</table>
+</div>
+<p lang="fa">anonymous volume هم وجود دارد: اگر به جای نام، فقط مقصدی مثل <code>-v /data</code> بدهی، Docker یک volume بی‌نام می‌سازد. برای یک آزمایش کوتاه بد نیست، اما در کار آموزشی و سرویس واقعی named volume بهتر قابل ردیابی است؛ اینجا وارد جزئیاتش نمی‌شویم.</p>
+<p lang="en">Anonymous volumes also exist: a destination such as <code>-v /data</code> creates a volume without a human-chosen name. They can be handy for a short experiment, but named volumes are easier to trace in a real service. We will not go deeper into them here.</p>
+</section>
+<section id="permissions">
+<h2><span lang="fa">مجوز دسترسی: وصل‌کردن volume مشکل مالکیت را جادویی حل نمی‌کند</span><span lang="en">Permissions: a mount does not solve ownership</span></h2>
+<p lang="fa">وصل‌شدن مسیر فقط می‌گوید داده کجاست؛ نمی‌گوید چه کسی اجازهٔ نوشتن دارد. پردازش داخل container هنوز با UID/GID خودش اجرا می‌شود. اگر مالک پوشه و کاربری که برنامه با آن اجرا می‌شود با هم جور نباشند، <code>Permission denied</code> کاملاً طبیعی است. قبل از <code>chmod 777</code> اول ببین دقیقاً چه کسی می‌نویسد و مالک مسیر کیست.</p>
+<p lang="en">After mounting a volume or bind path, the process still runs with its own UID/GID. If the directory belongs to another UID, writes can fail with <code>Permission denied</code>. Inspect the process identity and file mode before choosing a fix.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">small permission check</span><button class="copy">کپی</button></div>
+<pre dir="ltr">$ docker run --rm --mount type=volume,src=demo-data,dst=/data alpine sh -c 'id; ls -ld /data; touch /data/check.txt; ls -l /data/check.txt'
+uid=0(root) gid=0(root)
+drwxr-xr-x    2 root     root          ... /data
+-rw-r--r--    1 root     root            0 ... /data/check.txt</pre>
+</div>
+<p lang="fa">راه‌حل درست به image و محیط بستگی دارد: شاید لازم باشد مالکیت را از قبل تنظیم کنی، UID/GID را هماهنگ کنی یا مسیر مناسبی برای داده انتخاب کنی. <code>chmod 777</code> معمولاً فقط صدای خطا را ساکت می‌کند؛ علت را توضیح نمی‌دهد و دسترسی را هم بیش از حد باز می‌کند.</p>
+<p lang="en">A real image may run as a non-root user. A fix can be preparing ownership, matching the container UID/GID to the host, adjusting permissions deliberately, or choosing a volume. <code>chmod 777</code> is not a model for the problem; it only hides the permission boundary.</p>
+<p lang="fa">برای تنظیمات یا مبدأ که container نباید تغییرش دهد، read-only را هم به مجوز model اضافه کن. read-only هم جلوی خواندن را نمی‌گیرد و هم به‌تنهایی جایگزین ownership درست نیست؛ فقط مسیر نوشتن را می‌بندد.</p>
+<p lang="en">For config or source that the container must not change, add read-only to the permission model. Read-only still allows reading and is not a replacement for correct ownership; it simply closes the write path.</p>
+</section>
+<section id="postgres">
+<h2><span lang="fa">از فایل کوچک به دادهٔ واقعی: PostgreSQL</span><span lang="en">From a tiny file to real data: PostgreSQL</span></h2>
+<p lang="fa">تا اینجا با فایل کوچک بازی کردیم؛ حالا همان مفهوم را جایی ببینیم که واقعاً درد دارد: پایگاه‌داده. imageِ PostgreSQL برنامه را می‌آورد و volume خانهٔ داده را فراهم می‌کند. اگر این دو را جدا بفهمی، حذف container دیگر مساوی حذف اطلاعات نیست.</p>
+<p lang="en">Now apply the same idea to a database. Treat the image as the program and the volume as the data directory. To keep this lesson stable, we deliberately pin <code>postgres:17</code> and mount the volume at <code>/var/lib/postgresql/data</code>. Data paths can differ in newer major versions, so do not leave the version floating without a reason.</p>
+<div class="note safe">
+<div class="note-t"><span lang="fa">رمز فقط برای آزمایش</span><span lang="en">A lab-only password</span></div>
+<p lang="fa"><code>POSTGRES_PASSWORD=dev-only</code> را فقط برای همین محیط محلی ببین. مدیریت secret، environment و روش امن اجرای سرویس در فصل ۰۹ می‌آید؛ اینجا موضوع ما داده مسیر و عمر volume است.</p>
+<p lang="en">Treat <code>POSTGRES_PASSWORD=dev-only</code> as local-lab material only. Secret handling, environment, and safer service configuration belong to Chapter 9; this chapter is about the data path and volume lifetime.</p>
+</div>
+<div class="term">
+<div class="term-bar"><span class="term-label">database with a named volume</span><button class="copy">کپی</button></div>
+<pre dir="ltr">$ docker volume create pg-data
+pg-data
+
+$ docker run -d --name pg-data \
+  -e POSTGRES_PASSWORD=dev-only \
+  --mount type=volume,src=pg-data,dst=/var/lib/postgresql/data \
+  postgres:17
+...
+
+$ docker exec -i pg-data psql -U postgres -c "CREATE TABLE notes (id serial PRIMARY KEY, body text); INSERT INTO notes(body) VALUES ('kept in volume');"
+CREATE TABLE
+INSERT 0 1
+
+$ docker exec -i pg-data psql -U postgres -c "SELECT id, body FROM notes;"
+ id |      body
+----+----------------
+  1 | kept in volume
+(1 row)</pre>
+</div>
+<p lang="fa">دستورهای <code>psql</code> اینجا فقط وسیله‌اند تا یک رکورد واقعی بسازیم و بعد پیدایش کنیم. موضوع فصل PostgreSQL نیست. چیزی که باید دنبال کنی محل نوشتن داده است: table داخل مسیری نوشته می‌شود که volume روی آن mount شده. حالا می‌توانیم container را دور بیندازیم و با یک container تازه همان داده را دوباره ببینیم.</p>
+<p lang="en">Here <code>docker exec</code> is only a way to query the database; this is not a PostgreSQL command course. The important part is that the table is written into a data directory separate from the container. Remove the container and create another one with the same volume.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">recreate the database container</span><button class="copy">کپی</button></div>
+<pre dir="ltr">$ docker rm -f pg-data
+pg-data
+
+$ docker run -d --name pg-data \
+  -e POSTGRES_PASSWORD=dev-only \
+  --mount type=volume,src=pg-data,dst=/var/lib/postgresql/data \
+  postgres:17
+...
+
+$ docker exec -i pg-data psql -U postgres -c "SELECT id, body FROM notes;"
+ id |      body
+----+----------------
+  1 | kept in volume
+(1 row)</pre>
+</div>
+<p lang="fa">اگر این پرس‌وجو شکست خورد، فوراً نتیجه نگیر که volume خراب است: ممکن است container هنوز آماده نشده باشد، image اصلی با داده جور نباشد، مقصد مسیر اشتباه باشد یا volume دیگری را mount کرده باشی. <code>docker inspect pg-data</code> و <code>docker volume inspect pg-data</code> محل شروع بررسی‌اند.</p>
+<p lang="en">If the query fails, do not immediately blame the volume. The container may not be ready, the image major may not match the data, the target path may be wrong, or a different volume may be mounted. Start with <code>docker inspect pg-data</code> and <code>docker volume inspect pg-data</code>.</p>
+</section>
+<section id="backup">
+<h2><span lang="fa">پشتیبان یعنی کپی از volume، نه عکس از کانتینر</span><span lang="en">A backup copies the volume, not the container</span></h2>
+<p lang="fa">اینجا یک دام مهم هست: «داده از container جدا شد» به معنی «پس پشتیبان داریم» نیست. اگر خود volume اشتباهی پاک شود یا دیسک خراب شود، اسم volume معجزه نمی‌کند. بنابراین باید یک نسخهٔ مستقل بیرون از همان volume بسازیم و مهم‌تر از آن، یک بار هم بازیابی‌اش را امتحان کنیم.</p>
+<p lang="en">Having a volume is not the same as having a backup. If you remove the wrong volume, Docker cannot guess the previous version. We use a temporary helper container: mount the data volume read-only, bind a host backup folder, and write a <code>tar</code> archive there.</p>
+<div class="diagram">
+<svg aria-labelledby="c6-backup-title" role="img" viewbox="0 0 980 300">
+<title id="c6-backup-title">A helper container reads a volume into a host archive, then restores it into a fresh volume</title>
+<defs><marker id="c6-backup-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<g class="dg-stroke-b" marker-end="url(#c6-backup-arrow)" stroke-width="2">
+<path d="M190 105h70"></path><path d="M450 105h70"></path><path d="M710 105h75"></path>
+<path d="M785 198H710"></path><path d="M520 198H450"></path>
+</g>
+<g text-anchor="middle">
+<rect class="dg-fill-v" height="92" rx="12" width="170" x="20" y="60"></rect>
+<text class="dg-t" x="105" y="96">pg-data</text><text class="dg-ts" x="105" y="125">source volume</text>
+<rect class="dg-fill" height="128" rx="12" width="190" x="260" y="42"></rect>
+<text class="dg-t" x="355" y="82">helper</text><text class="dg-ts" x="355" y="112">tar reads /volume</text><text class="dg-ts" x="355" y="140">temporary container</text>
+<rect class="dg-fill-g" height="92" rx="12" width="190" x="520" y="60"></rect>
+<text class="dg-t" x="615" y="96">host archive</text><text class="dg-ts" x="615" y="125">backups/pg-data.tgz</text>
+<rect class="dg-fill-b" height="92" rx="12" width="175" x="785" y="60"></rect>
+<text class="dg-t" x="872" y="96">fresh volume</text><text class="dg-ts" x="872" y="125">pg-restored</text>
+<rect class="dg-fill-w" height="55" rx="12" width="190" x="260" y="198"></rect>
+<text class="dg-t" x="355" y="231">restore helper</text>
+<rect class="dg-fill-w" height="55" rx="12" width="190" x="520" y="198"></rect>
+<text class="dg-t" x="615" y="231">tar extracts</text>
+</g>
+<text class="dg-ts" x="225" y="95">read-only</text><text class="dg-ts" x="485" y="95">tar czf</text><text class="dg-ts" x="748" y="95">restore target</text>
+<text class="dg-ts" x="748" y="191">tar xzf</text><text class="dg-ts" x="485" y="191">into volume</text>
+</svg>
+<p class="diagram-cap" lang="fa">فلش بالایی مسیر پشتیبان را می‌خواند: volume → کمکی → فایل پشتیبان روی host → volume تازه. فلش پایینی مسیر بازیابی را برمی‌گرداند: فایل پشتیبان توسط کمکی باز می‌شود و فایل‌ها داخل volume مقصد بازکردن می‌شوند.</p>
+<p class="diagram-cap" lang="en">The top path is backup: volume → helper → archive on the host → fresh volume. The bottom path is restore: a helper opens the archive and extracts its files into the destination volume.</p>
+</div>
+<p lang="fa">برای این آزمایش، قبل از گرفتن tar، PostgreSQL را متوقف می‌کنیم تا وسط نوشتن از فایل‌های خام کپی نگیریم. این کار برای فهم مسیر پشتیبان خوب است، اما نسخهٔ نهاییِ سیاست پشتیبان‌گیری یک پایگاه‌دادهٔ واقعی نیست؛ هر پایگاه‌داده ابزار و قواعد سازگاری خودش را دارد.</p>
+<p lang="en">For a raw PostgreSQL data directory, stop the service before tar so the files are not copied while they are changing. This is a teaching workflow, not a universal production backup policy; production also needs database-specific consistency and native backup considerations.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">backup and restore with a helper</span><button class="copy">کپی</button></div>
+<pre dir="ltr">$ mkdir -p backups
+$ docker stop pg-data
+pg-data
+
+$ docker run --rm \
+  --mount type=volume,src=pg-data,dst=/volume,readonly \
+  --mount type=bind,src="$PWD/backups",dst=/backup \
+  alpine sh -c 'tar czf /backup/pg-data.tgz -C /volume .'
+
+$ ls -lh backups/pg-data.tgz
+-rw-r--r--  1 user  user  18K ... backups/pg-data.tgz
+
+$ docker volume create pg-restored
+pg-restored
+
+$ docker run --rm \
+  --mount type=volume,src=pg-restored,dst=/volume \
+  --mount type=bind,src="$PWD/backups",dst=/backup \
+  alpine sh -c 'tar xzf /backup/pg-data.tgz -C /volume'
+
+$ docker run -d --name pg-restored \
+  -e POSTGRES_PASSWORD=dev-only \
+  --mount type=volume,src=pg-restored,dst=/var/lib/postgresql/data \
+  postgres:17
+...
+
+$ docker exec -i pg-restored psql -U postgres -c "SELECT id, body FROM notes;"
+ id |      body
+----+----------------
+  1 | kept in volume
+(1 row)</pre>
+</div>
+<p lang="fa">دو مسیر را از هم جدا نگه دار: <code>/volume</code> مسیر داخل کمکی برای volume است و <code>/backup</code> مسیر فایل پشتیبان روی host. اگر در <code>tar</code> اشتباهاً <code>/data</code> یا مسیر دیگری بزنی، فایل پشتیبان شاید ساخته شود اما بازیابی به داده پوشه واقعی چیزی اضافه نمی‌کند. بعد از بازیابی هم همان اصلی version و مقصد مسیر را نگه دار.</p>
+<p lang="en">Keep the two paths distinct: <code>/volume</code> is the helper's view of the data volume, while <code>/backup</code> is the host archive path. If the tar command uses the wrong path, an archive may still be created but restore will not put files into the real data directory. Keep the same major version and target path after restore.</p>
+</section>
+<section id="cleanup">
+<h2><span lang="fa">پاک‌سازی: قبل از حذف volume مطمئن شو چه چیزی را دور می‌اندازی</span><span lang="en">Cleanup: remove a volume deliberately</span></h2>
+<p lang="fa">حذف کانتینر با حذف volume یکی نیست؛ این جدایی همان چیزی است که persistence را ممکن می‌کند. اما همین جدایی یعنی volumeهای آزمایشی اگر تمیز نشوند روی disk می‌مانند. اول consumerها را پیدا کن، سپس volume را با نام دقیقش حذف کن.</p>
+<p lang="en">Removing a container is not the same as removing its volume; that separation is what makes persistence possible. It also means experimental volumes can remain on disk. Find the consumers first, then remove the exact volume by name.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">safe-ish lab cleanup</span><button class="copy">کپی</button></div>
+<pre dir="ltr">$ docker ps -a --filter volume=pg-restored
+$ docker rm -f pg-restored
+pg-restored
+
+$ docker volume inspect pg-restored
+[
+  { "Name": "pg-restored", "Mountpoint": "..." }
+]
+
+$ docker volume rm pg-restored
+pg-restored
+
+$ docker volume ls</pre>
+</div>
+<p lang="fa">با <code>docker volume prune</code> مثل جاروبرقی رفتار نکن. volumeای که الان container فعالی به آن وصل نیست، ممکن است هنوز تنها نسخهٔ یک دادهٔ مهم باشد. در تمرین‌ها نام دقیق volume را پاک کن و اگر داده ارزش دارد، قبلش مطمئن شو پشتیبان واقعاً وجود دارد و قابل‌بازیابی است.</p>
+<p lang="en">Do not treat <code>docker volume prune</code> as a mindless vacuum; an unused volume may still be your only local backup. In a lab, remove the exact volume name. If the data matters, check that an archive exists and can be restored before deletion.</p>
+</section>
+<section id="failures">
+<h2><span lang="fa">وقتی داده «نیست»، از کجا بررسی را شروع کنیم؟</span><span lang="en">When data is “missing,” where do you start?</span></h2>
+<p lang="fa">وقتی می‌گویی «داده نیست»، قبل از هر چیز بپرس کجا انتظار داشتی باشد. اسم volume چیست؟ داخل container روی چه مسیری mount شده؟ اصلاً همان container و همان volume را اجرا کرده‌ای؟ این سؤال‌های ساده معمولاً سریع‌تر از تغییر مجوز و ساخت volumeهای تازه جواب می‌دهند.</p>
+<p lang="en">Most failures in this chapter get worse when we guess. Ask Docker for the name, source, destination, and container state; then compare the output with the command you actually ran.</p>
+<div class="table-wrap">
+<table class="doc-table">
+<thead><tr><th>نشانه</th><th>احتمال قوی</th><th>بررسی و اصلاح</th></tr></thead>
+<tbody>
+<tr><td>source bind پیدا نمی‌شود</td><td>مسیر host اشتباه یا روی daemon دیگری است</td><td>مسیر absolute، وجود directory و Docker context را بررسی کن</td></tr>
+<tr><td>فایل‌های image ناپدید شده‌اند</td><td>mount روی target آن‌ها را پوشانده</td><td>بدون mount اجرا کن یا target را تغییر بده؛ <code>volume-nocopy</code> را آگاهانه بفهم</td></tr>
+<tr><td><code>Permission denied</code></td><td>UID/GID یا mode مناسب نیست</td><td><code>id</code> و <code>ls -ld</code> را داخل helper/کانتینر ببین</td></tr>
+<tr><td>volume خالی به نظر می‌رسد</td><td>نام یا destination اشتباه است</td><td><code>docker inspect</code> و <code>volume inspect</code> را مقایسه کن</td></tr>
+<tr><td>archive ساخته شده اما restore خالی است</td><td>مسیر <code>tar -C</code> یا bind archive اشتباه بوده</td><td>لیست archive را با <code>tar tzf</code> ببین و مسیر helper را یکی کن</td></tr>
+<tr><td>PostgreSQL data ندارد</td><td>major/path mismatch یا container هنوز آماده نیست</td><td>نسخه، target <code>/var/lib/postgresql/data</code> و log را بررسی کن</td></tr>
+</tbody>
+</table>
+</div>
+<div class="term">
+<div class="term-bar"><span class="term-label">three inspection questions</span><button class="copy">کپی</button></div>
+<pre dir="ltr">$ docker inspect pg-data --format '{{json .Mounts}}'
+[{"Type":"volume","Name":"pg-data","Source":"...","Destination":"/var/lib/postgresql/data","RW":true}]
+
+$ docker volume inspect pg-data
+[
+  {"Name":"pg-data","Driver":"local","Mountpoint":"..."}
+]
+
+$ docker run --rm --mount type=volume,src=pg-data,dst=/volume alpine \
+  sh -c 'find /volume -maxdepth 2 -type f | head'</pre>
+</div>
+</section>
+<section id="exercises">
+<h2><span lang="fa">تمرین‌ها: محل داده را خودت انتخاب کن</span><span lang="en">Exercises: choose the data's home</span></h2>
+<p class="lede" lang="fa">این تمرین‌ها را مثل سؤال امتحانی حل نکن. قبل از دیدن جواب، برای هر سناریو فقط یک جمله بنویس: «داده کجاست و عمرش به چه چیزی وابسته است؟» اگر همین را درست جواب بدهی، انتخاب بین writable layer، volume و bind mount خیلی راحت‌تر می‌شود.</p>
+<p class="lede" lang="en">Each exercise includes a short mini-lesson. Run the command before reading the solution, then explain why the data belongs in the writable layer, a volume, or a bind mount.</p>
+<div class="ex" id="ex-6-1">
+<h3><span lang="fa">۱. stop یا rm؟</span><span lang="en">1. Stop or remove?</span></h3>
+<p lang="fa">یک فایل در کانتینر بساز، آن را stop و start کن، سپس container را rm کن. کدام مرز باعث ناپدیدشدن فایل شد؟</p>
+<p lang="en">Create a file in a container, stop and start it, then remove the container. Which boundary made the file disappear?</p>
+<details><summary><span lang="fa">پاسخ و نکته</span><span lang="en">Solution and lesson</span></summary><p lang="fa">تا وقتی همان container وجود دارد، stop/start همان writable layer را برمی‌گرداند. <code>rm</code> layer را همراه container حذف می‌کند؛ image فقط base را دوباره می‌دهد.</p><p lang="en">As long as the same container exists, stop/start returns the same writable layer. <code>rm</code> removes that layer with the container; the image only provides the base again.</p></details>
+</div>
+<div class="ex" id="ex-6-2">
+<h3><span lang="fa">۲. volume بساز</span><span lang="en">2. Create a volume</span></h3>
+<p lang="fa">volumeای به نام <code>lesson-data</code> بساز و با یک container Alpine فایل <code>/data/answer.txt</code> را در آن بنویس.</p>
+<p lang="en">Create a volume named <code>lesson-data</code> and use an Alpine container to write <code>/data/answer.txt</code> into it.</p>
+<details><summary><span lang="fa">پاسخ و نکته</span><span lang="en">Solution and lesson</span></summary><p lang="fa">با <code>docker volume create lesson-data</code> و سپس <code>docker run --rm --mount type=volume,src=lesson-data,dst=/data alpine sh -c 'echo answer &gt; /data/answer.txt'</code> انجامش بده. mount محل داده را از عمر container جدا می‌کند.</p><p lang="en">Use <code>docker volume create lesson-data</code>, then <code>docker run --rm --mount type=volume,src=lesson-data,dst=/data alpine sh -c 'echo answer &gt; /data/answer.txt'</code>. The mount separates the data location from container lifetime.</p></details>
+</div>
+<div class="ex" id="ex-6-3">
+<h3><span lang="fa">۳. با همان volume بخوان</span><span lang="en">3. Read from the same volume</span></h3>
+<p lang="fa">یک container دوم بساز که بدون ساخت فایل جدید، <code>answer.txt</code> را از <code>lesson-data</code> بخواند.</p>
+<p lang="en">Create a second container that reads <code>answer.txt</code> from <code>lesson-data</code> without creating the file again.</p>
+<details><summary><span lang="fa">پاسخ و نکته</span><span lang="en">Solution and lesson</span></summary><p lang="fa"><code>docker run --rm --mount type=volume,src=lesson-data,dst=/data alpine cat /data/answer.txt</code>. container دوم فقط consumer است؛ volume صاحب داده است.</p><p lang="en"><code>docker run --rm --mount type=volume,src=lesson-data,dst=/data alpine cat /data/answer.txt</code>. The second container is only a consumer; the volume owns the data's lifetime.</p></details>
+</div>
+<div class="ex" id="ex-6-4">
+<h3><span lang="fa">۴. inspect را بخوان</span><span lang="en">4. Read inspect</span></h3>
+<p lang="fa">خروجی <code>docker volume inspect lesson-data</code> را پیدا کن و توضیح بده چرا Mountpoint را نباید به‌عنوان مسیر برنامه hard-code کرد.</p>
+<p lang="en">Find the output of <code>docker volume inspect lesson-data</code> and explain why the Mountpoint should not be hard-coded into an application.</p>
+<details><summary><span lang="fa">پاسخ و نکته</span><span lang="en">Solution and lesson</span></summary><p lang="fa">Mountpoint مسیر داخلی Docker روی host است و بین Linux، Docker Desktop و راه‌دور daemon فرق می‌کند. برنامه باید با مسیر داخل container مثل <code>/data</code> کار کند.</p><p lang="en">Mountpoint is Docker's internal host path and varies across Linux, Docker Desktop, and remote daemons. The application should use its container path such as <code>/data</code>.</p></details>
+</div>
+<div class="ex" id="ex-6-5">
+<h3><span lang="fa">۵. شکل کوتاه را ترجمه کن</span><span lang="en">5. Translate the shorthand</span></h3>
+<p lang="fa"><code>-v lesson-data:/data:ro</code> را به <code>--mount</code> تبدیل کن و اثر <code>ro</code> را بگو.</p>
+<p lang="en">Convert <code>-v lesson-data:/data:ro</code> to <code>--mount</code> syntax and state what <code>ro</code> does.</p>
+<details><summary><span lang="fa">پاسخ و نکته</span><span lang="en">Solution and lesson</span></summary><p lang="fa">شکل صریح <code>--mount type=volume,src=lesson-data,dst=/data,readonly</code> است. container می‌تواند بخواند، اما نوشتن در volume از این mount باید fail شود.</p><p lang="en">The explicit form is <code>--mount type=volume,src=lesson-data,dst=/data,readonly</code>. The container can read, but writes through this mount should fail.</p></details>
+</div>
+<div class="ex" id="ex-6-6">
+<h3><span lang="fa">۶. bind mount بساز</span><span lang="en">6. Create a bind mount</span></h3>
+<p lang="fa">یک پوشهٔ host به نام <code>site</code> بساز، فایلی داخلش بگذار و آن را در <code>/site</code> داخل Alpine بخوان.</p>
+<p lang="en">Create a host folder named <code>site</code>, put a file in it, and read it at <code>/site</code> inside Alpine.</p>
+<details><summary><span lang="fa">پاسخ و نکته</span><span lang="en">Solution and lesson</span></summary><p lang="fa">روی POSIX از <code>mkdir -p site</code> و <code>docker run --rm --mount type=bind,src="$PWD/site",dst=/site alpine ls -l /site</code> استفاده کن. مبدأ اینجا نام volume نیست؛ مسیر واقعی host است.</p><p lang="en">On POSIX use <code>mkdir -p site</code> and <code>docker run --rm --mount type=bind,src="$PWD/site",dst=/site alpine ls -l /site</code>. Here the source is a real host path, not a volume name.</p></details>
+</div>
+<div class="ex" id="ex-6-7">
+<h3><span lang="fa">۷. مسیر اشتباه host</span><span lang="en">7. A wrong host path</span></h3>
+<p lang="fa">با <code>--mount type=bind</code> یک مبدأ وجودنداشته بده. چه خطایی می‌بینی و چرا در <code>-v</code> ممکن است گمراه‌کننده‌تر باشد؟</p>
+<p lang="en">Pass a missing source to a bind mount with <code>--mount</code>. What error appears, and why can <code>-v</code> be more misleading?</p>
+<details><summary><span lang="fa">پاسخ و نکته</span><span lang="en">Solution and lesson</span></summary><p lang="fa"><code>--mount</code> معمولاً missing مبدأ را خطا می‌کند؛ <code>-v</code> ممکن است پوشه بسازد و container با پوشهٔ خالی بالا بیاید. خطای زودهنگام برای پیدا کردن typo بهتر است.</p><p lang="en"><code>--mount</code> normally errors on a missing source; <code>-v</code> may create a directory and let the container start with an empty folder. An early error is easier to debug.</p></details>
+</div>
+<div class="ex" id="ex-6-8">
+<h3><span lang="fa">۸. مقصد را اشتباه انتخاب کن</span><span lang="en">8. Choose the wrong target</span></h3>
+<p lang="fa">یک bind mount را روی <code>/etc</code> خالی بگذار و اثرش را روی <code>/etc/alpine-release</code> توضیح بده.</p>
+<p lang="en">Place an empty bind mount over <code>/etc</code> and explain its effect on <code>/etc/alpine-release</code>.</p>
+<details><summary><span lang="fa">پاسخ و نکته</span><span lang="en">Solution and lesson</span></summary><p lang="fa">محتوای host روی <code>/etc</code> دیده می‌شود و فایل image زیر mount پنهان می‌شود. mount داده را در مسیر اختصاصی بگذار تا فایل‌های base ناخواسته پوشانده نشوند.</p><p lang="en">The host contents become visible at <code>/etc</code> and the image file underneath is hidden. Use a dedicated data target so base files are not obscured accidentally.</p></details>
+</div>
+<div class="ex" id="ex-6-9">
+<h3><span lang="fa">۹. read-only را ثابت کن</span><span lang="en">9. Prove read-only</span></h3>
+<p lang="fa">یک bind mount با <code>readonly</code> بساز و تلاش کن داخلش فایل بنویسی. تفاوت خطای آن با مجوز معمولی چیست؟</p>
+<p lang="en">Create a read-only bind mount and try to write a file. How is that failure different from an ordinary permission problem?</p>
+<details><summary><span lang="fa">پاسخ و نکته</span><span lang="en">Solution and lesson</span></summary><p lang="fa">در mount read-only، حتی پردازش مجاز هم از این مسیر اجازهٔ write ندارد؛ علت در option mount است. مجوز معمولی به UID/GID و mode فایل مربوط می‌شود.</p><p lang="en">With a read-only mount, even an otherwise permitted process cannot write through that path; the cause is the mount option. Ordinary permission depends on UID/GID and file mode.</p></details>
+</div>
+<div class="ex" id="ex-6-10">
+<h3><span lang="fa">۱۰. سه محل را مقایسه کن</span><span lang="en">10. Compare the three locations</span></h3>
+<p lang="fa">برای cache موقت، پایگاه‌داده و کد منبع به‌ترتیب writable layer، volume یا bind mount را انتخاب کن و برای هرکدام یک جمله دلیل بنویس.</p>
+<p lang="en">Choose writable layer, volume, or bind mount for temporary cache, a database, and source code, and give one reason for each.</p>
+<details><summary><span lang="fa">پاسخ و نکته</span><span lang="en">Solution and lesson</span></summary><p lang="fa">cache موقت می‌تواند writable layer باشد؛ پایگاه‌داده معمولاً named volume می‌خواهد تا با حذف container از بین نرود؛ کد منبع در توسعه bind mount می‌خواهد تا تغییر host فوری دیده شود.</p><p lang="en">Temporary cache can use the writable layer; a database usually needs a named volume so it outlives the container; development source code benefits from a bind mount so host edits appear immediately.</p></details>
+</div>
+<div class="ex" id="ex-6-11">
+<h3><span lang="fa">۱۱. UID/GID را ببین</span><span lang="en">11. Inspect UID/GID</span></h3>
+<p lang="fa">داخل یک container دستور <code>id</code> و <code>ls -ld /data</code> را اجرا کن. اگر پردازش غیرroot بود، قبل از تغییر مجوز چه چیزی را باید هماهنگ کنی؟</p>
+<p lang="en">Run <code>id</code> and <code>ls -ld /data</code> inside a container. If the process is non-root, what should you align before changing permissions?</p>
+<details><summary><span lang="fa">پاسخ و نکته</span><span lang="en">Solution and lesson</span></summary><p lang="fa">UID/GID پردازش، مالک پوشه و mode آن را مقایسه کن. اول user model image و مالکیت داده را بفهم؛ تغییر مجوز بدون این سه عدد معمولاً حدس است.</p><p lang="en">Compare the process UID/GID with the directory owner and mode. Understand the image's user model and data ownership before changing permissions; without those facts, the change is guesswork.</p></details>
+</div>
+<div class="ex" id="ex-6-12">
+<h3><span lang="fa">۱۲. volume را بین دو container به اشتراک بگذار</span><span lang="en">12. Share one volume</span></h3>
+<p lang="fa">container اول فایل بسازد و container دوم آن را بخواند. در توضیح خود فرق «دو پردازش» و «دو کپی داده» را روشن کن.</p>
+<p lang="en">Have one container create a file and another read it. Explain the difference between two processes and two copies of the data.</p>
+<details><summary><span lang="fa">پاسخ و نکته</span><span lang="en">Solution and lesson</span></summary><p lang="fa">هر دو را با <code>--mount type=volume,src=shared,dst=/data</code> اجرا کن. دو پردازش به یک volume و همان bytes وصل‌اند؛ containerها جدا هستند اما کپی جدا ساخته نشده.</p><p lang="en">Run both with <code>--mount type=volume,src=shared,dst=/data</code>. The processes are separate but point at the same volume and bytes; no second copy was created.</p></details>
+</div>
+<div class="ex" id="ex-6-13">
+<h3><span lang="fa">۱۳. PostgreSQL را pin کن</span><span lang="en">13. Pin PostgreSQL</span></h3>
+<p lang="fa">فرمان اجرای PostgreSQL را طوری بنویس که هم <code>postgres:17</code> ثابت باشد و هم volume در مقصد درست mount شود.</p>
+<p lang="en">Write a PostgreSQL run command that pins <code>postgres:17</code> and mounts the volume at the correct target.</p>
+<details><summary><span lang="fa">پاسخ و نکته</span><span lang="en">Solution and lesson</span></summary><p lang="fa">از <code>--mount type=volume,src=pg-data,dst=/var/lib/postgresql/data</code> همراه <code>-e POSTGRES_PASSWORD=dev-only</code> و image <code>postgres:17</code> استفاده کن. pin و مقصد هر دو بخشی از قرارداد این آزمایشگاه هستند.</p><p lang="en">Use <code>--mount type=volume,src=pg-data,dst=/var/lib/postgresql/data</code> with <code>-e POSTGRES_PASSWORD=dev-only</code> and image <code>postgres:17</code>. The pin and target are both part of this lab's contract.</p></details>
+</div>
+<div class="ex" id="ex-6-14">
+<h3><span lang="fa">۱۴. container را recreate کن</span><span lang="en">14. Recreate the container</span></h3>
+<p lang="fa">یک ردیف در PostgreSQL بساز، container را remove کن و با همان volume بالا بیاور. قبل از پرس‌وجو چه وضعیتی را باید صبر کنی؟</p>
+<p lang="en">Create a PostgreSQL row, remove the container, and start a new one with the same volume. What state should you wait for before querying?</p>
+<details><summary><span lang="fa">پاسخ و نکته</span><span lang="en">Solution and lesson</span></summary><p lang="fa">باید منتظر آماده شدن server بمانی؛ start شدن پردازش با آماده‌بودن PostgreSQL یکی نیست. بعد <code>docker exec ... psql</code> را اجرا کن و همان ردیف را ببین.</p><p lang="en">Wait until the server is ready; a started process is not necessarily a ready PostgreSQL server. Then run <code>docker exec ... psql</code> and verify the same row.</p></details>
+</div>
+<div class="ex" id="ex-6-15">
+<h3><span lang="fa">۱۵. فایل پشتیبان را فهرست کن</span><span lang="en">15. List an archive</span></h3>
+<p lang="fa">بعد از tar گرفتن از volume، با <code>tar tzf</code> ببین فایل پشتیبان چه مسیرهایی دارد. چرا دانستن prefix برای بازیابی مهم است؟</p>
+<p lang="en">After creating a tar archive from a volume, use <code>tar tzf</code> to see its paths. Why does the prefix matter during restore?</p>
+<details><summary><span lang="fa">پاسخ و نکته</span><span lang="en">Solution and lesson</span></summary><p lang="fa"><code>tar tzf backups/pg-data.tgz | head</code> نشان می‌دهد فایل‌ها با چه ریشه‌ای ذخیره شده‌اند. prefix اضافی ممکن است فایل‌ها را یک سطح پایین‌تر از داده پوشه واقعی بازکردن کند.</p><p lang="en"><code>tar tzf backups/pg-data.tgz | head</code> shows the stored root. An unwanted prefix can extract files one level below the real data directory and make PostgreSQL see an empty path.</p></details>
+</div>
+<div class="ex" id="ex-6-16">
+<h3><span lang="fa">۱۶. بازیابی به volume تازه</span><span lang="en">16. Restore into a fresh volume</span></h3>
+<p lang="fa">یک volume به نام <code>restored-data</code> بساز و فایل پشتیبان را با کمکی داخل آن بازکردن کن. چرا کمکی لازم است؟</p>
+<p lang="en">Create a volume named <code>restored-data</code> and extract the archive into it with a helper. Why is a helper needed?</p>
+<details><summary><span lang="fa">پاسخ و نکته</span><span lang="en">Solution and lesson</span></summary><p lang="fa">کمکی هم‌زمان volume و bind mount فایل پشتیبان را می‌بیند و ابزار <code>tar</code> را اجرا می‌کند، بدون اینکه image برنامه را تغییر بدهی. این container بعد از کار با <code>--rm</code> حذف می‌شود.</p><p lang="en">The helper sees both the volume and the archive bind mount and runs <code>tar</code> without changing the application image. It is disposable and can be removed with <code>--rm</code>.</p></details>
+</div>
+<div class="ex" id="ex-6-17">
+<h3><span lang="fa">۱۷. قبل از prune فکر کن</span><span lang="en">17. Think before prune</span></h3>
+<p lang="fa">دو دلیل بنویس که چرا <code>docker volume prune</code> می‌تواند خطرناک باشد، حتی اگر volume به container در حال اجرا وصل نباشد.</p>
+<p lang="en">Give two reasons why <code>docker volume prune</code> can be dangerous even when a volume is not attached to a running container.</p>
+<details><summary><span lang="fa">پاسخ و نکته</span><span lang="en">Solution and lesson</span></summary><p lang="fa">ممکن است volume متعلق به container متوقف‌شده یا تنها کپی local داده باشد و هنوز فایل پشتیبان سالمی نداشته باشی. «استفاده‌نشدن فعلی» مساوی «بی‌ارزش بودن» نیست.</p><p lang="en">It may belong to a stopped container or be the only local copy before a verified archive exists. “Not currently used” does not mean “worthless.”</p></details>
+</div>
+<div class="ex" id="ex-6-18">
+<h3><span lang="fa">۱۸. یک runbook کوتاه بنویس</span><span lang="en">18. Write a short runbook</span></h3>
+<p lang="fa">برای سرویسی که volume آن خالی دیده می‌شود، چهار دستور بررسی به‌ترتیب بنویس: نام container، Mounts، volume inspect و محتوای داخل mount.</p>
+<p lang="en">For a service whose volume looks empty, write four inspection commands in order: container name, Mounts, volume inspect, and the mounted contents.</p>
+<details><summary><span lang="fa">پاسخ و نکته</span><span lang="en">Solution and lesson</span></summary><p lang="fa"><code>docker ps -a</code>، <code>docker inspect NAME --format '{{json .Mounts}}'</code>، <code>docker volume inspect VOLUME</code> و <code>docker run --rm --mount type=volume,src=VOLUME,dst=/volume alpine ls -la /volume</code>. این زنجیره نام و مسیر را از حدس جدا می‌کند.</p><p lang="en"><code>docker ps -a</code>, <code>docker inspect NAME --format '{{json .Mounts}}'</code>, <code>docker volume inspect VOLUME</code>, and <code>docker run --rm --mount type=volume,src=VOLUME,dst=/volume alpine ls -la /volume</code>. This chain separates names and paths from guesses.</p></details>
+</div>
+</section>
+<section id="lab">
+<h2><span lang="fa">آزمایشگاه کامل: ساخت، حذف، پشتیبان و بازیابی PostgreSQL</span><span lang="en">Full lab: build, remove, back up, and restore PostgreSQL</span></h2>
+<p class="lede" lang="fa">این آزمایشگاه را مثل یک حادثهٔ واقعیِ کوچک انجام بده: یک رکورد می‌سازی، container را حذف می‌کنی، با همان volume برش می‌گردانی، بعد از volume نسخهٔ پشتیبان می‌گیری و روی یک volume تازه بازیابی می‌کنی. اگر در پایان فقط «دستورها کار کردند» بگویی کافی نیست؛ باید بتوانی نشان بدهی هر بار داده دقیقاً کجا بوده.</p>
+<p class="lede" lang="en">Run this lab as a small operational story. By the end, you should be able to show that a row survived container removal, an archive exists on the host, and a fresh volume restored the same data.</p>
+<ol class="steps">
+<li><span lang="fa"><strong>آماده‌سازی:</strong> volumeهای <code>lab-pg</code> و <code>lab-pg-restored</code> را فقط اگر از تمرین قبلی مانده‌اند حذف کن؛ اسم‌های دقیق را چک کن.</span><span lang="en"><strong>Prepare:</strong> remove <code>lab-pg</code> and <code>lab-pg-restored</code> only if they are leftovers from this lab; check the exact names.</span></li>
+<li><span lang="fa"><strong>راه‌اندازی:</strong> <code>postgres:17</code> را با named volume <code>lab-pg</code> و مقصد <code>/var/lib/postgresql/data</code> اجرا کن. تا آماده شدن log صبر کن.</span><span lang="en"><strong>Start:</strong> run <code>postgres:17</code> with named volume <code>lab-pg</code> at <code>/var/lib/postgresql/data</code>. Wait for the ready log.</span></li>
+<li><span lang="fa"><strong>داده:</strong> با <code>docker exec</code> جدول <code>lesson_events</code> و یک ردیف به نام <code>volume-survived</code> بساز.</span><span lang="en"><strong>Data:</strong> use <code>docker exec</code> to create <code>lesson_events</code> and insert one row named <code>volume-survived</code>.</span></li>
+<li><span lang="fa"><strong>بازسازی:</strong> container را <code>rm -f</code> کن و با همان volume دوباره بساز. پرس‌وجو را اجرا کن و ردیف را ثبت کن.</span><span lang="en"><strong>Recreate:</strong> <code>rm -f</code> the container and create it again with the same volume. Query and record the row.</span></li>
+<li><span lang="fa"><strong>پشتیبان:</strong> پوشهٔ <code>backups</code> روی host بساز، container را stop کن و با کمکی و mount read-only فایل پشتیبان بگیر. اندازه و فهرست فایل پشتیبان را ببین.</span><span lang="en"><strong>Back up:</strong> create host folder <code>backups</code>, stop the container, and create an archive with a helper and a read-only mount. Check its size and listing.</span></li>
+<li><span lang="fa"><strong>بازیابی:</strong> <code>lab-pg-restored</code> را بساز، فایل پشتیبان را داخلش بازکردن کن، PostgreSQL دیگری با همان اصلی version روی آن بالا بیاور و پرس‌وجو بگیر.</span><span lang="en"><strong>Restore:</strong> create <code>lab-pg-restored</code>, extract the archive, start another PostgreSQL with the same major version, and query it.</span></li>
+<li><span lang="fa"><strong>خرابی عمدی:</strong> یک بار مقصد اشتباه مثل <code>/wrong-data</code> بده و توضیح بده چرا PostgreSQL از آن استفاده نکرد. سپس دستور درست را اصلاح کن.</span><span lang="en"><strong>Intentional failure:</strong> once use a wrong target such as <code>/wrong-data</code> and explain why PostgreSQL did not use it. Then correct the command.</span></li>
+<li><span lang="fa"><strong>تحویل:</strong> خروجی <code>docker inspect</code>، نام volume، مسیر فایل پشتیبان و پرس‌وجو نهایی را کنار هم نگه دار؛ این‌ها زنجیرهٔ قابل بررسی آزمایشگاه هستند.</span><span lang="en"><strong>Hand off:</strong> keep the <code>docker inspect</code> output, volume names, archive path, and final query together; they are the lab's inspection trail.</span></li>
+</ol>
+<div class="term">
+<div class="term-bar"><span class="term-label">lab checkpoint</span><button class="copy">کپی</button></div>
+<pre dir="ltr">$ docker inspect lab-pg --format '{{range .Mounts}}{{.Name}} -&gt; {{.Destination}} (rw={{.RW}}){{end}}'
+lab-pg -&gt; /var/lib/postgresql/data (rw=true)
+
+$ tar tzf backups/lab-pg.tgz | head
+./
+./PG_VERSION
+./base/
+...
+
+$ docker exec -i lab-pg-restored psql -U postgres -c "SELECT event FROM lesson_events;"
+      event
+-----------------
+ volume-survived
+(1 row)</pre>
+</div>
+<p lang="fa">این آزمایشگاه عمداً وارد network، Compose، registry یا deployment نمی‌شود. سؤال فصل فقط این است: داده کجا نوشته شد، چه چیزی آن را نگه داشت، و چطور آن را به یک volume تازه برگرداندیم.</p>
+<p lang="en">This lab intentionally does not enter networking, Compose, registries, or deployment. The chapter's question is narrower: where were the bytes written, what kept them alive, and how did we restore them into a fresh volume?</p>
+</section>
+<section id="handoff">
+<h2><span lang="fa">مرز فصل و قدم بعد</span><span lang="en">The boundary and the next step</span></h2>
+<p lang="fa">حالا فرق سه خانه روشن شده: writable layer خانهٔ موقتِ خود container است؛ named volume خانه‌ای جداست که Docker مدیریت می‌کند؛ bind mount پنجره‌ای به یک مسیر واقعی روی host است. و پشتیبان هم هیچ‌کدام از این‌ها نیست؛ یک نسخهٔ جداست که باید بتوانی واقعاً از آن برگردی.</p>
+<p lang="en">You now know why “containers are ephemeral” does not mean “data is ephemeral.” The writable layer is for local changes to one container; a named volume is for data independent of the container; a bind mount is for files the host must see and manage directly. Backup is a separate operation, not an automatic property of a volume.</p>
+<div class="table-wrap">
+<table class="doc-table">
+<thead><tr><th>اگر سؤال تو این است...</th><th>از این فصل چه بردار</th><th>عمداً در فصل بعدی نیست</th></tr></thead>
+<tbody>
+<tr><td>چرا بعد از rm فایل رفت؟</td><td>writable layer به عمر container وصل است</td><td>شبکه و سرویس‌های چندکانتینری</td></tr>
+<tr><td>database را کجا بگذارم؟</td><td>named volume و target درست</td><td>تنظیمات کامل database و secret</td></tr>
+<tr><td>فایل host را داخل app ببینم؟</td><td>bind mount، path و readonly</td><td>deployment و production storage</td></tr>
+<tr><td>اگر volume حذف شد چه؟</td><td>helper، tar، restore و بررسی archive</td><td>policy کامل disaster recovery</td></tr>
+</tbody>
+</table>
+</div>
+<p lang="fa">فصل بعد سؤال تازه‌ای داریم: حالا که داده را نگه داشتیم، اگر web و پایگاه‌داده در دو container جدا باشند چطور همدیگر را پیدا می‌کنند؟ قبل از رفتن به شبکه فقط یک عادت را با خودت ببر: پیش از هر <code>rm</code> یا <code>prune</code> بپرس «داده دقیقاً کجاست؟»</p>
+<p lang="en">Chapter 7 moves to networking; Chapter 8 composes these services, and Chapter 9 organizes environment and secrets. Finish this chapter with one habit: before <code>rm</code> or <code>prune</code>, ask exactly where the data lives.</p>
+</section>
+<section id="quick">
+<h2><span lang="fa">برگهٔ تقلب</span><span lang="en">Quick reference</span></h2>
+<div class="term">
+<div class="term-bar"><span class="term-label">the commands worth remembering</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker volume create NAME
+docker volume ls
+docker volume inspect NAME
+docker volume rm NAME
+
+docker run --rm --mount type=volume,src=NAME,dst=/data IMAGE COMMAND
+docker run --rm --mount type=bind,src=/host/path,dst=/data,readonly IMAGE COMMAND
+
+docker inspect CONTAINER --format '{{json .Mounts}}'
+docker run --rm --mount type=volume,src=NAME,dst=/volume alpine sh -c 'tar czf /backup/data.tgz -C /volume .'</pre>
+</div>
+<p lang="fa">برای مطالعهٔ بیشتر، مستندات رسمی <a href="https://docs.docker.com/engine/storage/volumes/">Docker volumes</a>، <a href="https://docs.docker.com/engine/storage/bind-mounts/">bind mounts</a> و <a href="https://hub.docker.com/_/postgres">image رسمی PostgreSQL</a> را ببین. در هر سه منبع، نحوهٔ نوشتن را با نسخهٔ Docker و image‌ای که واقعاً اجرا می‌کنی تطبیق بده.</p>
+<p lang="en">For further reading, use Docker's official <a href="https://docs.docker.com/engine/storage/volumes/">volumes</a>, <a href="https://docs.docker.com/engine/storage/bind-mounts/">bind mounts</a>, and <a href="https://hub.docker.com/_/postgres">PostgreSQL image</a> documentation. Match the syntax to the Docker and image versions you actually run.</p>
+</section>

@@ -1,0 +1,676 @@
+<!--meta
+title: نصب روی ویندوز، لینوکس و WSL2
+desc: Docker CLI، Engine، daemon و مسیر درخواست را بفهم؛ سپس Docker را روی Ubuntu یا Windows با WSL2 نصب، راستی‌آزمایی و عیب‌یابی کن.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">Docker · فصل ۲</span><span lang="en">Docker · Chapter 2</span></span>
+<h1 lang="fa">نصب روی ویندوز، لینوکس و WSL2</h1>
+<h1 lang="en">Installing on Windows, Linux, and WSL2</h1>
+<p class="sub" lang="fa">این فصل قرار نیست فقط Docker را نصب کند و تمام. می‌خواهیم بفهمیم وقتی یک دستور ساده مثل docker ps جواب نمی‌دهد، دقیقاً کجای مسیر گیر کرده‌ایم؛ خود CLI؟ موتور Docker؟ دسترسی کاربر؟ یا ارتباط WSL با Docker Desktop؟</p>
+<p class="sub" lang="en">We are not merely installing Docker and trusting a green check mark. By the end of this chapter, when <code>docker ps</code> fails, you should know whether the likely boundary is the CLI, context, socket, daemon, WSL integration, or backend—and how to test each boundary with evidence.</p>
+<div class="facts">
+<div class="fact"><b>۸۵</b><span lang="fa">دقیقهٔ مطالعه و اجرا</span><span lang="en">minutes</span></div>
+<div class="fact"><b>۱۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></div>
+<div class="fact"><b>۴</b><span lang="fa">نمودار مفهومی</span><span lang="en">diagrams</span></div>
+<div class="fact"><b>۱</b><span lang="fa">آزمایشگاه عیب‌یابی</span><span lang="en">troubleshooting lab</span></div>
+</div>
+</div>
+<section id="model">
+<h2><span lang="fa">وقتی docker ps می‌زنیم، پشت صحنه چه اتفاقی می‌افتد؟</span><span lang="en">When we say “Docker is installed,” what exactly was installed?</span></h2>
+<p class="lede" lang="fa">فرض کن Docker را تازه نصب کرده‌ای. آیکن Desktop سبز است و همه‌چیز ظاهراً خوب به نظر می‌رسد. وارد ترمینال می‌شوی، docker ps را می‌زنی و خطا می‌گیری. اولین وسوسه این است که بگویی «پس Docker درست نصب نشده». اما هنوز برای چنین نتیجه‌ای زود است. شاید خود CLI سالم باشد و فقط نتواند به Docker Engine برسد. برای همین اول باید مسیر این دستور را بشناسیم.</p>
+<p class="lede" lang="en">In Chapter 1, Docker was a way to package and run reproducible environments. Now we need to separate the moving parts. When you type <code>docker ps</code>, the terminal itself knows nothing about containers. A client program called the <strong>Docker CLI</strong> runs, connects to an endpoint, and asks the <strong>Docker Engine</strong> for state.</p>
+<div class="table-wrap">
+<table class="doc-table">
+<thead><tr><th>Piece</th><th>What it does</th><th>What failure often looks like</th></tr></thead>
+<tbody>
+<tr><td>Shell / terminal</td><td><span lang="fa">برنامهٔ <code>docker</code> را از مسیر پیدا و اجرا می‌کند</span><span lang="en">finds and launches the <code>docker</code> executable from PATH</span></td><td><code>command not found</code></td></tr>
+<tr><td>Docker CLI</td><td><span lang="fa">دستور و flagها را parse می‌کند و درخواست می‌سازد</span><span lang="en">parses commands/flags and forms requests</span></td><td><span lang="fa">syntax/usage خطا</span><span lang="en">syntax or usage error</span></td></tr>
+<tr><td>Context / endpoint</td><td><span lang="fa">می‌گوید CLI به کدام Docker نقطهٔ اتصال وصل شود</span><span lang="en">tells the CLI which Docker endpoint to use</span></td><td><span lang="fa">وصل‌شدن به daemon اشتباه یا unreachable نقطهٔ اتصال</span><span lang="en">wrong daemon or unreachable endpoint</span></td></tr>
+<tr><td>Docker Engine / <code>dockerd</code></td><td><span lang="fa">وضعیت، چرخهٔ عمر، image/container و API را مدیریت می‌کند</span><span lang="en">manages API, state, images, and container lifecycle</span></td><td><code>Cannot connect to the Docker daemon</code></td></tr>
+<tr><td>containerd / runtime stack</td><td><span lang="fa">کار اجرایی پایین‌تر را برای Engine انجام می‌دهد</span><span lang="en">performs lower-level runtime work for the Engine</span></td><td><span lang="fa">زمان اجرا/راه‌اندازی خطا</span><span lang="en">runtime or startup failure</span></td></tr>
+<tr><td>Linux kernel</td><td><span lang="fa">پردازش isolation، namespaces، cgroups و منابع را فراهم می‌کند</span><span lang="en">provides process isolation, namespaces, cgroups, and resources</span></td><td><span lang="fa">معمولاً پشت خطاهای سطح بالاتر پنهان است</span><span lang="en">usually surfaced through higher-level errors</span></td></tr>
+</tbody>
+</table>
+</div>
+<div class="diagram">
+<svg aria-labelledby="d2-request-flow" role="img" viewbox="0 0 860 430">
+<title id="d2-request-flow">Docker CLI request path</title>
+<defs>
+<marker id="d2-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker>
+</defs>
+<g class="dg-stroke-b" marker-end="url(#d2-arrow)" stroke-width="2">
+<path d="M430 58v28"></path><path d="M430 126v28"></path><path d="M430 194v28"></path><path d="M430 262v28"></path><path d="M430 330v28"></path>
+</g>
+<g text-anchor="middle">
+<rect class="dg-fill" height="44" rx="9" width="420" x="220" y="15"></rect><text class="dg-t" x="430" y="43">shell: docker ps</text>
+<rect class="dg-fill-b" height="44" rx="9" width="420" x="220" y="86"></rect><text class="dg-t" x="430" y="114">Docker CLI · parse / format</text>
+<rect class="dg-fill-v" height="44" rx="9" width="420" x="220" y="154"></rect><text class="dg-t" x="430" y="182">active context / endpoint · Docker API</text>
+<rect class="dg-fill-g" height="44" rx="9" width="420" x="220" y="222"></rect><text class="dg-t" x="430" y="250">dockerd / Docker Engine</text>
+<rect class="dg-fill-w" height="44" rx="9" width="420" x="220" y="290"></rect><text class="dg-t" x="430" y="318">containerd / runtime stack</text>
+<rect class="dg-fill" height="44" rx="9" width="420" x="220" y="358"></rect><text class="dg-t" x="430" y="386">Linux kernel</text>
+</g>
+<text class="dg-ts" x="660" y="174">request ↓</text>
+<text class="dg-ts" x="660" y="194">response ↑</text>
+</svg>
+<p class="diagram-cap" lang="fa">فلش‌های رو به پایین مسیر درخواست را نشان می‌دهند؛ پاسخ در جهت مخالف برمی‌گردد. CLI خودش container را اجرا نمی‌کند؛ درخواست می‌فرستد و نتیجه را برای انسان قالب می‌کند.</p>
+<p class="diagram-cap" lang="en">Downward arrows show the request path; the response returns in the opposite direction. The CLI does not itself run the container; it sends the request and formats the result for a person.</p>
+</div>
+</section>
+<section id="verification-ladder">
+<h2><span lang="fa">از کجا بفهمیم دقیقاً کدام بخش سالم است؟</span><span lang="en">Four commands that prove four different things</span></h2>
+<p class="lede" lang="fa">اینجا چهار دستور داریم که ظاهرشان شبیه هم است، ولی هرکدام چیز متفاوتی را به ما نشان می‌دهند. اگر فرقشان را بفهمی، بعداً به‌جای نصب دوباره و حدس‌زدن، با چند دستور ساده می‌فهمی مشکل از کجاست.</p>
+<p class="lede" lang="en">Many bad troubleshooting sessions begin with “Docker is installed because version works.” A better question is: <strong>which version command, and what exactly did it prove?</strong></p>
+<div class="table-wrap">
+<table class="doc-table">
+<thead><tr><th>Command</th><th>What it proves</th><th>What it does not prove</th></tr></thead>
+<tbody>
+<tr><td><code>docker --version</code></td><td><span lang="fa">فایل اجرایی محلی Docker CLI پیدا و اجرا می‌شود</span><span lang="en">the local Docker CLI executable is found and runs</span></td><td><span lang="fa">daemon در دسترس است</span><span lang="en">the daemon is reachable</span></td></tr>
+<tr><td><code>docker version</code></td><td><span lang="fa">کلاینت محلی؛ و اگر سرور بخش آمد، API/Engine پاسخ داده</span><span lang="en">local Client; if Server appears, the API/Engine responded</span></td><td><span lang="fa">برنامه خاصی سالم است</span><span lang="en">a particular application is healthy</span></td></tr>
+<tr><td><code>docker info</code></td><td><span lang="fa">اطلاعات عمیق‌تر Engine و اتصال موفق به سرور</span><span lang="en">deeper Engine facts and successful server communication</span></td><td><span lang="fa">container تو درست تنظیمات شده</span><span lang="en">your container is correctly configured</span></td></tr>
+<tr><td><code>docker run hello-world</code></td><td><span lang="fa">Engine می‌تواند image را پیدا/در صورت نیاز دریافت کند، container بسازد، راه‌اندازی کند، خروجی بگیرد و خروج را ثبت کند</span><span lang="en">the Engine can resolve/pull if needed, create, start, capture output, and record container exit</span></td><td><span lang="fa">شبکه/volume/برنامه واقعی تو سالم است</span><span lang="en">your real app, network, or volume setup is healthy</span></td></tr>
+</tbody>
+</table>
+</div>
+<div class="term">
+<div class="term-bar"><span class="term-label">verification ladder</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker --version
+docker version
+docker context show
+docker info --format 'server={{.ServerVersion}} root={{.DockerRootDir}}'
+docker ps</pre>
+</div>
+<div class="term">
+<div class="term-bar"><span class="term-label">representative healthy output</span></div>
+<pre dir="ltr">Docker version 29.x, build 1234567
+
+Client: Docker Engine - Community
+ Version:           29.x
+ Context:           default
+Server: Docker Engine - Community
+ Engine:
+  Version:          29.x
+
+default
+server=29.x root=/var/lib/docker
+
+CONTAINER ID   IMAGE   COMMAND   CREATED   STATUS   PORTS   NAMES</pre>
+</div>
+<p lang="fa">خالی بودن جدول <code>docker ps</code> خطا نیست؛ فقط یعنی running container نداریم. این تفاوت کوچک مهم است: دستور موفق بوده و Engine جواب داده، حتی اگر نتیجهٔ پرس‌وجو صفر ردیف باشد.</p>
+<p lang="en">An empty <code>docker ps</code> table is not a failure; it simply means there are no running containers. The command still succeeded and the Engine answered even though the query returned zero rows.</p>
+</section>
+<section id="daemon-experiment">
+<h2><span lang="fa">یک بار موتور Docker را خاموش کنیم و نتیجه را ببینیم</span><span lang="en">Stop the daemon deliberately to see the Client/Server boundary</span></h2>
+<p class="lede" lang="fa">بهترین راه برای فهمیدن مرز بین CLI و Engine این است که آن را عمداً خراب کنیم. روی یک سیستم آزمایشی Linux، daemon را متوقف می‌کنیم و قبل از اجرای هر دستور حدس می‌زنیم کدام‌یک هنوز باید کار کند. بعد خروجی را با حدسمان مقایسه می‌کنیم.</p>
+<p class="lede" lang="en">On a learning Linux machine, one of the best ways to understand the architecture is to deliberately remove one layer. Before running anything, predict which commands should still work and which should fail.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">Linux · deliberate daemon failure</span><button class="copy">کپی</button></div>
+<pre dir="ltr">sudo systemctl stop docker
+
+docker --version
+docker version
+docker info
+docker ps
+
+sudo systemctl start docker</pre>
+</div>
+<div class="term">
+<div class="term-bar"><span class="term-label">representative failure</span></div>
+<pre dir="ltr">Docker version 29.x, build 1234567
+
+Client: Docker Engine - Community
+ Version:           29.x
+ Context:           default
+Cannot connect to the Docker daemon at unix:///var/run/docker.sock.
+Is the docker daemon running?
+
+ERROR: Cannot connect to the Docker daemon at unix:///var/run/docker.sock.
+
+Cannot connect to the Docker daemon at unix:///var/run/docker.sock.</pre>
+</div>
+<p lang="fa">این خروجی معماری را بهتر از تعریف حفظی نشان می‌دهد. <code>docker --version</code> اصلاً سرور را لمس نکرد. <code>docker version</code> توانست کلاینت محلی را بخواند ولی وقتی به سرور رسید ناموفق شد. <code>info</code> و <code>ps</code> بدون Engine پاسخ مفیدی ندارند.</p>
+<p lang="en">This output teaches the architecture better than a memorized definition. <code>docker --version</code> never touched the Server. <code>docker version</code> could read the local Client but failed when it reached the Server. <code>info</code> and <code>ps</code> depend on an Engine response.</p>
+<div class="note warn">
+<div class="note-t"><span lang="fa">روی production این آزمایش را انجام نده</span><span lang="en">Do not perform this experiment on production</span></div>
+<p lang="fa">خاموش‌کردن daemon می‌تواند روی workloadهای واقعی اثر بگذارد. این آزمایش برای VM، لپ‌تاپ آموزشی یا محیطی است که می‌دانی container مهمی روی آن اجرا نمی‌شود.</p>
+<p lang="en">Stopping the daemon can affect real workloads. Perform this only on a VM, a learning laptop, or an environment where you know no important containers depend on the daemon.</p>
+</div>
+</section>
+<section id="engine-desktop">
+<h2><span lang="fa">Docker Engine با Docker Desktop چه فرقی دارد؟</span><span lang="en">Docker Engine and Docker Desktop are not the same thing</span></h2>
+<p lang="fa">این دو اسم زیاد کنار هم می‌آیند و برای همین راحت قاطی می‌شوند. Docker Engine همان بخشی است که واقعاً image و container را مدیریت می‌کند. Docker Desktop یک محیط کامل‌تر برای توسعه است که همین Engine را همراه با رابط کاربری، تنظیم منابع و اتصال به محیط‌هایی مثل WSL در اختیارمان می‌گذارد.</p>
+<p lang="en"><strong>Docker Engine</strong> is the server-side system that manages the API, daemon, runtime stack, images, and containers. <strong>Docker Desktop</strong> is a broader developer product that packages an Engine with integration, UI, resource management, updates, and development tooling.</p>
+<div class="table-wrap">
+<table class="doc-table">
+<thead><tr><th>Environment</th><th>Typical choice</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>Linux production/server</td><td>Docker Engine</td><td><span lang="fa">headless، systemd، کنترل مستقیم سیستم میزبان</span><span lang="en">headless, systemd-managed, direct host control</span></td></tr>
+<tr><td>Linux workstation</td><td>Engine or Desktop</td><td><span lang="fa">بسته به نیاز به Desktop ابزارها</span><span lang="en">depends on whether Desktop tooling is useful</span></td></tr>
+<tr><td>Windows developer</td><td>Docker Desktop + WSL2 backend</td><td><span lang="fa">Linux container بخش پشتی مدیریت‌شده</span><span lang="en">managed Linux-container backend</span></td></tr>
+<tr><td>Windows + Ubuntu WSL</td><td>Desktop + WSL integration</td><td><span lang="fa">امکان استفاده از Linux CLI داخل توزیع و Windows CLI روی همان Desktop بخش پشتی</span><span lang="en">Linux CLI in the distro and Windows CLI can reach the Desktop backend</span></td></tr>
+</tbody>
+</table>
+</div>
+<div class="diagram">
+<svg aria-labelledby="d2-desktop-engine" role="img" viewbox="0 0 900 300">
+<title id="d2-desktop-engine">Engine and Desktop relationship</title>
+<defs><marker id="d2-de-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<g class="dg-stroke-b" marker-end="url(#d2-de-arrow)" stroke-width="2">
+<path d="M210 150h90"></path><path d="M600 150h90"></path>
+</g>
+<g text-anchor="middle">
+<rect class="dg-fill" height="120" rx="12" width="190" x="20" y="90"></rect><text class="dg-t" x="115" y="128">Docker CLI</text><text class="dg-ts" x="115" y="158">client</text>
+<rect class="dg-fill-v" height="190" rx="14" width="300" x="300" y="55"></rect><text class="dg-t" x="450" y="95">Docker Desktop</text><text class="dg-ts" x="450" y="126">UI · integration · resources</text><text class="dg-ts" x="450" y="153">managed Linux backend</text><text class="dg-ts" x="450" y="180">Docker Engine inside</text>
+<rect class="dg-fill-g" height="120" rx="12" width="190" x="690" y="90"></rect><text class="dg-t" x="785" y="128">containers</text><text class="dg-ts" x="785" y="158">Linux workloads</text>
+</g>
+</svg>
+<p class="diagram-cap" lang="fa">Desktop «به‌جای Engine» نیست؛ Engine را به‌عنوان بخشی از یک محیط توسعهٔ مدیریت‌شده ارائه می‌کند.</p>
+<p class="diagram-cap" lang="en">Desktop is not “instead of Engine”; it provides an Engine as part of a managed development environment.</p>
+</div>
+<div class="note warn">
+<div class="note-t"><span lang="fa">دو daemon بی‌دلیل نساز</span><span lang="en">Do not create two daemons accidentally</span></div>
+<p lang="fa">اگر داخل Ubuntu/WSL یک Docker Engine جدا نصب کنی و همزمان Docker Desktop هم فعال باشد، ممکن است دو نقطهٔ اتصال و دو image/container مخزن مستقل داشته باشی. نتیجهٔ رایج: «image من کجا رفت؟» درحالی‌که فقط CLI به daemon دیگری نگاه می‌کند.</p>
+<p lang="en">If you install a separate Docker Engine inside Ubuntu/WSL while Docker Desktop is also active, you can end up with two independent endpoints and image/container stores. The common symptom is “where did my image go?” when the CLI is simply looking at a different daemon.</p>
+</div>
+</section>
+<section id="ubuntu-install">
+<h2><span lang="fa">نصب روی Ubuntu؛ هر دستور برای چه کاری است؟</span><span lang="en">Ubuntu: do not see a command wall; understand the trust and package chain</span></h2>
+<p class="lede" lang="fa">اگر دستورهای نصب را فقط کپی کنی، دفعهٔ بعد که یکی از آن‌ها خطا بدهد نمی‌دانی باید کجا را نگاه کنی. پس به‌جای یک دیوار بلند از دستورها، نصب را به سه سؤال ساده می‌شکنیم: بسته‌ها را از کجا می‌گیریم؟ از کجا مطمئن می‌شویم منبع قابل‌اعتماد است؟ و در آخر دقیقاً چه چیزهایی نصب می‌شوند؟</p>
+<p class="lede" lang="en">The standard maintainable path is Docker’s official APT repository. The idea is simple: APT needs to know where packages come from, which key validates that source metadata, and which packages to install.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">Ubuntu · official repository setup</span><button class="copy">کپی</button></div>
+<pre dir="ltr">sudo apt update
+sudo apt install ca-certificates curl
+
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+  -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+sudo tee /etc/apt/sources.list.d/docker.sources &gt; /dev/null &lt;&lt;EOF
+Types: deb
+URIs: https://download.docker.com/linux/ubuntu
+Suites: $(. /etc/os-release &amp;&amp; echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")
+Components: stable
+Architectures: $(dpkg --print-architecture)
+Signed-By: /etc/apt/keyrings/docker.asc
+EOF
+
+sudo apt update</pre>
+</div>
+<p lang="fa"><code>URIs</code> کد برنامه رسمی را مشخص می‌کند؛ <code>Suites</code> release فعلی Ubuntu را انتخاب می‌کند؛ <code>Architectures</code> معماری سیستم میزبان را می‌گیرد؛ و <code>Signed-By</code> می‌گوید فراداده این کد برنامه باید با همین key بررسی شود. این بخش security theater نیست؛ زنجیره of اعتماد package manager است.</p>
+<p lang="en"><code>URIs</code> names the official source; <code>Suites</code> selects the current Ubuntu release; <code>Architectures</code> records host architecture; and <code>Signed-By</code> limits validation of this source to that key. This is not ceremony; it is the package manager’s trust chain.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">Ubuntu · install packages</span><button class="copy">کپی</button></div>
+<pre dir="ltr">sudo apt install \
+  docker-ce \
+  docker-ce-cli \
+  containerd.io \
+  docker-buildx-plugin \
+  docker-compose-plugin</pre>
+</div>
+<div class="table-wrap">
+<table class="doc-table">
+<thead><tr><th>Package</th><th>Role in this course</th><th>Useful verification</th></tr></thead>
+<tbody>
+<tr><td><code>docker-ce</code></td><td><span lang="fa">Engine / daemon</span><span lang="en">Engine / daemon</span></td><td><code>systemctl status docker</code></td></tr>
+<tr><td><code>docker-ce-cli</code></td><td>Docker CLI</td><td><code>docker --version</code></td></tr>
+<tr><td><code>containerd.io</code></td><td><span lang="fa">زمان اجرا manager زیر Engine</span><span lang="en">runtime manager beneath Engine</span></td><td><span lang="fa">اطلاعات در <code>docker info</code></span><span lang="en">runtime facts in <code>docker info</code></span></td></tr>
+<tr><td><code>docker-buildx-plugin</code></td><td><span lang="fa">buildهای مدرن؛ فصل ۴</span><span lang="en">modern builds; Chapter 4</span></td><td><code>docker buildx version</code></td></tr>
+<tr><td><code>docker-compose-plugin</code></td><td><span lang="fa">Compose؛ موضوع فصل‌های بعد</span><span lang="en">Compose; covered later</span></td><td><code>docker compose version</code></td></tr>
+</tbody>
+</table>
+</div>
+<div class="term">
+<div class="term-bar"><span class="term-label">service + verification</span><button class="copy">کپی</button></div>
+<pre dir="ltr">sudo systemctl status docker
+sudo systemctl start docker   # only if it is not running
+
+docker version
+docker info
+sudo docker run hello-world</pre>
+</div>
+<p lang="fa">اگر <code>docker version</code> فقط کلاینت را نشان داد، نصب CLI موفق بوده ولی هنوز سرور را ثابت نکرده‌ای. اگر <code>sudo docker run hello-world</code> موفق شد اما بدون sudo دسترسی denied گرفتی، دیگر مسئله installation نیست؛ مسئلهٔ دسترسی به سوکت است.</p>
+<p lang="en">If <code>docker version</code> shows only Client information, the CLI installation succeeded but the Server is not yet proven. If <code>sudo docker run hello-world</code> works while the non-sudo command gets permission denied, the problem is no longer installation; it is socket access.</p>
+</section>
+<section id="socket">
+<h2><span lang="fa">چرا با sudo کار می‌کند ولی بدون آن نه؟</span><span lang="en"><code>/var/run/docker.sock</code>: a permission error can tell you a lot</span></h2>
+<p lang="fa">این یکی از خطاهایی است که در نگاه اول آدم را به اشتباه می‌اندازد. ممکن است CLI نصب باشد، daemon هم روشن باشد، ولی کاربر فعلی اجازهٔ دسترسی به سوکتی را نداشته باشد که CLI از طریق آن با Docker حرف می‌زند. پس اینجا مسئله «نصب خراب» نیست؛ مسئله «اجازهٔ دسترسی» است.</p>
+<p lang="en">On a typical Linux Docker Engine setup, the local CLI commonly talks to the daemon through a Unix socket. If the user cannot access that socket, the CLI may be perfectly healthy and the daemon may be running, yet the request still fails at the permission boundary.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">permission diagnosis</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker ps
+sudo docker ps
+ls -l /var/run/docker.sock
+id</pre>
+</div>
+<div class="term">
+<div class="term-bar"><span class="term-label">representative evidence</span></div>
+<pre dir="ltr">permission denied while trying to connect to the Docker daemon socket
+
+# sudo docker ps succeeds
+
+srw-rw---- 1 root docker ... /var/run/docker.sock
+uid=1000/alex gid=1000/alex groups=1000/alex,...</pre>
+</div>
+<p lang="fa">این مقایسه خیلی مهم‌تر از نصب دوباره کردن Docker است. اگر دستور معمولی دسترسی denied بدهد ولی همان دستور با sudo جواب بدهد، daemon و سوکت به‌احتمال زیاد حاضرند؛ credential کاربر معمولی اجازهٔ استفاده از سوکت را ندارد.</p>
+<p lang="en">This comparison is far more informative than reinstalling Docker. If the ordinary command gets permission denied but the same command works with sudo, the daemon and socket are likely present; the ordinary user simply lacks socket access.</p>
+<div class="note warn">
+<div class="note-t"><span lang="fa">عضویت در <code>docker</code> گروه دسترسی کم‌خطر نیست</span><span lang="en">Membership in the <code>docker</code> group is not low-risk access</span></div>
+<p lang="fa">Docker Docs صریحاً هشدار می‌دهد که <code>docker</code> گروه عملاً سطح بالایی از اختیار روی سیستم میزبان می‌دهد. پس «برای راحتی کاربر را به گروه اضافه کن» را مثل یک دسترسی کوچک توضیح نده. روی لپ‌تاپ توسعه تصمیم رایجی است؛ روی محیط حساس باید آگاهانه باشد.</p>
+<p lang="en">Docker’s documentation explicitly warns that the <code>docker</code> group grants high privileges over the host. Do not describe “add the user to the group” as a trivial permission tweak. It is common on development machines, but it should be a deliberate security decision on sensitive systems.</p>
+</div>
+<div class="term">
+<div class="term-bar"><span class="term-label">optional non-root setup</span></div>
+<pre dir="ltr">sudo usermod -aG docker $USER
+# sign out and back in, or start a new session
+id
+docker ps</pre>
+</div>
+</section>
+<section id="wsl">
+<h2><span lang="fa">روی Windows، Linux container از کجا Linux می‌آورد؟</span><span lang="en">Why Windows needs a Linux kernel for Linux containers</span></h2>
+<p class="lede" lang="fa">اگر container لینوکسی اجرا می‌کنیم، یک سؤال طبیعی پیش می‌آید: روی Windows که هستهٔ Linux نداریم، این container دقیقاً روی چه چیزی اجرا می‌شود؟ پاسخ را باید در WSL2 پیدا کنیم. WSL2 یک هستهٔ واقعی Linux در اختیار Windows می‌گذارد و Docker Desktop از همین بستر برای اجرای containerهای لینوکسی استفاده می‌کند.</p>
+<p class="lede" lang="en">Linux containers rely on Linux-kernel system calls and isolation features. The Windows kernel does not natively provide the same interface. WSL2 matters because it supplies a real managed Linux kernel that Docker Desktop can use for its Linux-container backend.</p>
+<div class="table-wrap">
+<table class="doc-table">
+<thead><tr><th>Thing</th><th>What it is</th><th>What it is not</th></tr></thead>
+<tbody>
+<tr><td>Windows host</td><td><span lang="fa">سیستم‌عامل اصلی و محیط Desktop/PowerShell</span><span lang="en">main OS and Desktop/PowerShell environment</span></td><td><span lang="fa">Linux container</span><span lang="en">a Linux container</span></td></tr>
+<tr><td>WSL2</td><td><span lang="fa">پلتفرم اجرای محیط‌های Linux با Linux هستهٔ لینوکس</span><span lang="en">platform for Linux environments backed by a Linux kernel</span></td><td><span lang="fa">خود Docker Engine</span><span lang="en">Docker Engine itself</span></td></tr>
+<tr><td>Ubuntu WSL distro</td><td><span lang="fa">workspace لینوکسی کاربر با سیستم‌فایل و شل خودش</span><span lang="en">a user Linux workspace with its own filesystem and shell</span></td><td><span lang="fa">Docker container یا لزوماً daemon Docker</span><span lang="en">a Docker container or necessarily a Docker daemon</span></td></tr>
+<tr><td><code>docker-desktop</code> environment</td><td><span lang="fa">محیط مدیریت‌شدهٔ Docker Desktop برای بخش پشتی خودش</span><span lang="en">Docker Desktop’s managed backend environment</span></td><td><span lang="fa">Ubuntu روزمرهٔ تو</span><span lang="en">your everyday Ubuntu distro</span></td></tr>
+<tr><td>Docker container</td><td><span lang="fa">processهای ایزوله‌شده‌ای که Engine lifecycleشان را مدیریت می‌کند</span><span lang="en">isolated processes whose lifecycle is managed by the Engine</span></td><td><span lang="fa">یک WSL توزیع کامل</span><span lang="en">a full WSL distribution</span></td></tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="wsl-paths">
+<h2><span lang="fa">PowerShell و Ubuntu دو راه جدا برای رسیدن به یک Docker هستند</span><span lang="en">PowerShell and Ubuntu/WSL are two client paths, not one magical route</span></h2>
+<p lang="fa">فرض کن در PowerShell دستور docker ps کاملاً کار می‌کند، اما همان دستور داخل Ubuntu خطا می‌دهد. این عجیب نیست. PowerShell و Ubuntu دو محیط جدا هستند و هرکدام CLI و مسیر اتصال خودشان را دارند. ممکن است هر دو در نهایت به همان Docker Engine برسند، اما راه رسیدنشان یکی نیست.</p>
+<p lang="en">This is where a misleading diagram can do more damage than a weak paragraph. The Windows CLI and the Linux CLI inside Ubuntu are different executables in different environments. Both <em>can</em> reach Docker Desktop’s backend, but they do not follow an identical path. WSL Integration matters for the Linux distribution’s access; PowerShell should not be modeled as passing through a generic “WSL Integration layer.”</p>
+<div class="diagram">
+<svg aria-labelledby="d2-wsl-paths" role="img" viewbox="0 0 940 380">
+<title id="d2-wsl-paths">Windows and WSL client paths to Docker Desktop Engine</title>
+<defs><marker id="d2-wsl-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<g class="dg-stroke-b" marker-end="url(#d2-wsl-arrow)" stroke-width="2">
+<path d="M195 95h105"></path><path d="M195 285h105"></path>
+<path d="M520 95h95"></path><path d="M520 285h95"></path>
+<path d="M735 125v65"></path><path d="M735 255v-65"></path>
+</g>
+<g text-anchor="middle">
+<rect class="dg-fill" height="80" rx="10" width="175" x="20" y="55"></rect><text class="dg-t" x="107" y="88">PowerShell</text><text class="dg-ts" x="107" y="112">Windows environment</text>
+<rect class="dg-fill-b" height="80" rx="10" width="220" x="300" y="55"></rect><text class="dg-t" x="410" y="88">Windows Docker CLI</text><text class="dg-ts" x="410" y="112">Desktop endpoint/context</text>
+<rect class="dg-fill" height="80" rx="10" width="175" x="20" y="245"></rect><text class="dg-t" x="107" y="278">Ubuntu / WSL2</text><text class="dg-ts" x="107" y="302">Linux environment</text>
+<rect class="dg-fill-v" height="80" rx="10" width="220" x="300" y="245"></rect><text class="dg-t" x="410" y="278">Linux Docker CLI</text><text class="dg-ts" x="410" y="302">WSL integration path</text>
+<rect class="dg-fill-g" height="130" rx="12" width="240" x="615" y="125"></rect><text class="dg-t" x="735" y="165">Docker Desktop backend</text><text class="dg-ts" x="735" y="193">Docker API / Engine</text><text class="dg-ts" x="735" y="220">managed Linux environment</text>
+</g>
+</svg>
+<p class="diagram-cap" lang="fa">فلش‌ها درخواست مسیر را نشان می‌دهند. دو کلاینت مسیر در بخش پشتی/Engine همگرا می‌شوند؛ WSL یکپارچه‌سازی مخصوص مسیر توزیع لینوکسی است، نه یک API عمومی برای هر دو سمت.</p>
+<p class="diagram-cap" lang="en">The arrows represent request paths. The two clients converge at the backend/Engine; WSL Integration belongs to the Linux-distribution path rather than acting as one generic API layer for both sides.</p>
+</div>
+<div class="term">
+<div class="term-bar"><span class="term-label">Windows prerequisites</span><button class="copy">کپی</button></div>
+<pre dir="ltr">wsl --version
+wsl -l -v</pre>
+</div>
+<p lang="fa">در <code>wsl -l -v</code> ستون نسخه برای توزیع مورد استفاده باید 2 باشد. <code>Running</code> یا <code>Stopped</code> وضعیت فعلی توزیع است؛ با WSL نسخه یکی نیست.</p>
+<p lang="en">In <code>wsl -l -v</code>, the VERSION column should show 2 for the distribution you intend to integrate. <code>Running</code> or <code>Stopped</code> is the distro’s current state, not its WSL architecture version.</p>
+</section>
+<section id="same-engine">
+<h2><span lang="fa">از کجا مطمئن شویم هر دو ترمینال همان Engine را می‌بینند؟</span><span lang="en">How do we prove PowerShell and Ubuntu are really seeing the same Engine?</span></h2>
+<p lang="fa">فقط اینکه هر دو جا یک شماره نسخه ببینی کافی نیست. دو Engine جدا هم می‌توانند دقیقاً یک نسخه داشته باشند. راه مطمئن‌تر این است که در یکی از ترمینال‌ها چیزی بسازیم و در دیگری همان مورد را با همان شناسه پیدا کنیم. اگر این اتفاق افتاد، دیگر فقط به شباهت خروجی‌ها تکیه نکرده‌ایم.</p>
+<p lang="en">Matching Server Version strings are not conclusive proof. Two independent Engines can run the same version. A stronger test is to create <strong>shared state</strong> on one side and observe that exact object from the other.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">PowerShell · create evidence</span></div>
+<pre dir="ltr">docker context show
+docker info --format 'name={{.Name}} root={{.DockerRootDir}} server={{.ServerVersion}}'
+docker run -d --name engine-proof nginx:alpine
+docker inspect engine-proof --format '{{.Id}}'</pre>
+</div>
+<div class="term">
+<div class="term-bar"><span class="term-label">Ubuntu / WSL · observe the same object</span></div>
+<pre dir="ltr">docker context show
+docker info --format 'name={{.Name}} root={{.DockerRootDir}} server={{.ServerVersion}}'
+docker ps --filter name=engine-proof
+docker inspect engine-proof --format '{{.Id}}'</pre>
+</div>
+<p lang="fa">اگر همان container name و همان container شناسه را از هر دو طرف می‌بینی، مدرک خیلی قوی‌تری داری که هر دو کلاینت به یک Docker وضعیت رسیده‌اند. بعد از آزمایش:</p>
+<p lang="en">If both sides see the same container name and the same container ID, you have much stronger evidence that both clients reached the same Docker state. Clean up afterward:</p>
+<div class="term"><div class="term-bar"><span class="term-label">cleanup</span></div><pre dir="ltr">docker rm -f engine-proof</pre></div>
+</section>
+<section id="hello-world">
+<h2><span lang="fa">hello-world فقط پیام تبریک نیست</span><span lang="en">Do not treat <code>hello-world</code> as a congratulation message; read its trace</span></h2>
+<p lang="fa">اولین بار که hello-world را اجرا می‌کنی، Docker چند کار را پشت سر هم انجام می‌دهد: image را پیدا می‌کند، اگر لازم باشد آن را می‌گیرد، container را می‌سازد، اجرا می‌کند، خروجی را نشان می‌دهد و پایان پردازش را ثبت می‌کند. پس همین مثال کوچک در واقع یک آزمایش کامل برای مسیر اجراست.</p>
+<p lang="en">If the image is absent locally, the first <code>docker run hello-world</code> exercises several stages: local lookup, pull if needed, create, start, stdout, and exit. If a second run does not pull, that does not invalidate the test; the image is probably already in the local store.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">practical verification</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker run hello-world
+docker ps
+docker ps -a --filter ancestor=hello-world</pre>
+</div>
+<p lang="fa">در فصل بعد همین اتفاق را آهسته‌تر باز می‌کنیم: چرا container در <code>ps</code> نیست ولی در <code>ps -a</code> دیده می‌شود، و چه چیزی باعث توقف آن شد.</p>
+<p lang="en">Chapter 3 will slow this down: why the container disappears from <code>ps</code> yet remains in <code>ps -a</code>, and what caused it to stop.</p>
+</section>
+<section id="troubleshooting">
+<h2><span lang="fa">وقتی خطا می‌بینی، از کجا شروع کنی؟</span><span lang="en">Troubleshooting means naming the broken layer before choosing a fix</span></h2>
+<p class="lede" lang="fa">فرض کن فقط این جمله را می‌شنوی: «Docker کار نمی‌کند.» این هنوز هیچ چیزی به ما نمی‌گوید. باید خطا را مرحله‌به‌مرحله کوچک کنیم: آیا دستور docker پیدا می‌شود؟ آیا CLI به Engine وصل می‌شود؟ آیا مشکل دسترسی داریم؟ آیا روی Windows، WSL درست به Desktop متصل شده؟ هر جواب، چند احتمال را کنار می‌زند.</p>
+<p class="lede" lang="en">An error string is not a complete diagnosis; it is an observation. A strong flow is: symptom → suspected layer → diagnostic command → fix → verification.</p>
+<div class="diagram">
+<svg aria-labelledby="d2-debug-flow" role="img" viewbox="0 0 940 270">
+<title id="d2-debug-flow">Docker installation troubleshooting flow</title>
+<defs><marker id="d2-debug-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<g class="dg-stroke-b" marker-end="url(#d2-debug-arrow)" stroke-width="2">
+<path d="M170 135h55"></path><path d="M370 135h55"></path><path d="M570 135h55"></path><path d="M770 135h55"></path>
+</g>
+<g text-anchor="middle">
+<rect class="dg-fill" height="90" rx="10" width="150" x="20" y="90"></rect><text class="dg-t" x="95" y="125">symptom</text><text class="dg-ts" x="95" y="151">what happened?</text>
+<rect class="dg-fill-v" height="90" rx="10" width="145" x="225" y="90"></rect><text class="dg-t" x="297" y="125">layer</text><text class="dg-ts" x="297" y="151">where?</text>
+<rect class="dg-fill-g" height="90" rx="10" width="145" x="425" y="90"></rect><text class="dg-t" x="497" y="125">evidence</text><text class="dg-ts" x="497" y="151">test it</text>
+<rect class="dg-fill-w" height="90" rx="10" width="145" x="625" y="90"></rect><text class="dg-t" x="697" y="125">fix</text><text class="dg-ts" x="697" y="151">target layer</text>
+<rect class="dg-fill-b" height="90" rx="10" width="95" x="825" y="90"></rect><text class="dg-t" x="872" y="125">verify</text><text class="dg-ts" x="872" y="151">prove</text>
+</g>
+</svg>
+<p class="diagram-cap" lang="fa">راه‌اندازی دوباره کردن همه‌چیز ممکن است نشانه را موقتاً پاک کند، ولی مدل ذهنی نمی‌سازد. دستور تشخیصی باید همان فرضیه‌ای را که داری امتحان کند.</p>
+<p class="diagram-cap" lang="en">Restarting everything may temporarily remove a symptom, but it teaches little. A diagnostic command should test the specific hypothesis you have.</p>
+</div>
+<div class="table-wrap">
+<table class="doc-table">
+<thead><tr><th>Symptom</th><th>Likely boundary</th><th>Evidence → fix → verify</th></tr></thead>
+<tbody>
+<tr><td><code>docker: command not found</code></td><td>shell / PATH / CLI</td><td><code>command -v docker</code> → install/fix PATH → <code>docker --version</code></td></tr>
+<tr><td><code>Cannot connect to the Docker daemon</code></td><td>context / endpoint / daemon</td><td><code>docker context show</code> + service/Desktop status → fix target/daemon → <code>docker info</code></td></tr>
+<tr><td><code>permission denied ... docker.sock</code></td><td>local socket permission</td><td><code>sudo docker ps</code> + <code>ls -l /var/run/docker.sock</code> → deliberate access fix → normal <code>docker ps</code></td></tr>
+<tr><td>PowerShell works, Ubuntu says command not found</td><td>WSL distro client path</td><td><code>command -v docker</code> + WSL Integration → enable/fix distro path → <code>docker info</code> in Ubuntu</td></tr>
+<tr><td>PowerShell works, Ubuntu cannot reach daemon</td><td>WSL integration / context / backend</td><td><code>wsl -l -v</code> + Desktop WSL Integration + <code>docker context show</code> → fix integration → shared-state test</td></tr>
+<tr><td>“my images disappeared”</td><td>wrong Engine/context/store</td><td><code>docker context ls</code> + formatted <code>docker info</code> → select expected Engine → <code>docker image ls</code></td></tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="pitfalls">
+<h2><span lang="fa">شش دام که ظاهرشان شبیه «Docker خراب است» است</span><span lang="en">Six traps that all look like “Docker is broken”</span></h2>
+<div class="pitfalls">
+<details open=""><summary><span lang="fa">۱. <code>docker --version</code> را سلامت کامل فرض‌کردن</span><span lang="en">1. Treating <code>docker --version</code> as full health</span></summary>
+<p lang="fa">این فقط کلاینت فایل اجرایی را ثابت می‌کند. برای سرور به <code>docker version</code> سرور بخش یا <code>docker info</code> نیاز داری.</p>
+<p lang="en">It proves only the Client executable. Use the Server section of <code>docker version</code> or <code>docker info</code> to prove Engine communication.</p>
+</details>
+<details><summary><span lang="fa">۲. هر دسترسی خطا را با نصب دوباره جواب‌دادن</span><span lang="en">2. Reinstalling for every permission error</span></summary>
+<p lang="fa">اگر sudo موفق است و کاربر عادی ناموفق می‌شود، اول سوکت صاحب/گروه و کاربر groups را ببین. نصب دوباره معمولاً این مرز را حل نمی‌کند.</p>
+<p lang="en">If sudo succeeds while the ordinary user fails, inspect socket ownership and group membership first. Reinstallation normally does not fix that boundary.</p>
+</details>
+<details><summary><span lang="fa">۳. Ubuntu WSL را container فرض‌کردن</span><span lang="en">3. Treating Ubuntu WSL as a container</span></summary>
+<p lang="fa">Ubuntu WSL یک Linux کاربر environment است؛ container را Docker Engine می‌سازد و چرخهٔ عمر متفاوتی دارد.</p>
+<p lang="en">Ubuntu WSL is a Linux user environment; a container is created and managed by Docker Engine with a different lifecycle.</p>
+</details>
+<details><summary><span lang="fa">۴. WSL یکپارچه‌سازی را مسیر PowerShell هم تصورکردن</span><span lang="en">4. Modeling WSL Integration as PowerShell’s path too</span></summary>
+<p lang="fa">Windows CLI و Linux CLI مسیرهای کلاینت متفاوتی دارند. هر دو ممکن است به بخش پشتی مشترک برسند، اما یکپارچه‌سازی مربوط به توزیع لینوکسی است.</p>
+<p lang="en">Windows and Linux CLIs follow different client paths. Both may reach the same backend, but WSL Integration belongs to the Linux-distribution path.</p>
+</details>
+<details><summary><span lang="fa">۵. نسخه مشابه را اثبات یک Engine دانستن</span><span lang="en">5. Treating matching versions as proof of one Engine</span></summary>
+<p lang="fa">مشترک وضعیت را امتحان کن: مورد منحصربه‌فرد بساز و از ترمینال دیگر همان شناسه را ببین.</p>
+<p lang="en">Test shared state: create a uniquely identifiable object and observe the same ID from the other terminal.</p>
+</details>
+<details><summary><span lang="fa">۶. راه‌اندازی دوباره را جای تشخیص گذاشتن</span><span lang="en">6. Replacing diagnosis with restart</span></summary>
+<p lang="fa">راه‌اندازی دوباره گاهی لازم است، اما اول خطا و لایه را ثبت کن. وگرنه فقط نشانه را پاک کرده‌ای و دفعهٔ بعد چیزی یاد نگرفته‌ای.</p>
+<p lang="en">A restart is sometimes appropriate, but capture the error and boundary first. Otherwise you may only erase the symptom without learning how to diagnose it next time.</p>
+</details>
+</div>
+</section>
+<section id="systemd-read">
+<h2><span lang="fa">روی Ubuntu فقط دنبال کلمهٔ active نگرد</span><span lang="en">Do not stop at “systemd is green”; read what the service status tells you</span></h2>
+<p class="lede" lang="fa">وقتی روی Ubuntu می‌خواهی ببینی daemon واقعاً بالا آمده یا نه، systemctl status docker مثل یک برگهٔ وضعیت کوتاه است. فقط به سبز بودن active نگاه نکن؛ همان چند خط به تو می‌گوید سرویس شناخته شده یا نه، الآن در چه وضعیتی است و پردازش اصلی‌اش کدام است.</p>
+<p class="lede" lang="en">On a typical Ubuntu host, <code>systemctl status docker</code> is one of the best places to see whether the daemon became a running process at all. But if you only look for the word <code>active</code>, you throw away most of the useful evidence.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">service state</span><button class="copy">کپی</button></div>
+<pre dir="ltr">sudo systemctl status docker --no-pager
+
+● docker.service - Docker Application Container Engine
+     Loaded: loaded (...; enabled; preset: enabled)
+     Active: active (running) since ...
+   Main PID: 2148 (dockerd)
+      Tasks: ...
+     Memory: ...
+        CPU: ...
+     CGroup: /system.slice/docker.service
+             └─2148 /usr/bin/dockerd -H fd:// ...</pre>
+</div>
+<p lang="fa"><code>Loaded</code> می‌گوید unit شناخته شده است؛ <code>enabled</code> بیشتر دربارهٔ boot/راه‌اندازی سیاست است، نه اینکه همین لحظه پردازش سالم باشد. <code>Active: active (running)</code> وضعیت فعلی را می‌دهد و <code>Main PID</code> نشان می‌دهد systemd کدام پردازش را daemon اصلی می‌داند.</p>
+<p lang="en"><code>Loaded</code> says the unit is known; <code>enabled</code> is mainly about boot/start policy, not proof that a healthy process exists right now. <code>Active: active (running)</code> gives current state, and <code>Main PID</code> identifies the daemon process systemd is managing.</p>
+<p lang="fa">اگر وضعیت برابر ناموفق باشد، فقط راه‌اندازی دوباره نزن. اول logهای نزدیک خطا را بخوان:</p>
+<p lang="en">If status is failed, do not immediately restart and erase the moment. Read recent service logs first:</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">service logs</span><button class="copy">کپی</button></div>
+<pre dir="ltr">sudo journalctl -u docker -n 60 --no-pager</pre>
+</div>
+<p lang="fa">هدف این نیست که تمام logهای dockerd را بلد باشی؛ دنبال اولین خطا معناداری بگرد که زنجیره خطا را شروع کرده. ده خط بعدی ممکن است فقط پیامد همان خط اول باشند.</p>
+<p lang="en">You do not need to memorize every dockerd log message. Look for the first meaningful error that began the failure chain; many later lines may be consequences rather than the cause.</p>
+</section>
+<section id="context-deep-dive">
+<h2><span lang="fa">گاهی Docker خراب نیست؛ فقط داری با Engine اشتباهی حرف می‌زنی</span><span lang="en">Docker context: when the command is correct but the target Engine is wrong</span></h2>
+<p lang="fa">فرض کن دیروز یک image ساخته‌ای و امروز هرچه docker image ls می‌زنی پیدایش نمی‌کنی. قبل از اینکه دوباره build کنی، یک احتمال ساده را بررسی کن: شاید CLI امروز به Engine دیگری وصل است. در این حالت چیزی گم نشده؛ فقط مقصد دستورهایت عوض شده.</p>
+<p lang="en">Sometimes nothing is actually broken. The CLI works, the daemon works, but the CLI is pointed at a different Engine. This matters especially with Desktop, remote Engines, or multiple installations.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">context inspection</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker context ls
+docker context show
+docker info --format \
+'name={{.Name}} root={{.DockerRootDir}} server={{.ServerVersion}}'</pre>
+</div>
+<p lang="fa">این اتفاق وقتی چند context، Docker Desktop یا یک Engine راه‌دور داری کاملاً ممکن است. پس قبل از هر نصب دوباره یا build دوباره، اول ببین CLI واقعاً به کجا وصل شده است.</p>
+<p lang="en">Suppose you built an image while context A was active. Later the active context becomes B and <code>docker image ls</code> no longer shows it. A weak response is to pull/build again. A better response is to verify the destination first; duplicating the artifact can merely hide a targeting mistake.</p>
+<div class="note safe">
+<div class="note-t"><span lang="fa">یک سؤال قبل از هر نصب دوباره</span><span lang="en">One question before reinstalling</span></div>
+<p lang="fa">«آیا همان کلاینت به همان endpointی که فکر می‌کنم وصل است؟» اگر هنوز جواب این سؤال را نداری، نصب دوباره احتمالاً زود است.</p>
+<p lang="en">“Is this client actually connected to the endpoint I think it is?” If you cannot answer that yet, reinstalling is probably premature.</p>
+</div>
+</section>
+<section id="windows-verification">
+<h2><span lang="fa">روی Windows هر دو سمت را جدا امتحان کن</span><span lang="en">On Windows, one green check is not enough; verify each client path separately</span></h2>
+<p class="lede" lang="fa">سبز بودن Docker Desktop فقط می‌گوید خود Desktop ظاهراً بالا است. هنوز معلوم نیست PowerShell و Ubuntu هر دو بتوانند از مسیر خودشان به آن برسند. برای همین هر محیطی را که واقعاً با آن کار می‌کنی جدا بررسی کن.</p>
+<p class="lede" lang="en">Docker Desktop can be Running and PowerShell fully functional while the Ubuntu/WSL client path is still broken. The reverse can also happen. Verify every environment you actually plan to use for development.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">PowerShell</span></div>
+<pre dir="ltr">wsl -l -v
+docker context show
+docker version
+docker info --format 'server={{.ServerVersion}}'</pre>
+</div>
+<div class="term">
+<div class="term-bar"><span class="term-label">Ubuntu / WSL</span></div>
+<pre dir="ltr">command -v docker
+docker context show
+docker version
+docker info --format 'server={{.ServerVersion}}'</pre>
+</div>
+<p lang="fa">اول در PowerShell مطمئن شو CLI و Engine همدیگر را می‌بینند. بعد همان بررسی را داخل Ubuntu انجام بده. اگر هر دو سالم بودند، تازه می‌توانیم با یک container مشترک بررسی کنیم که واقعاً به یک Engine وصل‌اند.</p>
+<p lang="en">These checks answer two different questions: does the Windows CLI path work, and does the Linux-distro CLI path work? If both do, the shared-state test can then prove whether they converge on the same Engine.</p>
+<h3 lang="fa">چرا «Desktop باز است» مدرک کافی نیست؟</h3>
+<h3 lang="en">Why is “Desktop is open” insufficient evidence?</h3>
+<p lang="fa">چون UI وضعیت فقط یک بخش از زنجیره را می‌بیند. شل ممکن است Docker CLI را پیدا نکند؛ توزیع ممکن است WSL1 باشد؛ یکپارچه‌سازی ممکن است برای توزیع دیگری فعال باشد؛ یا context CLI به مقصد دیگری اشاره کند. عیب‌یابی خوب دقیقاً همین مرزها را جدا می‌کند.</p>
+<p lang="en">Because UI status observes only part of the chain. The shell may not find a Docker CLI, the distro may be WSL1, integration may be enabled for another distro, or the CLI context may target something else. Good troubleshooting separates these boundaries.</p>
+</section>
+<section id="case-study">
+<h2><span lang="fa">یک نمونهٔ واقعی: PowerShell کار می‌کند، Ubuntu نه</span><span lang="en">Case study: “it works in PowerShell, not in Ubuntu”</span></h2>
+<p class="lede" lang="fa">فرض کن همکارت می‌گوید: «Docker Desktop بازه، توی PowerShell همه‌چی کار می‌کنه، ولی توی Ubuntu هرچی docker ps می‌زنم خطا می‌گیرم.» اینجا اگر بی‌درنگ Docker را داخل Ubuntu نصب کنیم، ممکن است فقط مسئله را پیچیده‌تر کنیم. اول قدم‌به‌قدم می‌بینیم مسیر Ubuntu کجا قطع شده.</p>
+<p class="lede" lang="en">Treat this like a real support ticket. The initial report is only: “Docker Desktop is running. <code>docker ps</code> works in PowerShell. Ubuntu fails.” Do not fix yet; narrow the chain first.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">Step 1 · prove the distro architecture</span></div>
+<pre dir="ltr">wsl -l -v
+
+NAME      STATE     VERSION
+Ubuntu    Running   2</pre>
+</div>
+<p lang="fa">نسخه=2 یک احتمال را حذف می‌کند: مشکل «این توزیع هنوز WSL1 است» نیست.</p>
+<p lang="en">VERSION=2 removes one hypothesis: this is not a “the distro is still WSL1” problem.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">Step 2 · does Ubuntu even have a usable CLI path?</span></div>
+<pre dir="ltr">command -v docker
+/usr/bin/docker
+
+docker --version
+Docker version 29.x, build ...</pre>
+</div>
+<p lang="fa">پس شل و کلاینت فایل اجرایی سالم‌اند. اگر خطا هنوز <code>Cannot connect...</code> است، دیگر مسیر را دست‌کاری نمی‌کنیم؛ یک لایه پایین‌تر می‌رویم.</p>
+<p lang="en">So the shell and Client executable are healthy. If the error is still <code>Cannot connect...</code>, PATH is no longer our target; move one boundary deeper.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">Step 3 · target and integration</span></div>
+<pre dir="ltr">docker context show
+docker info
+
+# then verify Docker Desktop:
+# Settings → Resources → WSL Integration → Ubuntu enabled</pre>
+</div>
+<p lang="fa">اگر یکپارچه‌سازی برای Ubuntu خاموش بوده و با فعال‌کردنش <code>docker info</code> سرور اطلاعات می‌دهد، راه‌حل و تشخیص با هم جورند: Linux کلاینت مسیر به بخش پشتی وصل نبود. لازم نبود Engine را داخل Ubuntu نصب کنیم.</p>
+<p lang="en">If Ubuntu integration was disabled and enabling it makes <code>docker info</code> return Server facts, the fix matches the diagnosis: the Linux client path was not connected to the backend. Installing another Engine inside Ubuntu was unnecessary.</p>
+<p lang="fa">مرحلهٔ آخر مشترک-وضعیت آزمایش است. از PowerShell <code>engine-proof</code> را بساز و از Ubuntu همان شناسه را ببین. حالا گزارش فقط «درست شد» نیست؛ می‌گوید چه لایه‌ای خراب بود و چه چیزی recovery را ثابت کرد.</p>
+<p lang="en">The final step is the shared-state test. Create <code>engine-proof</code> from PowerShell and observe the same ID from Ubuntu. The report is no longer “it works now”; it explains which boundary failed and what proved recovery.</p>
+</section>
+<section id="exercises">
+<h2><span lang="fa">۱۸ تمرین؛ این‌بار جواب را از روی نشانه‌ها پیدا کن</span><span lang="en">18 exercises: from “is it installed?” to “which layer failed?”</span></h2>
+<p class="lede" lang="fa">قبل از اینکه پاسخ هر تمرین را باز کنی، یک حدس کوتاه بزن و بگو با کدام دستور می‌خواهی آن را بررسی کنی. قرار نیست فقط اسم دستورها را حفظ کنیم؛ می‌خواهیم از روی چیزی که می‌بینیم بفهمیم مشکل کجاست.</p>
+<p class="lede" lang="en">The final exercises deliberately preserve the same depth as the beginning of the chapter. Before revealing a solution, write a prediction or hypothesis.</p>
+<div class="ex-stat"><span lang="fa">حل‌شده</span><span lang="en">Solved</span><b>۰ / ۱۸</b><div class="pbar"><i></i></div></div>
+<div class="ex" id="ex-2-1"><div class="ex-h"><span class="ex-n">تمرین ۲٫1 · Exercise 2.1</span><span class="ex-lvl lvl-1">مقدماتی · Beginner</span><span class="ex-time">۴ min</span></div>
+<p lang="fa">daemon خاموش است. خروجی <code>docker --version</code>، <code>docker version</code> و <code>docker info</code> را پیش‌بینی کن.</p><p lang="en">The daemon is stopped. Predict <code>docker --version</code>, <code>docker version</code>, and <code>docker info</code>.</p>
+<details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa"><code>docker --version</code> باید نسخهٔ کلاینت فایل اجرایی را بدهد. <code>docker version</code> کلاینت را چاپ می‌کند ولی سرور بخش ناموفق می‌شود. <code>docker info</code> برای اطلاعات اصلی سرور به daemon نیاز دارد و خطا می‌دهد.</p><p lang="en"><code>docker --version</code> should still print the local Client executable version. <code>docker version</code> prints Client information but its Server section fails. <code>docker info</code> depends on the daemon for its main Engine facts and errors.</p><p lang="fa"><strong>دام:</strong> دیدن کلاینت خروجی در <code>docker version</code> را اتصال موفق به daemon تعبیر نکن.</p><p lang="en"><strong>Trap:</strong> do not interpret Client output in <code>docker version</code> as proof of a successful daemon connection.</p></details>
+</div>
+<div class="ex" id="ex-2-2"><div class="ex-h"><span class="ex-n">تمرین ۲٫2 · Exercise 2.2</span><span class="ex-lvl lvl-1">مقدماتی · Beginner</span><span class="ex-time">۴ min</span></div>
+<p lang="fa"><code>command not found</code> و <code>Cannot connect to the Docker daemon</code> چرا دو خطا کاملاً متفاوت‌اند؟</p><p lang="en">Why are <code>command not found</code> and <code>Cannot connect to the Docker daemon</code> fundamentally different failures?</p>
+<details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">اولی قبل از اجرای CLI رخ می‌دهد: شل فایل اجرایی را پیدا نکرده. دومی یعنی CLI اجرا شده ولی نقطهٔ اتصال/daemon جواب نداده. بنابراین نصب دوباره daemon برای خطا اول یا تغییر مسیر برای خطا دوم ممکن است کاملاً بی‌ربط باشد.</p><p lang="en">The first happens before the CLI runs: the shell cannot find the executable. The second means the CLI ran but the endpoint/daemon did not answer. Reinstalling the daemon for the first or changing PATH for the second may be completely irrelevant.</p></details>
+</div>
+<div class="ex" id="ex-2-3"><div class="ex-h"><span class="ex-n">تمرین ۲٫3 · Exercise 2.3</span><span class="ex-lvl lvl-1">مقدماتی · Beginner</span><span class="ex-time">۴ min</span></div>
+<p lang="fa">در <code>docker version</code> کدام بخش واقعاً پاسخ daemon را ثابت می‌کند؟</p><p lang="en">Which part of <code>docker version</code> actually proves a daemon response?</p>
+<details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">بخش <code>Server:</code> و اطلاعات زیر آن. کلاینت بخش محلی است. برای کامل‌تر شدن، <code>docker context show</code> را هم کنار آن بخوان تا بدانی کلاینت تلاش کرده به کدام context وصل شود.</p><p lang="en">The <code>Server:</code> section and its details. The Client section is local. Pair it with <code>docker context show</code> to see which context the Client attempted to use.</p></details>
+</div>
+<div class="ex" id="ex-2-4"><div class="ex-h"><span class="ex-n">تمرین ۲٫4 · Exercise 2.4</span><span class="ex-lvl lvl-1">مقدماتی · Beginner</span><span class="ex-time">۴ min</span></div>
+<p lang="fa">چرا Docker Desktop را نمی‌شود فقط «GUI برای Docker» تعریف کرد؟</p><p lang="en">Why is “a GUI for Docker” an incomplete definition of Docker Desktop?</p>
+<details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">چون Desktop علاوه بر UI، Engine/بخش پشتی مدیریت‌شده، یکپارچه‌سازی، مدیریت منابع، به‌روزرسانی‌ها و ابزارها توسعه را هم فراهم می‌کند. مخصوصاً روی Windows، همین بخش پشتی لینوکسی بخش مهم ماجراست.</p><p lang="en">Because Desktop provides more than UI: it manages an Engine/backend, integration, resources, updates, and developer tooling. On Windows in particular, the managed Linux backend is central.</p></details>
+</div>
+<div class="ex" id="ex-2-5"><div class="ex-h"><span class="ex-n">تمرین ۲٫5 · Exercise 2.5</span><span class="ex-lvl lvl-2">تمرین · Practice</span><span class="ex-time">۵ min</span></div>
+<p lang="fa">Ubuntu نصب commandها را به سه مفهوم تقسیم کن: اعتماد، کد برنامه و package.</p><p lang="en">Group the Ubuntu installation commands into three concepts: trust, source, and package.</p>
+<details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">keyring و <code>Signed-By</code> بخش اعتماد هستند؛ <code>docker.sources</code> کد برنامه/repository را تعریف می‌کند؛ و <code>apt install docker-ce ...</code> packageها را نصب می‌کند. این تقسیم باعث می‌شود خطا signature را با خطا package-not-found قاطی نکنی.</p><p lang="en">The keyring and <code>Signed-By</code> form the trust piece; <code>docker.sources</code> defines the source/repository; and <code>apt install docker-ce ...</code> installs packages. This prevents you from confusing signature failures with package-resolution failures.</p></details>
+</div>
+<div class="ex" id="ex-2-6"><div class="ex-h"><span class="ex-n">تمرین ۲٫6 · Exercise 2.6</span><span class="ex-lvl lvl-2">تمرین · Practice</span><span class="ex-time">۵ min</span></div>
+<p lang="fa"><code>docker ps</code> دسترسی denied می‌دهد ولی <code>sudo docker ps</code> موفق است. چه چیزی را همین حالا می‌دانی؟</p><p lang="en"><code>docker ps</code> gets permission denied but <code>sudo docker ps</code> succeeds. What do you already know?</p>
+<details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">می‌دانی CLI قابل‌اجراست و daemon/سوکت احتمالاً حاضرند؛ تفاوت credential بین کاربر معمولی و root مرز مسئله را به دسترسی نزدیک می‌کند. حالا <code>ls -l /var/run/docker.sock</code> و <code>id</code> شواهد بعدی‌اند.</p><p lang="en">You know the CLI runs and the daemon/socket are likely present; the difference between ordinary-user and root credentials points toward a permission boundary. <code>ls -l /var/run/docker.sock</code> and <code>id</code> are the next useful observations.</p></details>
+</div>
+<div class="ex" id="ex-2-7"><div class="ex-h"><span class="ex-n">تمرین ۲٫7 · Exercise 2.7</span><span class="ex-lvl lvl-2">تمرین · Practice</span><span class="ex-time">۵ min</span></div>
+<p lang="fa">چرا اضافه‌کردن کاربر به <code>docker</code> گروه را نباید «فقط رفع دسترسی» توضیح داد؟</p><p lang="en">Why should adding a user to the <code>docker</code> group not be described as “just fixing permission”?</p>
+<details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">چون دسترسی Docker API می‌تواند اختیار بسیار بالایی روی سیستم میزبان بدهد. این تصمیم برای لپ‌تاپ توسعه رایج است، اما پیامد امنیتی دارد و باید آگاهانه گرفته شود.</p><p lang="en">Because access to the Docker API can grant very high control over the host. It is common on a development laptop, but it has security implications and should be deliberate.</p></details>
+</div>
+<div class="ex" id="ex-2-8"><div class="ex-h"><span class="ex-n">تمرین ۲٫8 · Exercise 2.8</span><span class="ex-lvl lvl-2">تمرین · Practice</span><span class="ex-time">۵ min</span></div>
+<p lang="fa"><code>wsl -l -v</code> برای Ubuntu مقدار نسخه=2 و وضعیت=Stopped نشان می‌دهد. آیا این توزیع WSL1 است؟</p><p lang="en"><code>wsl -l -v</code> shows VERSION=2 and STATE=Stopped for Ubuntu. Is this a WSL1 distro?</p>
+<details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">نه. نسخه=2 معماری WSL2 را نشان می‌دهد؛ Stopped فقط وضعیت فعلی توزیع است. با اجراشدن Ubuntu می‌تواند Running شود بدون اینکه نسخه عوض شود.</p><p lang="en">No. VERSION=2 identifies WSL2 architecture; Stopped is only the distro’s current state. Starting Ubuntu can change state to Running without changing the version.</p></details>
+</div>
+<div class="ex" id="ex-2-9"><div class="ex-h"><span class="ex-n">تمرین ۲٫9 · Exercise 2.9</span><span class="ex-lvl lvl-2">تمرین · Practice</span><span class="ex-time">۵ min</span></div>
+<p lang="fa">یک تفاوت بنیادی بین Ubuntu در WSL و Docker container بنویس.</p><p lang="en">State one fundamental difference between Ubuntu in WSL and a Docker container.</p>
+<details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">Ubuntu WSL یک کاربر Linux environment با سیستم‌فایل و شل و چرخهٔ عمر خودش است؛ container یک زمان اجرا مورد است که Docker Engine از image می‌سازد و چرخهٔ عمر پردازش آن را مدیریت می‌کند.</p><p lang="en">Ubuntu WSL is a user Linux environment with its own filesystem, shell, and lifecycle; a container is a runtime object created from an image and lifecycle-managed by Docker Engine.</p></details>
+</div>
+<div class="ex" id="ex-2-10"><div class="ex-h"><span class="ex-n">تمرین ۲٫10 · Exercise 2.10</span><span class="ex-lvl lvl-2">تمرین · Practice</span><span class="ex-time">۵ min</span></div>
+<p lang="fa">PowerShell و Ubuntu هر دو <code>Server Version: 29.x</code> نشان می‌دهند. آیا این اثبات یک Engine است؟</p><p lang="en">PowerShell and Ubuntu both show <code>Server Version: 29.x</code>. Is that proof of one Engine?</p>
+<details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">نه؛ دو Engine جدا هم می‌توانند نسخهٔ یکسان داشته باشند. اثبات بهتر مشترک وضعیت است: یک container منحصربه‌فرد در یکی بساز و همان شناسه را در دیگری inspect کن.</p><p lang="en">No; two independent Engines can run the same version. A stronger test is shared state: create a uniquely named container from one client and inspect the same ID from the other.</p></details>
+</div>
+<div class="ex" id="ex-2-11"><div class="ex-h"><span class="ex-n">تمرین ۲٫11 · Exercise 2.11</span><span class="ex-lvl lvl-2">تمرین · Practice</span><span class="ex-time">۵ min</span></div>
+<p lang="fa">PowerShell کار می‌کند ولی داخل Ubuntu می‌گیری <code>docker: command not found</code>. آیا بخش پشتی خراب است؟</p><p lang="en">PowerShell works, but Ubuntu says <code>docker: command not found</code>. Is the backend necessarily broken?</p>
+<details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">نه. خطا هنوز در شل/CLI مسیر داخل Ubuntu است. اول <code>command -v docker</code> و WSL یکپارچه‌سازی را بررسی کن. بخش پشتی مشترک ممکن است کاملاً سالم باشد.</p><p lang="en">No. The failure is still at the Ubuntu shell/CLI path. Check <code>command -v docker</code> and WSL Integration first. The shared backend may be perfectly healthy.</p></details>
+</div>
+<div class="ex" id="ex-2-12"><div class="ex-h"><span class="ex-n">تمرین ۲٫12 · Exercise 2.12</span><span class="ex-lvl lvl-2">تمرین · Practice</span><span class="ex-time">۵ min</span></div>
+<p lang="fa">اگر Engine دوم داخل WSL نصب کنی، «imageها گم شده‌اند» چطور ایجاد می‌شود؟</p><p lang="en">How can installing a second Engine inside WSL create the illusion that “my images disappeared”?</p>
+<details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">هر daemon مخزن و نقطهٔ اتصال خودش را دارد. اگر CLI یک بار به Desktop Engine و بار دیگر به توزیع-محلی Engine وصل شود، هرکدام مجموعه متفاوتی از image/container می‌بینند؛ چیزی حذف نشده، فقط مقصد عوض شده است.</p><p lang="en">Each daemon owns its own endpoint and store. If the CLI points to Desktop Engine in one session and a distro-local Engine in another, the visible image/container sets differ; nothing necessarily disappeared—the destination changed.</p></details>
+</div>
+<div class="ex" id="ex-2-13"><div class="ex-h"><span class="ex-n">تمرین ۲٫13 · Exercise 2.13</span><span class="ex-lvl lvl-3">سناریو · Scenario</span><span class="ex-time">۶ min</span></div>
+<p lang="fa">Docker Desktop باز است، PowerShell سالم است، Ubuntu <code>Cannot connect...</code> می‌دهد. یک ترتیب تشخیص بنویس.</p><p lang="en">Docker Desktop is open, PowerShell works, but Ubuntu gets <code>Cannot connect...</code>. Write a diagnostic order.</p>
+<details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">۱) <code>wsl -l -v</code> و نسخه=2؛ ۲) توزیع درست؛ ۳) Settings → Resources → WSL یکپارچه‌سازی برای همان توزیع؛ ۴) داخل Ubuntu، <code>command -v docker</code> و <code>docker context show</code>؛ ۵) <code>docker info</code>. بعد از تغییر یکپارچه‌سازی، راه‌اندازی دوباره WSL/Desktop می‌تواند بررسی مرحله باشد، نه ritual اول کار.</p><p lang="en">1) verify VERSION=2 with <code>wsl -l -v</code>; 2) confirm the intended distro; 3) verify Docker Desktop WSL Integration for that distro; 4) inside Ubuntu check <code>command -v docker</code> and <code>docker context show</code>; 5) run <code>docker info</code>. After changing integration, restarting WSL/Desktop can be a verification/reset step rather than the first ritual.</p></details>
+</div>
+<div class="ex" id="ex-2-14"><div class="ex-h"><span class="ex-n">تمرین ۲٫14 · Exercise 2.14</span><span class="ex-lvl lvl-3">سناریو · Scenario</span><span class="ex-time">۶ min</span></div>
+<p lang="fa">بعد از <code>systemctl stop docker</code>، <code>docker --version</code> هنوز جواب می‌دهد. آیا توقف ناموفق بوده؟</p><p lang="en">After <code>systemctl stop docker</code>, <code>docker --version</code> still works. Did the stop fail?</p>
+<details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">نه؛ این دقیقاً انتظار ماست. <code>docker --version</code> فقط محلی CLI فایل اجرایی را می‌خواند. برای اثبات توقف، <code>systemctl status docker</code> و خطا در سرور-dependent دستورها مثل <code>docker info</code> را ببین.</p><p lang="en">No; that is exactly expected. <code>docker --version</code> only reads the local CLI executable. Prove the stop with <code>systemctl status docker</code> and failures in Server-dependent commands such as <code>docker info</code>.</p></details>
+</div>
+<div class="ex" id="ex-2-15"><div class="ex-h"><span class="ex-n">تمرین ۲٫15 · Exercise 2.15</span><span class="ex-lvl lvl-3">سناریو · Scenario</span><span class="ex-time">۶ min</span></div>
+<p lang="fa"><code>hello-world</code> در اجرای دوم دیگر دریافت نمی‌کند. آیا بررسی ناقص شده؟</p><p lang="en"><code>hello-world</code> does not pull on the second run. Is verification now incomplete?</p>
+<details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">نه. محلی image lookup این بار hit شده است. Engine هنوز container می‌سازد، راه‌اندازی می‌کند، stdout را می‌گیرد و خروج را ثبت می‌کند. اگر می‌خواهی دریافت مسیر را جدا تست کنی، آن یک سؤال دیگر است.</p><p lang="en">No. The local image lookup hit this time. The Engine still creates and starts a container, captures stdout, and records exit. Testing the pull path specifically is a separate question.</p></details>
+</div>
+<div class="ex" id="ex-2-16"><div class="ex-h"><span class="ex-n">تمرین ۲٫16 · Exercise 2.16</span><span class="ex-lvl lvl-3">سناریو · Scenario</span><span class="ex-time">۶ min</span></div>
+<p lang="fa">یک teammate می‌گوید «Docker خراب بود، راه‌اندازی دوباره کردم درست شد.» چه اطلاعاتی هنوز کم است؟</p><p lang="en">A teammate says, “Docker was broken; I restarted it and it worked.” What information is still missing?</p>
+<details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">نشانه اولیه، exact خطا، فعال context، سرویس/بخش پشتی وضعیت و بررسی بعد از راه‌حل. بدون این‌ها نمی‌دانیم راه‌اندازی دوباره واقعاً علت را حل کرده یا فقط وضعیت موقتی را بازنشانی کرده است.</p><p lang="en">The original symptom, exact error, active context, service/backend state, and post-fix verification are missing. Without them, we cannot tell whether the restart fixed the cause or merely reset transient state.</p></details>
+</div>
+<div class="ex" id="ex-2-17"><div class="ex-h"><span class="ex-n">تمرین ۲٫17 · Exercise 2.17</span><span class="ex-lvl lvl-3">سناریو · Scenario</span><span class="ex-time">۷ min</span></div>
+<p lang="fa">در Ubuntu، <code>docker ps</code> دسترسی denied است؛ <code>sudo docker ps</code> موفق؛ اما کاربر از قبل در docker گروه است. قدم بعدی چیست؟</p><p lang="en">In Ubuntu, <code>docker ps</code> gets permission denied; <code>sudo docker ps</code> succeeds; the user was already added to the docker group. What next?</p>
+<details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">با <code>id</code> بررسی کن نشست فعلی واقعاً عضویت جدید را دارد یا نه. گروه change معمولاً به ورود/نشست تازه نیاز دارد. بعد سوکت گروه/mode را با <code>ls -l /var/run/docker.sock</code> ببین. «قبلاً usermod زدم» مدرک نشست فعلی نیست.</p><p lang="en">Use <code>id</code> to verify that the current session actually includes the new group membership. Group changes commonly require a fresh login/session. Then inspect socket group/mode with <code>ls -l /var/run/docker.sock</code>. “I ran usermod earlier” is not evidence for the current session.</p></details>
+</div>
+<div class="ex" id="ex-2-18"><div class="ex-h"><span class="ex-n">تمرین ۲٫18 · Exercise 2.18</span><span class="ex-lvl lvl-3">سناریو · Scenario</span><span class="ex-time">۷ min</span></div>
+<p lang="fa">یک گزارش کوتاه بنویس که ثابت کند Windows CLI و Ubuntu CLI به یک Engine می‌رسند؛ فقط نسخه string کافی نیست.</p><p lang="en">Write a short report that proves the Windows CLI and Ubuntu CLI reach the same Engine; matching version strings are not enough.</p>
+<details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa"><strong>نمونهٔ گزارش:</strong> در هر دو ترمینال context و قالب‌بندی‌شده info را ثبت کردم. از PowerShell یک container با نام <code>engine-proof</code> ساختم و شناسه آن را گرفتم. داخل Ubuntu همان name و همان شناسه را با <code>docker ps</code>/<code>docker inspect</code> دیدم. این مشترک مورد نشان می‌دهد هر دو کلاینت به یک Docker وضعیت رسیده‌اند. سپس container را پاک کردم.</p><p lang="en"><strong>Example report:</strong> I recorded context and formatted Engine info from both terminals. From PowerShell I created a container named <code>engine-proof</code> and captured its ID. From Ubuntu I found the same name and same ID using <code>docker ps</code>/<code>docker inspect</code>. The shared object shows both clients reached the same Docker state. I then removed the container.</p></details>
+</div>
+</section>
+<section id="lab">
+<h2><span lang="fa">آزمایشگاه: ثابت کن سیستم واقعاً برای کار آماده است</span><span lang="en">Lab: prove the machine is ready, not merely that Docker is installed</span></h2>
+<div class="capsule">
+<span class="tagline"><span lang="fa">حدود ۳۵ دقیقه</span><span lang="en">about 35 minutes</span></span>
+<p lang="fa">فرض کن یک لپ‌تاپ تازه دستت رسیده و باید به نفر بعدی تحویلش بدهی. نوشتن «Docker نصب شد» کافی نیست. باید طوری بررسی‌اش کنی که اگر فردا مشکلی پیش آمد، معلوم باشد CLI، Engine، دسترسی و در صورت استفاده از Windows، مسیر WSL همگی واقعاً امتحان شده‌اند.</p>
+<p lang="en">Scenario: you received a fresh laptop. You are not allowed to send a Docker Desktop screenshot and call it “ready.” Build an evidence bundle another engineer can follow.</p>
+<ol class="ranked">
+<li><b lang="fa">محیط را شناسایی کن</b><b lang="en">Identify the environment</b><p lang="fa">Linux یا Windows+WSL2؟ اگر Windows است، <code>wsl --version</code> و <code>wsl -l -v</code> را ثبت کن.</p><p lang="en">Linux or Windows+WSL2? On Windows, record <code>wsl --version</code> and <code>wsl -l -v</code>.</p></li>
+<li><b lang="fa">کلاینت و سرور را جدا ثابت کن</b><b lang="en">Prove client and server separately</b><p lang="fa"><code>docker --version</code>، <code>docker version</code>، <code>docker context show</code> و <code>docker info</code> را با یک جملهٔ تفسیر برای هرکدام ذخیره کن.</p><p lang="en">Capture <code>docker --version</code>, <code>docker version</code>, <code>docker context show</code>, and <code>docker info</code>, with one sentence interpreting each.</p></li>
+<li><b lang="fa">یک برنامه واقعی کوچک اجرا کن</b><b lang="en">Run one real small workload</b><p lang="fa"><code>docker run hello-world</code> و بعد <code>docker ps -a</code> را بخوان.</p><p lang="en">Run <code>docker run hello-world</code> and then inspect <code>docker ps -a</code>.</p></li>
+<li><b lang="fa">یک خطا بساز</b><b lang="en">Create one failure</b><p lang="fa">روی Linux daemon را در محیط امن توقف کن؛ یا روی Windows در محیط آموزشی WSL یکپارچه‌سازی توزیع را موقتاً disable کن. نشانه و لایه را قبل از راه‌حل ثبت کن.</p><p lang="en">On safe Linux, stop the daemon; or in a learning Windows setup temporarily disable WSL integration for the distro. Record the symptom and suspected layer before fixing it.</p></li>
+<li><b lang="fa">راه‌حل و بررسی</b><b lang="en">Fix and verify</b><p lang="fa">همان لایه را اصلاح کن و دقیقاً همان دستور تشخیصی را دوباره اجرا کن تا recovery را ثابت کنی.</p><p lang="en">Fix that boundary and rerun the same diagnostic command to prove recovery.</p></li>
+<li><b lang="fa">اگر Windows داری، مشترک Engine را ثابت کن</b><b lang="en">On Windows, prove shared Engine state</b><p lang="fa">container منحصربه‌فرد بساز و از PowerShell و Ubuntu همان شناسه را ببین.</p><p lang="en">Create a uniquely named container and observe the same ID from PowerShell and Ubuntu.</p></li>
+</ol>
+<details class="ex-sol"><summary>معیار موفقیت · Success criteria</summary>
+<p lang="fa">اگر بتوانی بگویی «این دستور فقط کلاینت را ثابت کرد، این یکی سرور را، این خطا در دسترسی بود و این مشترک مورد نشان داد دو ترمینال همان Engine را می‌بینند»، آزمایشگاه موفق است. هدف دستور زیاد نیست؛ هدف مرزبندی درست است.</p>
+<p lang="en">The lab succeeds when you can say, “this command proved only the Client, this one proved the Server, this error was a permission boundary, and this shared object proved both terminals saw the same Engine.” The goal is not many commands; it is correct boundaries.</p>
+</details>
+</div>
+</section>
+<section id="lab-handoff">
+<h2><span lang="fa">در پایان چه چیزهایی را تحویل بدهی؟</span><span lang="en">Lab handoff: an evidence bundle another engineer can review</span></h2>
+<div class="table-wrap">
+<table class="doc-table">
+<thead><tr><th>Boundary</th><th>Capture</th><th>Conclusion you should be able to write</th></tr></thead>
+<tbody>
+<tr><td>CLI</td><td><code>docker --version</code></td><td><span lang="fa">کلاینت فایل اجرایی در این شل قابل‌اجراست</span><span lang="en">the Client executable is runnable in this shell</span></td></tr>
+<tr><td>Endpoint / Server</td><td><code>docker version</code>, <code>docker context show</code></td><td><span lang="fa">کدام context انتخاب شده و آیا سرور پاسخ داده</span><span lang="en">which context is selected and whether Server replied</span></td></tr>
+<tr><td>Engine</td><td><code>docker info</code></td><td><span lang="fa">Engine اطلاعات واقعی از نقطهٔ اتصال برگشته‌اند</span><span lang="en">real Engine facts came back from the endpoint</span></td></tr>
+<tr><td>Runtime</td><td><code>docker run hello-world</code>, <code>docker ps -a</code></td><td><span lang="fa">ساخت/راه‌اندازی/stdout/خروج یک container کوچک کار می‌کند</span><span lang="en">a small container can be created, started, observed, and exited</span></td></tr>
+<tr><td>Windows shared state</td><td>same container ID from PowerShell + Ubuntu</td><td><span lang="fa">هر دو کلاینت همان Docker وضعیت را می‌بینند</span><span lang="en">both clients observe the same Docker state</span></td></tr>
+</tbody>
+</table>
+</div>
+<p lang="fa">چند تصویر صفحه به‌تنهایی کافی نیست. بهتر است کنار هر خروجی یک جملهٔ ساده بنویسی: «این دستور چه چیزی را برای من ثابت کرد؟» اگر نتوانی این جمله را بنویسی، احتمالاً هنوز فقط خروجی جمع کرده‌ای و نتیجه نگرفته‌ای.</p>
+<p lang="en">If you only have screenshots but cannot support one of these conclusions with command/output evidence, the handoff is incomplete. This may feel slower at first, but in real support work it prevents hours of guessing.</p>
+</section>
+<section id="quick">
+<h2><span lang="fa">مرجع سریع</span><span lang="en">Quick reference and official sources</span></h2>
+<div class="cheat">
+<div><pre dir="ltr">docker --version
+docker version
+docker context show
+docker context ls
+docker info
+docker ps
+docker run hello-world</pre></div>
+<div><pre dir="ltr">systemctl status docker
+systemctl start docker
+systemctl stop docker
+
+ls -l /var/run/docker.sock
+id
+
+wsl --version
+wsl -l -v</pre></div>
+</div>
+<div class="note safe">
+<div class="note-t"><span lang="fa">مدل ماندگار فصل</span><span lang="en">Durable model</span></div>
+<p lang="fa">یک جمله را از این فصل با خودت نگه دار: «Docker کار نمی‌کند» تشخیص نیست. از نزدیک‌ترین بخش شروع کن و یکی‌یکی جلو برو: CLI، مسیر اتصال، Engine، دسترسی و بعد اجرای واقعی container.</p>
+<p lang="en">“Docker does not work” is not a diagnosis. Read shell → CLI → context/endpoint → Engine → runtime → kernel one boundary at a time. On Windows, PowerShell and WSL are distinct client paths that can converge on one Docker Desktop Engine.</p>
+</div>
+<div class="note safe">
+<div class="note-t"><span lang="fa">منابع رسمی بررسی‌شده</span><span lang="en">Official references checked</span></div>
+<p lang="en">
+<a href="https://docs.docker.com/engine/install/ubuntu/">Install Docker Engine on Ubuntu</a> ·
+      <a href="https://docs.docker.com/engine/install/linux-postinstall/">Linux post-installation steps</a> ·
+      <a href="https://docs.docker.com/desktop/features/wsl/">Docker Desktop WSL 2 backend</a>
+</p>
+</div>
+</section>

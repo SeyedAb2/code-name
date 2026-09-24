@@ -158,17 +158,41 @@
 
 .progress { margin-bottom: 14px; }
 
-.badge {
-  position: absolute;
-  top: 14px;
-  inset-inline-end: 14px;
-  font-size: .66rem;
+/* نشان وضعیت: در ردیف آمار می‌نشیند، نه روی عنوان.
+   سه حالت دارد تا خواننده بداند این مسیر منتشر شده، در حال نوشتن است یا
+   هنوز نوبتش نرسیده. */
+.status {
+  margin-inline-start: auto;
+  font-size: .7rem;
   font-weight: 700;
-  padding: 3px 9px;
+  padding: 2px 9px;
   border-radius: 99px;
+  border: 1px solid var(--line);
   background: var(--surface-sunk);
   color: var(--ink-faint);
-  border: 1px solid var(--line);
+  white-space: nowrap;
+
+  &::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+}
+
+.planned { border-style: dashed; }
+
+.writing {
+  color: var(--warn);
+  background: var(--tint-warn);
+  border-color: color-mix(in srgb, var(--warn) 32%, transparent);
+}
+
+.done {
+  color: var(--safe);
+  background: var(--tint-safe);
+  border-color: color-mix(in srgb, var(--safe) 32%, transparent);
 }
 
 .locked { opacity: .62; filter: grayscale(.35); pointer-events: none; }

@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePrefs } from "@/context/PrefsContext";
 import { num, t } from "@/lib/i18n";
-import { read, write } from "@/lib/storage";
 import type { Category } from "@/lib/types";
 import type { TrackSummary } from "@/lib/view";
 import AppShell from "@/components/layout/AppShell";
@@ -14,7 +13,6 @@ import { SearchIcon, CloseIcon, ListIcon, GridIcon } from "@/components/ui/Icons
 import s from "./HomeView.module.scss";
 
 type View = "list" | "tiles";
-const K_VIEW = "homeView";
 
 interface Props {
   tracks: TrackSummary[];
@@ -24,16 +22,12 @@ interface Props {
 export default function HomeView({ tracks, categories }: Props) {
   const { lang } = usePrefs();
   const fa = lang === "fa";
-  const [view, setView] = useState<View>("tiles");   /* پیش‌فرض: دسته‌ها */
+  /* هر بار که صفحه باز یا رفرش می‌شود از دسته‌ها شروع می‌کنیم؛ انتخاب کاربر
+     فقط تا وقتی روی همین صفحه است می‌ماند و ذخیره نمی‌شود. */
+  const [view, setView] = useState<View>("tiles");
   const [q, setQ] = useState("");
 
-  /* نمای انتخابی کاربر بین بازدیدها می‌ماند */
-  useEffect(() => {
-    const saved = read(K_VIEW);
-    if (saved === "tiles" || saved === "list") setView(saved);
-  }, []);
-
-  const pick = (v: View) => { setView(v); write(K_VIEW, v); };
+  const pick = (v: View) => setView(v);
 
   const term = q.trim().toLowerCase();
   const matches = useMemo(() => {

@@ -26,7 +26,11 @@
 
 html {
   -webkit-text-size-adjust: 100%;
-  scroll-behavior: smooth;
+  /* ‏scroll-behavior: smooth اینجا عمداً نیست: با آن، پرش «به بالای صفحه»
+     هنگام رفتن به صفحهٔ بعد تبدیل به یک اسکرول انیمیشنی می‌شود که وسط راه
+     با تغییر ارتفاع صفحه قطع می‌شود و کاربر وسط صفحهٔ تازه می‌ایستد.
+     نرمی را فقط آنجا که خودمان می‌خواهیم (کلیک روی فهرست مطالب) با
+     scrollIntoView می‌دهیم. */
   scroll-padding-top: calc(var(--bar-h) + 18px);
   scrollbar-color: var(--sb-thumb) transparent;
   scrollbar-width: thin;

@@ -1,0 +1,967 @@
+<!--meta
+title: Docker Compose
+desc: چند container را با compose.yaml کنار هم تعریف و اجرا کنید؛ سرویس‌ها را با نام پیدا کنید، build و port را مدیریت کنید و فرق down با حذف volume را ببینید.
+-->
+<div class="masthead">
+  <span class="eyebrow"><span class="dot"></span><span lang="fa">Docker · فصل ۰۸</span><span lang="en">Docker · Chapter 8</span></span>
+  <h1 lang="fa">Docker Compose</h1>
+  <h1 lang="en">Docker Compose</h1>
+  <p class="sub" lang="fa">در فصل قبل شبکه را با دست ساختیم و containerها را به هم وصل کردیم. حالا که این دستورها زیاد شده‌اند، چطور setup را طوری نگه داریم که هم‌تیمی بعدی هم همان برنامه را بالا بیاورد؟</p>
+  <p class="sub" lang="en">In the previous chapter we created a network by hand and connected containers. Now that the commands are adding up, how do we keep the setup so the next teammate can start the same application?</p>
+  <div class="facts">
+    <div class="fact"><b>۱۴۰</b><span lang="fa">دقیقهٔ مطالعه و اجرا</span><span lang="en">minutes</span></div>
+    <div class="fact"><b>۱۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></div>
+    <div class="fact"><b>۴</b><span lang="fa">نمودار مفهومی</span><span lang="en">diagrams</span></div>
+    <div class="fact"><b>۱</b><span lang="fa">آزمایشگاه کامل</span><span lang="en">full lab</span></div>
+  </div>
+</div>
+
+<section id="story">
+  <h2><span lang="fa">setup دستی کار می‌کند؛ اما چند بار باید آن را حفظ کنیم؟</span><span lang="en">The manual setup works—but how many times should we remember it?</span></h2>
+  <p class="lede" lang="fa">در فصل ۰۷ web و database را دستی به یک network وصل کردیم. برای یک اجرای تمیز، network، volume، database، web، environment و host port را جداگانه ساختیم. حالا فرض کن هم‌تیمی‌ات می‌خواهد همین setup را روی لپ‌تاپ خودش اجرا کند.</p>
+  <p class="lede" lang="en">In Chapter 7 we connected web and a database to a network by hand. A clean run required a network, a volume, a database, a web container, environment values, and a host port. Now imagine a teammate trying to reproduce that setup on another laptop.</p>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">the manual setup · representative command sequence</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">$ docker network create shop-net
+shop-net
+$ docker volume create shop-db
+shop-db
+$ docker run -d --name shop-postgres --network shop-net \
+  -e POSTGRES_USER=shop -e POSTGRES_PASSWORD=dev-only \
+  -e POSTGRES_DB=shop --mount type=volume,src=shop-db,dst=/var/lib/postgresql/data \
+  postgres:17
+...
+$ docker build -t shop-web:dev ./web
+...
+$ docker run -d --name shop-web --network shop-net \
+  -e DB_HOST=shop-postgres -e DB_PORT=5432 \
+  -e DB_USER=shop -e DB_PASSWORD=dev-only -e DB_NAME=shop \
+  -p 127.0.0.1:8080:3000 shop-web:dev
+...
+$ docker logs shop-web
+$ docker exec -it shop-postgres psql -U shop -d shop
+$ docker stop shop-web shop-postgres
+$ docker rm shop-web shop-postgres</pre>
+  </div>
+  <p lang="fa">حالا یک سؤال طبیعی: واقعاً می‌خواهیم هر توسعه‌دهنده این دستورها را با همین ترتیب تایپ کند؟ اسم‌ها باید جفت‌وجور باشند؛ یک flag جا بیفتد، network یا data path عوض می‌شود؛ cleanup هم چند مرحله دارد. اگر همه را در README بچسبانی، با اولین تغییر application باید چند خط را دستی هماهنگ کنی.</p>
+  <p lang="en">A natural question follows: do we really want every developer to type these commands in exactly this order? Names must match; one forgotten flag changes the network or data path; cleanup takes several steps. If the commands live in a README, the next application change means manually keeping several lines in sync.</p>
+  <div class="note safe">
+    <div class="note-t"><span lang="fa">اینجا Compose وارد داستان می‌شود</span><span lang="en">This is where Compose enters the story</span></div>
+    <p lang="fa">به‌جای نگه‌داشتن فرمان‌های پراکنده، شکل سرویس‌ها و وابستگی‌هایشان را در یک فایل توصیف می‌کنیم. بعد یک دستور به Docker می‌گوید منابع لازم را بسازد یا با فایل تازه هماهنگ کند. اول مدل را ببینیم، بعد فایل را کم‌کم می‌سازیم.</p>
+    <p lang="en">Instead of maintaining scattered commands, we describe the services and their relationships in one file. A Compose command then asks Docker to create the required resources or reconcile them with the updated file. Let us see the model before building the file step by step.</p>
+  </div>
+  <div class="diagram">
+    <svg viewBox="0 0 980 300" role="img" aria-labelledby="c8-model-title">
+      <title id="c8-model-title">Manual Docker commands are gathered into a Compose file which Compose sends to Docker Engine to create application resources</title>
+      <defs><marker id="c8-model-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"/></marker></defs>
+      <g class="dg-stroke-b" stroke-width="2" marker-end="url(#c8-model-arrow)">
+        <path d="M260 144h100"/><path d="M600 144h100"/>
+      </g>
+      <g text-anchor="middle">
+        <rect class="dg-fill-w" x="20" y="75" width="240" height="138" rx="14"/>
+        <text class="dg-t" x="140" y="112">manual commands</text><text class="dg-ts" x="140" y="145">run · network · volume</text><text class="dg-ts" x="140" y="176">flags repeated by people</text>
+        <rect class="dg-fill-v" x="360" y="55" width="240" height="178" rx="14"/>
+        <text class="dg-t" x="480" y="97">compose.yaml</text><text class="dg-ts" x="480" y="130">services</text><text class="dg-ts" x="480" y="158">networks · volumes</text><text class="dg-ts" x="480" y="188">configuration</text>
+        <rect class="dg-fill" x="700" y="48" width="255" height="194" rx="14"/>
+        <text class="dg-t" x="827" y="89">docker compose</text><text class="dg-ts" x="827" y="121">reads the model</text><text class="dg-ts" x="827" y="151">asks Docker Engine</text><text class="dg-ts" x="827" y="184">containers · network</text><text class="dg-ts" x="827" y="213">volume · image</text>
+      </g>
+      <text class="dg-ts" x="310" y="132">describe once</text><text class="dg-ts" x="650" y="132">create / reconcile</text>
+    </svg>
+    <p class="diagram-cap" lang="fa">فلش اول نشان می‌دهد تنظیمات پراکنده را به یک مدل خوانا تبدیل می‌کنیم. فلش دوم یعنی CLI مربوط به Compose فایل را می‌خواند و از Docker Engine می‌خواهد container، network، volume و در صورت نیاز image را بسازد. خود Compose جای Engine را نمی‌گیرد.</p>
+    <p class="diagram-cap" lang="en">The first arrow means scattered settings become one readable model. The second means the Compose CLI reads that model and asks Docker Engine to create containers, networks, volumes, and images when needed. Compose does not replace the Engine.</p>
+  </div>
+</section>
+
+<section id="model">
+  <h2><span lang="fa">Compose runtime تازه‌ای نیست</span><span lang="en">Compose is not a new container runtime</span></h2>
+  <p lang="fa">فایل <code>compose.yaml</code> یک توصیف declarative است: می‌گوید application چه serviceهایی دارد و هرکدام چه image یا build، port، volume، network و configurationای می‌خواهند. دستور <code>docker compose</code> آن توصیف را به Docker Engine می‌دهد.</p>
+  <p lang="en">A <code>compose.yaml</code> file is a declarative description: it says which services the application contains and which image or build, ports, volumes, networks, and configuration each needs. The <code>docker compose</code> command passes that description to Docker Engine.</p>
+  <p lang="fa">نام رایج و ترجیحی فایل <code>compose.yaml</code> است و اگر آن را در پوشهٔ کاری project بگذاری، Compose معمولاً خودش پیدایش می‌کند. فایل نمونه <code>version:</code> ندارد؛ برای Compose Specification فعلی لازم نیست آن کلید قدیمی را به‌عنوان نسخهٔ فرمت اضافه کنی.</p>
+  <p lang="en">The preferred filename is <code>compose.yaml</code>; when it is in the project working directory, Compose normally discovers it automatically. Our example has no <code>version:</code> field; the current Compose Specification does not require that older format-version key.</p>
+  <p lang="fa">پس وقتی <code>docker compose up</code> می‌زنی، containerها هنوز با همان مدل Docker که در فصل‌های قبل یاد گرفتی اجرا می‌شوند. Compose فقط ساختن مجموعه را تکرارپذیر می‌کند و منابع را با فایل هماهنگ نگه می‌دارد.</p>
+  <p lang="en">When you run <code>docker compose up</code>, containers still run using the Docker model from the previous chapters. Compose makes the group reproducible and keeps resources aligned with the file.</p>
+  <div class="table-wrap">
+    <table class="doc-table">
+      <thead><tr><th>پرسش</th><th><code>docker run</code></th><th>Docker Compose</th></tr></thead>
+      <tbody>
+        <tr><td>تنظیم کجا نوشته می‌شود؟</td><td>در فرمانی که اجرا می‌کنی</td><td>در <code>compose.yaml</code></td></tr>
+        <tr><td>چند سرویس را چطور می‌آوریم بالا؟</td><td>با چند فرمان و ترتیب دستی</td><td>یک فرمان روی یک project</td></tr>
+        <tr><td>network و volume چه می‌شوند؟</td><td>جداگانه می‌سازی و نام می‌دهی</td><td>در مدل تعریف می‌کنی؛ Compose آن‌ها را فراهم می‌کند</td></tr>
+        <tr><td>کدام‌یک container را اجرا می‌کند؟</td><td>Docker Engine</td><td>باز هم Docker Engine؛ Compose درخواست می‌دهد</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p lang="fa">در درس بعدی سراغ environment و secret می‌رویم. اینجا فقط چند مقدار محلی را به service می‌دهیم تا برنامه به database وصل شود؛ بحث فایل <code>.env</code>، اولویت متغیرها و نگهداری secret را باز نمی‌کنیم.</p>
+  <p lang="en">The next chapter covers environment variables and secrets. Here we pass a few local values to the service so it can reach the database; we will not go into <code>.env</code> strategy, variable precedence, or secret storage.</p>
+</section>
+
+<section id="gradual-file">
+  <h2><span lang="fa">فایل را مرحله‌به‌مرحله می‌سازیم</span><span lang="en">Build the file one piece at a time</span></h2>
+  <p class="lede" lang="fa">اگر کل YAML را یک‌جا ببینی، شاید فقط فرورفتگی‌ها به چشم بیاید. پس هر بار یک سؤال را جواب می‌دهیم و بعد همان تکه را اضافه می‌کنیم: اول service چیست؟ بعد database کجا می‌ماند؟ web چطور پیدایش می‌کند؟</p>
+  <p class="lede" lang="en">A complete YAML file can make indentation look like the main lesson. We will answer one question at a time and add one piece: what is a service, where does the database live, and how does web find it?</p>
+
+  <h3><span lang="fa">گام اول: فقط یک service آماده</span><span lang="en">Step one: one service from an image</span></h3>
+  <p lang="fa">در پوشه‌ای به نام <code>compose-lab</code>، فایل <code>compose.yaml</code> بساز. service اول را <code>web</code> می‌نامیم و از image آمادهٔ Nginx استفاده می‌کنیم. اسم زیر <code>services</code> اسم همین service است، نه اسم image.</p>
+  <p lang="en">Create a folder named <code>compose-lab</code> and a <code>compose.yaml</code> file inside it. Name the first service <code>web</code> and use the ready-made Nginx image. The key under <code>services</code> is the service name, not the image name.</p>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">compose.yaml · stage 1</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">services:
+  web:
+    image: nginx:alpine</pre>
+  </div>
+  <p lang="fa">حالا از همان پوشه <code>docker compose config</code> را اجرا کن. Compose فایل را parse می‌کند و شکل resolvedش را چاپ می‌کند؛ این کار قبل از ساخت container کمک می‌کند فرورفتگی یا کلید اشتباه را پیدا کنی.</p>
+  <p lang="en">Run <code>docker compose config</code> from that folder. Compose parses the file and prints its resolved form; doing this before creating containers helps catch indentation and key mistakes.</p>
+
+  <h3><span lang="fa">گام دوم: database را اضافه کن</span><span lang="en">Step two: add the database</span></h3>
+  <p lang="fa">یک service دوم با نام <code>postgres</code> اضافه می‌کنیم. برای image رسمی PostgreSQL، رمز آزمایش را از environment می‌دهیم. این مقدار فقط برای محیط محلی این فصل است؛ برای نگهداری امن credential به فصل ۰۹ می‌رسیم.</p>
+  <p lang="en">Add a second service named <code>postgres</code>. The official PostgreSQL image needs a lab password through its environment. This value is for this local lesson only; Chapter 9 covers safer credential handling.</p>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">compose.yaml · stage 2</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">services:
+  web:
+    image: nginx:alpine
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: lesson
+      POSTGRES_PASSWORD: dev-only
+      POSTGRES_DB: lesson</pre>
+  </div>
+  <p lang="fa">در این مرحله فقط هر دو service را تعریف کرده‌ایم. ارتباطشان را هنوز به command line اضافه نمی‌کنیم؛ Compose برای این project network می‌سازد و هر دو service را عضو آن می‌کند، مگر اینکه network دیگری تعریف کنیم.</p>
+  <p lang="en">At this point we have only described both services. We have not added a command-line network; Compose creates a project network and attaches both services to it unless we define a different network design.</p>
+
+  <h3><span lang="fa">گام سوم: serviceها با نام یکدیگر را پیدا می‌کنند</span><span lang="en">Step three: services find each other by name</span></h3>
+  <p lang="fa">در فصل ۰۷ دستی ساختیم که web به نام database روی network مشترک وصل شود. Compose همان مدل را فراهم می‌کند: serviceها روی project network هستند و اسم service یک hostname در همان network است. برای app آدرس database برابر <code>postgres:5432</code> می‌شود؛ <code>localhost</code> به خود web اشاره می‌کند.</p>
+  <p lang="en">In Chapter 7 we manually arranged for web to reach the database by name on a shared network. Compose provides the same model: services join the project network, and a service name is a hostname on that network. The app uses <code>postgres:5432</code>; <code>localhost</code> would point back to web.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 960 280" role="img" aria-labelledby="c8-dns-title">
+      <title id="c8-dns-title">The web service resolves postgres through the Compose project network and sends a database request to port 5432</title>
+      <defs><marker id="c8-dns-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"/></marker></defs>
+      <g class="dg-stroke-b" stroke-width="2" marker-end="url(#c8-dns-arrow)">
+        <path d="M280 143h130"/><path d="M610 143h95"/>
+      </g>
+      <g text-anchor="middle">
+        <rect class="dg-fill" x="25" y="84" width="255" height="118" rx="12"/>
+        <text class="dg-t" x="152" y="122">web service</text><text class="dg-ts" x="152" y="154">DB_HOST=postgres</text><text class="dg-ts" x="152" y="183">caller</text>
+        <rect class="dg-fill-v" x="410" y="56" width="200" height="174" rx="12"/>
+        <text class="dg-t" x="510" y="100">project network</text><text class="dg-ts" x="510" y="134">service DNS</text><text class="dg-ts" x="510" y="164">postgres → endpoint</text><text class="dg-ts" x="510" y="194">shared membership</text>
+        <rect class="dg-fill-g" x="705" y="84" width="230" height="118" rx="12"/>
+        <text class="dg-t" x="820" y="122">postgres service</text><text class="dg-ts" x="820" y="154">PostgreSQL :5432</text><text class="dg-ts" x="820" y="183">database listener</text>
+      </g>
+      <text class="dg-ts" x="345" y="132">resolve name</text><text class="dg-ts" x="657" y="132">database request</text>
+    </svg>
+    <p class="diagram-cap" lang="fa">فلش اول مرحلهٔ name resolution را نشان می‌دهد: <code>postgres</code> در project network به endpoint service تبدیل می‌شود. فلش دوم request دیتابیس به port داخلی ۵۴۳۲ است. این مسیر داخل Docker است و به publish کردن database port نیاز ندارد.</p>
+    <p class="diagram-cap" lang="en">The first arrow is name resolution: <code>postgres</code> becomes the service endpoint on the project network. The second is the database request to internal port 5432. This path stays inside Docker and does not need the database port published.</p>
+  </div>
+
+  <h3><span lang="fa">گام چهارم: فقط web را به host نشان بده</span><span lang="en">Step four: publish only web to the host</span></h3>
+  <p lang="fa">مرورگر روی host عضو project network نیست. در این مرحله Nginx هنوز port داخلی ۸۰ دارد، پس host port ۸۰۸۰ را به همان ۸۰ وصل می‌کنیم. database را publish نمی‌کنیم، چون serviceهای داخلی روی network مشترک‌اند.</p>
+  <p lang="en">The host browser is not a member of the project network. At this stage Nginx still listens on internal port 80, so map host port 8080 to 80. We do not publish the database because internal services share a network.</p>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">ports: host entry → web listener</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">services:
+  web:
+    image: nginx:alpine
+    ports:
+      - "127.0.0.1:8080:80"
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: lesson
+      POSTGRES_PASSWORD: dev-only
+      POSTGRES_DB: lesson</pre>
+  </div>
+  <p lang="fa">این مرحله با image فعلی معتبر است: Nginx روی ۸۰ گوش می‌دهد و host از ۸۰۸۰ وارد می‌شود. بعداً که web را به برنامهٔ Node تغییر بدهیم، فقط سمت container را به ۳۰۰۰ عوض می‌کنیم.</p>
+  <p lang="en">This stage is valid with the current image: Nginx listens on 80 and the host enters on 8080. When we replace web with the Node app later, only the container side changes to 3000.</p>
+
+  <h3><span lang="fa">گام پنجم: database باید داده‌اش را نگه دارد</span><span lang="en">Step five: the database must keep its data</span></h3>
+  <p lang="fa">اگر data directory داخل writable layer بماند، با حذف container از بین می‌رود. از فصل ۰۶ می‌دانیم که database به named volume نیاز دارد. volume را در بخش بالای فایل نام می‌بریم و در service به مسیر درست وصل می‌کنیم.</p>
+  <p lang="en">If the data directory stays in the writable layer, removing the container destroys it. Chapter 6 taught us that the database needs a named volume. Declare the volume at the top level and mount it at the correct path in the service.</p>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">compose.yaml · stage 5</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">services:
+  web:
+    image: nginx:alpine
+    ports:
+      - "127.0.0.1:8080:80"
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: lesson
+      POSTGRES_PASSWORD: dev-only
+      POSTGRES_DB: lesson
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+
+volumes:
+  pg-data:</pre>
+  </div>
+  <p lang="fa">کلید <code>pg-data</code> در سطح بالا می‌گوید Compose یک named volume برای این project مدیریت کند. سطر زیر <code>postgres.volumes</code> می‌گوید volume داخل container کجا دیده شود. YAML خود فایل‌های database را نگه نمی‌دارد؛ فقط محل اتصال را تعریف می‌کند.</p>
+  <p lang="en">The top-level <code>pg-data</code> key asks Compose to manage a named volume for this project. The entry under <code>postgres.volumes</code> says where that volume appears inside the container. The YAML does not contain database files; it describes the mount.</p>
+
+  <h3><span lang="fa">گام ششم: configuration لازم برای اتصال</span><span lang="en">Step six: the configuration needed to connect</span></h3>
+  <p lang="fa">app باید hostname، port و نام کاربری database را بداند. در این فصل فقط نشان می‌دهیم service چه environmentای دریافت می‌کند. مقدار <code>dev-only</code> رمز آزمایشی و محلی است؛ آن را برای سرویس واقعی کپی نکن.</p>
+  <p lang="en">The app needs the database hostname, port, and user name. Here we only show which environment the service receives. <code>dev-only</code> is a local lab password; do not copy it into a real service.</p>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">environment is service configuration</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">  web:
+    image: shop-web:dev
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: lesson
+      DB_PASSWORD: dev-only
+      DB_NAME: lesson</pre>
+  </div>
+  <p lang="fa">اگر <code>DB_HOST</code> را جا بیندازی یا به‌اشتباه <code>localhost</code> بگذاری، Compose نمی‌تواند قصد برنامه را حدس بزند. در ادامه از <code>docker compose config</code> برای دیدن configuration نهایی و از log برای فهمیدن رفتار برنامه استفاده می‌کنیم.</p>
+  <p lang="en">If you omit <code>DB_HOST</code> or set it to <code>localhost</code> by mistake, Compose cannot infer what the app meant. We will use <code>docker compose config</code> to inspect the resolved configuration and logs to understand the app's behavior.</p>
+
+  <h3><span lang="fa">گام هفتم: به‌جای image آماده، image خودمان را build کن</span><span lang="en">Step seven: build our own image instead of using a ready-made one</span></h3>
+  <p lang="fa">service web قرار است کد کوچک خودمان را اجرا کند. پس در پوشهٔ <code>web</code> سه فایل می‌سازیم. برنامه فقط به database query می‌زند و جواب ساده می‌دهد؛ منطق اصلی درس این نیست، اما نتیجهٔ واقعی network را قابل دیدن می‌کند.</p>
+  <p lang="en">The web service will run our own small program. Create three files in a <code>web</code> folder. The program makes a database query and returns a simple response; application logic is not the lesson, but it makes the network result visible.</p>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">web/package.json</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">{
+  "name": "compose-web",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": { "start": "node server.js" },
+  "dependencies": { "pg": "^8.13.0" }
+}</pre>
+  </div>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">web/server.js</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">const http = require("node:http");
+const { Pool } = require("pg");
+
+const db = new Pool({
+  host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT || 5432),
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME
+});
+
+http.createServer(async (_req, res) =&gt; {
+  try {
+    const result = await db.query(
+      "SELECT current_database() AS name, current_timestamp AS time"
+    );
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify(result.rows[0]));
+  } catch (error) {
+    console.error("database request failed:", error.message);
+    res.writeHead(503, { "content-type": "text/plain" });
+    res.end("database is not ready yet");
+  }
+}).listen(3000, "0.0.0.0", () =&gt; {
+  console.log("web listening on 0.0.0.0:3000");
+});</pre>
+  </div>
+  <p lang="fa">اگر database هنوز query را نمی‌پذیرد، برنامه با ۵۰۳ جواب می‌دهد اما از کار نمی‌افتد؛ درخواست بعدی دوباره تلاش می‌کند. این تصمیم کوچک کمک می‌کند startup order را از readiness جدا ببینیم. آدرس <code>0.0.0.0</code> باعث می‌شود server روی interface شبکهٔ container هم گوش بدهد، نه فقط loopback خودش.</p>
+  <p lang="en">If the database is not accepting queries yet, the app returns 503 but stays alive; the next request tries again. This small choice helps us distinguish startup order from readiness. Binding to <code>0.0.0.0</code> lets the server listen on the container network interface, not only its own loopback.</p>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">web/Dockerfile</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">FROM node:22-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm install --omit=dev
+COPY server.js ./
+EXPOSE 3000
+CMD ["npm", "start"]</pre>
+  </div>
+  <p lang="fa">حالا <code>image:</code> را با <code>build:</code> جایگزین می‌کنیم. <code>build: ./web</code> می‌گوید context و Dockerfile در آن پوشه‌اند؛ Compose از آن‌ها image می‌سازد و بعد container مربوط به service را اجرا می‌کند.</p>
+  <p lang="en">Now replace <code>image:</code> with <code>build:</code>. <code>build: ./web</code> says the context and Dockerfile are in that folder; Compose builds an image from them and then runs the service container.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 980 280" role="img" aria-labelledby="c8-build-title">
+      <title id="c8-build-title">Compose build context and Dockerfile produce an image which Compose runs as the web service container</title>
+      <defs><marker id="c8-build-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"/></marker></defs>
+      <g class="dg-stroke-b" stroke-width="2" marker-end="url(#c8-build-arrow)">
+        <path d="M250 138h95"/><path d="M565 138h95"/>
+      </g>
+      <g text-anchor="middle">
+        <rect class="dg-fill" x="20" y="76" width="230" height="124" rx="12"/>
+        <text class="dg-t" x="135" y="113">web/ source</text><text class="dg-ts" x="135" y="145">Dockerfile + server.js</text><text class="dg-ts" x="135" y="174">build context</text>
+        <rect class="dg-fill-v" x="345" y="55" width="220" height="166" rx="12"/>
+        <text class="dg-t" x="455" y="99">Compose build</text><text class="dg-ts" x="455" y="132">reads build: ./web</text><text class="dg-ts" x="455" y="162">creates image</text><text class="dg-ts" x="455" y="192">project-web</text>
+        <rect class="dg-fill-g" x="660" y="76" width="295" height="124" rx="12"/>
+        <text class="dg-t" x="807" y="113">web service container</text><text class="dg-ts" x="807" y="145">runs image</text><text class="dg-ts" x="807" y="174">listens on :3000</text>
+      </g>
+      <text class="dg-ts" x="297" y="127">build</text><text class="dg-ts" x="612" y="127">create / start</text>
+    </svg>
+    <p class="diagram-cap" lang="fa">فلش اول جریان build را نشان می‌دهد: source و Dockerfile ورودی ساخت image هستند. فلش دوم یعنی Compose از image ساخته‌شده برای ساخت و اجرای container service استفاده می‌کند؛ تغییر source به‌خودی‌خود container فعلی را جادویی عوض نمی‌کند.</p>
+    <p class="diagram-cap" lang="en">The first arrow is the build flow: source and Dockerfile are inputs to image creation. The second means Compose uses that image to create and run the service container; changing source does not magically alter an existing container.</p>
+  </div>
+</section>
+
+<section id="final-file">
+  <h2><span lang="fa">فایل نهایی: دو service، یک network و یک volume</span><span lang="en">The final file: two services, one network, and one volume</span></h2>
+  <p lang="fa">حالا تکه‌ها را کنار هم می‌گذاریم. اسم project را برای اینکه نام منابع lab قابل پیش‌بینی باشد صریح می‌کنیم. Compose اگر network دیگری تعریف نکرده باشیم، یک project network پیش‌فرض می‌سازد؛ volume هم با project name namespace می‌شود.</p>
+  <p lang="en">Now put the pieces together. We set a project name so the lab's resource names are predictable. Unless another network is declared, Compose creates a default project network; the volume is also namespaced by the project name.</p>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">compose.yaml · complete working version</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">name: compose-lab
+
+services:
+  web:
+    build: ./web
+    ports:
+      - "127.0.0.1:8080:3000"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: lesson
+      DB_PASSWORD: dev-only
+      DB_NAME: lesson
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: lesson
+      POSTGRES_PASSWORD: dev-only
+      POSTGRES_DB: lesson
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+
+volumes:
+  pg-data:</pre>
+  </div>
+  <p lang="fa">به یک ریزه‌کاری YAML دقت کن: <code>services</code> و <code>volumes</code> از ریشه شروع می‌شوند؛ <code>web</code> و <code>postgres</code> زیر services هستند؛ و <code>pg-data</code> در دو جای متفاوت دو نقش دارد: بالا تعریف منبع، پایین اتصال آن به مسیر container.</p>
+  <p lang="en">Notice the YAML shape: <code>services</code> and <code>volumes</code> start at the root; <code>web</code> and <code>postgres</code> sit under services. The two appearances of <code>pg-data</code> have different roles: declaring the resource at the top level and mounting it into the container.</p>
+  <p lang="fa">برای دیدن نتیجهٔ interpolation و defaultها، اول <code>docker compose config</code> بزن؛ بعد <code>docker compose up --build</code> را اجرا کن. خروجی config آن چیزی است که Compose فهمیده، نه صرفاً همان فاصله‌گذاری فایل ورودی.</p>
+  <p lang="en">Run <code>docker compose config</code> to inspect interpolation and defaults, then use <code>docker compose up --build</code>. The config output is Compose's resolved model, not just a reprint of the source indentation.</p>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">config and first start · representative output</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">$ docker compose config
+name: compose-lab
+services:
+  postgres:
+    environment:
+      POSTGRES_DB: lesson
+      POSTGRES_PASSWORD: dev-only
+      POSTGRES_USER: lesson
+    image: postgres:17
+  web:
+    build:
+      context: .../compose-lab/web
+    depends_on:
+      - postgres
+    ports:
+      - mode: ingress
+        target: 3000
+        published: "8080"
+...
+
+$ docker compose up --build
+[+] Building ...
+[+] Running 4/4
+ ✔ Network compose-lab_default       Created
+ ✔ Volume compose-lab_pg-data        Created
+ ✔ Container compose-lab-postgres-1 Started
+ ✔ Container compose-lab-web-1      Started
+web-1      | web listening on 0.0.0.0:3000</pre>
+  </div>
+  <p lang="fa">اسم واقعی resourceها ممکن است با نسخه و project directory تو فرق کند؛ نکتهٔ مهم این است که Compose آن‌ها را زیر یک project گروه می‌کند. در output بالا network و volume ساخته شده‌اند و هر دو service container بالا آمده‌اند. «Started» هنوز به معنی آماده‌بودن database برای query نیست.</p>
+  <p lang="en">Exact resource names can differ with your version and project directory; the key point is that Compose groups them under one project. The output shows a network and volume created and both service containers started. “Started” still does not mean the database is ready for queries.</p>
+</section>
+
+<section id="commands">
+  <h2><span lang="fa">چرخهٔ کار روزانه با Compose</span><span lang="en">The everyday Compose loop</span></h2>
+  <p lang="fa">Compose چند فرمان را از حالت «یادم باشد اسم container چه بود» بیرون می‌آورد. به‌جای نام container تولیدشده، با service name کار می‌کنی. بیایید هر فرمان را به سؤال کاری خودش وصل کنیم.</p>
+  <p lang="en">Compose removes several tasks from “what was that container called again?” Instead of generated container names, you work with service names. Let us connect each command to the job it answers.</p>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">start and inspect services</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">$ docker compose up -d
+[+] Running 2/2
+ ✔ Container compose-lab-postgres-1 Started
+ ✔ Container compose-lab-web-1      Started
+
+$ docker compose ps
+NAME                    IMAGE               SERVICE    STATUS          PORTS
+compose-lab-postgres-1   postgres:17         postgres   Up 8 seconds    5432/tcp
+compose-lab-web-1        compose-lab-web     web        Up 8 seconds    127.0.0.1:8080-&gt;3000/tcp
+
+$ curl.exe --fail http://127.0.0.1:8080
+{"name":"lesson","time":"2026-09-24T..."}</pre>
+  </div>
+  <p lang="fa"><code>up -d</code> در پس‌زمینه اجرا می‌کند تا prompt آزاد بماند. <code>ps</code> می‌گوید هر service چه containerای دارد، status چیست و کدام host port منتشر شده. درخواست HTTP جواب می‌دهد و نشان می‌دهد web توانسته از داخل network به PostgreSQL query بزند.</p>
+  <p lang="en"><code>up -d</code> runs in the background and returns the prompt. <code>ps</code> shows each service's container, status, and published host port. The HTTP response demonstrates that web queried PostgreSQL over the internal network.</p>
+  <p lang="fa">اگر <code>docker compose up</code> را بدون <code>-d</code> بزنی، خروجی serviceها در همان terminal می‌آید و command به آن‌ها attach می‌ماند. برای دنبال‌کردن چند log هنگام یادگیری خوب است؛ Ctrl+C در حالت attached باعث توقف containerها می‌شود. برای کار روزمره معمولاً <code>-d</code> می‌خواهی.</p>
+  <p lang="en">Without <code>-d</code>, <code>docker compose up</code> streams service output in the terminal and stays attached. That is useful while learning; Ctrl+C in attached mode stops the containers. For routine work, detached mode is often more convenient.</p>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">follow one service, then inspect it</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">$ docker compose logs --tail=10
+postgres-1 | database system is ready to accept connections
+web-1      | web listening on 0.0.0.0:3000
+web-1      | database request failed: connect ECONNREFUSED ...
+
+$ docker compose logs -f web
+web-1      | web listening on 0.0.0.0:3000
+web-1      | database request failed: connect ECONNREFUSED ...
+
+$ docker compose exec postgres psql -U lesson -d lesson
+lesson=#</pre>
+  </div>
+  <p lang="fa">بدون نام service، <code>logs</code> خروجی همه را کنار هم می‌آورد؛ با <code>logs -f web</code> زنده خروجی web را دنبال می‌کنی و با Ctrl+C فقط دنبال‌کردن را تمام می‌کنی. <code>exec</code> یک command را داخل container در حال اجرا اجرا می‌کند؛ اینجا وارد psql شده‌ایم، نه یک container تازه.</p>
+  <p lang="en">Without a service name, <code>logs</code> combines output from all services. <code>logs -f web</code> follows web live; Ctrl+C stops following, not the service. <code>exec</code> runs a command inside the already-running container; here we entered psql, not a new container.</p>
+  <div class="table-wrap">
+    <table class="doc-table">
+      <thead><tr><th>فرمان</th><th>چه چیزی را تغییر می‌دهد؟</th><th>چه زمانی مناسب است؟</th></tr></thead>
+      <tbody>
+        <tr><td><code>up</code></td><td>می‌سازد، در صورت نیاز recreate می‌کند و start می‌کند</td><td>اولین اجرا یا هماهنگ‌کردن با فایل تازه</td></tr>
+        <tr><td><code>start</code></td><td>containerهای موجود و متوقف‌شده را start می‌کند</td><td>بعد از <code>stop</code>، وقتی config عوض نشده</td></tr>
+        <tr><td><code>stop</code></td><td>processها را متوقف می‌کند، containerها را نگه می‌دارد</td><td>وقفهٔ موقت که state موجود بماند</td></tr>
+        <tr><td><code>restart</code></td><td>containerهای موجود را دوباره راه می‌اندازد</td><td>راه‌اندازی مجدد process با همان config</td></tr>
+        <tr><td><code>down</code></td><td>containerها و networkهای project را حذف می‌کند</td><td>جمع‌کردن stack با نگه‌داشتن named volume</td></tr>
+        <tr><td><code>down --volumes</code></td><td>همهٔ بالا به‌علاوهٔ volumeهای project</td><td>فقط وقتی حذف داده عمدی است</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">pause, resume, and restart existing services</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">$ docker compose stop web
+[+] Stopping 1/1
+ ✔ Container compose-lab-web-1 Stopped
+
+$ docker compose start web
+[+] Running 1/1
+ ✔ Container compose-lab-web-1 Started
+
+$ docker compose restart web
+[+] Restarting 1/1
+ ✔ Container compose-lab-web-1 Started
+
+$ docker compose down
+[+] Running 3/3
+ ✔ Container compose-lab-web-1      Removed
+ ✔ Container compose-lab-postgres-1 Removed
+ ✔ Network compose-lab_default      Removed</pre>
+  </div>
+  <p lang="fa">در این خروجی <code>stop</code> container را نگه می‌دارد؛ <code>start</code> همان container را برمی‌گرداند؛ <code>restart</code> process موجود را دوباره اجرا می‌کند؛ <code>down</code> containerها و network project را جمع می‌کند. هیچ‌کدام از این سه فرمان اول config جدیدی را از YAML اعمال نمی‌کنند.</p>
+  <p lang="en"><code>stop</code> keeps the containers; <code>start</code> starts those same containers; <code>restart</code> runs their existing processes again; <code>down</code> removes project containers and network. None of the first three commands applies a new YAML configuration.</p>
+  <p lang="fa">نکتهٔ کلیدی این است که <code>start</code> و <code>restart</code> فایل تازه را اعمال نمی‌کنند. اگر <code>ports</code> یا environment را عوض کردی، از <code>up</code> استفاده کن تا Compose وضعیت موجود را با مدل جدید مقایسه کند.</p>
+  <p lang="en">The key distinction is that <code>start</code> and <code>restart</code> do not apply a changed file. If you change ports or environment, use <code>up</code> so Compose can reconcile the existing state with the new model.</p>
+</section>
+
+<section id="data-lifecycle">
+  <h2><span lang="fa">down داده را پاک نمی‌کند؛ فلگ volumes می‌تواند پاک کند</span><span lang="en">down keeps data; the volumes flag can remove it</span></h2>
+  <p lang="fa">در فصل ۰۶ volume را جدا از container نگه داشتیم. Compose هم همین جدایی را حفظ می‌کند: <code>docker compose down</code> container و networkهای project را برمی‌دارد، اما named volume تعریف‌شده را نگه می‌دارد. پس <code>up</code> بعدی می‌تواند همان database data را دوباره mount کند.</p>
+  <p lang="en">Chapter 6 separated a volume from its container. Compose preserves that separation: <code>docker compose down</code> removes project containers and networks, but keeps the declared named volume. A later <code>up</code> can mount the same database data again.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 990 310" role="img" aria-labelledby="c8-volume-title">
+      <title id="c8-volume-title">Compose down removes containers and network but preserves the named volume, while down with volumes removes the data volume too</title>
+      <defs><marker id="c8-volume-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"/></marker></defs>
+      <g class="dg-stroke-b" stroke-width="2" marker-end="url(#c8-volume-arrow)">
+        <path d="M205 104h90"/><path d="M205 222h90"/><path d="M680 104h80"/>
+      </g>
+      <g text-anchor="middle">
+        <rect class="dg-fill" x="20" y="48" width="185" height="225" rx="14"/>
+        <text class="dg-t" x="112" y="83">running project</text><text class="dg-ts" x="112" y="119">web container</text><text class="dg-ts" x="112" y="150">postgres container</text><text class="dg-ts" x="112" y="181">project network</text><text class="dg-ts" x="112" y="223">named pg-data</text><text class="dg-ts" x="112" y="253">database bytes</text>
+        <rect class="dg-fill-g" x="295" y="50" width="260" height="108" rx="12"/>
+        <text class="dg-t" x="425" y="89">docker compose down</text><text class="dg-ts" x="425" y="120">remove containers + network</text><text class="dg-ts" x="425" y="145">keep named volume</text>
+        <rect class="dg-fill-w" x="295" y="184" width="260" height="108" rx="12"/>
+        <text class="dg-t" x="425" y="223">down --volumes</text><text class="dg-ts" x="425" y="254">remove containers + network</text><text class="dg-ts" x="425" y="279">remove named volume too</text>
+        <rect class="dg-fill" x="760" y="50" width="210" height="108" rx="12"/>
+        <text class="dg-t" x="865" y="90">after down</text><text class="dg-ts" x="865" y="121">data can return on up</text>
+        <rect class="dg-fill-w" x="760" y="184" width="210" height="108" rx="12"/>
+        <text class="dg-t" x="865" y="223">after --volumes</text><text class="dg-ts" x="865" y="254">fresh empty database</text>
+      </g>
+      <text class="dg-ts" x="250" y="93">teardown command</text><text class="dg-ts" x="250" y="211">destructive teardown</text><text class="dg-ts" x="720" y="94">recreate later</text>
+    </svg>
+    <p class="diagram-cap" lang="fa">دو مسیر از یک project جدا شده‌اند: فلش سبز نشان می‌دهد <code>down</code> container/network را حذف می‌کند اما named volume می‌ماند. فلش هشدار مسیر <code>down --volumes</code> را نشان می‌دهد که خود volume و داده‌اش را هم حذف می‌کند؛ <code>up</code> بعدی database خالی می‌سازد.</p>
+    <p class="diagram-cap" lang="en">The project splits into two teardown paths. The green arrow shows <code>down</code> removing containers and network while keeping the named volume. The warning path shows <code>down --volumes</code> also removing the volume and its data, so a later <code>up</code> creates an empty database.</p>
+  </div>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">survival experiment · disposable data only</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">$ docker compose exec -T postgres psql -U lesson -d lesson \
+  -c "CREATE TABLE IF NOT EXISTS memo (body text); INSERT INTO memo VALUES ('still here');"
+CREATE TABLE
+INSERT 0 1
+
+$ docker compose down
+[+] Running 3/3
+ ✔ Container compose-lab-web-1      Removed
+ ✔ Container compose-lab-postgres-1 Removed
+ ✔ Network compose-lab_default      Removed
+
+$ docker compose up -d
+[+] Running 3/3
+ ✔ Network compose-lab_default       Created
+ ✔ Container compose-lab-postgres-1 Started
+ ✔ Container compose-lab-web-1      Started
+
+$ docker compose exec -T postgres psql -U lesson -d lesson \
+  -c "SELECT body FROM memo;"
+    body
+------------
+ still here
+(1 row)</pre>
+  </div>
+  <p lang="fa">ردیف بعد از <code>down</code> برگشته، چون named volume باقی مانده و PostgreSQL همان را mount کرده است. حالا اگر برای نمایش خطر روی دادهٔ آزمایشی <code>docker compose down --volumes</code> بزنی، volume حذف می‌شود؛ اجرای بعدی یک database تازه می‌سازد و ردیف قبلی دیگر نیست. این را روی دادهٔ واقعی اجرا نکن.</p>
+  <p lang="en">The row returned after <code>down</code> because the named volume remained and PostgreSQL mounted it again. If you run <code>docker compose down --volumes</code> on disposable lab data, the volume is removed; the next run creates a fresh database and the old row is gone. Never use this demonstration on data you need.</p>
+  <div class="table-wrap">
+    <table class="doc-table">
+      <thead><tr><th>عمل</th><th>container</th><th>network project</th><th>named volume</th></tr></thead>
+      <tbody>
+        <tr><td><code>stop</code></td><td>می‌ماند، متوقف</td><td>می‌ماند</td><td>می‌ماند</td></tr>
+        <tr><td><code>down</code></td><td>حذف می‌شود</td><td>حذف می‌شود</td><td>می‌ماند</td></tr>
+        <tr><td><code>down --volumes</code></td><td>حذف می‌شود</td><td>حذف می‌شود</td><td>حذف می‌شود</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="build-recreate">
+  <h2><span lang="fa">چه زمانی build کنیم و چه زمانی container را بسازیم؟</span><span lang="en">When should we build, and when should we recreate?</span></h2>
+  <p lang="fa">source یا Dockerfile را تغییر داده‌ای؟ image باید دوباره build شود. <code>docker compose build web</code> فقط image را می‌سازد؛ <code>docker compose up --build</code> اول image لازم را build می‌کند و بعد stack را بالا می‌آورد یا با تغییرها هماهنگ می‌کند.</p>
+  <p lang="en">Did you change source or the Dockerfile? The image needs a rebuild. <code>docker compose build web</code> only builds the image; <code>docker compose up --build</code> builds what is needed and then starts or reconciles the stack.</p>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">change source, build, reconcile</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">$ docker compose build web
+[+] Building 4.2s (10/10) FINISHED
+ =&gt; exporting to image
+ =&gt; naming to docker.io/library/compose-lab-web
+
+$ docker compose up -d
+[+] Running 2/2
+ ✔ Container compose-lab-postgres-1 Running
+ ✔ Container compose-lab-web-1      Recreated
+
+# Or combine both decisions:
+$ docker compose up -d --build</pre>
+  </div>
+  <p lang="fa">وقتی service config یا image عوض شده باشد، <code>up</code> container قدیمی را متوقف و container تازه می‌سازد؛ volumeهای mount‌شده حفظ می‌شوند. فایل جدید با <code>start</code> یا <code>restart</code> اعمال نمی‌شود، چون آن‌ها فقط container موجود را دوباره راه می‌اندازند.</p>
+  <p lang="en">When a service configuration or image changes, <code>up</code> stops the old container and creates a replacement; mounted volumes are preserved. <code>start</code> and <code>restart</code> do not apply a new file because they only run existing containers again.</p>
+  <div class="table-wrap">
+    <table class="doc-table">
+      <thead><tr><th>فرمان/کلید</th><th>معنی</th><th>اثر بعد از تغییر source/config</th></tr></thead>
+      <tbody>
+        <tr><td><code>image: postgres:17</code></td><td>از image آماده استفاده کن</td><td>Compose pull می‌کند اگر لازم باشد؛ Dockerfile این service را build نمی‌کند</td></tr>
+        <tr><td><code>build: ./web</code></td><td>از context و Dockerfile image بساز</td><td>برای source/Dockerfile تغییرکرده image rebuild می‌شود</td></tr>
+        <tr><td><code>docker compose build</code></td><td>imageها را build کن</td><td>containerها به‌تنهایی لزوماً تعویض نمی‌شوند</td></tr>
+        <tr><td><code>docker compose up --build</code></td><td>build لازم، سپس create/start یا reconcile</td><td>container جدید با image/config تازه ساخته می‌شود</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="ordering">
+  <h2><span lang="fa">depends_on ترتیب می‌دهد؛ آماده‌بودن را تضمین نمی‌کند</span><span lang="en">depends_on orders startup; it does not guarantee readiness</span></h2>
+  <p lang="fa">وقتی <code>web</code> به <code>postgres</code> وابسته است، <code>depends_on</code> به Compose می‌گوید ترتیب ساخت و شروع را رعایت کند. این مفید است، اما database process ممکن است Running باشد و هنوز initialization را تمام نکرده باشد.</p>
+  <p lang="en">When web depends on postgres, <code>depends_on</code> tells Compose to respect the dependency order while creating and starting services. That helps, but the database process can be running before initialization has finished.</p>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">a timing window is not a Compose bug</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">$ docker compose up -d
+[+] Running 2/2
+ ✔ Container compose-lab-postgres-1 Started
+ ✔ Container compose-lab-web-1      Started
+
+$ curl.exe -i http://127.0.0.1:8080
+HTTP/1.1 503 Service Unavailable
+database is not ready yet
+
+$ docker compose logs postgres
+postgres-1 | database system is ready to accept connections
+
+$ curl.exe --fail http://127.0.0.1:8080
+{"name":"lesson","time":"..."}</pre>
+  </div>
+  <p lang="fa">در نمونهٔ ما web زنده ماند و درخواست بعدی موفق شد. اگر برنامه در اولین اتصال exit کند، <code>docker compose ps -a</code> و <code>docker compose logs web</code> نشان می‌دهند کدام service خارج شده و چرا. برنامهٔ واقعی باید retry یا رفتار مناسبی برای اتصال داشته باشد؛ <code>depends_on</code> به‌تنهایی readiness check نیست.</p>
+  <p lang="en">In this example web stayed alive and the next request succeeded. If an app exits on its first failed connection, <code>docker compose ps -a</code> and <code>docker compose logs web</code> show which service exited and why. A real app needs suitable retry behavior; <code>depends_on</code> alone is not a readiness check.</p>
+  <p lang="fa">در Compose شرط‌های پیشرفته‌تری هم وجود دارد، اما این فصل وارد healthcheck نمی‌شود؛ آن موضوع فصل ۱۰ است. فعلاً جملهٔ دقیق را نگه دار: short syntax ترتیب startup را تنظیم می‌کند، نه آماده‌بودن database برای query.</p>
+  <p lang="en">Compose has more advanced dependency conditions, but this chapter does not cover healthchecks; that belongs in Chapter 10. Keep the precise rule for now: short-form depends_on orders startup, not database readiness for queries.</p>
+</section>
+
+<section id="project">
+  <h2><span lang="fa">اسم project، مرز نام‌گذاری منابع</span><span lang="en">The project name groups resource names</span></h2>
+  <p lang="fa">Compose یک project را بر اساس پوشهٔ فایل می‌شناسد و معمولاً نام project را به نام resourceها اضافه می‌کند. در مثال ما <code>compose-lab</code> پیشوند network و volume است؛ serviceهای <code>web</code> و <code>postgres</code> هم داخل همان project پیدا می‌شوند.</p>
+  <p lang="en">Compose identifies a project from the directory containing the file and usually prefixes resource names with the project name. In our example, <code>compose-lab</code> prefixes the network and volume; services <code>web</code> and <code>postgres</code> are discovered within that project.</p>
+  <p lang="fa">دو نسخه از یک project را می‌توان با نام project متفاوت کنار هم اجرا کرد؛ همین کار جلوی برخورد منابع را می‌گیرد. اما hostname داخلی همچنان اسم service است، نه اسم container تولیدشده یا project.</p>
+  <p lang="en">You can run two copies of a project side by side with different project names to avoid resource collisions. The internal hostname is still the service name, not the generated container or project name.</p>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">same file, separate project namespace</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">$ docker compose -p feature-a up -d
+$ docker compose -p feature-b up -d
+
+$ docker compose -p feature-a ps
+NAME                       SERVICE
+feature-a-postgres-1       postgres
+feature-a-web-1            web
+
+$ docker compose -p feature-b ps
+NAME                       SERVICE
+feature-b-postgres-1       postgres
+feature-b-web-1            web</pre>
+  </div>
+  <p lang="fa">اگر از <code>-p</code> استفاده نکنی، نام پوشه معمولاً project name می‌شود؛ مقدار <code>name:</code> یا environment/CLI هم می‌تواند آن را عوض کند. برای شروع کافی است بدانی هم‌نام بودن service در دو project به معنی یکی بودن containerها نیست.</p>
+  <p lang="en">Without <code>-p</code>, the directory name normally becomes the project name; a <code>name:</code> value or CLI/environment setting can override it. For now, remember that same-named services in two projects are not the same containers.</p>
+</section>
+
+<section id="failures">
+  <h2><span lang="fa">وقتی stack درست بالا نمی‌آید، از کجا شروع کنیم؟</span><span lang="en">When the stack does not start, where do we begin?</span></h2>
+  <p lang="fa">جملهٔ «Compose خراب است» هنوز diagnosis نیست. اول معلوم کن Compose فایل را فهمیده یا نه؛ بعد ببین کدام service ساخته یا خارج شده؛ بعد log همان service را بخوان. در نهایت hostname، port و volume را با مسیر واقعی request مقایسه کن.</p>
+  <p lang="en">“Compose is broken” is not a diagnosis. First find out whether Compose understood the file; then see which service was created or exited; then read that service's logs. Finally compare the hostname, port, and volume with the actual request path.</p>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">failure one · a service is at the wrong YAML level</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">services:
+  web:
+    image: nginx:alpine
+  postgres:
+  image: postgres:17
+
+$ docker compose config
+validating ...: services.postgres must be a mapping</pre>
+  </div>
+  <p lang="fa">نگاه اول ممکن است بگوید postgres تعریف شده؛ اما indentation آن را از زیر <code>services</code> بیرون برده و shape مورد انتظار را شکسته است. قبل از اجرای stack، <code>config</code> بزن و ساختار را درست کن. این تشخیص از ساختن نصف منابع و بعد دنبال‌کردن خطای نام بهتر است.</p>
+  <p lang="en">At a glance, postgres looks declared, but its indentation moved it out of services and broke the expected shape. Run <code>config</code> before starting the stack and fix the structure. That is better than creating half the resources and then chasing a hostname error.</p>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">failure two · the required database environment is missing</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">$ docker compose ps -a
+NAME                       SERVICE    STATUS
+compose-lab-postgres-1     postgres   Exited (1)
+compose-lab-web-1          web        Up
+
+$ docker compose logs postgres
+postgres-1 | Error: Database is uninitialized and superuser password is not specified.
+postgres-1 | You must specify POSTGRES_PASSWORD to a non-empty value.</pre>
+  </div>
+  <p lang="fa">اینجا Compose container را ساخته، اما entrypoint خود image به‌خاطر نبودن مقدار لازم خارج شده است. network را عوض نکن؛ environment resolved را با <code>docker compose config</code> ببین و مقدار لازم آزمایش را برگردان. credential این مثال محلی است و در production باید روش دیگری انتخاب شود.</p>
+  <p lang="en">Compose created the container, but the image entrypoint exited because a required value was missing. Do not change the network; inspect the resolved environment with <code>docker compose config</code> and restore the lab value. This local credential is not a production pattern.</p>
+  <div class="table-wrap">
+    <table class="doc-table">
+      <thead><tr><th>نشانه</th><th>مرز محتمل</th><th>بررسی بعدی</th></tr></thead>
+      <tbody>
+        <tr><td>YAML parse error یا key ناپدید</td><td>indentation یا ساختار YAML</td><td><code>docker compose config</code> و مقایسهٔ سطح کلیدها</td></tr>
+        <tr><td>web می‌گوید host را پیدا نکرد</td><td>service name یا network scope</td><td><code>DB_HOST</code>، service key و <code>docker compose config</code></td></tr>
+        <tr><td>browser به پورت وصل نمی‌شود</td><td>publish یا listener port</td><td><code>docker compose ps</code>، نگاشت HOST:CONTAINER و log web</td></tr>
+        <tr><td>Postgres فوراً خارج می‌شود</td><td>environment لازم ناقص یا data init ناموفق</td><td><code>docker compose ps -a</code> و <code>docker compose logs postgres</code></td></tr>
+        <tr><td>service بالا آمده اما query 503 است</td><td>database هنوز آماده نیست یا تنظیم DB غلط است</td><td>logهای هر دو service؛ readiness را با startup order یکی نگیر</td></tr>
+        <tr><td>بعد از <code>down</code> داده برگشت</td><td>رفتار درست named volume</td><td>نام volume و mount path را inspect کن</td></tr>
+        <tr><td>داده ناگهان خالی شد</td><td><code>down --volumes</code> یا project name دیگر</td><td><code>docker volume ls</code> و project name را بررسی کن</td></tr>
+        <tr><td>container قبلی هنوز اجرا می‌شود</td><td>فایل تازه با <code>restart</code> اعمال نشده</td><td><code>docker compose up</code> یا <code>up --build</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">a small diagnosis sequence</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">$ docker compose config
+services:
+  postgres: ...
+  web: ...
+
+$ docker compose ps -a
+NAME                    SERVICE    STATUS
+compose-lab-postgres-1  postgres   Up
+compose-lab-web-1       web        Exited (1)
+
+$ docker compose logs --tail=20 web
+web-1 | database request failed: getaddrinfo ENOTFOUND local-db
+
+$ docker compose exec postgres psql -U lesson -d lesson -c 'SELECT 1;'
+ ?column?
+----------
+        1
+(1 row)</pre>
+  </div>
+  <p lang="fa">در این مثال database زنده است و query مستقیم داخلش جواب می‌دهد؛ خط log می‌گوید web دنبال hostnameای به نام <code>local-db</code> گشته که در Compose تعریف نشده. پس network و PostgreSQL را از نو نمی‌سازیم؛ مقدار <code>DB_HOST</code> را با service name یعنی <code>postgres</code> هماهنگ می‌کنیم و با <code>up</code> دوباره اعمالش می‌کنیم.</p>
+  <p lang="en">Here the database is running and a direct query succeeds; the log says web looked for <code>local-db</code>, which is not a Compose service. We do not rebuild the network or PostgreSQL. We align <code>DB_HOST</code> with the service name <code>postgres</code> and apply it again with <code>up</code>.</p>
+  <p lang="fa">اگر یک project دیگر هم serviceای به نام <code>postgres</code> داشته باشد، اسم‌ها با هم برخورد نمی‌کنند؛ اما web این project هم به آن database وصل نمی‌شود. service name در scope شبکه معنا دارد. برای ارتباط بین دو project باید network مشترک را آگاهانه طراحی کنی، نه اینکه از global بودن name فرض بگیری.</p>
+  <p lang="en">A second project can also have a service named <code>postgres</code> without a naming collision, but this project's web will not reach that other database. A service name is scoped to its network. Cross-project communication requires an intentionally shared network, not an assumption that names are global.</p>
+  <p lang="fa">برای دیدن attachmentهای Engine-level، وقتی خروجی Compose کافی نیست از <code>docker inspect CONTAINER</code> استفاده کن. اما شروع عیب‌یابی معمولاً با سه فرمان Compose روشن‌تر است: <code>config</code>، <code>ps</code>، <code>logs</code>.</p>
+  <p lang="en">Use <code>docker inspect CONTAINER</code> when Compose output is not enough to understand Engine-level attachments. But most investigations start more clearly with three Compose commands: <code>config</code>, <code>ps</code>, and <code>logs</code>.</p>
+</section>
+
+<section id="exercises">
+  <h2><span lang="fa">تمرین‌ها: یک setup را از command به مدل تبدیل کن</span><span lang="en">Exercises: turn a command setup into a model</span></h2>
+  <p class="lede" lang="fa">برای هر تمرین اول توضیح بده چه چیزی را می‌خواهی ببینی. بعد جواب را باز کن؛ هدف حفظ‌کردن YAML نیست، هدف این است که resource و چرخهٔ عمرش را از روی مدل پیش‌بینی کنی.</p>
+  <p class="lede" lang="en">For each exercise, first say what you expect to observe. Then open the solution; the goal is not memorizing YAML but predicting resources and their lifetimes from the model.</p>
+
+  <div class="ex" id="ex-8-1">
+    <h3><span lang="fa">۱. command را به service ترجمه کن</span><span lang="en">1. Translate a command into a service</span></h3>
+    <p lang="fa"><code>docker run -d --name cache redis:7</code> را به بخش Compose تبدیل کن. کدام قسمت‌ها identity اجرایی‌اند و کدام فقط اسم انتخابی ماست؟</p>
+    <p lang="en">Convert <code>docker run -d --name cache redis:7</code> into a Compose service. Which parts describe the runtime and which are only our chosen name?</p>
+    <details class="ex-sol"><summary><span lang="fa">یک جواب ممکن</span><span lang="en">One possible answer</span></summary><p lang="fa"><code>services: cache: image: redis:7</code> هستهٔ تبدیل است؛ در YAML هر سطح را با indentation می‌سازی. <code>-d</code> مربوط به نحوهٔ اجرای Compose در همان نوبت است، نه صفتی که باید زیر service کپی شود؛ برای اجرای پس‌زمینه <code>docker compose up -d</code> می‌زنی.</p><p lang="en">The core translation is <code>services: cache: image: redis:7</code>, with indentation defining each level. <code>-d</code> controls this Compose invocation rather than a service property; use <code>docker compose up -d</code> for detached execution.</p></details>
+  </div>
+  <div class="ex" id="ex-8-2">
+    <h3><span lang="fa">۲. image یا build؟</span><span lang="en">2. Image or build?</span></h3>
+    <p lang="fa">برای PostgreSQL رسمی و web source خودت کدام service باید <code>image</code> داشته باشد و کدام <code>build</code>؟</p>
+    <p lang="en">Which service should use <code>image</code> for official PostgreSQL and which should use <code>build</code> for your own web source?</p>
+    <details class="ex-sol"><summary><span lang="fa">چرا این انتخاب؟</span><span lang="en">Why this choice?</span></summary><p lang="fa">PostgreSQL از image آماده مثل <code>postgres:17</code> می‌آید؛ web از پوشهٔ Dockerfile خودش مثل <code>build: ./web</code> ساخته می‌شود. <code>build</code> آدرس منبع ساخت است، نه نام container.</p><p lang="en">PostgreSQL comes from a ready image such as <code>postgres:17</code>; web is built from its Dockerfile directory, such as <code>build: ./web</code>. <code>build</code> identifies build input, not a container name.</p></details>
+  </div>
+  <div class="ex" id="ex-8-3">
+    <h3><span lang="fa">۳. port داخلی را پیدا کن</span><span lang="en">3. Find the internal port</span></h3>
+    <p lang="fa">web داخل container روی ۳۰۰۰ گوش می‌دهد و browser host باید از ۸۰۸۸ وارد شود. سطر <code>ports</code> را بنویس.</p>
+    <p lang="en">web listens on 3000 inside the container and the host browser should use 8088. Write the <code>ports</code> entry.</p>
+    <details class="ex-sol"><summary><span lang="fa">پاسخ و دلیل</span><span lang="en">Solution and reasoning</span></summary><p lang="fa"><code>ports: - "127.0.0.1:8088:3000"</code> مسیر host-local را محدود می‌کند؛ سمت چپ host port و سمت راست container port است. اگر host IP را حذف کنی، bind می‌تواند روی interfaceهای بیشتری باشد.</p><p lang="en"><code>ports: - "127.0.0.1:8088:3000"</code> limits access to the host loopback; left is the host port and right is the container port. Omitting the host IP can bind on more host interfaces.</p></details>
+  </div>
+  <div class="ex" id="ex-8-4">
+    <h3><span lang="fa">۴. database را کجا mount کنی؟</span><span lang="en">4. Where should database data mount?</span></h3>
+    <p lang="fa">برای PostgreSQL 17 volume نام‌دار تعریف کن و آن را در data directory مورد استفادهٔ این image وصل کن.</p>
+    <p lang="en">Declare a named volume for PostgreSQL 17 and mount it at the data directory used by this image.</p>
+    <details class="ex-sol"><summary><span lang="fa">نمونهٔ ساختار</span><span lang="en">A structural answer</span></summary><p lang="fa">در service: <code>volumes: - pg-data:/var/lib/postgresql/data</code>؛ در ریشهٔ فایل: <code>volumes: pg-data:</code>. تعریف resource و محل اتصال دو بخش از یک قراردادند.</p><p lang="en">In the service: <code>volumes: - pg-data:/var/lib/postgresql/data</code>; at the file root: <code>volumes: pg-data:</code>. Resource declaration and mount target are two parts of one contract.</p></details>
+  </div>
+  <div class="ex" id="ex-8-5">
+    <h3><span lang="fa">۵. hostname از کجا می‌آید؟</span><span lang="en">5. Where does the hostname come from?</span></h3>
+    <p lang="fa">اسم service دیتابیس <code>postgres</code> است. web برای وصل‌شدن باید <code>DB_HOST</code> را روی چه چیزی بگذارد؟</p>
+    <p lang="en">The database service is named <code>postgres</code>. What should web use for <code>DB_HOST</code>?</p>
+    <details class="ex-sol"><summary><span lang="fa">پاسخ کوتاه، دلیل مهم</span><span lang="en">Short answer, important reason</span></summary><p lang="fa"><code>postgres</code>. Compose service name را در project network resolve می‌کند؛ container IP یا نام تولیدشده مثل <code>compose-lab-postgres-1</code> را به config برنامه نده.</p><p lang="en"><code>postgres</code>. Compose resolves the service name on the project network; do not configure the app with a container IP or generated name such as <code>compose-lab-postgres-1</code>.</p></details>
+  </div>
+  <div class="ex" id="ex-8-6">
+    <h3><span lang="fa">۶. این localhost مال کی است؟</span><span lang="en">6. Whose localhost is this?</span></h3>
+    <p lang="fa">web در اتصال database از <code>localhost:5432</code> استفاده می‌کند و اتصال رد می‌شود. توضیح بده درخواست کجا رفته و hostname درست چیست.</p>
+    <p lang="en">web uses <code>localhost:5432</code> for the database and the connection is refused. Explain where the request went and the correct hostname.</p>
+    <details class="ex-sol"><summary><span lang="fa">ردیابی درخواست</span><span lang="en">Trace the request</span></summary><p lang="fa">localhost به خود web اشاره کرده، پس برنامه دنبال PostgreSQL داخل container خودش گشته است. service مقصد <code>postgres</code> است و آدرس داخلی <code>postgres:5432</code> خواهد بود.</p><p lang="en">localhost pointed back to web, so the app looked for PostgreSQL inside its own container. The destination service is <code>postgres</code>, giving the internal address <code>postgres:5432</code>.</p></details>
+  </div>
+  <div class="ex" id="ex-8-7">
+    <h3><span lang="fa">۷. YAML یک سطح جابه‌جا</span><span lang="en">7. One YAML level is misplaced</span></h3>
+    <p lang="fa">در فایل، <code>postgres:</code> هم‌سطح <code>services:</code> نوشته شده است. قبل از اجرا چه کار می‌کنی و چرا؟</p>
+    <p lang="en">In the file, <code>postgres:</code> is aligned with <code>services:</code>. What do you do before starting, and why?</p>
+    <details class="ex-sol"><summary><span lang="fa">یک گام تشخیصی کم‌هزینه</span><span lang="en">A cheap diagnostic step</span></summary><p lang="fa"><code>docker compose config</code> را اجرا می‌کنم. اگر سرویس به‌عنوان کلید زیر services parse نشده باشد، از خروجی یا خطای validation معلوم می‌شود؛ ابتدا nesting را درست می‌کنم، بعد منابع می‌سازم.</p><p lang="en">I run <code>docker compose config</code>. If the service was not parsed under services, the output or validation error exposes it. I fix the nesting before creating resources.</p></details>
+  </div>
+  <div class="ex" id="ex-8-8">
+    <h3><span lang="fa">۸. بخشی از compose config را بخوان</span><span lang="en">8. Read a compose config excerpt</span></h3>
+    <p lang="fa">در خروجی resolved، <code>published: "8080"</code> و <code>target: 3000</code> می‌بینی. کدام port را host browser می‌زند؟</p>
+    <p lang="en">The resolved output shows <code>published: "8080"</code> and <code>target: 3000</code>. Which port does the host browser use?</p>
+    <details class="ex-sol"><summary><span lang="fa">تفسیر</span><span lang="en">Interpretation</span></summary><p lang="fa">host port همان published یعنی ۸۰۸۰ است؛ target port داخل container و برابر ۳۰۰۰ است. config خروجی‌شده راه خوبی است تا جهت mapping را پیش از اجرا بخوانی.</p><p lang="en">The host uses published port 8080; target 3000 is inside the container. Resolved config is a useful way to read mapping direction before starting.</p></details>
+  </div>
+  <div class="ex" id="ex-8-9">
+    <h3><span lang="fa">۹. up یا start؟</span><span lang="en">9. Up or start?</span></h3>
+    <p lang="fa">بعد از <code>docker compose stop</code> هیچ تنظیمی عوض نشده و می‌خواهی همان containerها برگردند. چه می‌زنی؟ اگر port را در YAML تغییر داده باشی چه؟</p>
+    <p lang="en">After <code>docker compose stop</code>, nothing changed and you want the same containers back. What do you run? What if you changed a port in YAML?</p>
+    <details class="ex-sol"><summary><span lang="fa">دو موقعیت متفاوت</span><span lang="en">Two different situations</span></summary><p lang="fa">برای همان containerهای متوقف‌شده <code>start</code> مناسب است. برای config تازه <code>up -d</code> بزن تا Compose تغییر را reconcile و در صورت نیاز container را recreate کند.</p><p lang="en"><code>start</code> is appropriate for the same stopped containers. For changed configuration, run <code>up -d</code> so Compose reconciles and recreates containers when needed.</p></details>
+  </div>
+  <div class="ex" id="ex-8-10">
+    <h3><span lang="fa">۱۰. logs یا exec؟</span><span lang="en">10. Logs or exec?</span></h3>
+    <p lang="fa">web از connection refused می‌گوید. اول log زندهٔ web را دنبال می‌کنی، یا وارد postgres می‌شوی و query می‌زنی؟ چه ترتیبی دلیل بیشتری می‌دهد؟</p>
+    <p lang="en">web reports connection refused. Do you first follow web logs or enter postgres and query it? Which order gives better evidence?</p>
+    <details class="ex-sol"><summary><span lang="fa">ترتیب کم‌حدس‌تر</span><span lang="en">A lower-guesswork order</span></summary><p lang="fa">اول <code>docker compose ps</code> و <code>logs web</code> و <code>logs postgres</code> وضعیت هر دو طرف را نشان می‌دهند؛ اگر لازم شد <code>exec postgres psql ...</code> زنده‌بودن listener و database را جدا می‌کند. هر فرمان یک فرض را می‌سنجد.</p><p lang="en"><code>docker compose ps</code> and the logs for both services first show each side's state; if needed, <code>exec postgres psql ...</code> separately tests the database. Each command tests one hypothesis.</p></details>
+  </div>
+  <div class="ex" id="ex-8-11">
+    <h3><span lang="fa">۱۱. down، داده را کجا گذاشت؟</span><span lang="en">11. Where did down leave the data?</span></h3>
+    <p lang="fa">بعد از <code>docker compose down</code>، containerها پاک شده‌اند اما جدول هنوز بعد از <code>up</code> هست. این نتیجه را توضیح بده.</p>
+    <p lang="en">After <code>docker compose down</code>, containers are gone but the table remains after <code>up</code>. Explain the result.</p>
+    <details class="ex-sol"><summary><span lang="fa">چرخهٔ عمر resource</span><span lang="en">Resource lifetime</span></summary><p lang="fa">named volume در down معمولی حذف نمی‌شود؛ container تازه همان volume را در data path mount کرده است. فایل database مال writable layer container نبود.</p><p lang="en">A named volume survives ordinary down; the new container mounted it at the data path. The database files did not belong to the container writable layer.</p></details>
+  </div>
+  <div class="ex" id="ex-8-12">
+    <h3><span lang="fa">۱۲. دستور خطرناک را پیش‌بینی کن</span><span lang="en">12. Predict the destructive command</span></h3>
+    <p lang="fa">چه تغییری در نتیجهٔ cleanup می‌دهد اگر به <code>docker compose down</code> فلگ <code>--volumes</code> اضافه کنی؟</p>
+    <p lang="en">How does cleanup change if you add <code>--volumes</code> to <code>docker compose down</code>?</p>
+    <details class="ex-sol"><summary><span lang="fa">قبل از زدن command</span><span lang="en">Before running it</span></summary><p lang="fa">named volumeهای تعریف‌شده و anonymous volumeهای containerها هم حذف می‌شوند؛ پس data directory database پاک می‌شود. این فقط روی data آزمایشی انجام می‌شود و باید اثرش را با یک up تازه ببینی.</p><p lang="en">Declared named volumes and container anonymous volumes are removed too, so the database data directory is lost. Use it only on disposable data and verify the next up creates a fresh database.</p></details>
+  </div>
+  <div class="ex" id="ex-8-13">
+    <h3><span lang="fa">۱۳. depends_on چه چیزی را ثابت می‌کند؟</span><span lang="en">13. What does depends_on prove?</span></h3>
+    <p lang="fa">Compose database را قبل از web start کرده، اما اولین query رد شده است. آیا Compose ترتیب را نادیده گرفته؟ چه چیزی هنوز ثابت نشده؟</p>
+    <p lang="en">Compose started the database before web, but the first query failed. Did Compose ignore the order? What is still unproven?</p>
+    <details class="ex-sol"><summary><span lang="fa">پاسخ دقیق</span><span lang="en">The precise answer</span></summary><p lang="fa">نه؛ startup order رعایت شده است. اما آماده‌بودن database برای query هنوز ثابت نشده. process می‌تواند Running باشد و initialization ادامه داشته باشد؛ برنامه باید خطای موقت را مدیریت کند.</p><p lang="en">No; startup order was respected. Database readiness for queries is still unproven. A process can be running while initialization continues, so the application must handle transient failures.</p></details>
+  </div>
+  <div class="ex" id="ex-8-14">
+    <h3><span lang="fa">۱۴. کدام build command؟</span><span lang="en">14. Which build command?</span></h3>
+    <p lang="fa">Dockerfile عوض شده و می‌خواهی image تازه build شود و web با آن بالا بیاید. از <code>build</code>، <code>up</code> و <code>up --build</code> کدام را انتخاب می‌کنی؟</p>
+    <p lang="en">The Dockerfile changed and you want a fresh image built and web running from it. Which do you choose: build, up, or up --build?</p>
+    <details class="ex-sol"><summary><span lang="fa">انتخاب بر اساس هدف</span><span lang="en">Choose by the goal</span></summary><p lang="fa"><code>docker compose up --build</code> هر دو کار لازم را انجام می‌دهد. <code>build</code> فقط image را می‌سازد؛ <code>up</code> بدون flag ممکن است از image قبلی استفاده کند اگر سیاست build نیاز را تشخیص ندهد.</p><p lang="en"><code>docker compose up --build</code> performs both needed steps. <code>build</code> only creates the image; plain <code>up</code> may use the existing image when no rebuild is requested.</p></details>
+  </div>
+  <div class="ex" id="ex-8-15">
+    <h3><span lang="fa">۱۵. service name با container name یکی نیست</span><span lang="en">15. Service name is not container name</span></h3>
+    <p lang="fa">اسم container تولیدشده <code>compose-lab-postgres-1</code> است. آیا web باید همین مقدار را برای hostname ذخیره کند؟ چرا service name بهتر است؟</p>
+    <p lang="en">The generated container is named <code>compose-lab-postgres-1</code>. Should web store that as its hostname? Why is the service name better?</p>
+    <details class="ex-sol"><summary><span lang="fa">قرارداد پایدارتر</span><span lang="en">A more stable contract</span></summary><p lang="fa">خیر؛ از <code>postgres</code> استفاده کن. project، replica number یا container recreation نام تولیدشده را عوض می‌کند، اما service discovery روی شبکه با service name ساخته شده است.</p><p lang="en">No; use <code>postgres</code>. Project names, replica numbers, or container recreation can change generated names, while network service discovery is designed around the service name.</p></details>
+  </div>
+  <div class="ex" id="ex-8-16">
+    <h3><span lang="fa">۱۶. service بالا است یا کامل؟</span><span lang="en">16. Is the service up or complete?</span></h3>
+    <p lang="fa">در <code>docker compose ps -a</code>، web وضعیت <code>Exited (1)</code> دارد. یک نفر می‌گوید «ولی up موفق شد». قدم‌های بعدی چیست؟</p>
+    <p lang="en">In <code>docker compose ps -a</code>, web is <code>Exited (1)</code>. Someone says, “But up succeeded.” What do you inspect next?</p>
+    <details class="ex-sol"><summary><span lang="fa">از وضعیت به علت</span><span lang="en">From state to cause</span></summary><p lang="fa"><code>up</code> موفق یعنی Compose توانست منابع را ایجاد/شروع کند، نه اینکه برنامه سالم بماند. <code>docker compose logs web</code> را بخوان، environment و hostname را با <code>docker compose config</code> تطبیق بده، بعد همان فرض را اصلاح کن.</p><p lang="en">A successful up means Compose created or started resources, not that the app stayed healthy. Read <code>docker compose logs web</code>, compare environment and hostname with <code>docker compose config</code>, then fix the specific hypothesis.</p></details>
+  </div>
+  <div class="ex" id="ex-8-17">
+    <h3><span lang="fa">۱۷. دو project هم‌زمان</span><span lang="en">17. Run two projects side by side</span></h3>
+    <p lang="fa">دو نفر از یک compose.yaml استفاده می‌کنند و منابعشان تداخل پیدا کرده است. چه راهی برای نام‌گذاری project پیشنهاد می‌کنی؟</p>
+    <p lang="en">Two developers use the same compose.yaml and their resources collide. What project-naming approach do you recommend?</p>
+    <details class="ex-sol"><summary><span lang="fa">تفکیک منابع</span><span lang="en">Separate the resources</span></summary><p lang="fa">به هر اجرا project name جدا بده، مثلاً <code>docker compose -p alice up -d</code> و <code>-p bob</code>. Compose نام network و volume و containerهای project را جدا می‌کند؛ hostname داخل هر project همچنان service name می‌ماند.</p><p lang="en">Give each run a distinct project name, such as <code>docker compose -p alice up -d</code> and <code>-p bob</code>. Compose separates project containers, networks, and volumes; service hostnames remain service names inside each project.</p></details>
+  </div>
+  <div class="ex" id="ex-8-18">
+    <h3><span lang="fa">۱۸. پنج دقیقهٔ اول عیب‌یابی</span><span lang="en">18. The first five minutes of diagnosis</span></h3>
+    <p lang="fa">web به database وصل نمی‌شود. قبل از دست‌کاری config، چهار سؤال و فرمانی بنویس که مسیر بررسی را محدود کنند.</p>
+    <p lang="en">web cannot reach the database. Write four questions and commands that narrow the path before changing configuration.</p>
+    <details class="ex-sol"><summary><span lang="fa">ترتیب معنادار</span><span lang="en">An evidence-led order</span></summary><p lang="fa">آیا Compose فایل را درست فهمیده؟ <code>compose config</code>. کدام service زنده است؟ <code>compose ps -a</code>. چه خطایی دید؟ <code>compose logs web postgres</code>. hostname کدام است و آیا service همین نام را دارد؟ resolved config و service keys را مقایسه کن؛ فقط بعد از این شواهد مقدار را عوض کن.</p><p lang="en">Did Compose parse the file? Run <code>compose config</code>. Which service is alive? Use <code>compose ps -a</code>. What failed? Read <code>compose logs web postgres</code>. Which hostname is configured, and does a service with that name exist? Compare resolved config and service keys before changing anything.</p></details>
+  </div>
+</section>
+
+<section id="lab">
+  <h2><span lang="fa">آزمایشگاه: یک web و PostgreSQL قابل بازسازی</span><span lang="en">Lab: a reproducible web and PostgreSQL setup</span></h2>
+  <p class="lede" lang="fa">هدف این lab این نیست که یک فایل را کپی کنی. می‌خواهیم از setup دستی به یک project قابل بازسازی برسیم، بعد عمداً hostname را خراب کنیم، مسیر خطا را بخوانیم و در پایان فرق نگه‌داشتن و حذف داده را با یک ردیف آزمایشی ثابت کنیم.</p>
+  <p class="lede" lang="en">The goal is not to copy a file. We will turn a manual setup into a reproducible project, deliberately break its hostname, trace the failure, and use one disposable row to prove the difference between preserving and deleting data.</p>
+  <h3><span lang="fa">اول project را بسازیم و فایل را بخوانیم</span><span lang="en">First, create the project and inspect its file</span></h3>
+  <p lang="fa">یک پوشهٔ تازه به نام <code>compose-lab</code> بساز و زیرپوشهٔ <code>web</code> را هم اضافه کن. سه فایل برنامه را از بخش build داخل <code>web</code> بگذار و فایل نهایی را با نام <code>compose.yaml</code> کنار آن قرار بده. پوشهٔ تازه مهم است: volumeای که آخر lab حذف می‌کنیم فقط دادهٔ دورریختنی همین تمرین را دارد.</p>
+  <p lang="en">Create a fresh <code>compose-lab</code> folder with a <code>web</code> subfolder. Put the three application files from the build section in <code>web</code>, and place the final <code>compose.yaml</code> beside it. The fresh folder matters: the volume removed at the end will contain only disposable lab data.</p>
+  <p lang="fa">قبل از ساخت resourceها، از پوشهٔ project این command را بزن. اگر YAML بدفرم باشد، هنوز هیچ container یا volumeای نساخته‌ایم.</p>
+  <p lang="en">Run this from the project directory before creating resources. If the YAML is malformed, no containers or volumes have been created yet.</p>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">read the resolved model first</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">$ docker compose config
+name: compose-lab
+services:
+  postgres:
+    image: postgres:17
+    volumes:
+      - type: volume
+        source: pg-data
+        target: /var/lib/postgresql/data
+  web:
+    build:
+      context: .../compose-lab/web
+    depends_on:
+      - postgres
+    ports:
+      - target: 3000
+        published: "8080"
+...
+volumes:
+  pg-data: {}</pre>
+  </div>
+  <p lang="fa">در خروجی دنبال سه قرارداد بگرد: web از <code>./web</code> build می‌شود، database داده را در named volume می‌نویسد، و فقط port web روی host منتشر شده است. اگر hostname یا target volume اشتباه باشد، حالا ارزان‌تر است که فایل را اصلاح کنی.</p>
+  <p lang="en">Look for three contracts: web builds from <code>./web</code>, the database writes to a named volume, and only web is published to the host. If a hostname or volume target is wrong, fixing the file now is cheaper.</p>
+
+  <h3><span lang="fa">حالا baseline را بالا بیاوریم</span><span lang="en">Now bring up a working baseline</span></h3>
+  <p lang="fa">وقتی config معنی‌دار شد، <code>up -d --build</code> هم image web را می‌سازد و هم project را در پس‌زمینه اجرا می‌کند. بلافاصله بعدش status را بخوان؛ Compose توانسته container را شروع کند، اما باید ببینیم هر process چه وضعی دارد.</p>
+  <p lang="en">Once the config is valid, <code>up -d --build</code> builds the web image and starts the project in the background. Read the status right afterward: Compose may have started containers, but we still need to see what each process is doing.</p>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">build, start, and inspect state</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">$ docker compose up -d --build
+[+] Building ...
+[+] Running 3/3
+ ✔ Network compose-lab_default       Created
+ ✔ Volume compose-lab_pg-data        Created
+ ✔ Container compose-lab-postgres-1 Started
+ ✔ Container compose-lab-web-1      Started
+
+$ docker compose ps -a
+NAME                       SERVICE    STATUS          PORTS
+compose-lab-postgres-1     postgres   Up 6 seconds    5432/tcp
+compose-lab-web-1          web        Up 5 seconds    127.0.0.1:8080-&gt;3000/tcp</pre>
+  </div>
+  <p lang="fa">حالا host از درِ publish شده web را امتحان می‌کند. در PowerShell نام <code>curl.exe</code> را صریح می‌نویسیم تا با alias خود PowerShell اشتباه نشود. JSON باید database با نام <code>lesson</code> را گزارش کند.</p>
+  <p lang="en">Now the host tests web through the published entry. In PowerShell, writing <code>curl.exe</code> explicitly avoids confusion with PowerShell's curl alias. The JSON should report a database named <code>lesson</code>.</p>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">host request and service logs</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">PS&gt; curl.exe --fail http://127.0.0.1:8080
+{"name":"lesson","time":"2026-09-24T..."}
+
+$ docker compose logs --tail=10 web postgres
+web-1      | web listening on 0.0.0.0:3000
+postgres-1 | database system is ready to accept connections
+
+$ docker compose logs -f web
+web-1      | web listening on 0.0.0.0:3000</pre>
+  </div>
+  <p lang="fa">وقتی <code>logs -f</code> را اجرا کردی، خروجی زنده را ببین و با Ctrl+C فقط از حالت follow بیرون بیا. بعد با <code>exec</code> وارد همان service شو و یک ردیف آزمایشی بساز؛ <code>-T</code> برای فرمان غیرتعاملی، terminal مجازی را خاموش می‌کند.</p>
+  <p lang="en">Watch the live output from <code>logs -f</code>, then press Ctrl+C to stop following. Use <code>exec</code> to enter the existing service and create one disposable row; <code>-T</code> disables the pseudo-terminal for a non-interactive command.</p>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">prove the internal service connection</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">$ docker compose exec -T postgres psql -U lesson -d lesson \
+  -c "CREATE TABLE IF NOT EXISTS memo (body text); INSERT INTO memo VALUES ('compose-kept-it');"
+CREATE TABLE
+INSERT 0 1
+
+$ docker compose exec -T postgres psql -U lesson -d lesson \
+  -c "SELECT body FROM memo;"
+      body
+-----------------
+ compose-kept-it
+(1 row)</pre>
+  </div>
+  <p lang="fa">این query از terminal host با <code>exec</code> اجرا شد؛ خود web هم جداگانه از طریق <code>postgres:5432</code> وصل می‌شود. هیچ publishای برای ۵۴۳۲ نداریم. دو مسیر را از هم نگه دار: host-to-web و web-to-database.</p>
+  <p lang="en">This query ran from the host terminal through <code>exec</code>; web separately connects through <code>postgres:5432</code>. Port 5432 is not published. Keep the two paths distinct: host-to-web and web-to-database.</p>
+
+  <h3><span lang="fa">data را نگه دار، بعد hostname را عمداً خراب کن</span><span lang="en">Keep the data, then deliberately break the hostname</span></h3>
+  <p lang="fa">اول project را با <code>down</code> جمع می‌کنیم؛ این کار container و network را حذف می‌کند و named volume را نگه می‌دارد. بعد دوباره بالا می‌آوریم و همان query را تکرار می‌کنیم. اگر ردیف برگشت، چرخهٔ عمر فصل ۰۶ را در Compose هم دیده‌ای.</p>
+  <p lang="en">First tear the project down with <code>down</code>; that removes containers and network while preserving the named volume. Bring it up again and repeat the query. If the row returns, you have seen Chapter 6's lifecycle inside Compose too.</p>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">down and up preserve the named volume</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">$ docker compose down
+[+] Running 3/3
+ ✔ Container compose-lab-web-1      Removed
+ ✔ Container compose-lab-postgres-1 Removed
+ ✔ Network compose-lab_default      Removed
+
+$ docker compose up -d
+[+] Running 3/3
+ ✔ Network compose-lab_default       Created
+ ✔ Container compose-lab-postgres-1 Started
+ ✔ Container compose-lab-web-1      Started
+
+$ docker compose exec -T postgres psql -U lesson -d lesson \
+  -c "SELECT body FROM memo;"
+      body
+-----------------
+ compose-kept-it
+(1 row)</pre>
+  </div>
+  <p lang="fa">حالا درخواست اول را بشکنیم. در فایل، <code>DB_HOST</code> را از <code>postgres</code> به <code>localhost</code> عوض کن و <code>docker compose up -d</code> بزن. از host به <code>127.0.0.1:8080</code> درخواست بده؛ browser هنوز به web می‌رسد، اما web دنبال database داخل خودش می‌گردد.</p>
+  <p lang="en">Now break the first request. Change <code>DB_HOST</code> from <code>postgres</code> to <code>localhost</code> and run <code>docker compose up -d</code>. Request <code>127.0.0.1:8080</code> from the host: the browser still reaches web, but web now looks for a database inside itself.</p>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">trace the wrong destination before repairing it</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">PS&gt; curl.exe -i http://127.0.0.1:8080
+HTTP/1.1 503 Service Unavailable
+database is not ready yet
+
+$ docker compose logs --tail=5 web
+web-1 | database request failed: connect ECONNREFUSED 127.0.0.1:5432</pre>
+  </div>
+  <p lang="fa">خطا پیش از PostgreSQL رخ داده: web به loopback خودش وصل شده و آنجا listenerای روی ۵۴۳۲ نیست. مقدار را به <code>postgres</code> برگردان، <code>docker compose config</code> را ببین و سپس <code>up -d</code> بزن تا config تازه اعمال شود. پاسخ HTTP باید دوباره موفق شود.</p>
+  <p lang="en">The failure happened before reaching PostgreSQL: web connected to its own loopback, where nothing listens on 5432. Restore <code>postgres</code>, inspect with <code>docker compose config</code>, then run <code>up -d</code> to apply the configuration. The HTTP request should succeed again.</p>
+
+  <h3><span lang="fa">پایان کار: اثر cleanup را خودت ببین</span><span lang="en">Finish by observing cleanup's effect</span></h3>
+  <p lang="fa">فایل نهایی از قبل <code>depends_on</code> دارد. اجرای سرد را از اول انجام بده و logهای web و postgres را کنار هم بخوان. در یک ماشین سریع شاید اولین query از همان ابتدا موفق شود؛ در ماشین دیگر ممکن است web موقتاً ۵۰۳ بدهد. هر دو با startup order سازگارند، چون آماده‌بودن database تضمین نشده و برنامهٔ ما خطا را برمی‌گرداند و زنده می‌ماند.</p>
+  <p lang="en">The final file already includes <code>depends_on</code>. Start cold and read web and PostgreSQL logs together. On a fast machine the first query may succeed immediately; on another, web may briefly return 503. Both are consistent with startup ordering because database readiness is not guaranteed and our app reports the error while staying alive.</p>
+  <p lang="fa">بعد از بررسی، <code>docker compose down</code> بزن و در <code>docker volume ls</code> دنبال <code>compose-lab_pg-data</code> بگرد. چون این project را در پوشهٔ تازه ساختی و داده‌اش آزمایشی است، حالا می‌توانی فرمان پاک‌کننده را هم اجرا کنی.</p>
+  <p lang="en">After inspecting, run <code>docker compose down</code> and look for <code>compose-lab_pg-data</code> in <code>docker volume ls</code>. Because this project lives in a fresh folder and its data is disposable, you can now demonstrate the destructive cleanup command.</p>
+  <div class="term">
+    <div class="term-bar"><span class="term-label">destructive cleanup · this lab's disposable volume only</span><button class="copy">کپی</button></div>
+    <pre dir="ltr">$ docker compose down --volumes
+[+] Running 1/1
+ ✔ Volume compose-lab_pg-data Removed
+
+$ docker volume ls
+DRIVER    VOLUME NAME
+local     ...</pre>
+  </div>
+  <p lang="fa">حالا می‌دانی یک فایل می‌تواند resourceها را مرتب کند، اما تشخیص را از تو نمی‌گیرد: Compose orchestration را انجام می‌دهد، Engine containerها را اجرا می‌کند، service name روی network مقصد داخلی است و volume data را نگه می‌دارد. وقتی خطا دیدی، هنوز باید caller، hostname، port و چرخهٔ عمر را بفهمی.</p>
+  <p lang="en">A file can organize resources without doing the diagnosis for you: Compose orchestrates, Engine runs the containers, service names identify internal destinations, and volumes keep data. When something fails, you still need to understand the caller, hostname, port, and resource lifetime.</p>
+</section>
+
+<section id="handoff">
+  <h2><span lang="fa">حالا یک فایل داریم؛ فصل بعد چه چیزی را مرتب می‌کند؟</span><span lang="en">We have one file; what does the next chapter organize?</span></h2>
+  <p lang="fa">اکنون می‌توانیم یک network، volume، database و web را با یک فایل توصیف و با یک دستور بالا بیاوریم. هنوز باید بدانیم محیط‌ها چطور تنظیم می‌شوند و رمزها کجا نگه داشته شوند. فصل ۰۹ همین بخش را باز می‌کند؛ اینجا فقط متغیرهای لازم برای lab را مستقیم و با مقدار آزمایشی استفاده کردیم.</p>
+  <p lang="en">We can now describe a network, volume, database, and web service in one file and start them with one command. We still need to decide how environments are configured and where credentials belong. Chapter 9 handles that; here we used only the lab values directly.</p>
+  <div class="table-wrap">
+    <table class="doc-table">
+      <thead><tr><th>سؤال</th><th>جواب این فصل</th><th>مرز فصل بعد/بعدتر</th></tr></thead>
+      <tbody>
+        <tr><td>چند container را چطور تکرارپذیر اجرا کنم؟</td><td><code>compose.yaml</code> و <code>docker compose up</code></td><td>قواعد پیشرفتهٔ اجرای production اینجا نیست</td></tr>
+        <tr><td>web چطور database را پیدا می‌کند؟</td><td>service name روی project network</td><td>localhost یعنی خود caller</td></tr>
+        <tr><td>داده بعد از down کجا می‌ماند؟</td><td>named volume می‌ماند تا حذفش کنی</td><td><code>down --volumes</code> داده را پاک می‌کند</td></tr>
+        <tr><td>database حتماً آماده است؟</td><td><code>depends_on</code> ترتیب startup می‌دهد</td><td>healthcheck فصل ۱۰ است</td></tr>
+        <tr><td>رمز را چطور نگه دارم؟</td><td>فقط مقدار lab برای تمرین</td><td>environment و secret در فصل ۰۹</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="quick">
+  <h2><span lang="fa">مرجع سریع</span><span lang="en">Quick reference</span></h2>
+  <div class="cheat">
+    <div class="cheat-row"><code>docker compose config</code><span lang="fa">مدل parse/resolved را پیش از اجرا ببین</span><span lang="en">inspect the parsed and resolved model before running</span></div>
+    <div class="cheat-row"><code>docker compose up -d</code><span lang="fa">serviceها را در پس‌زمینه بساز/هماهنگ کن و start کن</span><span lang="en">create or reconcile services and start them detached</span></div>
+    <div class="cheat-row"><code>docker compose up -d --build</code><span lang="fa">image لازم را build کن و project را بالا بیاور</span><span lang="en">build required images and bring up the project</span></div>
+    <div class="cheat-row"><code>docker compose ps -a</code><span lang="fa">status containerهای service را ببین</span><span lang="en">inspect service container states</span></div>
+    <div class="cheat-row"><code>docker compose logs -f web</code><span lang="fa">خروجی زندهٔ web را دنبال کن</span><span lang="en">follow web output live</span></div>
+    <div class="cheat-row"><code>docker compose exec postgres psql ...</code><span lang="fa">command را در container موجود اجرا کن</span><span lang="en">run a command in the existing container</span></div>
+    <div class="cheat-row"><code>docker compose stop / start / restart</code><span lang="fa">containerهای موجود را متوقف، start یا restart کن</span><span lang="en">stop, start, or restart existing containers</span></div>
+    <div class="cheat-row"><code>docker compose down</code><span lang="fa">container و network را بردار؛ named volume بماند</span><span lang="en">remove containers and network; keep named volumes</span></div>
+    <div class="cheat-row"><code>docker compose down --volumes</code><span lang="fa">named/anonymous volumeهای project را هم حذف کن</span><span lang="en">also remove project named and anonymous volumes</span></div>
+  </div>
+  <p lang="fa">برای مرجع رسمی از <a href="https://docs.docker.com/compose/intro/compose-application-model/">مدل application در Compose</a>، <a href="https://docs.docker.com/compose/how-tos/networking/">شبکه و service name</a>، <a href="https://docs.docker.com/compose/how-tos/startup-order/">ترتیب startup و depends_on</a>، <a href="https://docs.docker.com/reference/cli/docker/compose/up/">رفتار up و build</a> و <a href="https://docs.docker.com/reference/cli/docker/compose/down/">رفتار down و volumeها</a> استفاده کن. جزئیات commandها ممکن است با نسخهٔ Compose فرق کند.</p>
+  <p lang="en">For official reference, see the <a href="https://docs.docker.com/compose/intro/compose-application-model/">Compose application model</a>, <a href="https://docs.docker.com/compose/how-tos/networking/">networking and service names</a>, <a href="https://docs.docker.com/compose/how-tos/startup-order/">startup order and depends_on</a>, <a href="https://docs.docker.com/reference/cli/docker/compose/up/">up and rebuild behavior</a>, and <a href="https://docs.docker.com/reference/cli/docker/compose/down/">down and volume behavior</a>. Command details can vary by Compose version.</p>
+</section>

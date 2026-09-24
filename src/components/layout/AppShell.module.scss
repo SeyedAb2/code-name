@@ -26,3 +26,15 @@
 
   a { color: var(--ink-soft); }
 }
+
+/* همان نشان نوار بالا، کوچک‌تر — تا پاورقی هم امضای سایت را داشته باشد */
+.footerBrand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+
+  img {
+    border-radius: 8px;
+    flex: none;
+  }
+}

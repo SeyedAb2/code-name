@@ -1,0 +1,617 @@
+<!--meta
+title: اجرا، لاگ، exec و پورت
+desc: از docker run تا عیب‌یابی یک container واقعی: lifecycle، process، logs، exec، exit code، port publishing، inspect و workflow تشخیص.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">Docker · فصل ۳</span><span lang="en">Docker · Chapter 3</span></span>
+<h1 lang="fa">اجرا، لاگ، exec و پورت</h1>
+<h1 lang="en">Running containers, logs, exec, and ports</h1>
+<p class="sub" lang="fa">حالا Docker سالم است و وقت کار با container واقعی رسیده. این فصل می‌خواهد کاری کند که وقتی یک container ناپدید شد، فوراً بسته شد یا با وجود Running بودن از مرورگر باز نشد، به‌جای حدس‌زدن بتوانی قدم‌به‌قدم بفهمی چه اتفاقی افتاده است.</p>
+<p class="sub" lang="en">In Chapter 2 we proved the Engine was healthy. Now the question changes: once a container exists, how do we reason about its state, main process, logs, exit behavior, and a service that can be Running yet still unreachable from the browser?</p>
+<div class="facts">
+<div class="fact"><b>۸۵</b><span lang="fa">دقیقهٔ مطالعه و اجرا</span><span lang="en">minutes</span></div>
+<div class="fact"><b>۱۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></div>
+<div class="fact"><b>۴</b><span lang="fa">نمودار مفهومی</span><span lang="en">diagrams</span></div>
+<div class="fact"><b>۱</b><span lang="fa">آزمایشگاه عملی</span><span lang="en">hands-on lab</span></div>
+</div>
+</div>
+<section id="bridge">
+<h2><span lang="fa">hello-world کجا رفت؟</span><span lang="en">Run hello-world slowly this time</span></h2>
+<p class="lede" lang="fa">در فصل قبل hello-world را اجرا کردیم و پیامش را دیدیم. حالا یک سؤال ساده: بعد از چاپ آن پیام، container هنوز زنده است یا تمام شده؟ و اگر تمام شده، آیا پاک هم شده؟ بیایید به‌جای جواب حفظی، خودمان ببینیم.</p>
+<p class="lede" lang="en">In the previous chapter, <code>docker run hello-world</code> was a health check. Now we use the same command as a lifecycle experiment. Predict first: after the message prints, is the container still Running? If not, has it disappeared completely?</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">first observation</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker run hello-world
+
+docker ps
+docker ps -a --filter ancestor=hello-world</pre>
+</div>
+<div class="term">
+<div class="term-bar"><span class="term-label">representative result</span></div>
+<pre dir="ltr">Hello from Docker!
+...
+
+# docker ps
+CONTAINER ID   IMAGE   COMMAND   CREATED   STATUS   PORTS   NAMES
+
+# docker ps -a
+CONTAINER ID   IMAGE         STATUS                      NAMES
+a1b2c3d4e5f6   hello-world   Exited (0) 4 seconds ago    lucid_morse</pre>
+</div>
+<p lang="fa">اگر docker ps چیزی نشان نداد، عجله نکن و نگو «پس هیچ containerی ساخته نشد». این دستور فقط containerهای در حال اجرا را نشان می‌دهد. با docker ps -a می‌بینی همان container هنوز وجود دارد، فقط پردازشش تمام شده و وضعیتش Exited است.</p>
+<p lang="en"><code>docker ps</code> lists only Running containers, so an empty table does not mean “no container was created.” <code>docker ps -a</code> reveals the container identity and history: it was created, its process ran, exited with code zero, and the state became Exited.</p>
+<div class="note safe">
+<div class="note-t"><span lang="fa">image و container را از همین‌جا جدا نگه دار</span><span lang="en">Keep image and container separate from here on</span></div>
+<p lang="fa">image الگو/خروجی ساخته‌شده است؛ container یک instance با شناسه و وضعیت خودش. می‌توانی از یک image ده container بسازی و هرکدام چرخهٔ عمر مستقلی داشته باشند.</p>
+<p lang="en">An image is the artifact/template; a container is an instance with its own identity and state. You can create ten containers from one image and each has an independent lifecycle.</p>
+</div>
+</section>
+<section id="run">
+<h2><span lang="fa">docker run پشت صحنه چه کارهایی می‌کند؟</span><span lang="en"><code>docker run</code> looks like one action, but several stages happen underneath</span></h2>
+<p lang="fa">وقتی docker run IMAGE می‌زنی، از بیرون فقط یک دستور می‌بینی. اما Docker چند کار را پشت سر هم انجام می‌دهد: image را پیدا می‌کند، اگر لازم باشد می‌گیرد، یک container از روی آن می‌سازد و بعد پردازش اصلی را راه می‌اندازد. فهم همین چند مرحله بعداً خیلی از خطاها را قابل‌فهم می‌کند.</p>
+<p lang="en"><code>docker run IMAGE</code> is one command from the user’s perspective. Conceptually, the Engine resolves the image, pulls if policy requires and the image is absent, creates container identity/configuration, starts the main process, and in foreground mode attaches its streams to the CLI.</p>
+<div class="diagram">
+<svg aria-labelledby="d3-run-flow" role="img" viewbox="0 0 900 285">
+<title id="d3-run-flow">Conceptual docker run flow</title>
+<defs><marker id="d3-run-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<g class="dg-stroke-b" marker-end="url(#d3-run-arrow)" stroke-width="2">
+<path d="M150 140h50"></path><path d="M340 140h50"></path><path d="M530 140h50"></path><path d="M720 140h50"></path>
+</g>
+<g text-anchor="middle">
+<rect class="dg-fill-b" height="90" rx="10" width="130" x="20" y="95"></rect><text class="dg-t" x="85" y="128">CLI</text><text class="dg-ts" x="85" y="154">run request</text>
+<rect class="dg-fill" height="90" rx="10" width="140" x="200" y="95"></rect><text class="dg-t" x="270" y="128">image</text><text class="dg-ts" x="270" y="154">resolve / pull</text>
+<rect class="dg-fill-v" height="90" rx="10" width="140" x="390" y="95"></rect><text class="dg-t" x="460" y="128">create</text><text class="dg-ts" x="460" y="154">identity + config</text>
+<rect class="dg-fill-g" height="90" rx="10" width="140" x="580" y="95"></rect><text class="dg-t" x="650" y="128">start</text><text class="dg-ts" x="650" y="154">main process</text>
+<rect class="dg-fill-w" height="90" rx="10" width="110" x="770" y="95"></rect><text class="dg-t" x="825" y="128">state</text><text class="dg-ts" x="825" y="154">Running / Exited</text>
+</g>
+</svg>
+<p class="diagram-cap" lang="fa">این نمودار وابستگی/flow مفهومی را نشان می‌دهد؛ دستور واقعی Engine جزئیات پیاده‌سازی بیشتری دارد. نکتهٔ آموزشی این است که «اجرا» هم ساخت دارد هم راه‌اندازی.</p>
+<p class="diagram-cap" lang="en">This is a conceptual flow rather than an implementation trace. The teaching point is that “run” includes both create and start.</p>
+</div>
+<p lang="fa">برای اینکه این دو مرحله را ببینی، یک بار میان‌بُر را کنار بگذار:</p>
+<p lang="en">To make those stages visible, temporarily avoid the shortcut:</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">create vs start</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker create --name created-demo hello-world
+docker ps -a --filter name=created-demo
+
+docker start -a created-demo
+docker ps -a --filter name=created-demo
+
+docker rm created-demo</pre>
+</div>
+<p lang="fa">بعد از <code>create</code> شناسه و تنظیمات وجود دارد ولی پردازش هنوز شروع نشده و وضعیت معمولاً Created است. <code>start -a</code> همان container را اجرا می‌کند؛ container دوم نمی‌سازد. <code>-a</code> خروجی را اتصال می‌کند تا hello-world را ببینی.</p>
+<p lang="en">After <code>create</code>, identity and configuration exist but the process has not started, so state is normally Created. <code>start -a</code> runs that same container rather than creating another one. <code>-a</code> attaches output so you can observe hello-world.</p>
+</section>
+<section id="lifecycle">
+<h2><span lang="fa">توقف container با حذف‌شدنش یکی نیست</span><span lang="en">Read lifecycle from state, not guesswork</span></h2><p class="lede" lang="fa">یک container را مثل برنامه‌ای تصور کن که پرونده‌ای برای خودش دارد. ممکن است برنامه تمام شود، اما پروندهٔ container هنوز باقی بماند؛ برای همین بعد از توقف هم می‌توانی وضعیت، کد خروج و لاگ‌هایش را ببینی.</p>
+<div class="diagram">
+<svg aria-labelledby="d3-state-flow" role="img" viewbox="0 0 900 300">
+<title id="d3-state-flow">Container lifecycle</title>
+<defs><marker id="d3-state-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<g class="dg-stroke-b" marker-end="url(#d3-state-arrow)" stroke-width="2">
+<path d="M165 145h65"></path><path d="M390 145h65"></path><path d="M615 145h65"></path>
+</g>
+<g text-anchor="middle">
+<rect class="dg-fill-b" height="100" rx="10" width="145" x="20" y="95"></rect><text class="dg-t" x="92" y="130">Image</text><text class="dg-ts" x="92" y="158">create</text>
+<rect class="dg-fill-w" height="100" rx="10" width="160" x="230" y="95"></rect><text class="dg-t" x="310" y="130">Created</text><text class="dg-ts" x="310" y="158">start</text>
+<rect class="dg-fill-g" height="100" rx="10" width="160" x="455" y="95"></rect><text class="dg-t" x="535" y="130">Running</text><text class="dg-ts" x="535" y="158">stop / process exit</text>
+<rect class="dg-fill" height="100" rx="10" width="180" x="680" y="95"></rect><text class="dg-t" x="770" y="130">Exited</text><text class="dg-ts" x="770" y="158">start again or rm</text>
+</g>
+</svg>
+<p class="diagram-cap" lang="fa">توقف به معنی remove نیست. container می‌تواند Exited باشد و شناسه، تنظیمات و لاگ‌ها آن هنوز وجود داشته باشند تا وقتی که حذفش کنی.</p>
+<p class="diagram-cap" lang="en">Stopping is not removal. A container can be Exited while its identity, configuration, and logs remain until you remove it.</p>
+</div>
+<div class="term">
+<div class="term-bar"><span class="term-label">state transitions</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker run -d --name web nginx:alpine
+docker ps --filter name=web
+
+docker stop web
+docker ps
+docker ps -a --filter name=web
+
+docker start web
+docker restart web
+
+docker inspect web --format \
+'status={{.State.Status}} running={{.State.Running}} exit={{.State.ExitCode}}'</pre>
+</div>
+<p lang="fa">هر دستور یک وضعیت transition مشخص دارد. <code>stop</code> پردازش اصلی را متوقف می‌کند ولی مورد را نگه می‌دارد. <code>start</code> همان شناسه را دوباره راه می‌اندازد. <code>restart</code> convenience operation است؛ container جدیدی نمی‌سازد.</p>
+<p lang="en">Each command has a specific state effect. <code>stop</code> stops the main process while keeping the object. <code>start</code> runs the same identity again. <code>restart</code> is a convenience operation; it does not create a new container.</p>
+</section>
+<section id="foreground">
+<h2><span lang="fa">چرا یک بار ترمینال گیر می‌کند و یک بار آزاد می‌ماند؟</span><span lang="en">Foreground and detached: the difference is CLI attachment, not whether the process is real</span></h2>
+<p lang="fa">برای دیدن تفاوت، یک سرویس واقعی‌تر لازم داریم. Nginx را اول بدون -d اجرا می‌کنیم. این‌بار ترمینال آزاد نمی‌شود، چون CLI هنوز به اجرای container وصل است. بعد همان مثال را جداشده اجرا می‌کنیم تا فرقشان را با چشم ببینیم.</p>
+<p lang="en">We need a long-running service, so use the official <code>nginx:alpine</code> image. First run it without <code>-d</code>:</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">foreground</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker run --name foreground-web nginx:alpine
+# observe startup output
+# press Ctrl+C
+
+docker ps
+docker ps -a --filter name=foreground-web</pre>
+</div>
+<p lang="fa">وقتی در حالت متصل Ctrl+C می‌زنی، وقفه به پردازش اصلی می‌رسد و در این مثال Nginx متوقف می‌شود. مهم است این را با docker stop یکی نگیری؛ چیزی که می‌بینی نتیجهٔ نحوهٔ اتصال ترمینال و مدیریت سیگنال توسط همان پردازش است.</p>
+<p lang="en">In attached mode, the CLI is connected to the container process streams, so the terminal remains occupied. When you press <code>Ctrl+C</code>, an interrupt/signal travels through the attachment path to the main process, and in this scenario Nginx stops. Do not simplify this into “Docker always ran stop”; exact behavior depends on attachment and the process’s signal handling.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">detached</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker run -d --name web nginx:alpine
+docker ps --filter name=web</pre>
+</div>
+<p lang="fa"><code>-d</code> پردازش را «background Linux پردازش معمولی روی شل تو» نمی‌کند؛ container را راه‌اندازی می‌کند و CLI بعد از گرفتن شناسه برمی‌گردد، درحالی‌که Engine چرخهٔ عمر پردازش را ادامه می‌دهد.</p>
+<p lang="en"><code>-d</code> does not turn the workload into an ordinary background process of your shell. It starts the container and returns control to the CLI while the Engine continues managing the process lifecycle.</p>
+<h3 lang="fa">name collision یک مشکل برنامه نیست</h3>
+<h3 lang="en">A name collision is not an application failure</h3>
+<div class="term"><div class="term-bar"><span class="term-label">intentional collision</span></div><pre dir="ltr">docker run -d --name web nginx:alpine
+
+docker: Error response from daemon:
+Conflict. The container name "/web" is already in use.
+
+docker ps -a --filter name=web</pre></div>
+<p lang="fa">Engine حتی به مرحلهٔ راه‌اندازی Nginx جدید نرسیده؛ شناسه موردنظر از قبل اشغال است. بنابراین debug کردن image یا پورت اشتباه است. مورد موجود را پیدا کن و تصمیم بگیر استفادهٔ دوباره، rename یا remove شود.</p>
+<p lang="en">The Engine never reached the point of starting a new Nginx process; the requested identity is already taken. Debugging the image or port is therefore the wrong direction. Find the existing object and decide whether to reuse, rename, or remove it.</p>
+</section>
+<section id="logs">
+<h2><span lang="fa">اگر برنامه چیزی برای گفتن داشته باشد، کجا دنبالش بگردیم؟</span><span lang="en">Logs: what did the process write to stdout and stderr?</span></h2>
+<p class="lede" lang="fa">فرض کن container بالا آمده ولی نمی‌دانی داخلش چه می‌گذرد. اولین جای خوب برای سرک‌کشیدن معمولاً لاگ‌هاست. برنامه‌های containerized معمولاً پیام‌هایشان را روی stdout و stderr می‌نویسند و Docker، بسته به تنظیم ثبت لاگ، می‌تواند آن‌ها را با docker logs در اختیارت بگذارد.</p>
+<p class="lede" lang="en">Many containerized applications write normal logs to stdout and errors to stderr. Docker captures those streams through the container’s logging configuration, and with drivers that support reading, <code>docker logs</code> returns them. It is not shell history; it is process/application output.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">read and follow logs</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker logs web
+docker logs --tail 20 web
+docker logs -f web</pre>
+</div>
+<p lang="fa">docker logs -f یعنی «از این لحظه به بعد هم پیام‌های جدید را نشانم بده». اگر روی همین دستور Ctrl+C بزنی، فقط دنبال‌کردن لاگ را قطع می‌کنی. container باید همچنان در حال اجرا باشد؛ با docker ps خودت بررسی‌اش کن.</p>
+<p lang="en"><code>docker logs -f</code> is not just a snapshot; it follows new log output. Pressing <code>Ctrl+C</code> on the logs command stops the following client, not the container. Verify that claim with <code>docker ps</code> afterward.</p>
+<div class="note warn">
+<div class="note-t"><span lang="fa">ثبت لاگ درایور جزئیات مهمی دارد</span><span lang="en">Logging drivers matter</span></div>
+<p lang="fa">برای این فصل فرض می‌کنیم ثبت لاگ تنظیمات از <code>docker logs</code> پشتیبانی می‌کند. اگر container با driverای اجرا شود که خواندن را پشتیبانی نمی‌کند—مثلاً ثبت لاگ را عمداً غیرفعال کرده باشی—رفتار متفاوت است. جزئیات درایورها را فعلاً وارد scope نمی‌کنیم.</p>
+<p lang="en">This chapter assumes the container’s logging configuration supports <code>docker logs</code>. A driver that does not support reading—or logging disabled entirely—changes the behavior. Logging-driver configuration is intentionally outside this chapter’s scope.</p>
+</div>
+</section>
+<section id="log-request">
+<h2><span lang="fa">یک درخواست بفرست تا لاگ معنی پیدا کند</span><span lang="en">Generate a real request so logs are not just decorative text</span></h2>
+<p lang="fa">دیدن چند خط لاگ آماده خیلی آموزشی نیست. بهتر است خودمان یک درخواست بسازیم و بعد همان درخواست را در لاگ پیدا کنیم. برای این کار Nginx را روی یک پورت از سیستم خودمان در دسترس قرار می‌دهیم و با curl به آن درخواست می‌زنیم.</p>
+<p lang="en">To generate a request log, run Nginx with a published port. We use the syntax now, then unpack its meaning carefully in the ports section.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">request + log evidence</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker rm -f web 2&gt;/dev/null || true
+docker run -d --name web -p 8080:80 nginx:alpine
+
+curl -I http://localhost:8080
+docker logs --tail 5 web</pre>
+</div>
+<div class="term">
+<div class="term-bar"><span class="term-label">representative Nginx log</span></div>
+<pre dir="ltr">127.0.0.1 - - [23/Sep/2026:10:15:22 +0000]
+"HEAD / HTTP/1.1" 200 0 "-" "curl/8.x" "-"</pre>
+</div>
+<p lang="fa">حالا لاگ یک مشاهده قابل‌اتصال به رفتار واقعی است: متد، مسیر و وضعیت کد همان درخواست را نشان می‌دهد. اگر مرورگر می‌گوید خطا ولی هیچ درخواست لاگ جدیدی نمی‌آید، ممکن است مشکل قبل از رسیدن درخواست به برنامه باشد—مثلاً پورت نگاشت.</p>
+<p lang="en">Now the log is tied to a real observation: method, path, and status code correspond to the request you sent. If the browser fails and no new request log appears, the problem may be before the application receives the request—for example at port publishing.</p>
+</section>
+<section id="exec">
+<h2><span lang="fa">docker exec یعنی یک پردازش تازه در همان container</span><span lang="en"><code>docker exec</code>: you are not entering a “new container”; you are starting another process</span></h2>
+<p lang="fa">وقتی می‌گویی «وارد container شدم»، از نظر فنی اتفاق دقیق‌تری افتاده: docker exec یک دستور تازه را داخل همان container در حال اجرا راه می‌اندازد. container دوم ساخته نمی‌شود و image هم تغییر نمی‌کند. فقط یک پردازش دیگر کنار پردازش اصلی اجرا می‌شود.</p>
+<p lang="en"><code>docker exec</code> runs another command inside an existing Running container. It creates neither a new image nor a second container. The exec process exists only while the container’s primary process is running.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">exec experiments</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker exec web nginx -v
+docker exec web pwd
+docker exec -it web sh</pre>
+</div>
+<div class="table-wrap">
+<table class="doc-table">
+<thead><tr><th>Part</th><th>Meaning</th><th>Common misunderstanding</th></tr></thead>
+<tbody>
+<tr><td><code>exec</code></td><td><span lang="fa">دستور تازه در container Running</span><span lang="en">new command in a Running container</span></td><td><span lang="fa">container جدید نمی‌سازد</span><span lang="en">does not create a new container</span></td></tr>
+<tr><td><code>-i</code></td><td><span lang="fa">STDIN را باز نگه می‌دارد</span><span lang="en">keeps STDIN open</span></td><td><span lang="fa">به‌تنهایی ترمینال کامل نمی‌سازد</span><span lang="en">does not alone allocate a terminal</span></td></tr>
+<tr><td><code>-t</code></td><td><span lang="fa">pseudo-TTY می‌سازد</span><span lang="en">allocates a pseudo-TTY</span></td><td><span lang="fa">برای دستور غیرinteractive همیشه لازم نیست</span><span lang="en">not required for every noninteractive command</span></td></tr>
+<tr><td><code>sh</code></td><td><span lang="fa">یک شل فایل اجرایی معمولاً موجود در imageهای کوچک</span><span lang="en">a shell commonly present in small images</span></td><td><span lang="fa"><code>bash</code> تضمین‌شده نیست</span><span lang="en"><code>bash</code> is not guaranteed</span></td></tr>
+</tbody>
+</table>
+</div>
+<div class="term">
+<div class="term-bar"><span class="term-label">expected failure</span></div>
+<pre dir="ltr">docker stop web
+docker exec web sh
+
+Error response from daemon:
+container ... is not running</pre>
+</div>
+<p lang="fa">این خطا خودش مدل را تأیید می‌کند: exec «محیط ذخیره‌شده‌ای که هر وقت خواستیم باز می‌کنیم» نیست؛ دستور جدیدی است که برای اجرا به container Running نیاز دارد.</p>
+<p lang="en">This error reinforces the model: exec is not “opening a saved environment at any time”; it starts a new command and therefore requires the container to be Running.</p>
+</section>
+<section id="pid1">
+<h2><span lang="fa">چرا زنده‌بودن پردازش اصلی، عمر container را تعیین می‌کند؟</span><span lang="en">Why does the main process matter so much? Container lifecycle is tied to it</span></h2>
+<p class="lede" lang="fa">hello-world سریع تمام شد ولی Nginx می‌تواند ساعت‌ها Running بماند. تفاوت اصلی در این است که پردازش اصلی آن‌ها چه می‌کند. تا وقتی پردازش اصلی زنده است، container هم Running می‌ماند؛ وقتی آن پردازش تمام شود، container از حالت Running خارج می‌شود.</p>
+<p class="lede" lang="en">You do not need every namespace or init-system detail yet. One practical rule is enough: a container’s lifecycle revolves around its primary process. When that process exits, the container leaves Running state.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">host-side process view</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker start web
+docker top web</pre>
+</div>
+<div class="term">
+<div class="term-bar"><span class="term-label">representative docker top output</span></div>
+<pre dir="ltr">UID   PID    PPID   C   STIME   TTY   TIME      CMD
+root  18432  18410  0   10:24   ?     00:00:00  nginx: master process nginx -g daemon off;
+101   18471  18432  0   10:24   ?     00:00:00  nginx: worker process</pre>
+</div>
+<p lang="fa"><code>docker top</code> processهای container را از دید Docker/سیستم میزبان ابزارها نشان می‌دهد؛ PIDهایی که می‌بینی الزاماً همان شماره‌هایی نیستند که پردازش داخل فضای نام PID خودش می‌بیند. نکتهٔ این فصل شماره PID نیست؛ رابطهٔ پردازش اصلی و Running وضعیت است.</p>
+<p lang="en"><code>docker top</code> shows container processes through Docker/host-side tooling; the host PIDs shown are not necessarily the same numbers a process sees inside its own PID namespace. The lesson here is not PID numbering; it is the relationship between the primary process and Running state.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">compare hello-world and nginx</span></div>
+<pre dir="ltr">docker run --name one-shot hello-world
+docker ps -a --filter name=one-shot
+
+docker run -d --name long-lived nginx:alpine
+docker ps --filter name=long-lived</pre>
+</div>
+<p lang="fa">hello-world یک کار کوتاه دارد؛ پردازش تمام می‌شود و container Exited می‌شود. Nginx master پردازش زنده می‌ماند، پس container Running می‌ماند. Docker «خودش تصمیم نگرفته» یکی را ببندد و دیگری را باز نگه دارد؛ چرخهٔ عمر پردازش تفاوت را ساخته است.</p>
+<p lang="en">hello-world performs a short task; the process ends and the container becomes Exited. Nginx keeps its master process alive, so the container remains Running. Docker did not arbitrarily choose one to keep alive; process lifecycle created the difference.</p>
+</section>
+<section id="exit-codes">
+<h2><span lang="fa">کد خروج یک سرنخ است، نه جواب نهایی</span><span lang="en">An exit code is evidence, not a complete diagnosis</span></h2>
+<p lang="fa">اگر container بسته شد، کد خروج یکی از اولین چیزهایی است که نگاه می‌کنیم. صفر معمولاً یعنی خود پردازش کارش را موفق تمام کرده و عدد غیرصفر یعنی مشکلی گزارش شده. اما خود عدد علت را توضیح نمی‌دهد؛ برای فهمیدن «چرا» باید لاگ و دستور اجرا را هم ببینیم.</p>
+<p lang="en">Exit code zero usually means the process reported successful completion by convention; non-zero indicates some failure or abnormal result. The number alone rarely explains why. Read it alongside the command, logs, and execution context.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">controlled exit-code experiment</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker run --name exit0 alpine sh -c 'exit 0'
+docker run --name exit7 alpine sh -c 'echo broken &gt;&amp;2; exit 7'
+
+docker inspect exit0 --format '{{.State.Status}} {{.State.ExitCode}}'
+docker inspect exit7 --format '{{.State.Status}} {{.State.ExitCode}}'
+docker logs exit7</pre>
+</div>
+<div class="term"><div class="term-bar"><span class="term-label">representative result</span></div><pre dir="ltr">exited 0
+exited 7
+
+broken</pre></div>
+<p lang="fa">برای exit7، عدد 7 می‌گوید پردازش موفق تمام نشده، ولی متن <code>broken</code> context بیشتری می‌دهد. در برنامه واقعی هم همین مدل را حفظ کن: وضعیت → کد خروج → لاگ‌ها → دستور/تنظیمات.</p>
+<p lang="en">For exit7, the number tells you the process did not report success, while <code>broken</code> gives more context. Use the same model for real apps: state → exit code → logs → command/configuration.</p>
+</section>
+<section id="remove">
+<h2><span lang="fa">قبل از پاک‌کردن container، چیزی برای بررسی باقی بگذار</span><span lang="en">Remove discards the object; collect useful evidence first</span></h2>
+<div class="term">
+<div class="term-bar"><span class="term-label">normal cleanup</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker stop web
+docker logs --tail 20 web
+docker inspect web --format '{{json .State}}'
+docker rm web</pre>
+</div>
+<p lang="fa">وقتی container خراب است، اولین واکنش خیلی‌ها این است که پاکش کنند و از نو بسازند. گاهی جواب می‌دهد، ولی یک مشکل دارد: همان چیزی را که می‌توانستی بررسی کنی از بین می‌بری. بهتر است اول وضعیت، لاگ و تنظیمات لازم را برداری و بعد سراغ پاک‌سازی بروی.</p>
+<p lang="en">During debugging, removing too early can destroy the very object you wanted to inspect. Capture the required state/log/configuration first, then clean up.</p>
+<h3 lang="fa"><code>docker rm -f</code> دقیقاً چه shortcutی است؟</h3>
+<h3 lang="en">What exactly does <code>docker rm -f</code> shortcut?</h3>
+<p lang="fa"><code>-f</code> برای container Running یعنی Docker آن را به‌اجبار متوقف/kill می‌کند و سپس مورد را remove می‌کند. برای آزمایشگاه پاک‌سازی مفید است، ولی نباید پیش‌فرض عیب‌یابی عادت باشد.</p>
+<p lang="en">For a Running container, <code>-f</code> means Docker forcibly stops/kills it and then removes the object. It is useful for lab cleanup, but it should not become the default debugging reflex.</p>
+<div class="term"><div class="term-bar"><span class="term-label">deliberate force cleanup</span></div><pre dir="ltr">docker rm -f long-lived</pre></div>
+<div class="note warn">
+<div class="note-t"><span lang="fa">اول مدرک، بعد destruction</span><span lang="en">Evidence before destruction</span></div>
+<p lang="fa">اگر مشکل واقعی واقعی داری، قبل از <code>rm -f</code> حداقل وضعیت، لاگ‌ها و تنظیمات مهم را ذخیره کن. بعد از remove بسیاری از آن شواهد از مسیر عادی Docker CLI دیگر در دسترس نیستند.</p>
+<p lang="en">During a real incident, capture at least state, logs, and relevant configuration before <code>rm -f</code>. After removal, much of that evidence is no longer available through normal Docker CLI paths.</p>
+</div>
+</section>
+<section id="ports">
+<h2><span lang="fa">container روشن است؛ چرا localhost هنوز جواب نمی‌دهد؟</span><span lang="en">The container is Running; why can’t the browser reach it?</span></h2>
+<p class="lede" lang="fa">Running بودن فقط می‌گوید پردازش اصلی هنوز زنده است. هنوز معلوم نیست راهی از سیستم تو تا سرویس داخل container ساخته شده باشد. اینجا باید دو پورت را از هم جدا کنیم: پورتی که روی سیستم خودت باز می‌کنی و پورتی که برنامه داخل container روی آن گوش می‌دهد.</p>
+<p class="lede" lang="en">Running only tells you the primary process is alive. It proves nothing yet about the network path from host to application. For that path, separate two numbers: the <strong>host port</strong> and the <strong>container port</strong>.</p>
+<div class="diagram">
+<svg aria-labelledby="d3-port-flow" role="img" viewbox="0 0 920 300">
+<title id="d3-port-flow">Host to container port publishing</title>
+<defs><marker id="d3-port-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<g class="dg-stroke-b" marker-end="url(#d3-port-arrow)" stroke-width="2">
+<path d="M220 150h110"></path><path d="M590 150h110"></path>
+</g>
+<g text-anchor="middle">
+<rect class="dg-fill" height="116" rx="10" width="200" x="20" y="92"></rect><text class="dg-t" x="120" y="128">host</text><text class="dg-ts" x="120" y="156">localhost:8080</text>
+<rect class="dg-fill-v" height="116" rx="10" width="260" x="330" y="92"></rect><text class="dg-t" x="460" y="128">Docker publish rule</text><text class="dg-ts" x="460" y="156">-p 8080:80</text>
+<rect class="dg-fill-g" height="116" rx="10" width="200" x="700" y="92"></rect><text class="dg-t" x="800" y="128">container</text><text class="dg-ts" x="800" y="156">nginx :80</text>
+</g>
+</svg>
+<p class="diagram-cap" lang="fa">در <code>-p 8080:80</code> سمت چپ سیستم میزبان است و سمت راست container. درخواست به سیستم میزبان:8080 می‌آید و به container:80 هدایت می‌شود.</p>
+<p class="diagram-cap" lang="en">In <code>-p 8080:80</code>, the left side is the host and the right side is the container. Requests to host:8080 are routed to container:80.</p>
+</div>
+<div class="term">
+<div class="term-bar"><span class="term-label">publish + verify</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker run -d --name web -p 8080:80 nginx:alpine
+
+docker ps --filter name=web
+curl -I http://localhost:8080</pre>
+</div>
+<div class="term">
+<div class="term-bar"><span class="term-label">representative PORTS column</span></div>
+<pre dir="ltr">PORTS
+0.0.0.0:8080-&gt;80/tcp, [::]:8080-&gt;80/tcp</pre>
+</div>
+<p lang="fa">این خروجی می‌گوید پورت سیستم میزبان 8080 انتشار شده و به پورت 80 داخل container map می‌شود. اگر دستور را اشتباه <code>-p 80:8080</code> بنویسی، مفهوم را برعکس کرده‌ای: سیستم میزبان:80 → container:8080، درحالی‌که Nginx پیش‌فرض روی 80 گوش می‌دهد.</p>
+<p lang="en">This output says host port 8080 is published and mapped to port 80 in the container. If you accidentally use <code>-p 80:8080</code>, you reverse the model: host:80 → container:8080, while default Nginx listens on 80.</p>
+<div class="note warn">
+<div class="note-t"><span lang="fa">bind address هم می‌تواند مهم باشد</span><span lang="en">The bind address can matter too</span></div>
+<p lang="fa">در برنامه خودت، فقط انتشار کافی نیست اگر پردازش داخل container صرفاً روی loopback خودش گوش بدهد. serviceهایی که باید از مسیر انتشار قابل‌دسترسی باشند معمولاً باید روی interface مناسب مثل <code>0.0.0.0</code> داخل container گوش دهند. Nginx image این جزئیات را برای مثال ما از قبل درست دارد.</p>
+<p lang="en">For your own application, publishing is not enough if the process listens only on its own loopback interface. Services intended to be reachable through publishing generally need to listen on an appropriate interface such as <code>0.0.0.0</code> inside the container. The Nginx image already handles this for our example.</p>
+</div>
+</section>
+<section id="port-failures">
+<h2><span lang="fa">سه خرابی شبیه هم که راه‌حل یکسان ندارند</span><span lang="en">Three port failures that look similar but need different diagnoses</span></h2>
+<div class="pitfalls">
+<details open=""><summary><span lang="fa">پورت سیستم میزبان از قبل اشغال است</span><span lang="en">The host port is already in use</span></summary>
+<div class="term"><div class="term-bar"><span class="term-label">collision</span></div><pre dir="ltr">docker run -d --name web2 -p 8080:80 nginx:alpine
+
+# representative error
+Bind for 0.0.0.0:8080 failed: port is already allocated</pre></div>
+<p lang="fa">این خطا قبل از برنامه درخواست رخ می‌دهد. باید صاحب پورت سیستم میزبان را پیدا کنی یا پورت سیستم میزبان دیگری انتخاب کنی؛ تغییر container پورت Nginx بدون دلیل راه‌حل نیست.</p>
+<p lang="en">This fails before an application request exists. Find the owner of the host port or choose another host port; changing Nginx’s container port without reason is not the fix.</p>
+</details>
+<details><summary><span lang="fa">نگاشت برعکس است</span><span lang="en">The mapping is reversed</span></summary>
+<p lang="fa"><code>-p 80:8080</code> یعنی سیستم میزبان:80 به container:8080؛ اگر سرویس داخل container روی 80 است، درخواست به portی می‌رود که چیزی روی آن گوش نمی‌دهد.</p>
+<p lang="en"><code>-p 80:8080</code> means host:80 to container:8080. If the service listens on container port 80, traffic is sent to the wrong internal port.</p>
+</details>
+<details><summary><span lang="fa">container Running است ولی برنامه هنوز آماده/listening نیست</span><span lang="en">The container is Running but the app is not ready/listening</span></summary>
+<p lang="fa">Running فقط چرخهٔ عمر پردازش را ثابت می‌کند. لاگ‌ها و actual listen تنظیمات را بخوان. سلامت/readiness مفهوم جداست و در فصل‌های بعد عمیق‌تر می‌شود.</p>
+<p lang="en">Running proves process lifecycle only. Read logs and actual listen configuration. Health/readiness is a separate concept covered more deeply later.</p>
+</details>
+</div>
+</section>
+<section id="inspect">
+<h2><span lang="fa">وقتی docker ps کافی نیست، سؤال دقیق‌تر بپرس</span><span lang="en"><code>docker inspect</code>: when summary tables are not enough</span></h2>
+<p lang="fa">docker ps برای نگاه سریع عالی است، ولی گاهی سؤال دقیق‌تری داری: این container دقیقاً با چه commandی ساخته شده؟ کد خروجش چند بوده؟ چه پورتی map شده؟ آن‌وقت docker inspect به درد می‌خورد. لازم نیست همهٔ JSON را بخوانی؛ فقط همان چیزی را بپرس که لازم داری.</p>
+<p lang="en"><code>docker ps</code> is excellent for an overview, but <code>inspect</code> gives lower-level object configuration and state. You do not need to read the entire JSON every time; use <code>--format</code> to ask a focused question.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">focused inspect queries</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker inspect web --format \
+'name={{.Name}} status={{.State.Status}} exit={{.State.ExitCode}}'
+
+docker inspect web --format \
+'image={{.Config.Image}} cmd={{json .Config.Cmd}}'
+
+docker inspect web --format \
+'ports={{json .NetworkSettings.Ports}}'</pre>
+</div>
+<p lang="fa">قدرت inspect در این نیست که «اطلاعات زیاد» دارد؛ در این است که احتمال را با فیلد مشخص امتحان می‌کنی. اگر سؤال پورت است، لازم نیست environment variableهای بی‌ربط را بخوانی.</p>
+<p lang="en">The power of inspect is not merely “lots of information”; it lets you test a hypothesis with specific fields. If your question is about port bindings, there is little value in scanning unrelated environment variables.</p>
+</section>
+<section id="debug-workflow">
+<h2><span lang="fa">وقتی container کار نمی‌کند، این مسیر را قدم‌به‌قدم برو</span><span lang="en">Debugging workflow: from object existence to the application itself</span></h2>
+<p class="lede" lang="fa">فرض کن فقط می‌دانیم «سایت باز نمی‌شود». اگر مستقیم port، image و Dockerfile را با هم دست‌کاری کنیم، هر بار چند چیز عوض می‌شود و فهمیدن علت سخت‌تر می‌شود. بهتر است از ساده‌ترین سؤال شروع کنیم و هر مرحله فقط یک چیز را روشن کند.</p>
+<p class="lede" lang="en">When someone says “the container does not work,” do not jump to the end of the chain. Do not memorize this as a ritual; understand the logic: each question establishes a prerequisite for the next.</p>
+<div class="diagram">
+<svg aria-labelledby="d3-debug-flow" role="img" viewbox="0 0 960 430">
+<title id="d3-debug-flow">Container troubleshooting sequence</title>
+<defs><marker id="d3-debug-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<g class="dg-stroke-b" marker-end="url(#d3-debug-arrow)" stroke-width="2">
+<path d="M480 60v35"></path><path d="M480 135v35"></path><path d="M480 210v35"></path><path d="M480 285v35"></path>
+</g>
+<g text-anchor="middle">
+<rect class="dg-fill" height="45" rx="9" width="450" x="255" y="15"></rect><text class="dg-t" x="480" y="43">1. Does the container exist? · docker ps -a</text>
+<rect class="dg-fill-v" height="45" rx="9" width="450" x="255" y="95"></rect><text class="dg-t" x="480" y="123">2. Running or Exited? · state / exit code</text>
+<rect class="dg-fill-g" height="45" rx="9" width="450" x="255" y="170"></rect><text class="dg-t" x="480" y="198">3. What did the process say? · logs</text>
+<rect class="dg-fill-w" height="45" rx="9" width="450" x="255" y="245"></rect><text class="dg-t" x="480" y="273">4. What is configured? · inspect / process / ports</text>
+<rect class="dg-fill-b" height="45" rx="9" width="450" x="255" y="320"></rect><text class="dg-t" x="480" y="348">5. Can the client reach the app? · curl / browser</text>
+</g>
+</svg>
+<p class="diagram-cap" lang="fa">اگر container وجود ندارد، لاگ‌ها آن را debug نمی‌کنی. اگر Exited است، قبل از پورت نگاشت علت خروج را بخوان. اگر Running است، آن‌وقت پردازش، پورت و برنامه پاسخ معنی پیدا می‌کنند.</p>
+<p class="diagram-cap" lang="en">If the container does not exist, there are no container logs to debug. If it is Exited, diagnose exit before ports. If it is Running, then process, port, and application response become relevant.</p>
+</div>
+<div class="term">
+<div class="term-bar"><span class="term-label">minimal debug report</span></div>
+<pre dir="ltr">1. Object: docker ps -a --filter name=web
+2. State: status=_____ exit=_____
+3. Logs: last meaningful line = _____
+4. Process/config: command=_____ ports=_____
+5. Request: curl result = _____
+6. Diagnosis: _____
+7. Fix + verification: _____</pre>
+</div>
+</section>
+<section id="ps-reading">
+<h2><span lang="fa">از جدول docker ps بیشتر از اسم container بخوان</span><span lang="en">Read <code>docker ps</code> as a diagnostic table, not just a container list</span></h2>
+<p class="lede" lang="fa">وقتی تازه Docker یاد می‌گیری، معمولاً فقط ستون NAMES را نگاه می‌کنی. اما همین جدول کوچک خیلی بیشتر می‌گوید: container از چه imageای آمده، الآن در چه وضعیتی است، چه commandی دارد و آیا پورتی از آن روی سیستم میزبان باز شده یا نه.</p>
+<p class="lede" lang="en">When you are new to Docker, your eyes often go straight to NAME. But this small table answers several questions at once: which image created the container, what command it uses, whether it is Running or Exited, whether ports are published, and what human-friendly identity it has.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">read the columns</span></div>
+<pre dir="ltr">docker ps -a
+
+CONTAINER ID   IMAGE          COMMAND                  CREATED          STATUS                     PORTS                  NAMES
+a1b2c3d4e5f6   nginx:alpine   "/docker-entrypoint…"   2 minutes ago    Up 2 minutes               0.0.0.0:8080-&gt;80/tcp   web
+c7d8e9f0a1b2   hello-world    "/hello"                 8 minutes ago    Exited (0) 8 minutes ago                          one-shot</pre>
+</div>
+<p lang="fa">در ردیف اول، <code>Up 2 minutes</code> می‌گوید پردازش اصلی هنوز زنده است؛ ستون PORTS یک نگاشت سیستم میزبان را نشان می‌دهد. در ردیف دوم، <code>Exited (0)</code> می‌گوید پردازش تمام شده و کد خروج صفر داشته. همین دو ردیف نشان می‌دهند «container وجود دارد» و «container Running است» دو سؤال جدا هستند.</p>
+<p lang="en">In the first row, <code>Up 2 minutes</code> says the main process is still alive and PORTS shows a host mapping. In the second, <code>Exited (0)</code> says the process ended with exit code zero. These two rows make the distinction clear: “the container exists” and “the container is Running” are separate questions.</p>
+<p lang="fa">ستون دستور هم سرنخ است، نه همیشه کل حقیقت. برای دستور/تنظیمات دقیق‌تر از <code>docker inspect</code> استفاده کن. جدول ps برای triage سریع عالی است؛ inspect برای سؤال دقیق‌تر.</p>
+<p lang="en">The COMMAND column is a clue, not always the full truth. Use <code>docker inspect</code> for exact command/configuration. <code>docker ps</code> is excellent for quick triage; inspect answers focused questions.</p>
+</section>
+<section id="signals">
+<h2><span lang="fa">وقتی docker stop می‌زنی، Docker چطور فرصت خاموش‌شدن می‌دهد؟</span><span lang="en">Stop, signals, and kill: why the main process is not just theory</span></h2>
+<p lang="fa">توقف خوب این نیست که پردازش را همان لحظه نابود کنیم. docker stop اول به پردازش اصلی فرصت می‌دهد خودش مرتب کارش را جمع کند. اگر در زمان تعیین‌شده خارج نشود، Docker سراغ توقف اجباری می‌رود. فعلاً همین مدل برایمان کافی است.</p>
+<p lang="en"><code>docker stop</code> attempts a controlled shutdown: a stop signal reaches the primary process and Docker waits for graceful exit for a period; if the process does not exit, forced termination eventually follows. You do not need every image-specific signal detail yet, but you should distinguish “request shutdown” from “remove the object.”</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">observe stop timing and state</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker run -d --name signal-demo nginx:alpine
+
+docker inspect signal-demo --format \
+'status={{.State.Status}} pid={{.State.Pid}}'
+
+docker stop signal-demo
+
+docker inspect signal-demo --format \
+'status={{.State.Status}} exit={{.State.ExitCode}} finished={{.State.FinishedAt}}'</pre>
+</div>
+<p lang="fa">بعد از توقف، مورد هنوز برای inspect و لاگ‌ها وجود دارد. این دقیقاً دلیل خوبی است که در مشکل واقعی واقعی اول توقف/لاگ/inspect را از remove جدا نگه داری. <code>docker kill</code> ابزار دیگری است و برای این فصل لازم نیست آن را به پیش‌فرض خاموش‌کردن تبدیل کنی.</p>
+<p lang="en">After stop, the object still exists for inspect and logs. That is exactly why, during a real incident, it helps to keep stop/log/inspect separate from removal. <code>docker kill</code> is another tool, but this chapter does not treat it as a default shutdown strategy.</p>
+</section>
+<section id="exec-observe">
+<h2><span lang="fa">یک container، چند پردازش؛ exec را با چشم ببین</span><span lang="en">Observe <code>exec</code> in the process list: one container, multiple processes</span></h2>
+<p class="lede" lang="fa">این جمله که «exec یک پردازش جدید می‌سازد» ممکن است خشک به نظر برسد. پس بیایید واقعاً یک پردازش کوتاه sleep داخل همان container راه بیندازیم و هم‌زمان با docker top ببینیم کنار پردازش‌های Nginx ظاهر می‌شود.</p>
+<p class="lede" lang="en">The sentence “exec starts a new process inside an existing container” is easy to forget if it stays abstract. Make that process observable.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">terminal A</span></div>
+<pre dir="ltr">docker start web
+docker top web
+
+docker exec web sh -c 'sleep 30' &amp;</pre>
+</div>
+<div class="term">
+<div class="term-bar"><span class="term-label">terminal B · while sleep is alive</span></div>
+<pre dir="ltr">docker top web
+
+# representative extra process
+UID   PID     PPID   ...   CMD
+root  18432   ...          nginx: master process nginx -g daemon off;
+101   18471   18432        nginx: worker process
+root  19102   ...          sleep 30</pre>
+</div>
+<p lang="fa">container جدیدی ساخته نشد؛ NAME همان <code>web</code> است. فقط یک پردازش موقت دیگر کنار processهای Nginx دیده می‌شود. بعد از ۳۰ ثانیه sleep تمام می‌شود ولی container هنوز Running است، چون پردازش اصلی Nginx زنده است.</p>
+<p lang="en">No new container was created; the NAME is still <code>web</code>. A temporary process appears beside the Nginx processes. After thirty seconds, sleep exits while the container remains Running because the Nginx primary process is still alive.</p>
+<div class="note safe">
+<div class="note-t"><span lang="fa">این مشاهده بعداً خیلی به درد می‌خورد</span><span lang="en">This observation becomes useful later</span></div>
+<p lang="fa">وقتی داخل container برای debug شل باز می‌کنی، شل بخشی از برنامه image نیست که ناگهان «فعال شده باشد»؛ یک exec پردازش اضافه کرده‌ای. تغییرات موقتی شل هم نباید جای راه‌حل در Dockerfile/تنظیمات را بگیرند.</p>
+<p lang="en">When you open a debug shell inside a container, you did not reveal a hidden permanent shell session; you started an exec process. Temporary shell changes should not replace a real fix in Dockerfile or configuration.</p>
+</div>
+</section>
+<section id="case-study">
+<h2><span lang="fa">یک نمونهٔ واقعی: container بالا است، ولی سایت باز نمی‌شود</span><span lang="en">Case study: “the container is Up but localhost does not respond”</span></h2>
+<p class="lede" lang="fa">این سناریو زیاد پیش می‌آید: docker ps می‌گوید container بالا است، اما localhost جواب نمی‌دهد. وسوسه‌برانگیز است که فوری پورت را عوض کنیم. این‌بار این کار را نمی‌کنیم؛ از اول مسیر را می‌خوانیم و در هر مرحله فقط یک احتمال را کنار می‌گذاریم.</p>
+<p class="lede" lang="en">This is one of the best scenarios for practicing diagnostic order because it is tempting to start changing ports immediately. Instead, walk the chain and let each step answer one question.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">Step 1 · object and state</span></div>
+<pre dir="ltr">docker ps -a --filter name=web
+
+NAMES   STATUS         PORTS
+web     Up 3 minutes   0.0.0.0:8080-&gt;80/tcp</pre>
+</div>
+<p lang="fa">مورد وجود دارد، پردازش اصلی هنوز Up است و نگاشت ظاهراً 8080→80 است. پس «container اصلاً راه‌اندازی نشده» و «پورت انتشار نشده» فعلاً hypothesisهای ضعیف‌تری هستند.</p>
+<p lang="en">The object exists, the primary process remains Up, and the mapping appears to be 8080→80. “The container never started” and “no port was published” are now weaker hypotheses.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">Step 2 · application evidence</span></div>
+<pre dir="ltr">docker logs --tail 20 web
+docker top web</pre>
+</div>
+<p lang="fa">اگر لاگ‌ها راه‌اندازی عادی Nginx را نشان دهند و پردازش list master/worker را داشته باشد، برنامه چرخهٔ عمر هم معقول است. حالا درخواست واقعی می‌فرستیم.</p>
+<p lang="en">If logs show normal Nginx startup and the process list contains master/worker processes, application lifecycle looks plausible. Now send a real request.</p>
+<div class="term">
+<div class="term-bar"><span class="term-label">Step 3 · client request</span></div>
+<pre dir="ltr">curl -v http://localhost:8080/</pre>
+</div>
+<p lang="fa">اگر connection refused شد ولی PORTS درست به نظر می‌رسد، inspect bindings و سیستم میزبان-side conflict/firewall را بررسی می‌کنی. اگر connection برقرار شد ولی HTTP خطا گرفتی، درخواست به برنامه رسیده و مسئله یک لایه جلوتر است. اگر درخواست لاگ جدید در Nginx ظاهر شد، می‌دانی مسیر شبکه تا برنامه طی شده.</p>
+<p lang="en">If you get connection refused while PORTS looks correct, inspect bindings and possible host-side conflict/firewall behavior. If the connection succeeds but HTTP returns an application error, traffic reached a later layer. If a new Nginx request log appears, you know the network path reached the application.</p>
+<p lang="fa">نکتهٔ اصلی این case study دستور خاص نیست؛ ترتیب کم‌کردن ambiguity است. هر مشاهده باید تعداد hypothesisها را کمتر کند.</p>
+<p lang="en">The main lesson is not any particular command; it is reducing ambiguity in order. Every observation should eliminate hypotheses.</p>
+</section>
+<section id="inspect-case">
+<h2><span lang="fa">به‌جای غرق‌شدن در JSON، از inspect سؤال مشخص بپرس</span><span lang="en">Turn inspect into questions instead of dumping thousands of JSON lines</span></h2>
+<p lang="fa">خروجی کامل docker inspect می‌تواند خیلی طولانی باشد. اگر از قبل ندانی دنبال چه هستی، بین ده‌ها فیلد گم می‌شوی. بهتر است قبل از دستور، سؤال را بنویسی: «وضعیت چیست؟ command چیست؟ پورت‌ها چطور map شده‌اند؟» بعد فقط همان فیلد را بگیری.</p>
+<p lang="en">When a container misbehaves, raw <code>docker inspect NAME</code> can return so much data that the useful fact disappears. Write the question before the command.</p>
+<div class="table-wrap">
+<table class="doc-table">
+<thead><tr><th>Question</th><th>Focused command</th><th>What the answer helps decide</th></tr></thead>
+<tbody>
+<tr><td><span lang="fa">الان وضعیت چیست؟</span><span lang="en">What is state now?</span></td><td><code>--format '{{.State.Status}} {{.State.ExitCode}}'</code></td><td><span lang="fa">Running/Exited و مسیر بعدی تشخیص</span><span lang="en">Running/Exited and next diagnostic path</span></td></tr>
+<tr><td><span lang="fa">از چه image/commandی ساخته شده؟</span><span lang="en">Which image/command?</span></td><td><code>--format '{{.Config.Image}} {{json .Config.Cmd}}'</code></td><td><span lang="fa">آیا خروجی ساخته‌شده/تنظیمات مورد انتظار اجرا شده</span><span lang="en">whether expected artifact/configuration is running</span></td></tr>
+<tr><td><span lang="fa">پورت bindings چه هستند؟</span><span lang="en">What are the port bindings?</span></td><td><code>--format '{{json .NetworkSettings.Ports}}'</code></td><td><span lang="fa">سیستم میزبان↔container نگاشت واقعی</span><span lang="en">actual host↔container mapping</span></td></tr>
+</tbody>
+</table>
+</div>
+<p lang="fa">وقتی پاسخ سؤال اول Exited است، سؤال پورت معمولاً اولویت ندارد. وقتی Running و لاگ‌ها سالم‌اند، پورت/تنظیمات ارزش بررسی پیدا می‌کند. این یعنی inspect فقط ابزار نمایش نیست؛ بخشی از ترتیب استدلال است.</p>
+<p lang="en">If the first answer is Exited, port configuration is usually not the first priority. If the container is Running and logs look healthy, port/configuration becomes more relevant. Inspect is not just a display tool; it participates in diagnostic reasoning.</p>
+</section>
+<section id="exercises">
+<h2><span lang="fa">۱۸ تمرین؛ این بار از روی رفتار container جواب بده</span><span lang="en">18 exercises: reason about state instead of memorizing commands</span></h2>
+<p class="lede" lang="fa">تمرین‌های آخر عمداً کمی شبیه مسئله‌های واقعی‌ترند. قبل از بازکردن پاسخ، برای خودت بگو الآن چه چیزی را می‌دانم، چه چیزی را هنوز نمی‌دانم و کدام دستور می‌تواند سؤال بعدی را جواب بدهد.</p>
+<p class="lede" lang="en">The final third should not become shallower than the opening. The later scenarios deliberately combine multiple pieces of evidence. Before revealing an answer, ask, “what do I still not know?”</p>
+<div class="ex-stat"><span lang="fa">حل‌شده</span><span lang="en">Solved</span><b>۰ / ۱۸</b><div class="pbar"><i></i></div></div>
+<div class="ex" id="ex-3-1"><div class="ex-h"><span class="ex-n">تمرین ۳٫1 · Exercise 3.1</span><span class="ex-lvl lvl-1">مقدماتی · Beginner</span><span class="ex-time">۴ min</span></div><p lang="fa">چرا بعد از <code>docker run hello-world</code> ممکن است <code>docker ps</code> خالی باشد ولی <code>docker ps -a</code> container را نشان دهد؟</p><p lang="en">Why can <code>docker ps</code> be empty after <code>docker run hello-world</code> while <code>docker ps -a</code> still shows the container?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">چون hello-world پردازش کوتاه‌مدت دارد و بعد از چاپ پیام خروج می‌کند. <code>ps</code> فقط Runningها را می‌بیند؛ <code>ps -a</code> Exited را هم نشان می‌دهد. مورد هنوز وجود دارد تا remove شود.</p><p lang="en">hello-world has a short-lived process that exits after printing. <code>ps</code> lists only Running containers; <code>ps -a</code> also lists Exited ones. The object remains until removed.</p></details></div>
+<div class="ex" id="ex-3-2"><div class="ex-h"><span class="ex-n">تمرین ۳٫2 · Exercise 3.2</span><span class="ex-lvl lvl-1">مقدماتی · Beginner</span><span class="ex-time">۴ min</span></div><p lang="fa"><code>docker create</code> چه چیزی می‌سازد که هنوز Running نیست؟</p><p lang="en">What does <code>docker create</code> create even though nothing is Running yet?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">container شناسه و تنظیمات را می‌سازد اما پردازش اصلی را راه‌اندازی نمی‌کند. با <code>docker ps -a</code> وضعیت Created را می‌بینی و بعد <code>docker start</code> همان مورد را اجرا می‌کند.</p><p lang="en">It creates container identity and configuration without starting the main process. <code>docker ps -a</code> can show Created state, and <code>docker start</code> later runs that same object.</p></details></div>
+<div class="ex" id="ex-3-3"><div class="ex-h"><span class="ex-n">تمرین ۳٫3 · Exercise 3.3</span><span class="ex-lvl lvl-1">مقدماتی · Beginner</span><span class="ex-time">۴ min</span></div><p lang="fa"><code>-d</code> چه چیزی را تغییر می‌دهد و چه چیزی را تغییر نمی‌دهد؟</p><p lang="en">What does <code>-d</code> change, and what does it not change?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa"><code>-d</code> اتصال رفتار CLI را عوض می‌کند و کنترل ترمینال را برمی‌گرداند؛ پردازش container همچنان توسط Engine اجرا و مدیریت می‌شود. حالت جداشده بودن به معنی «پردازش مجازی یا غیرفعال» نیست.</p><p lang="en"><code>-d</code> changes CLI attachment behavior and returns your terminal; the container process still runs under Engine management. Detached does not mean “virtual” or inactive.</p></details></div>
+<div class="ex" id="ex-3-4"><div class="ex-h"><span class="ex-n">تمرین ۳٫4 · Exercise 3.4</span><span class="ex-lvl lvl-1">مقدماتی · Beginner</span><span class="ex-time">۴ min</span></div><p lang="fa">چرا name collision را با logهای Nginx debug نمی‌کنی؟</p><p lang="en">Why would you not debug a name collision with Nginx logs?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">چون خطا قبل از راه‌اندازی برنامه رخ داده؛ Engine نتوانسته شناسه تازه با آن name بسازد. مدرک درست <code>docker ps -a --filter name=...</code> است، نه برنامه لاگ.</p><p lang="en">The failure happens before the new application starts; the Engine cannot create another identity with that name. The relevant evidence is <code>docker ps -a --filter name=...</code>, not application logs.</p></details></div>
+<div class="ex" id="ex-3-5"><div class="ex-h"><span class="ex-n">تمرین ۳٫5 · Exercise 3.5</span><span class="ex-lvl lvl-2">تمرین · Practice</span><span class="ex-time">۵ min</span></div><p lang="fa">بعد از <code>docker logs -f web</code>، <code>Ctrl+C</code> می‌زنی. چه چیزی را باید با <code>docker ps</code> انتظار داشته باشی؟</p><p lang="en">After <code>docker logs -f web</code>, you press <code>Ctrl+C</code>. What should <code>docker ps</code> show?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">container باید همچنان Running باشد؛ تو دنبال‌کردن کلاینت را قطع کردی، نه container را. اگر Running نیست، باید دلیل جداگانه‌ای مثل پردازش خروج وجود داشته باشد.</p><p lang="en">The container should still be Running; you stopped the log-following client, not the container. If it is no longer Running, another cause such as process exit must explain it.</p></details></div>
+<div class="ex" id="ex-3-6"><div class="ex-h"><span class="ex-n">تمرین ۳٫6 · Exercise 3.6</span><span class="ex-lvl lvl-2">تمرین · Practice</span><span class="ex-time">۵ min</span></div><p lang="fa"><code>docker exec -it web bash</code> ناموفق می‌شود ولی container Running است. یک احتمال ساده چیست؟</p><p lang="en"><code>docker exec -it web bash</code> fails while the container is Running. What is one simple hypothesis?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">ممکن است image اصلاً <code>bash</code> نداشته باشد؛ imageهای minimal معمولاً فقط <code>sh</code> دارند. با <code>docker exec -it web sh</code> یا بررسی executableهای موجود احتمال را تست کن.</p><p lang="en">The image may simply not contain <code>bash</code>; minimal images often provide only <code>sh</code>. Test with <code>docker exec -it web sh</code> or inspect available executables.</p></details></div>
+<div class="ex" id="ex-3-7"><div class="ex-h"><span class="ex-n">تمرین ۳٫7 · Exercise 3.7</span><span class="ex-lvl lvl-2">تمرین · Practice</span><span class="ex-time">۵ min</span></div><p lang="fa">چرا <code>docker exec</code> روی container Exited کار نمی‌کند؟</p><p lang="en">Why does <code>docker exec</code> not work on an Exited container?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">exec قرار است پردازش تازه‌ای در container Running اجرا کند. وقتی primary پردازش و وضعیت زمان اجرا متوقف شده، محیط اجرایی لازم برای exec وجود ندارد. در صورت مناسب بودن می‌توان همان container را راه‌اندازی کرد و بعد exec زد.</p><p lang="en">exec starts another process in a Running container. Once the primary process and runtime state have stopped, the environment required for exec is not active. If appropriate, start the same container first and then exec.</p></details></div>
+<div class="ex" id="ex-3-8"><div class="ex-h"><span class="ex-n">تمرین ۳٫8 · Exercise 3.8</span><span class="ex-lvl lvl-2">تمرین · Practice</span><span class="ex-time">۵ min</span></div><p lang="fa">کد خروج صفر در hello-world چه چیزی می‌گوید و چه چیزی نمی‌گوید؟</p><p lang="en">What does exit code zero for hello-world tell you, and what does it not tell you?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">می‌گوید پردازش اصلی طبق convention با success تمام شده. نمی‌گوید container باید Running بماند؛ اتفاقاً success task کوتاه‌مدت می‌تواند کاملاً طبیعی Exited باشد.</p><p lang="en">It says the main process reported successful completion by convention. It does not mean the container should remain Running; a successful short-lived task naturally ends in Exited state.</p></details></div>
+<div class="ex" id="ex-3-9"><div class="ex-h"><span class="ex-n">تمرین ۳٫9 · Exercise 3.9</span><span class="ex-lvl lvl-2">تمرین · Practice</span><span class="ex-time">۵ min</span></div><p lang="fa">چرا کد خروج غیرصفر را به‌تنهایی تشخیص کامل نمی‌دانیم؟</p><p lang="en">Why is a non-zero exit code not a complete diagnosis by itself?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">چون عدد فقط نتیجهٔ پردازش را خلاصه می‌کند. برای علت باید دستور، لاگ‌ها و context اجرا را بخوانی. دو برنامهٔ متفاوت می‌توانند یک کد خروج یکسان را برای علت‌های متفاوت استفاده کنند.</p><p lang="en">The number only summarizes process outcome. To understand cause, inspect the command, logs, and execution context. Different programs can use the same non-zero code for different reasons.</p></details></div>
+<div class="ex" id="ex-3-10"><div class="ex-h"><span class="ex-n">تمرین ۳٫10 · Exercise 3.10</span><span class="ex-lvl lvl-2">تمرین · Practice</span><span class="ex-time">۵ min</span></div><p lang="fa">در <code>-p 8080:80</code> هر عدد متعلق به کجاست؟</p><p lang="en">In <code>-p 8080:80</code>, what does each number belong to?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">8080 پورت سیستم میزبان است؛ 80 container پورت. درخواست به سیستم میزبان:8080 وارد می‌شود و Docker آن را به سرویس داخل container:80 هدایت می‌کند.</p><p lang="en">8080 is the host port; 80 is the container port. Requests arrive at host:8080 and Docker routes them to the service at container:80.</p></details></div>
+<div class="ex" id="ex-3-11"><div class="ex-h"><span class="ex-n">تمرین ۳٫11 · Exercise 3.11</span><span class="ex-lvl lvl-2">تمرین · Practice</span><span class="ex-time">۵ min</span></div><p lang="fa">container Up است ولی ستون PORTS خالی است. مرورگر با <code>localhost:8080</code> جواب نمی‌گیرد. اولین نتیجه چیست؟</p><p lang="en">The container is Up but PORTS is empty. The browser cannot reach <code>localhost:8080</code>. What is the first conclusion?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">هنوز نگاشت سیستم میزبان نساخته‌ای. Running بودن پردازش داخل container را ثابت می‌کند، نه انتشار شدن پورت. container را با نگاشت درست recreate کن.</p><p lang="en">No host mapping has been established. Running proves the internal process lifecycle, not published ports. Recreate the container with the required mapping.</p></details></div>
+<div class="ex" id="ex-3-12"><div class="ex-h"><span class="ex-n">تمرین ۳٫12 · Exercise 3.12</span><span class="ex-lvl lvl-2">تمرین · Practice</span><span class="ex-time">۵ min</span></div><p lang="fa"><code>-p 80:8080</code> گذاشته‌ای ولی Nginx داخل container روی 80 است. چه اشتباهی کرده‌ای؟</p><p lang="en">You used <code>-p 80:8080</code>, but Nginx listens on 80 inside the container. What is wrong?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">نگاشت را برعکس کرده‌ای: سیستم میزبان:80 را به container:8080 فرستاده‌ای، ولی سرویس روی container:80 است. اگر هدفت سیستم میزبان:8080 باشد، درستش <code>-p 8080:80</code> است.</p><p lang="en">The mapping is reversed: host:80 is being sent to container:8080, while the service listens on container:80. For host:8080, use <code>-p 8080:80</code>.</p></details></div>
+<div class="ex" id="ex-3-13"><div class="ex-h"><span class="ex-n">تمرین ۳٫13 · Exercise 3.13</span><span class="ex-lvl lvl-3">سناریو · Scenario</span><span class="ex-time">۶ min</span></div><p lang="fa">container Exited است. teammate مستقیم پورت نگاشت را تغییر می‌دهد. چرا ترتیبش ضعیف است؟</p><p lang="en">The container is Exited. A teammate immediately changes port mapping. Why is that a weak diagnostic order?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">چون پورت فقط وقتی معنا دارد که پردازش لازم زنده باشد. اول وضعیت، کد خروج و لاگ‌ها را بخوان؛ اگر PID 1 مرده، هدایت شبکه مشکل اصلی نیست. تغییر پورت ممکن است فقط یک متغیر اضافی وارد عیب‌یابی کند.</p><p lang="en">Ports matter only after the required process is alive. Inspect state, exit code, and logs first. If PID 1 died, network routing is not the primary problem. Changing ports only adds another variable.</p></details></div>
+<div class="ex" id="ex-3-14"><div class="ex-h"><span class="ex-n">تمرین ۳٫14 · Exercise 3.14</span><span class="ex-lvl lvl-3">سناریو · Scenario</span><span class="ex-time">۶ min</span></div><p lang="fa">container Running است، نگاشت درست است، اما درخواست ناموفق می‌شود. دو مدرک بعدی چیست؟</p><p lang="en">The container is Running and the mapping looks correct, yet the request fails. What two pieces of evidence come next?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">لاگ‌ها برای اینکه برنامه واقعاً listening/سالم رفتار داشته یا خطا داده؛ و پردازش/listen تنظیمات برای اینکه سرویس روی پورت/interface مورد انتظار گوش می‌دهد. سپس <code>curl</code> و برنامه-specific بررسی‌ها معنی پیدا می‌کنند.</p><p lang="en">Read logs to see whether the app actually reached listening/healthy behavior or emitted errors, and inspect process/listen configuration to confirm the expected port/interface. Then <code>curl</code> and app-specific checks become meaningful.</p></details></div>
+<div class="ex" id="ex-3-15"><div class="ex-h"><span class="ex-n">تمرین ۳٫15 · Exercise 3.15</span><span class="ex-lvl lvl-3">سناریو · Scenario</span><span class="ex-time">۶ min</span></div><p lang="fa">قبل از <code>docker rm -f broken-app</code> در مشکل واقعی واقعی چه چیزهایی را ثبت می‌کنی؟</p><p lang="en">Before <code>docker rm -f broken-app</code> during a real incident, what would you capture?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">حداقل <code>docker ps -a</code> وضعیت، کد خروج، relevant لاگ‌ها و تنظیمات/inspect لازم مثل image، دستور و پورت bindings. چون remove مورد را از مسیر عادی inspection حذف می‌کند. پاک‌سازی بعد از مدرک انجام می‌شود.</p><p lang="en">At minimum capture <code>docker ps -a</code> state, exit code, relevant logs, and necessary inspect/configuration such as image, command, and port bindings. Removal discards the object from normal inspection paths, so evidence comes first.</p></details></div>
+<div class="ex" id="ex-3-16"><div class="ex-h"><span class="ex-n">تمرین ۳٫16 · Exercise 3.16</span><span class="ex-lvl lvl-3">سناریو · Scenario</span><span class="ex-time">۶ min</span></div><p lang="fa"><code>docker logs</code> خطا می‌دهد که ثبت لاگ درایور خواندن را پشتیبانی نمی‌کند. آیا این یعنی برنامه هیچ logی تولید نکرده؟</p><p lang="en"><code>docker logs</code> says the configured logging driver does not support reading. Does that prove the app produced no logs?</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">نه. این فقط می‌گوید مسیر <code>docker logs</code> برای تنظیمات فعلی قابل‌خواندن نیست. باید ثبت لاگ درایور/تنظیمات را بررسی کنی؛ نبودن خروجی در این دستور با نبودن برنامه لاگ یکی نیست.</p><p lang="en">No. It only says the <code>docker logs</code> retrieval path is unavailable for the current logging configuration. Inspect the logging driver/configuration; failure to retrieve here is not proof that the application emitted nothing.</p></details></div>
+<div class="ex" id="ex-3-17"><div class="ex-h"><span class="ex-n">تمرین ۳٫17 · Exercise 3.17</span><span class="ex-lvl lvl-3">سناریو · Scenario</span><span class="ex-time">۷ min</span></div><p lang="fa">برای یک container پنج fact جمع کن: name، image، وضعیت، پورت و پردازش. دستور مناسب برای هرکدام پیشنهاد بده.</p><p lang="en">Collect five facts for one container: name, image, state, port, and process. Suggest a command for each.</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa">name/image/وضعیت/PORTS را سریع با <code>docker ps -a</code> می‌بینی؛ جزئیات وضعیت و image تنظیمات با <code>docker inspect</code>؛ processها با <code>docker top</code>. نکته این نیست که پنج دستور جدا حفظ کنی؛ می‌توانی یک دستور چند fact بدهد، بعد برای سؤال دقیق‌تر inspect کنی.</p><p lang="en"><code>docker ps -a</code> quickly gives name/image/state/PORTS; <code>docker inspect</code> gives focused state and image configuration; <code>docker top</code> shows processes. The point is not memorizing five separate commands—one command can answer several facts, then inspect refines the question.</p></details></div>
+<div class="ex" id="ex-3-18"><div class="ex-h"><span class="ex-n">تمرین ۳٫18 · Exercise 3.18</span><span class="ex-lvl lvl-3">سناریو · Scenario</span><span class="ex-time">۸ min</span></div><p lang="fa">یک گزارش برای «localhost:8080 جواب نمی‌دهد» بنویس بدون اینکه از همان اول Docker را راه‌اندازی دوباره کنی.</p><p lang="en">Write a report for “localhost:8080 does not respond” without restarting Docker first.</p><details class="ex-sol"><summary>پاسخ و دلیل · Solution and reasoning</summary><p lang="fa"><strong>نمونه:</strong> ۱) با <code>docker ps -a</code> وجود و وضعیت container را دیدم. ۲) اگر Exited بود خروج/لاگ را بررسی کردم؛ اگر Up بود ادامه دادم. ۳) لاگ‌ها نشان داد برنامه/Nginx روی پورت داخلی مورد انتظار listening است. ۴) PORTS/inspect را بررسی کردم که سیستم میزبان:8080 به container پورت درست map شده باشد. ۵) با <code>curl -v</code> درخواست را تست کردم و لاگ متناظر را نگاه کردم. ۶) فقط بر اساس همین مدرک راه‌حل را انتخاب کردم و همان آزمایش را تکرار کردم.</p><p lang="en"><strong>Example:</strong> 1) use <code>docker ps -a</code> to prove the object exists and read state. 2) If Exited, inspect exit/logs; if Up, continue. 3) Read logs to confirm the app/Nginx is listening on the expected internal port. 4) Inspect PORTS/bindings to confirm host:8080 maps to the correct container port. 5) Test with <code>curl -v</code> and look for the corresponding request log. 6) Choose a fix from that evidence and repeat the same verification.</p></details></div>
+</section>
+<section id="lab">
+<h2><span lang="fa">آزمایشگاه: یک container را اجرا کن، خرابش کن و خودت پیدایش کن</span><span lang="en">Lab: run a web container, break it, and repair it without random commands</span></h2>
+<div class="capsule">
+<span class="tagline"><span lang="fa">حدود ۴۰ دقیقه</span><span lang="en">about 40 minutes</span></span>
+<p lang="fa">هدف فقط این نیست که آخر کار Nginx دوباره باز شود. می‌خواهیم مسیر فکری‌ات معلوم باشد: چه چیزی دیدی، از آن چه نتیجه‌ای گرفتی، بعد کدام دستور را زدی و چرا. اگر فقط با چند بار حذف‌کردن و ساختن دوباره به جواب برسی، تمرین اصلی را از دست داده‌ای.</p>
+<p lang="en">The goal is not merely to make Nginx respond. Produce a small report that preserves state and evidence from start to finish.</p>
+<ol class="ranked">
+<li><b lang="fa">حالت متصل را مشاهده کن</b><b lang="en">Observe foreground behavior</b><p lang="fa">Nginx را بدون <code>-d</code> اجرا کن، اتصال را حس کن، سپس وضعیت بعد از وقفه را با <code>ps -a</code> ببین.</p><p lang="en">Run Nginx without <code>-d</code>, observe attachment, then inspect post-interrupt state with <code>ps -a</code>.</p></li>
+<li><b lang="fa">حالت جداشده با name مشخص</b><b lang="en">Run detached with a stable name</b><p lang="fa"><code>lab-web</code> را با <code>-d</code> بساز و container شناسه/وضعیت را ثبت کن.</p><p lang="en">Create <code>lab-web</code> with <code>-d</code> and record container ID/status.</p></li>
+<li><b lang="fa">لاگ واقعی تولید کن</b><b lang="en">Generate real logs</b><p lang="fa">با پورت انتشار درخواست بزن و یک access لاگ متناظر ذخیره کن.</p><p lang="en">Publish a port, send a request, and capture the matching access log.</p></li>
+<li><b lang="fa">exec و پردازش مدرک</b><b lang="en">Collect exec and process evidence</b><p lang="fa"><code>docker exec</code> و <code>docker top</code> را استفاده کن و فرق main پردازش با exec پردازش را توضیح بده.</p><p lang="en">Use <code>docker exec</code> and <code>docker top</code>, then explain the difference between the main process and an exec process.</p></li>
+<li><b lang="fa">خرابی پورت #1</b><b lang="en">Port failure #1</b><p lang="fa">نگاشت را عمداً برعکس بساز و از PORTS + curl + لاگ‌ها تشخیص بده.</p><p lang="en">Deliberately reverse the mapping and diagnose it using PORTS, curl, and logs.</p></li>
+<li><b lang="fa">خرابی پورت #2</b><b lang="en">Port failure #2</b><p lang="fa">پورت سیستم میزبان را با container دوم اشغال کن و خطا allocation را از برنامه خطا جدا کن.</p><p lang="en">Occupy the host port with a second container and distinguish allocation failure from application failure.</p></li>
+<li><b lang="fa">کد خروج کنترل‌شده</b><b lang="en">Controlled exit code</b><p lang="fa">یک Alpine one-shot با خروج غیرصفر بساز و وضعیت، کد و لاگ را کنار هم ثبت کن.</p><p lang="en">Create a one-shot Alpine container with a non-zero exit and record state, code, and log together.</p></li>
+<li><b lang="fa">پاک‌سازی بعد از مدرک</b><b lang="en">Clean up after evidence</b><p lang="fa">بعد از ذخیره گزارش، containerها را پاک کن. اگر از <code>rm -f</code> استفاده کردی، توضیح بده چرا در این مرحله امن و عمدی است.</p><p lang="en">After saving the report, remove the containers. If you use <code>rm -f</code>, explain why it is deliberate and acceptable at this stage.</p></li>
+</ol>
+<details class="ex-sol"><summary>معیار موفقیت · Success criteria</summary>
+<p lang="fa">اگر برای هر خطا بتوانی بگویی «این مورد وجود داشت/نداشت، وضعیت این بود، پردازش این را گفت، نگاشت این بود، و این راه‌حل را به همین دلیل انتخاب کردم»، آزمایشگاه موفق است. اگر فقط با راه‌اندازی دوباره یا recreate تصادفی به جواب رسیدی، هنوز عیب‌یابی نکرده‌ای.</p>
+<p lang="en">The lab succeeds when every failure can be explained as “the object did/did not exist, state was this, the process said this, the mapping was this, therefore I chose this fix.” If random restarts or recreations happened to work, you have not yet demonstrated debugging.</p>
+</details>
+</div>
+</section>
+<section id="lab-handoff">
+<h2><span lang="fa">در پایان یک گزارش کوتاه و قابل‌فهم تحویل بده</span><span lang="en">Lab handoff: produce a short incident report, not scattered screenshots</span></h2>
+<div class="table-wrap">
+<table class="doc-table">
+<thead><tr><th>Stage</th><th>Evidence</th><th>Sentence you should be able to write</th></tr></thead>
+<tbody>
+<tr><td>Identity/state</td><td><code>docker ps -a</code></td><td><span lang="fa">مورد وجود دارد و وضعیت فعلی آن ... است</span><span lang="en">the object exists and current state is ...</span></td></tr>
+<tr><td>Process</td><td><code>docker top</code> / inspect state</td><td><span lang="fa">پردازش اصلی زنده است/نیست و exec پردازش جداست</span><span lang="en">the main process is/is not alive and exec is separate</span></td></tr>
+<tr><td>Application output</td><td><code>docker logs</code></td><td><span lang="fa">آخرین مشاهده معنادار برنامه این است ...</span><span lang="en">the last meaningful application observation is ...</span></td></tr>
+<tr><td>Network</td><td>PORTS + inspect bindings</td><td><span lang="fa">پورت سیستم میزبان ... به container پورت ... map شده</span><span lang="en">host port ... maps to container port ...</span></td></tr>
+<tr><td>Client test</td><td><code>curl -v</code></td><td><span lang="fa">درخواست تا کدام مرز پیش رفته</span><span lang="en">how far the request progressed</span></td></tr>
+</tbody>
+</table>
+</div>
+<p lang="fa">گزارش خوب لازم نیست رسمی و طولانی باشد. کافی است نفر بعدی بفهمد container در چه وضعیتی بود، لاگ چه می‌گفت، پورت چطور map شده بود، چه چیزی را تغییر دادی و با چه آزمایشی مطمئن شدی مشکل حل شده است.</p>
+<p lang="en">If the report ends with “after a few restarts it worked,” diagnosis is still incomplete. If you can connect symptom, observation, hypothesis, fix, and verification, even a small failure becomes reusable experience for later chapters.</p>
+</section>
+<section id="quick">
+<h2><span lang="fa">مرجع سریع</span><span lang="en">Quick reference and official sources</span></h2>
+<div class="cheat">
+<div><pre dir="ltr">docker run IMAGE
+docker run -d --name NAME IMAGE
+docker create --name NAME IMAGE
+docker start NAME
+docker stop NAME
+docker restart NAME
+docker rm NAME
+docker rm -f NAME</pre></div>
+<div><pre dir="ltr">docker ps
+docker ps -a
+docker logs NAME
+docker logs -f NAME
+docker exec -it NAME sh
+docker top NAME
+docker inspect NAME
+docker run -p HOST:CONTAINER IMAGE</pre></div>
+</div>
+<div class="note safe">
+<div class="note-t"><span lang="fa">مدل ماندگار فصل</span><span lang="en">Durable model</span></div>
+<p lang="fa">اگر فقط یک الگو از این فصل یادت بماند، این باشد: اول ببین container اصلاً وجود دارد یا نه؛ بعد وضعیت و لاگش را بخوان؛ اگر Running بود سراغ پردازش و پورت برو؛ و در آخر با یک درخواست واقعی خود برنامه را امتحان کن.</p>
+<p lang="en">A container combines identity, configuration, and process lifecycle. Running proves the process is alive, not that the application is healthy or reachable. Debug from object existence and state, then logs/process/configuration/ports, and only then the real request.</p>
+</div>
+<div class="note safe">
+<div class="note-t"><span lang="fa">منابع رسمی بررسی‌شده</span><span lang="en">Official references checked</span></div>
+<p lang="en">
+<a href="https://docs.docker.com/reference/cli/docker/container/run/">docker run</a> ·
+      <a href="https://docs.docker.com/reference/cli/docker/container/logs/">docker logs</a> ·
+      <a href="https://docs.docker.com/reference/cli/docker/container/exec/">docker exec</a> ·
+      <a href="https://docs.docker.com/reference/cli/docker/container/top/">docker top</a> ·
+      <a href="https://docs.docker.com/reference/cli/docker/container/inspect/">docker inspect</a>
+</p>
+</div>
+</section>

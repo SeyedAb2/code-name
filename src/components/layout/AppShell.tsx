@@ -2,6 +2,7 @@
 
 import { useCallback, useState, type ReactNode } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePrefs } from "@/context/PrefsContext";
 import { SITE } from "@/lib/site";
 import TopBar, { type Crumb } from "./TopBar";
@@ -69,12 +70,15 @@ export default function AppShell({ children, crumbs, bare }: Props) {
 
       <footer className={s.footer}>
         <div className={s.footerInner}>
-          <span>
-            <Link href="/">{SITE.name[lang]}</Link>
-            {" · "}
-            <Link href="/contributing">
-              {lang === "fa" ? "راهنمای مشارکت" : "Contributing"}
-            </Link>
+          <span className={s.footerBrand}>
+            <Image src="/assets/images/logo-64.png" alt="" width={28} height={28} />
+            <span>
+              <Link href="/">{SITE.name[lang]}</Link>
+              {" · "}
+              <Link href="/contributing">
+                {lang === "fa" ? "راهنمای مشارکت" : "Contributing"}
+              </Link>
+            </span>
           </span>
           <span>
             {lang === "fa" ? "ساختهٔ " : "Built by "}
