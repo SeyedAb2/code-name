@@ -1,0 +1,422 @@
+<!--meta
+title: merge و حل تعارض
+desc: دو شاخه از یک نقطه جدا می‌شوند؛ یکی را Git بی‌دردسر جلو می‌آورد، و دیگری را فقط انسان می‌تواند با تصمیمی روشن جمع کند. fast-forward، merge commit، merge base و index stageها را با شاهد یاد بگیر.
+-->
+
+<div class="masthead">
+  <span class="eyebrow"><span class="dot"></span><span lang="fa">گیت · فصل ۶</span><span lang="en">Git · Chapter 6</span></span>
+  <h1 lang="fa">merge و حل تعارض</h1>
+  <h1 lang="en">Merging and resolving conflicts</h1>
+  <p class="sub" lang="fa">دو هم‌تیمی از یک commit شروع کردند. یکی پیام خوشامد را بهتر کرد؛ دیگری فایل فهرست را تغییر داد. Git هر دو را بی‌سروصدا کنار هم گذاشت. بار بعد، هر دو همان خط پیام را متفاوت نوشتند و Git ایستاد. چرا بار اول خودش جمعش کرد و بار دوم نه؟</p>
+  <p class="sub" lang="en">Two teammates started at one commit. One improved the greeting; the other changed the team list. Git combined both quietly. Next time, they rewrote the same greeting line differently, and Git stopped. Why could it combine the first pair but not the second?</p>
+  <div class="facts">
+    <div class="fact"><span class="fact-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg></span><span class="fact-v"><b>۱۱</b><span lang="fa">بخش</span><span lang="en">sections</span></span></div>
+    <div class="fact"><span class="fact-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span class="fact-v"><b>۸۵<span class="u" lang="fa">دقیقه</span><span class="u" lang="en">min</span></b><span lang="fa">زمان مطالعه</span><span lang="en">reading time</span></span></div>
+    <div class="fact"><span class="fact-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg></span><span class="fact-v"><b>۱۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></span></div>
+    <div class="fact"><span class="fact-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v14H4zM8 9h8M8 13h5"/></svg></span><span class="fact-v"><b>۴</b><span lang="fa">نمودار</span><span lang="en">diagrams</span></span></div>
+  </div>
+</div>
+
+<section id="two-stories">
+  <h2><span lang="fa">یک بار Git جلو رفت؛ بار دوم مکث کرد</span><span lang="en">Git moved forward once, then paused</span></h2>
+  <p class="lede" lang="fa">در فصل ۰۵ دیدیم دو branch می‌توانند از یک commit شروع شوند و هرکدام ref مستقلی داشته باشند. حالا وقت برگرداندن یک مسیر به شاخهٔ اصلی است. اول پیش‌بینی کن: اگر شاخهٔ feature فقط یک commit جلوتر باشد و main هیچ commit تازه‌ای نداشته باشد، آیا Git باید commit جدیدی بسازد؟</p>
+  <p class="lede" lang="en">Chapter 05 showed two branches starting at one commit, each with its own ref. Now we need to bring one line back to the main branch. Predict first: if feature is one commit ahead and main has not added a commit, must Git create a new commit?</p>
+  <p lang="fa">برای آزمایش، مخزن جداگانه می‌سازیم. یک branch جلو می‌رود؛ بعد main آن را merge می‌کند. فایل اصلی را نگاه کن، اما مهم‌تر از آن، IDها و شکل گراف را بخوان.</p>
+  <p lang="en">We’ll use a separate repository. One branch advances, then main merges it. Inspect the file, but more importantly, compare commit IDs and graph shape.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash · disposable fast-forward experiment</span><button class="copy">کپی</button></div><pre dir="ltr">mkdir merge-lab &amp;&amp; cd merge-lab
+git init -b main
+git config user.name 'Nika Example'
+git config user.email 'nika@example.test'
+printf 'سلام\n' &gt; greeting.txt
+git add greeting.txt
+git commit -m 'Add greeting'
+git switch -c feature/welcome
+printf 'سلام به همه\n' &gt; greeting.txt
+git add greeting.txt
+git commit -m 'Improve greeting'
+git switch main
+git rev-parse HEAD
+git rev-parse feature/welcome
+git merge feature/welcome
+git log --oneline --graph --decorate --all</pre></div>
+  <p lang="fa">قبل از merge، main نیاکان مستقیم feature/welcome است؛ شاخه‌ها از هم جدا نشده‌اند. merge پیش‌فرض فقط ref شاخهٔ جاری را به commit جلوتر می‌برد. اگر دو ID آخر را پس از merge مقایسه کنی، main و feature روی یک commit‌اند و commit سومی ساخته نشده است. این حرکت مستقیم را <strong>fast-forward</strong> می‌گوییم.</p>
+  <p lang="en">Before merging, main is a direct ancestor of feature/welcome; the tips have not diverged. The default merge simply advances the current branch ref to the descendant. Afterward, the two refs resolve to the same commit, and no third commit was created. That direct move is a <strong>fast-forward</strong>.</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 900 260" role="img" aria-labelledby="g6-d1" xmlns="http://www.w3.org/2000/svg">
+      <title id="g6-d1">Fast-forward moves main from an ancestor commit to its descendant without a new commit</title>
+      <defs><marker id="g6-a1" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path class="dg-arrow-b" d="M0 0 10 5 0 10z"/></marker></defs>
+      <rect class="dg-fill dg-stroke" x="88" y="88" width="250" height="78" rx="14"/>
+      <text class="dg-t" x="213" y="119" text-anchor="middle">C1 · shared base</text>
+      <text class="dg-ts" x="213" y="145" text-anchor="middle">main + feature</text>
+      <path class="dg-stroke-b" d="M338 127H545" stroke-width="3" marker-end="url(#g6-a1)"/>
+      <rect class="dg-fill-v dg-stroke-v" x="545" y="88" width="250" height="78" rx="14"/>
+      <text class="dg-t" x="670" y="119" text-anchor="middle">C2 · feature commit</text>
+      <text class="dg-ts" x="670" y="145" text-anchor="middle">main moves here</text>
+      <text class="dg-tm" x="450" y="211" text-anchor="middle">one pointer update · no merge commit</text>
+    </svg>
+    <figcaption class="diagram-cap" lang="fa">نمودار ۱ — خط، رابطهٔ والد و فرزند را نشان می‌دهد؛ چون main روی نیاکان C2 است، ref آن مستقیم تا C2 جلو می‌رود.</figcaption>
+    <figcaption class="diagram-cap" lang="en">Diagram 1 — The line is a parent-child link. Since main is an ancestor of C2, its ref can move straight to C2.</figcaption>
+  </figure>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">شکل تاریخچه</span><span lang="en">History shape</span></th><th><span lang="fa">کار معمول merge</span><span lang="en">Default merge result</span></th><th><span lang="fa">commit تازه؟</span><span lang="en">New commit?</span></th></tr></thead><tbody>
+    <tr><td><span lang="fa">نوک شاخهٔ جاری نیاکان شاخهٔ ورودی است.</span><span lang="en">Current tip is an ancestor of the incoming tip.</span></td><td><span lang="fa">ref شاخهٔ جاری به نوک جلوتر حرکت می‌کند.</span><span lang="en">Current branch ref advances to the descendant.</span></td><td><span lang="fa">نه؛ fast-forward است.</span><span lang="en">No; it is a fast-forward.</span></td></tr>
+    <tr><td><span lang="fa">هر دو شاخه از نقطهٔ مشترک جلو رفته‌اند.</span><span lang="en">Both branches advanced from a shared point.</span></td><td><span lang="fa">Git نتیجه را ادغام و commit دووالدی می‌سازد.</span><span lang="en">Git combines the result and creates a two-parent commit.</span></td><td><span lang="fa">معمولاً بله؛ merge commit.</span><span lang="en">Usually yes; a merge commit.</span></td></tr>
+    <tr><td><span lang="fa">نوک ورودی از قبل در تاریخچهٔ جاری است.</span><span lang="en">Incoming tip is already in current history.</span></td><td><span lang="fa">پیام <code>Already up to date</code>.</span><span lang="en">“Already up to date.”</span></td><td><span lang="fa">نه؛ چیزی برای افزودن نیست.</span><span lang="en">No; there is nothing new to add.</span></td></tr>
+  </tbody></table></div>
+</section>
+
+<section id="divergence">
+  <h2><span lang="fa">وقتی هر دو شاخه جلو رفته‌اند</span><span lang="en">When both branches have advanced</span></h2>
+  <p class="lede" lang="fa">حالا شکل سخت‌تر را بسازیم. پس از C1، main روی C2 تغییر مستقلی می‌دهد و feature هم روی C3 تغییر خودش را. هیچ‌کدام نیاکان دیگری نیست. Git برای ساخت نتیجه باید بفهمد هر طرف از نقطهٔ مشترک چه تغییری داده است.</p>
+  <p class="lede" lang="en">Now create the harder shape. After C1, main makes an independent change at C2 and feature makes its own at C3. Neither tip is an ancestor of the other. To build a result, Git must determine what each side changed since their shared point.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash · divergent histories</span><button class="copy">کپی</button></div><pre dir="ltr">git switch -c feature/notes
+printf 'notes enabled\n' &gt; notes.txt
+git add notes.txt
+git commit -m 'Add notes'
+git switch main
+printf 'release=1\n' &gt; release.txt
+git add release.txt
+git commit -m 'Record release'
+git merge-base main feature/notes
+git merge feature/notes
+git rev-list --parents -n 1 HEAD
+git log --oneline --graph --decorate --all</pre></div>
+  <p lang="fa">در این مثال تغییرها به فایل‌های جدا می‌رسند، پس می‌توانند بی‌تعارض کنار هم قرار بگیرند. چون نوک‌ها واگرا شده‌اند، Git commit تازه‌ای می‌سازد که دو والد دارد: نوک قبلی main و نوک feature. <code>git rev-list --parents -n 1 HEAD</code> یک ID برای merge commit و دو ID والد نشان می‌دهد.</p>
+  <p lang="en">Here the changes touch different files, so Git can combine them without conflict. Because the tips diverged, Git creates a new commit with two parents: the former main tip and the feature tip. <code>git rev-list --parents -n 1 HEAD</code> prints the merge commit ID followed by its two parent IDs.</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 900 330" role="img" aria-labelledby="g6-d2" xmlns="http://www.w3.org/2000/svg">
+      <title id="g6-d2">Divergent branches share a merge base and join in a two-parent merge commit</title>
+      <defs><marker id="g6-a2" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path class="dg-arrow-b" d="M0 0 10 5 0 10z"/></marker></defs>
+      <rect class="dg-fill dg-stroke" x="60" y="126" width="188" height="68" rx="13"/>
+      <text class="dg-t" x="154" y="154" text-anchor="middle">B · merge base</text>
+      <text class="dg-ts" x="154" y="177" text-anchor="middle">shared ancestor</text>
+      <path class="dg-stroke-b" d="M248 145 412 83" stroke-width="2.5" marker-end="url(#g6-a2)"/>
+      <path class="dg-stroke-v" d="M248 175 412 239" stroke-width="2.5" marker-end="url(#g6-a2)"/>
+      <rect class="dg-fill-b dg-stroke-b" x="412" y="48" width="202" height="68" rx="13"/>
+      <text class="dg-t" x="513" y="77" text-anchor="middle">M · main tip</text>
+      <text class="dg-ts" x="513" y="99" text-anchor="middle">ours in this merge</text>
+      <rect class="dg-fill-v dg-stroke-v" x="412" y="205" width="202" height="68" rx="13"/>
+      <text class="dg-t" x="513" y="234" text-anchor="middle">F · feature tip</text>
+      <text class="dg-ts" x="513" y="256" text-anchor="middle">theirs in this merge</text>
+      <path class="dg-stroke-b" d="M614 82 738 133" stroke-width="2.5" marker-end="url(#g6-a2)"/>
+      <path class="dg-stroke-v" d="M614 239 738 188" stroke-width="2.5" marker-end="url(#g6-a2)"/>
+      <rect class="dg-fill-g dg-stroke-g" x="738" y="126" width="135" height="68" rx="13"/>
+      <text class="dg-t" x="805" y="154" text-anchor="middle">merge</text>
+      <text class="dg-ts" x="805" y="177" text-anchor="middle">two parents</text>
+      <text class="dg-tm" x="450" y="309" text-anchor="middle">Git compares both sides to B; it does not replay one on top of the other</text>
+    </svg>
+    <figcaption class="diagram-cap" lang="fa">نمودار ۲ — B شاخهٔ مشترک‌شدن مسیرهاست. Git تغییرهای main و feature را نسبت به B مقایسه می‌کند؛ دو پیکان ورودی به commit آخر همان دو والد هستند.</figcaption>
+    <figcaption class="diagram-cap" lang="en">Diagram 2 — B is where the lines share history. Git compares each side's changes against B; the two incoming links become the merge commit's parents.</figcaption>
+  </figure>
+  <p lang="fa">این نقطهٔ مشترک را <strong>merge base</strong> می‌نامیم. در گراف‌های ساده یک merge base روشن داریم؛ تاریخچه‌های پیچیده‌تر ممکن است چند بهترین merge base داشته باشند و الگوریتم پیش‌فرض آن‌ها را هم مدیریت می‌کند. فعلاً لازم نیست در آن پیچیدگی فرو برویم. نکتهٔ امروز این است: Git فقط دو فایل آخر را کنار هم نمی‌گذارد؛ تغییرهای هر دو را از پایهٔ مشترک می‌سنجد.</p>
+  <p lang="en">That shared point is the <strong>merge base</strong>. Simple graphs have one obvious base; more complex histories can have multiple best merge bases, which the default strategy can handle. We do not need that complexity yet. The key idea is that Git does not merely compare two final files—it evaluates both sides' changes from their common base.</p>
+  <div class="note"><div class="note-t"><span lang="fa">fast-forward policy، نه نسخهٔ اخلاقی</span><span lang="en">Fast-forward policy, not a moral rule</span></div><p lang="fa"><code>--ff-only</code> فقط وقتی جلو می‌رود که نوک فعلی نیاکان شاخهٔ ورودی باشد؛ اگر مسیرها واگرا باشند، متوقف می‌شود. <code>--no-ff</code> حتی در حالت امکان fast-forward، merge commit می‌سازد تا مرز ادغام در تاریخچه بماند. هیچ‌کدام همیشه بهترین نیست؛ تیم باید بر اساس نیاز به گراف خطی یا ثبت مرز کار تصمیم بگیرد.</p><p lang="en"><code>--ff-only</code> proceeds only when the current tip is an ancestor of the incoming tip; it refuses diverged histories. <code>--no-ff</code> creates a merge commit even when a fast-forward is possible, preserving an explicit merge boundary. Neither is universally best; choose based on whether your team wants a linear graph or an explicit integration record.</p></div>
+</section>
+
+<section id="conflict-means">
+  <h2><span lang="fa">تعارض یعنی نیتِ لازم را Git نمی‌داند</span><span lang="en">A conflict means Git lacks the intent it needs</span></h2>
+  <p class="lede" lang="fa">تا وقتی دو تغییر در بخش‌های جدا باشند، Git معمولاً می‌تواند هر دو را نگه دارد. اما اگر main یک خط را «سلام به محصول» و feature همان خط را «سلام به مهندسی» کند، کدام‌یک باید نسخهٔ نهایی باشد؟ این سؤال فنی نیست؛ تصمیم محصول است.</p>
+  <p class="lede" lang="en">When changes affect separate regions, Git can usually retain both. But if main changes one line to “Hello product” and feature changes that same line to “Hello engineering,” which should the final version say? That is a product decision, not a technical fact.</p>
+  <p lang="fa">Git خراب نشده. ابزار merge تغییرها را نسبت به پایه تشخیص می‌دهد، اما قرارداد تیم یا معنای متن را نمی‌داند. وقتی دو تغییر با هم ناسازگارند، Git به‌جای انتخاب تصادفی merge را متوقف می‌کند تا تو تصمیم بگیری.</p>
+  <p lang="en">Git is not broken. The merge machinery can compare changes against the base, but it does not know the team's contract or the meaning of the text. When edits are incompatible, Git stops rather than choosing arbitrarily.</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 900 330" role="img" aria-labelledby="g6-d3" xmlns="http://www.w3.org/2000/svg">
+      <title id="g6-d3">Three-way comparison of base, ours, and theirs produces a clean or unresolved result</title>
+      <defs><marker id="g6-a3" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path class="dg-arrow-b" d="M0 0 10 5 0 10z"/></marker></defs>
+      <rect class="dg-fill dg-stroke" x="55" y="48" width="220" height="76" rx="14"/>
+      <text class="dg-t" x="165" y="79" text-anchor="middle">Base · stage 1</text><text class="dg-ts" x="165" y="104" text-anchor="middle">original line</text>
+      <rect class="dg-fill-b dg-stroke-b" x="55" y="146" width="220" height="76" rx="14"/>
+      <text class="dg-t" x="165" y="177" text-anchor="middle">Ours · stage 2</text><text class="dg-ts" x="165" y="202" text-anchor="middle">current branch</text>
+      <rect class="dg-fill-v dg-stroke-v" x="55" y="244" width="220" height="64" rx="14"/>
+      <text class="dg-t" x="165" y="270" text-anchor="middle">Theirs · stage 3</text><text class="dg-ts" x="165" y="293" text-anchor="middle">incoming branch</text>
+      <path class="dg-stroke-b" d="M275 64C340 64 365 123 454 123" fill="none" stroke-width="2.5" marker-end="url(#g6-a3)"/>
+      <path class="dg-stroke-b" d="M275 184H454" stroke-width="2.5" marker-end="url(#g6-a3)"/>
+      <path class="dg-stroke-v" d="M275 276C340 276 365 187 454 187" fill="none" stroke-width="2.5" marker-end="url(#g6-a3)"/>
+      <rect class="dg-fill-w dg-stroke-w" x="454" y="111" width="184" height="104" rx="16"/>
+      <text class="dg-t" x="546" y="151" text-anchor="middle">compare edits</text><text class="dg-ts" x="546" y="181" text-anchor="middle">same region?</text>
+      <rect class="dg-fill-g dg-stroke-g" x="724" y="66" width="143" height="74" rx="14"/>
+      <text class="dg-t" x="795" y="97" text-anchor="middle">clean</text><text class="dg-ts" x="795" y="121" text-anchor="middle">combine</text>
+      <rect class="dg-fill-w dg-stroke-w" x="724" y="190" width="143" height="74" rx="14"/>
+      <text class="dg-t" x="795" y="221" text-anchor="middle">overlap</text><text class="dg-ts" x="795" y="245" text-anchor="middle">ask a human</text>
+      <path class="dg-stroke-g" d="M638 163C676 163 684 103 724 103" stroke-width="2" marker-end="url(#g6-a3)"/>
+      <path class="dg-stroke-w" d="M638 163C676 163 684 227 724 227" stroke-width="2" marker-end="url(#g6-a3)"/>
+      <text class="dg-ts" x="450" y="321" text-anchor="middle">merge base + current + incoming → one intended result</text>
+    </svg>
+    <figcaption class="diagram-cap" lang="fa">نمودار ۳ — Git پایه، نسخهٔ شاخهٔ جاری و نسخهٔ شاخهٔ ورودی را می‌سنجد. تغییر جدا قابل ترکیب است؛ هم‌پوشانی ناسازگار به تصمیم انسانی نیاز دارد.</figcaption>
+    <figcaption class="diagram-cap" lang="en">Diagram 3 — Git compares the base, current branch, and incoming branch. Separate edits can combine; incompatible overlap needs a human decision.</figcaption>
+  </figure>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">تغییر دو طرف</span><span lang="en">Both sides changed…</span></th><th><span lang="fa">نتیجهٔ محتمل</span><span lang="en">Likely result</span></th><th><span lang="fa">چه چیزی هنوز لازم است؟</span><span lang="en">What is still needed?</span></th></tr></thead><tbody>
+    <tr><td><span lang="fa">فایل‌های متفاوت</span><span lang="en">Different files</span></td><td><span lang="fa">ادغام خودکار</span><span lang="en">Automatic combination</span></td><td><span lang="fa">بازبینی حاصل؛ ادغام خودکار تضمین درستی معنایی نیست.</span><span lang="en">Review the result; automatic does not mean semantically correct.</span></td></tr>
+    <tr><td><span lang="fa">یک فایل، ناحیه‌های جدا</span><span lang="en">One file, separate regions</span></td><td><span lang="fa">اغلب ادغام خودکار</span><span lang="en">Often automatic</span></td><td><span lang="fa">کنترل کن که دو تغییر کنار هم معنی بدهند.</span><span lang="en">Check that both edits make sense together.</span></td></tr>
+    <tr><td><span lang="fa">یک ناحیه، محتوای ناسازگار</span><span lang="en">Same region, incompatible content</span></td><td><span lang="fa">تعارض و توقف merge</span><span lang="en">Conflict; merge pauses</span></td><td><span lang="fa">انسان باید قصد نهایی را انتخاب/ترکیب کند.</span><span lang="en">A human must choose or combine the intended result.</span></td></tr>
+    <tr><td><span lang="fa">یک طرف حذف، دیگری تغییر</span><span lang="en">One deletes, the other modifies</span></td><td><span lang="fa">تعارض modify/delete</span><span lang="en">Modify/delete conflict</span></td><td><span lang="fa">تصمیم بگیر فایل بماند یا حذف شود.</span><span lang="en">Decide whether the file should remain or be deleted.</span></td></tr>
+  </tbody></table></div>
+</section>
+
+<section id="resolve">
+  <h2><span lang="fa">حل تعارض: اول قصد، بعد ویرایش</span><span lang="en">Resolve a conflict: intent before editing</span></h2>
+  <p class="lede" lang="fa">تعارض را در یک مخزن دورریختنی می‌سازیم. قبل از merge، <code>git status</code> باید clean باشد؛ این کار احتمال گیرکردن تغییرهای نامرتبط را کم می‌کند و abort را قابل‌پیش‌بینی‌تر نگه می‌دارد. اگر پروژهٔ واقعی داری، اول تغییرها را commit کن؛ merge را روی پوشهٔ نیمه‌کاره امتحان نکن.</p>
+  <p class="lede" lang="en">We’ll create a conflict in a disposable repository. Before merging, <code>git status</code> should be clean; this reduces the chance that unrelated work becomes entangled and makes abort more predictable. In a real project, commit your work first—do not experiment on a half-finished tree.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash · same-line conflict</span><button class="copy">کپی</button></div><pre dir="ltr">printf 'سلام به تیم\n' &gt; greeting.txt
+git add greeting.txt
+git commit -m 'Add shared greeting'
+git switch -c feature/product
+printf 'سلام به تیم محصول\n' &gt; greeting.txt
+git add greeting.txt
+git commit -m 'Address product team'
+git switch main
+printf 'سلام به تیم مهندسی\n' &gt; greeting.txt
+git add greeting.txt
+git commit -m 'Address engineering team'
+git status --short
+git merge feature/product</pre></div>
+  <p lang="fa">پیام <code>CONFLICT (content)</code> و <code>Automatic merge failed</code> یعنی Git ترکیب نهایی را ثبت نکرده و merge هنوز در جریان است. این خطا نمی‌گوید کدام جمله بهتر است. فایل را باز کن و قبل از دست‌زدن به markerها تصمیم بگیر: آیا باید محصول، مهندسی، یا هر دو در متن باشند؟</p>
+  <p lang="en">A <code>CONFLICT (content)</code> message and <code>Automatic merge failed</code> mean Git did not record a final combination and the merge is still in progress. The error does not say which sentence is better. Open the file and decide before touching markers: should the message address product, engineering, or both?</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">representative conflicted file</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="s">&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
+سلام به تیم مهندسی
+=======
+سلام به تیم محصول
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; feature/product</span></pre></div>
+  <p lang="fa">در این merge مشخص، بخش بالای <code>=======</code> نسخهٔ ours یعنی main فعلی است؛ بخش پایین نسخهٔ theirs یعنی <code>feature/product</code>. markerها دستور Git نیستند؛ متن راهنما هستند که باید از نسخهٔ نهایی حذف شوند. انتخاب یک طرف هم همیشه جواب نیست: شاید جملهٔ درست «سلام به تیم محصول و مهندسی» باشد.</p>
+  <p lang="en">In this merge, the section above <code>=======</code> is ours—the current main branch; below it is theirs—<code>feature/product</code>. Markers are not Git commands; they are guidance that must not remain in the final version. Choosing one side is not always right: perhaps the intended line is “Hello product and engineering teams.”</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 900 300" role="img" aria-labelledby="g6-d4" xmlns="http://www.w3.org/2000/svg">
+      <title id="g6-d4">Conflict alternatives require an explicit human choice before the resolved file is staged</title>
+      <defs><marker id="g6-a4" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path class="dg-arrow-b" d="M0 0 10 5 0 10z"/></marker></defs>
+      <rect class="dg-fill-b dg-stroke-b" x="48" y="46" width="250" height="72" rx="14"/>
+      <text class="dg-t" x="173" y="76" text-anchor="middle">Ours · main</text><text class="dg-ts" x="173" y="101" text-anchor="middle">engineering team</text>
+      <rect class="dg-fill-v dg-stroke-v" x="48" y="180" width="250" height="72" rx="14"/>
+      <text class="dg-t" x="173" y="210" text-anchor="middle">Theirs · feature</text><text class="dg-ts" x="173" y="235" text-anchor="middle">product team</text>
+      <path class="dg-stroke-b" d="M298 82C350 82 370 120 430 120" stroke-width="2.5" marker-end="url(#g6-a4)"/>
+      <path class="dg-stroke-v" d="M298 216C350 216 370 170 430 170" stroke-width="2.5" marker-end="url(#g6-a4)"/>
+      <rect class="dg-fill-w dg-stroke-w" x="430" y="97" width="210" height="96" rx="16"/>
+      <text class="dg-t" x="535" y="135" text-anchor="middle">human decides</text><text class="dg-ts" x="535" y="163" text-anchor="middle">keep / combine / delete</text>
+      <path class="dg-stroke-g" d="M640 145H735" stroke-width="2.5" marker-end="url(#g6-a4)"/>
+      <rect class="dg-fill-g dg-stroke-g" x="735" y="97" width="132" height="96" rx="16"/>
+      <text class="dg-t" x="801" y="135" text-anchor="middle">edit file</text><text class="dg-ts" x="801" y="163" text-anchor="middle">then git add</text>
+      <text class="dg-tm" x="450" y="281" text-anchor="middle">markers identify alternatives; they do not choose the intended sentence</text>
+    </svg>
+    <figcaption class="diagram-cap" lang="fa">نمودار ۴ — دو نسخه ورودی‌اند، نه جواب نهایی. انسان قصد را تعیین می‌کند، فایل را ویرایش می‌کند و با <code>git add</code> نتیجه را وارد index می‌کند.</figcaption>
+    <figcaption class="diagram-cap" lang="en">Diagram 4 — The two versions are inputs, not the answer. A person decides intent, edits the file, and stages the result with <code>git add</code>.</figcaption>
+  </figure>
+  <p lang="fa">فایل را به جملهٔ موردنظر تبدیل کن؛ سپس خودت دوباره بخوانش، markerها را جست‌وجو کن و بعد stage کن:</p>
+  <p lang="en">Edit the file to the intended sentence; then read it back, search for leftover markers, and only then stage it:</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash · stage the human decision</span><button class="copy">کپی</button></div><pre dir="ltr">printf 'سلام به تیم محصول و مهندسی\n' &gt; greeting.txt
+git diff --check
+git diff -- greeting.txt
+git add greeting.txt
+git status
+git diff --cached
+git merge --continue
+git status --short --branch
+git log --oneline --graph --decorate --all</pre></div>
+  <p lang="fa">پس از <code>git add</code>، مسیر از indexهای unmerged به یک entry عادی stage 0 می‌رود. <code>git merge --continue</code> merge commit را کامل می‌کند؛ <code>git commit</code> هم می‌تواند آن را تمام کند. پیش از ادامه، diff staged را بازبینی کن. موفقیت یعنی هم فایل نهایی قصد را نشان بدهد، هم status از حالت merge بیرون آمده باشد.</p>
+  <p lang="en">After <code>git add</code>, the path moves from unmerged index entries to one ordinary stage-0 entry. <code>git merge --continue</code> completes the merge commit; <code>git commit</code> can complete it too. Review the staged diff first. Success means the file expresses the intended result and status no longer reports a merge in progress.</p>
+</section>
+
+<section id="index-stages">
+  <h2><span lang="fa">سه نسخهٔ حل‌نشده در index کجا هستند؟</span><span lang="en">Where do the three unresolved versions live?</span></h2>
+  <p class="lede" lang="fa">وقتی marker را در فایل می‌بینی، شاید فکر کنی Git فقط یک متن مبهم روی دیسک گذاشته. در واقع index هم تا زمان حل، نسخه‌های جداگانه را نگه می‌دارد. با <code>git ls-files -u</code> می‌توانی ببینی هر مسیر چه entryهای unmerged دارد.</p>
+  <p class="lede" lang="en">When you see markers in a file, it may look as if Git left only one ambiguous text on disk. In fact, the index retains separate versions until resolution. <code>git ls-files -u</code> shows the unmerged entries for each path.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">stage</span><span lang="en">Stage</span></th><th><span lang="fa">نسخه</span><span lang="en">Version</span></th><th><span lang="fa">در این مثال</span><span lang="en">In this example</span></th></tr></thead><tbody>
+    <tr><td><code>1</code></td><td><span lang="fa">merge base</span><span lang="en">merge base</span></td><td><span lang="fa">خط اصلی پیش از جداشدن دو branch.</span><span lang="en">The original line before the branches diverged.</span></td></tr>
+    <tr><td><code>2</code></td><td><span lang="fa">ours</span><span lang="en">ours</span></td><td><span lang="fa">نسخهٔ شاخهٔ جاری، یعنی HEAD این merge.</span><span lang="en">The current branch version—HEAD for this merge.</span></td></tr>
+    <tr><td><code>3</code></td><td><span lang="fa">theirs</span><span lang="en">theirs</span></td><td><span lang="fa">نسخهٔ شاخهٔ ورودی، یعنی MERGE_HEAD.</span><span lang="en">The incoming branch version—MERGE_HEAD.</span></td></tr>
+  </tbody></table></div>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash · inspect the unmerged index</span><button class="copy">کپی</button></div><pre dir="ltr">git ls-files -u
+<span class="s">100644 15ab... 1	greeting.txt
+100644 91cd... 2	greeting.txt
+100644 6ef0... 3	greeting.txt</span>
+git show :1:greeting.txt
+git show :2:greeting.txt
+git show :3:greeting.txt</pre></div>
+  <p lang="fa">سه شناسهٔ متفاوت نشان می‌دهد Git نسخهٔ پایه، ours و theirs را حفظ کرده است؛ هر سه مربوط به یک مسیرند. بعد از resolve و <code>git add</code>، <code>git ls-files -u</code> برای آن مسیر دیگر چیزی چاپ نمی‌کند. این فقط می‌گوید index آن مسیر unmerged نیست؛ درست‌بودن معنایی متن را باید خودت بازبینی کنی.</p>
+  <p lang="en">Three different IDs show that Git retained the base, ours, and theirs for one path. After resolving and running <code>git add</code>, <code>git ls-files -u</code> prints nothing for that path. This proves the index is no longer unmerged; you must still review whether the text is semantically correct.</p>
+  <div class="note warn"><div class="note-t"><span lang="fa">ours/theirs را به rebase تعمیم نده</span><span lang="en">Do not generalize ours/theirs to rebase</span></div><p lang="fa">در توضیح این فصل ours یعنی شاخهٔ جاریِ merge و theirs یعنی branchی که به <code>git merge</code> داده‌ای. این نام‌ها «کار من/کار همکارم» نیستند و در عملیات دیگری مثل rebase ممکن است از زاویهٔ متفاوتی معنا شوند. فعلاً shortcutهایی مثل <code>--ours</code> و <code>--theirs</code> را حفظ نکن؛ اول stageها و گراف را بفهم.</p><p lang="en">In this chapter, ours means the current branch being merged into, and theirs means the branch passed to <code>git merge</code>. These labels do not mean “my work/the teammate’s work,” and other operations such as rebase can use a different perspective. Do not memorize <code>--ours</code>/<code>--theirs</code> shortcuts yet; understand the graph and stages first.</p></div>
+</section>
+
+<section id="modify-delete">
+  <h2><span lang="fa">تعارض همیشه دو متن کنار هم نیست</span><span lang="en">A conflict is not always two text blocks</span></h2>
+  <p class="lede" lang="fa">فرض کن main یک سیاست را اصلاح می‌کند و شاخهٔ دیگر همان فایل را حذف می‌کند. اینجا markerهای سه‌خطی داخل فایل کافی نیستند؛ سؤال انسانی این است که آیا فایل هنوز لازم است؟ Git نمی‌تواند این تصمیم را از تاریخچه حدس بزند.</p>
+  <p class="lede" lang="en">Suppose main updates a policy while another branch deletes the same file. Three text-marker lines cannot express this decision. The human question is whether the file is still needed—a decision Git cannot infer from history.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash · inspect both sides of modify/delete</span><button class="copy">کپی</button></div><pre dir="ltr">git status
+git ls-files -u
+git show :1:policy.txt
+git show :2:policy.txt
+git show :3:policy.txt</pre></div>
+  <p lang="fa">در این نمونه فرض کرده‌ایم ours فایل را تغییر داده و theirs حذفش کرده؛ stage 1 و 2 وجود دارند، اما stage 3 ممکن است اصلاً نباشد. نبودن stage یعنی آن سمت برای این مسیر فایل نداشته؛ فرمان <code>git show :3:policy.txt</code> پس شکست می‌خورد. در حالت برعکس، stage 2 غایب می‌شود. همیشه خروجی <code>ls-files -u</code> را بخوان، نه اینکه وجود هر سه را فرض بگیری.</p>
+  <p lang="en">Here we assume ours modified the file and theirs deleted it: stages 1 and 2 exist, but stage 3 may be absent. A missing stage means that side had no file at this path, so <code>git show :3:policy.txt</code> fails. In the reverse case, stage 2 is absent. Read <code>ls-files -u</code>; never assume all three exist.</p>
+  <p lang="fa">اگر تصمیم این است که نسخهٔ اصلاح‌شده بماند، فایل را بازبینی و با <code>git add policy.txt</code> ثبت کن. اگر باید حذف بماند، <code>git rm policy.txt</code> را بزن. هر دو فرمان به Git می‌گویند «این تصمیم نهایی من برای index است»؛ هیچ‌کدام جای تصمیم را نمی‌گیرند.</p>
+  <p lang="en">If the decision is to keep the revised file, review it and stage it with <code>git add policy.txt</code>. If deletion is intended, use <code>git rm policy.txt</code>. Either tells Git “this is my final index decision”; neither makes the decision for you.</p>
+</section>
+
+<section id="abort-and-failures">
+  <h2><span lang="fa">اگر تصمیم نداریم، یا کار اشتباه پیش رفت</span><span lang="en">When you cannot decide—or the merge went wrong</span></h2>
+  <p class="lede" lang="fa">لازم نیست تعارض را با عجله حل کنی. اگر قبل از شروع merge پوشه تمیز بوده و هنوز تصمیم روشنی نداری، می‌توانی merge جاری را لغو کنی. اما اگر کار ناتمام داشتی، abort را دکمهٔ بازگشت تضمینی فرض نکن.</p>
+  <p class="lede" lang="en">You do not have to rush through a conflict. If the tree was clean before the merge and you do not have a decision yet, you can abort the in-progress merge. But if you had unfinished work, do not treat abort as a guaranteed rewind button.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash · leave a clean-tree conflict safely</span><button class="copy">کپی</button></div><pre dir="ltr">git status
+git merge --abort
+git status --short --branch
+git log --oneline --graph --decorate --all</pre></div>
+  <p lang="fa"><code>git merge --abort</code> تلاش می‌کند وضعیت پیش از merge را بازسازی کند. اگر تغییرهای محلیِ ثبت‌نشده هنگام شروع داشته‌ای—به‌خصوص اگر بعد از آغاز merge آن‌ها را دستکاری کرده باشی—ممکن است بازسازی کامل ممکن نباشد. برای همین پیش‌بررسی مهم است: <code>git status</code>، و اگر در کار واقعی چیزی ناتمام است، اول آن را جداگانه ثبت یا حفظ کن.</p>
+  <p lang="en"><code>git merge --abort</code> tries to reconstruct the pre-merge state. If you had uncommitted changes when it began—especially if you edited them further after the merge started—Git may not be able to reconstruct everything. That is why the pre-check matters: inspect <code>git status</code>, and preserve unfinished real work separately before merging.</p>
+  <div class="pitfalls">
+    <div class="pit"><h3 lang="fa"><code>Already up to date</code> دیدی</h3><h3 lang="en">You saw “Already up to date”</h3><p lang="fa">این شکست نیست. نوک شاخهٔ ورودی از قبل در تاریخچهٔ شاخهٔ جاری هست. با <code>git log --graph --decorate --oneline --all</code> مطمئن شو branch درست را merge کرده‌ای؛ اگر انتظار commit تازه داشتی، شاید روی branch اشتباهی ایستاده‌ای.</p><p lang="en">This is not a failure. The incoming tip is already in current history. Verify the graph with <code>git log --graph --decorate --oneline --all</code>; if you expected new commits, perhaps you are on the wrong branch.</p></div>
+    <div class="pit"><h3 lang="fa">قبل از resolve، commit زدی</h3><h3 lang="en">You tried to commit before resolving</h3><p lang="fa">Git index مسیرهای unmerged دارد و اجازهٔ commit معمولی نمی‌دهد. <code>git status</code> را بخوان، هر مسیر را با قصد درست ویرایش کن و stage کن. بعد <code>git merge --continue</code> یا <code>git commit</code>.</p><p lang="en">The index still has unmerged paths, so a normal commit cannot finish. Read <code>git status</code>, edit each path to the intended result, and stage it. Then use <code>git merge --continue</code> or <code>git commit</code>.</p></div>
+    <div class="pit"><h3 lang="fa">برای خلاص‌شدن markerها را پاک کردی</h3><h3 lang="en">You deleted markers just to make them disappear</h3><p lang="fa">حذف marker کافی نیست؛ ممکن است یکی از جمله‌های لازم را هم حذف کرده باشی. با <code>git show :1:FILE</code>، <code>:2:</code> و <code>:3:</code> نسخه‌ها را ببین، قصد نهایی را بنویس، سپس diff را بخوان و stage کن.</p><p lang="en">Removing markers is not enough; you may have deleted needed content too. Inspect versions with <code>git show :1:FILE</code>, <code>:2:</code>, and <code>:3:</code>, write the intended result, review the diff, and stage it.</p></div>
+    <div class="pit"><h3 lang="fa">تغییر نامرتبط را پیش از merge نگه داشتی</h3><h3 lang="en">Unrelated work was left dirty before merging</h3><p lang="fa">merge ممکن است برای محافظت از آن متوقف شود یا تغییرهای هم‌پوشان را در معرض خطر بگذارد. <code>git status --short</code> و پیام خطا را بخوان. در مخزن آزمایشی پاک شروع کن؛ در کار واقعی پیش از merge تغییرها را commit یا با روشی مطمئن نگه دار. force نکن.</p><p lang="en">The merge may stop to protect that work or put overlapping changes at risk. Read <code>git status --short</code> and the message. Start clean in experiments; in real work, commit or safely preserve changes before merging. Do not force it.</p></div>
+    <div class="pit"><h3 lang="fa">یک طرف را انتخاب کردی و بخش لازم از طرف دیگر پرید</h3><h3 lang="en">Choosing one side dropped needed content</h3><p lang="fa">از روی نام ours/theirs تصمیم نگیر. مرجع و قصد را بخوان، اگر لازم است سه نسخه را از index بیرون بکش، متن نهایی را بنویس و با <code>git diff --cached</code> ثابت کن که هر دو نیاز مهم باقی مانده‌اند.</p><p lang="en">Do not decide from the labels alone. Read the context and intent, inspect the three versions if needed, write the final text, and use <code>git diff --cached</code> to confirm both required ideas remain.</p></div>
+  </div>
+</section>
+
+<section id="exercises">
+  <h2><span lang="fa">تمرین‌ها: از پیش‌بینی گراف تا تصمیم انسانی</span><span lang="en">Exercises: from graph prediction to human decisions</span></h2>
+  <p class="lede" lang="fa">جواب را قبل از بازکردن راه‌حل حدس بزن. تمرین‌ها کم‌کم از خواندن گراف به پرونده‌هایی می‌رسند که باید شواهد Git را از تصمیم محصول جدا کنی.</p>
+  <p class="lede" lang="en">Predict before opening the solution. The exercises move from reading a graph to incidents where Git evidence and product decisions must be separated.</p>
+  <div class="ex-stat"><span lang="fa">۱۸ تمرین حل‌شده · مفهوم، خروجی، عیب‌یابی و تصمیم</span><span lang="en">18 solved exercises · model, output, debugging, and decisions</span></div>
+
+  <div class="ex" id="g6-ex01"><div class="ex-h"><span class="ex-n">۰۱</span><span class="ex-lvl lvl-1">پیش‌بینی / Predict</span></div><p lang="fa">main روی C1 است و feature به C2 فرزند C1 رسیده؛ main commit دیگری ندارد. merge پیش‌فرض چه می‌کند؟</p><p lang="en">main is at C1; feature is at child C2; main has no other commit. What does a default merge do?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">آیا دو نوک branch واگرا شده‌اند؟</p><p lang="en">Have the branch tips diverged?</p></details><details class="ex-sol"><summary><span lang="fa">پاسخ با شاهد</span><span lang="en">Answer with evidence</span></summary><p lang="fa">fast-forward: ref main به C2 می‌رود، commit تازه ساخته نمی‌شود. بعد از merge، <code>git rev-parse main</code> و <code>git rev-parse feature</code> باید یک ID بدهند.</p><p lang="en">A fast-forward: main moves to C2 without a new commit. Afterward, <code>git rev-parse main</code> and <code>git rev-parse feature</code> should return the same ID.</p></details></div>
+
+  <div class="ex" id="g6-ex02"><div class="ex-h"><span class="ex-n">۰۲</span><span class="ex-lvl lvl-1">شکل گراف / Graph shape</span></div><p lang="fa">main و topic هر دو یک commit مستقل از B ساخته‌اند. آیا main می‌تواند فقط ref را به نوک topic حرکت دهد و تاریخچهٔ هر دو را نگه دارد؟</p><p lang="en">main and topic each made an independent commit from B. Can main simply move its ref to topic and retain both histories?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">ببین کدام‌یک نیاکان دیگری است.</p><p lang="en">Ask whether either tip is an ancestor of the other.</p></details><details class="ex-sol"><summary><span lang="fa">تحلیل</span><span lang="en">Reasoning</span></summary><p lang="fa">نه، هر دو از B جدا شده‌اند و هیچ‌یک نیاکان دیگری نیست. برای نگه‌داشتن هر دو مسیر به نتیجهٔ ادغام و معمولاً یک merge commit با دو والد نیاز است.</p><p lang="en">No. Both diverged from B, so neither tip is an ancestor of the other. Preserving both lines requires a combined result and usually a two-parent merge commit.</p></details></div>
+
+  <div class="ex" id="g6-ex03"><div class="ex-h"><span class="ex-n">۰۳</span><span class="ex-lvl lvl-1">خواندن فرمان / Read a command</span></div><p lang="fa"><code>git merge-base main topic</code> یک OID برگرداند. این OID چه چیزی است و چه چیزی را ثابت نمی‌کند؟</p><p lang="en"><code>git merge-base main topic</code> returns an OID. What is it, and what does it not prove?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">به نام فرمان و جایگاهش در گراف فکر کن.</p><p lang="en">Think about the command name and the graph.</p></details><details class="ex-sol"><summary><span lang="fa">توضیح</span><span lang="en">Explanation</span></summary><p lang="fa">یک بهترین commit مشترک برای دو تاریخچه است؛ شروع مقایسهٔ سه‌طرفه در این شکل ساده. به‌تنهایی نمی‌گوید merge بدون تعارض می‌شود یا هر دو branch درست‌اند.</p><p lang="en">It is a best shared commit for the histories—the base for a three-way comparison in this simple graph. It does not say the merge will be conflict-free or that either branch is correct.</p></details></div>
+
+  <div class="ex" id="g6-ex04"><div class="ex-h"><span class="ex-n">۰۴</span><span class="ex-lvl lvl-1">پیش‌بینی policy / Predict a policy</span></div><p lang="fa">در شکل fast-forward، <code>git merge --no-ff topic</code> چه تفاوتی با merge عادی دارد؟</p><p lang="en">On a fast-forwardable graph, how does <code>git merge --no-ff topic</code> differ from a default merge?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">چه چیزی در گراف اضافه می‌شود؟</p><p lang="en">What extra node appears in the graph?</p></details><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">merge commit می‌سازد، حتی اگر main بتواند مستقیم جلو برود. این سیاست ثبت مرز ادغام است، نه الزام فنی و نه بهترین انتخاب همیشگی.</p><p lang="en">It creates a merge commit even though main could advance directly. This is a policy for recording an integration boundary, not a technical requirement or universal best practice.</p></details></div>
+
+  <div class="ex" id="g6-ex05"><div class="ex-h"><span class="ex-n">۰۵</span><span class="ex-lvl lvl-1">معنای عبارت / Interpret output</span></div><p lang="fa"><code>git merge topic</code> می‌گوید <code>Already up to date</code>. آیا merge شکست خورده؟</p><p lang="en"><code>git merge topic</code> says <code>Already up to date</code>. Did the merge fail?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">آیا commit ورودی از قبل در ancestry شاخهٔ جاری هست؟</p><p lang="en">Is the incoming commit already an ancestor of the current branch?</p></details><details class="ex-sol"><summary><span lang="fa">تفسیر</span><span lang="en">Interpretation</span></summary><p lang="fa">نه؛ چیزی برای افزودن وجود ندارد. اگر انتظار تغییر داشتی، branch جاری و نام topic را با <code>git branch --show-current</code> و graph بررسی کن.</p><p lang="en">No; there is nothing to add. If you expected changes, check the current branch and topic name with <code>git branch --show-current</code> and the graph.</p></details></div>
+
+  <div class="ex" id="g6-ex06"><div class="ex-h"><span class="ex-n">۰۶</span><span class="ex-lvl lvl-1">تغییرهای جدا / Separate edits</span></div><p lang="fa">هر دو branch یک فایل را تغییر داده‌اند، اما در خط‌های جدا. آیا حتماً conflict می‌شود؟</p><p lang="en">Both branches edited one file, but on separate lines. Must this conflict?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">Git ناحیهٔ تغییر را نسبت به چه چیزی مقایسه می‌کند؟</p><p lang="en">Against what does Git compare each changed region?</p></details><details class="ex-sol"><summary><span lang="fa">پاسخ دقیق</span><span lang="en">Precise answer</span></summary><p lang="fa">نه. اگر ناحیه‌ها مستقل باشند، Git اغلب هر دو را ادغام می‌کند. بااین‌حال diff نهایی را بخوان؛ ادغام متنی نمی‌فهمد نتیجه از نظر معنا درست است.</p><p lang="en">No. If the regions are independent, Git often combines both. Still review the final diff; textual merging cannot know whether the result makes sense.</p></details></div>
+
+  <div class="ex" id="g6-ex07"><div class="ex-h"><span class="ex-n">۰۷</span><span class="ex-lvl lvl-2">تشخیص مرحله / Identify the stage</span></div><p lang="fa"><code>git ls-files -u</code> برای یک فایل stageهای ۱، ۲ و ۳ را نشان می‌دهد. هرکدام چه نسخه‌ای هستند؟</p><p lang="en"><code>git ls-files -u</code> shows stages 1, 2, and 3 for a path. Which versions are they?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">base، شاخهٔ فعلی، شاخهٔ ورودی.</p><p lang="en">Base, current branch, incoming branch.</p></details><details class="ex-sol"><summary><span lang="fa">تطبیق</span><span lang="en">Mapping</span></summary><p lang="fa">۱ = merge base؛ ۲ = ours، یعنی HEAD جاری در merge؛ ۳ = theirs، یعنی MERGE_HEAD. در modify/delete ممکن است یک stage غایب باشد.</p><p lang="en">1 = merge base; 2 = ours, HEAD in this merge; 3 = theirs, MERGE_HEAD. A modify/delete conflict may lack one stage.</p></details></div>
+
+  <div class="ex" id="g6-ex08"><div class="ex-h"><span class="ex-n">۰۸</span><span class="ex-lvl lvl-2">خواندن marker / Read markers</span></div><p lang="fa">در فایل، <code>HEAD</code> بالای <code>=======</code> است. در این merge این نام به کدام سمت اشاره دارد؟</p><p lang="en"><code>HEAD</code> appears above <code>=======</code>. Which side is it in this merge?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">کدام branch را قبل از اجرای merge checkout کرده‌ای؟</p><p lang="en">Which branch was checked out before running merge?</p></details><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">بالا ours است: شاخهٔ جاری و HEAD زمان merge. پایین theirs است: branch ورودی. این واژه‌ها را به معنی «من» و «دیگری» در عملیات دیگر تعمیم نده.</p><p lang="en">The top is ours: the current branch and HEAD for this merge. The bottom is theirs: the incoming branch. Do not generalize these labels to “me/other” in different operations.</p></details></div>
+
+  <div class="ex" id="g6-ex09"><div class="ex-h"><span class="ex-n">۰۹</span><span class="ex-lvl lvl-2">ترمیم index / Repair the index</span></div><p lang="fa">markerها را در فایل حذف کردی، اما <code>git status</code> هنوز unmerged می‌گوید. چه مرحله‌ای جا مانده؟</p><p lang="en">You removed the markers, but <code>git status</code> still reports unmerged paths. What step remains?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">فایل و index یکی نیستند.</p><p lang="en">The file and index are separate.</p></details><details class="ex-sol"><summary><span lang="fa">راه حل</span><span lang="en">Fix</span></summary><p lang="fa">فایل نهایی را بازبینی و با <code>git add FILE</code> stage کن. ویرایش working tree به‌تنهایی stageهای unmerged index را جایگزین نمی‌کند؛ بعد <code>git ls-files -u</code> را دوباره ببین.</p><p lang="en">Review the final file and stage it with <code>git add FILE</code>. Editing the working tree alone does not replace the index’s unmerged stages; rerun <code>git ls-files -u</code>.</p></details></div>
+
+  <div class="ex" id="g6-ex10"><div class="ex-h"><span class="ex-n">۱۰</span><span class="ex-lvl lvl-2">تصمیم متن / Text decision</span></div><p lang="fa">ours می‌گوید «ثبت‌نام باز است»، theirs می‌گوید «ثبت‌نام بسته است»، و زمان انتشار هنوز معلوم نیست. آیا یکی را انتخاب می‌کنی؟</p><p lang="en">Ours says “registration open,” theirs says “registration closed,” and the release date is unknown. Do you choose one?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">کدام مدرک Git ندارد؟</p><p lang="en">What evidence does Git lack?</p></details><details class="ex-sol"><summary><span lang="fa">تصمیم مسئولانه</span><span lang="en">Responsible decision</span></summary><p lang="fa">Git فقط دو نسخه و پایه را دارد؛ قصد کسب‌وکار را نمی‌داند. از صاحب نیاز یا قرارداد انتشار بپرس، یا merge را abort کن تا پاسخ روشن شود. انتخاب تصادفی یکی از sideها می‌تواند اطلاعات نادرست منتشر کند.</p><p lang="en">Git has the two versions and their base, not business intent. Ask the owner or check the release contract, or abort until you know. Randomly choosing a side could publish incorrect information.</p></details></div>
+
+  <div class="ex" id="g6-ex11"><div class="ex-h"><span class="ex-n">۱۱</span><span class="ex-lvl lvl-2">تفاوت policy / Compare policies</span></div><p lang="fa">گراف قابل fast-forward است. تیم می‌خواهد ادغام feature به‌شکل commit جدا در log بماند. کدام گزینه با این سیاست سازگار است؟</p><p lang="en">The graph is fast-forwardable. The team wants feature integration to remain an explicit commit in the log. Which option matches?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">یکی از گزینه‌ها merge commit را حتی در fast-forward می‌سازد.</p><p lang="en">One option creates a merge commit even when fast-forward is possible.</p></details><details class="ex-sol"><summary><span lang="fa">پاسخ با محدودیت</span><span lang="en">Answer and limit</span></summary><p lang="fa"><code>git merge --no-ff feature</code>. این یک policy برای شکل تاریخچه است؛ الزام فنی یا توصیهٔ همیشگی نیست و commit واقعی merge می‌سازد.</p><p lang="en"><code>git merge --no-ff feature</code>. This is a history policy, not a technical requirement or universal advice; it creates a real merge commit.</p></details></div>
+
+  <div class="ex" id="g6-ex12"><div class="ex-h"><span class="ex-n">۱۲</span><span class="ex-lvl lvl-2">پیش‌بررسی / Pre-merge check</span></div><p lang="fa">قبل از merge، index تغییر stageشده و working tree هم فایل نیمه‌کاره دارد. امن‌ترین قدم چیست؟</p><p lang="en">Before merging, the index has staged changes and the working tree has an unfinished file. What is the safest next step?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">merge قرار است کدام تغییرها را ثبت کند؟</p><p lang="en">Which changes should the merge record?</p></details><details class="ex-sol"><summary><span lang="fa">دلیل</span><span lang="en">Reasoning</span></summary><p lang="fa">merge را شروع نکن. <code>git status</code> و <code>git diff --staged</code> را بخوان و تغییرها را جداگانه commit یا محفوظ کن. index غیرتمیز ممکن است باعث توقف یا گره‌خوردن کار نامرتبط شود؛ force راه‌حل نیست.</p><p lang="en">Do not start the merge. Read <code>git status</code> and <code>git diff --staged</code>, then commit or preserve the work separately. A dirty index can stop the merge or entangle unrelated work; forcing is not the fix.</p></details></div>
+
+  <div class="ex" id="g6-ex13"><div class="ex-h"><span class="ex-n">۱۳</span><span class="ex-lvl lvl-2">تعارض حذف/تغییر / Modify-delete</span></div><p lang="fa">در <code>git ls-files -u</code> برای <code>policy.txt</code> stage 1 و 2 هست، stage 3 نیست. چه اتفاقی محتمل است؟</p><p lang="en"><code>git ls-files -u</code> shows stages 1 and 2 for <code>policy.txt</code>, but no stage 3. What likely happened?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">stage 3 همان incoming است.</p><p lang="en">Stage 3 is the incoming side.</p></details><details class="ex-sol"><summary><span lang="fa">تفسیر</span><span lang="en">Interpretation</span></summary><p lang="fa">در این جهت merge، ours فایل را نگه داشته/تغییر داده و theirs آن را حذف کرده است. stage غایب یعنی نسخهٔ آن سمت برای path وجود ندارد؛ با <code>git status</code> جهت حذف/تغییر را تأیید کن.</p><p lang="en">In this merge direction, ours retained or modified the file while theirs deleted it. The missing stage means that side has no version for the path; confirm the direction with <code>git status</code>.</p></details></div>
+
+  <div class="ex" id="g6-ex14"><div class="ex-h"><span class="ex-n">۱۴</span><span class="ex-lvl lvl-3">برنامهٔ بازیابی / Recovery choice</span></div><p lang="fa">merge conflict شده و می‌خواهی قبل از هر تصمیم به وضعیت قبل برگردی؛ پیش از merge پوشه clean بوده. فرمان چیست و بعد چه چیزی را بررسی می‌کنی؟</p><p lang="en">A merge conflicted and you want to return to the pre-merge state; the tree was clean beforehand. What command do you use, and what do you verify?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">لغو merge و بعد دوباره وضعیت.</p><p lang="en">Abort the merge, then inspect state again.</p></details><details class="ex-sol"><summary><span lang="fa">راه امن</span><span lang="en">Safe path</span></summary><p lang="fa"><code>git merge --abort</code>؛ سپس <code>git status --short --branch</code> و graph را بررسی کن. abort تلاش برای بازسازی است، نه تضمین برای تغییرهای محلی ناتمام پیش از merge.</p><p lang="en"><code>git merge --abort</code>, then inspect <code>git status --short --branch</code> and the graph. Abort attempts reconstruction; it is not a guarantee for unfinished local work present before merging.</p></details></div>
+
+  <div class="ex" id="g6-ex15"><div class="ex-h"><span class="ex-n">۱۵</span><span class="ex-lvl lvl-3">تفسیر commit / Inspect a merge commit</span></div><p lang="fa">فرمان <code>git rev-list --parents -n 1 HEAD</code> سه OID چاپ می‌کند. چرا؟</p><p lang="en"><code>git rev-list --parents -n 1 HEAD</code> prints three OIDs. Why?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">اولی خود commit است؛ چند تای بعدی parentها هستند.</p><p lang="en">The first is the commit; following IDs are parents.</p></details><details class="ex-sol"><summary><span lang="fa">خواندن</span><span lang="en">Read it</span></summary><p lang="fa">اولی ID خود HEAD و دو ID بعدی والدهای merge commit هستند: نوک قبلی شاخهٔ جاری و نوک branch ورودی. این شاهد merge commit بودن است؛ معنای فایل‌های نهایی را نشان نمی‌دهد.</p><p lang="en">The first ID is HEAD; the next two are the merge commit’s parents: the former current tip and the incoming branch tip. This proves it is a merge commit, not what the resulting files mean.</p></details></div>
+
+  <div class="ex" id="g6-ex16"><div class="ex-h"><span class="ex-n">۱۶</span><span class="ex-lvl lvl-3">بازبینی حل / Review a resolution</span></div><p lang="fa">پس از <code>git add greeting.txt</code>، <code>git ls-files -u</code> خالی است. آیا می‌توانی merge را با اطمینان کامل commit کنی؟</p><p lang="en">After <code>git add greeting.txt</code>, <code>git ls-files -u</code> is empty. Can you commit the merge with complete confidence?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">چه چیزی را index نمی‌تواند دربارهٔ معنا بگوید؟</p><p lang="en">What can the index not tell you about meaning?</p></details><details class="ex-sol"><summary><span lang="fa">بازبینی لازم</span><span lang="en">Review required</span></summary><p lang="fa">نه هنوز. این فقط می‌گوید path از نظر Git unmerged نیست. <code>git diff --cached</code>، متن نهایی و نیاز محصول را بازبینی کن؛ سپس merge را ادامه بده.</p><p lang="en">Not yet. It only says Git no longer considers the path unmerged. Review <code>git diff --cached</code>, the final text, and product intent before continuing.</p></details></div>
+
+  <div class="ex" id="g6-ex17"><div class="ex-h"><span class="ex-n">۱۷</span><span class="ex-lvl lvl-3">پروندهٔ عیب‌یابی / Incident ticket</span></div><p lang="fa">merge خودکار تمام شده اما برنامه بعد از آن رفتار نادرستی دارد؛ هر دو تغییر در فایل‌های جدا بودند. آیا «بدون conflict» یعنی «درست»؟ قدم تشخیصی چیست؟</p><p lang="en">An automatic merge completed, but the app behaves incorrectly afterward; the edits were in separate files. Does “no conflict” mean “correct”? What do you inspect?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">merge متن را می‌سنجد، نه قرارداد برنامه را.</p><p lang="en">Merging checks text, not application contracts.</p></details><details class="ex-sol"><summary><span lang="fa">تحلیل حادثه</span><span lang="en">Incident analysis</span></summary><p lang="fa">نه. Git توانست متن را کنار هم بگذارد، اما یکپارچگی معنایی را نمی‌فهمد. merge commit و diff را بخوان، آزمون‌های مربوط را اجرا کن و تعامل دو تغییر را بررسی کن؛ «clean merge» فقط نبود تعارض حل‌نشده است.</p><p lang="en">No. Git could combine text but cannot validate semantic integration. Inspect the merge commit and diff, run relevant tests, and check how the changes interact. A clean merge means no unresolved conflict, not correctness.</p></details></div>
+
+  <div class="ex" id="g6-ex18"><div class="ex-h"><span class="ex-n">۱۸</span><span class="ex-lvl lvl-3">انتخاب اقدام / Choose the next action</span></div><p lang="fa">در main هستی. همکارت branch اشتباه را نام برده و merge با <code>Already up to date</code> تمام شده؛ انتظار تغییر داشتی. به‌جای اجرای مجدد چند فرمان، چه شواهدی می‌گیری؟</p><p lang="en">You are on main. A teammate named the wrong branch; merge ended with “Already up to date,” though you expected changes. What evidence do you collect before retrying commands?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">branch جاری، refها و گراف را کنار هم ببین.</p><p lang="en">Inspect the current branch, refs, and graph together.</p></details><details class="ex-sol"><summary><span lang="fa">تشخیص</span><span lang="en">Diagnosis</span></summary><p lang="fa">با <code>git branch --show-current</code> جای خودت را تأیید کن؛ <code>git branch -vv</code> و <code>git log --graph --oneline --decorate --all</code> اسم و نوک branchها را نشان می‌دهند. بعد نام درست را انتخاب و merge کن. پیام قبلی می‌گوید همان ورودی از قبل در تاریخچه بوده، نه اینکه هیچ branch دیگری تغییر تازه ندارد.</p><p lang="en">Confirm your location with <code>git branch --show-current</code>; use <code>git branch -vv</code> and <code>git log --graph --oneline --decorate --all</code> to inspect names and tips. Then choose the correct branch and merge it. The earlier message means that input was already in history, not that no other branch has new work.</p></details></div>
+</section>
+
+<section id="mini-project">
+  <h2><span lang="fa">پروژهٔ کوچک: سه تصمیم برای یک محصول</span><span lang="en">Mini-project: three integration decisions for one product</span></h2>
+  <div class="capsule">
+    <span class="tagline"><span lang="fa">مخزن دورریختنی · حدود ۳۵ دقیقه</span><span lang="en">Disposable repository · about 35 minutes</span></span>
+    <h3 lang="fa">سه branch، سه جور نتیجه</h3><h3 lang="en">Three branches, three different outcomes</h3>
+    <p lang="fa">تیمت روی راهنمای محصول کار می‌کند. یک تغییر بی‌تعارض را خودکار ادغام کن، یک اختلاف متن را با تصمیم روشن حل کن و در تعارض حذف/تغییر انتخاب کن سند سیاست بماند یا نه. هیچ‌کدام را با پاک‌کردن markerها «حل» نکن.</p>
+    <p lang="en">Your team is working on product documentation. Automatically integrate a clean change, resolve a text conflict with explicit intent, and decide whether a policy document survives a modify/delete conflict. Do not “solve” any of them by blindly deleting markers.</p>
+    <h4 lang="fa">پرونده را جدا بساز</h4><h4 lang="en">Create the case in isolation</h4>
+    <p lang="fa">این فرمان‌ها فقط پوشهٔ آزمایشی تازه را تغییر می‌دهند. اگر از قبل چنین پوشه‌ای داری، نام دیگری انتخاب کن.</p><p lang="en">These commands change only a new disposable folder. If that name already exists, choose another.</p>
+    <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash · project setup</span><button class="copy">کپی</button></div><pre dir="ltr">mkdir merge-project &amp;&amp; cd merge-project
+git init -b main
+git config user.name 'Nika Example'
+git config user.email 'nika@example.test'
+printf 'سلام به تیم\n' &gt; greeting.txt
+printf 'قانون نسخه: پایدار بماند\n' &gt; policy.txt
+printf 'شروع\n' &gt; README.txt
+git add .
+git commit -m 'Create product docs'</pre></div>
+    <h4 lang="fa">تصمیم اول: فایل‌های جدا، merge خودکار</h4><h4 lang="en">Decision 1: separate files, clean merge</h4>
+    <p lang="fa">از main دو branch مستقل بساز؛ یکی changelog و دیگری راهنمای سریع اضافه کند. هر دو از یک پایه‌اند. merge اول را بررسی کن، سپس دومی را merge کن و ببین چرا بار دوم ممکن است merge commit بسازد، هرچند تعارضی نیست.</p>
+    <p lang="en">Create two independent branches from main: one adds a changelog, the other a quick guide. Both start at the same base. Inspect the first merge, then merge the second and explain why it may create a merge commit even though there is no conflict.</p>
+    <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash · independent additions</span><button class="copy">کپی</button></div><pre dir="ltr">git switch -c feature/changelog
+printf 'v1: انتشار آزمایشی\n' &gt; CHANGELOG.txt
+git add CHANGELOG.txt &amp;&amp; git commit -m 'Add changelog'
+git switch main
+git switch -c feature/quickstart
+printf '۱. نصب\n۲. اجرا\n' &gt; QUICKSTART.txt
+git add QUICKSTART.txt &amp;&amp; git commit -m 'Add quickstart'
+git switch main
+git merge feature/changelog
+git log --oneline --graph --decorate --all
+git merge feature/quickstart
+git rev-list --parents -n 1 HEAD
+git log --oneline --graph --decorate --all</pre></div>
+    <h4 lang="fa">تصمیم دوم: یک خط، دو خواسته</h4><h4 lang="en">Decision 2: one line, two intentions</h4>
+    <p lang="fa">دو branch تازه از main بسازند: یکی پیام را برای تیم محصول شخصی کند و دیگری برای تیم مهندسی. بعد از merge اول، merge دوم را اجرا کن. پیش از ویرایش، در دفترچه بنویس چه جمله‌ای مخاطب هر دو را درست پوشش می‌دهد؛ بعد markerها را بردار، متن را بازبینی و stage کن.</p>
+    <p lang="en">Create two new branches from main: one personalizes the greeting for product, the other for engineering. After the first merge, run the second. Before editing, write down a sentence that correctly addresses both audiences; then remove markers, review, and stage it.</p>
+    <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash · same-line conflict</span><button class="copy">کپی</button></div><pre dir="ltr">git switch -c feature/product-greeting
+printf 'سلام به تیم محصول\n' &gt; greeting.txt
+git add greeting.txt &amp;&amp; git commit -m 'Address product team'
+git switch main
+git switch -c feature/engineering-greeting
+printf 'سلام به تیم مهندسی\n' &gt; greeting.txt
+git add greeting.txt &amp;&amp; git commit -m 'Address engineering team'
+git switch main
+git merge feature/product-greeting
+git merge feature/engineering-greeting
+git status
+git ls-files -u
+git show :1:greeting.txt
+git show :2:greeting.txt
+git show :3:greeting.txt</pre></div>
+    <p lang="fa">نتیجهٔ پیشنهادی: <code>سلام به تیم محصول و مهندسی</code>. این تنها جواب ممکن نیست؛ اگر محصول قرارداد لحن دیگری دارد، همان را انتخاب کن و دلیلش را ثبت کن.</p><p lang="en">One reasonable result is <code>سلام به تیم محصول و مهندسی</code>. It is not the only valid answer; if the product has another tone contract, choose it and record why.</p>
+    <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash · record and verify the resolution</span><button class="copy">کپی</button></div><pre dir="ltr">printf 'سلام به تیم محصول و مهندسی\n' &gt; greeting.txt
+git diff --check
+git add greeting.txt
+git diff --cached
+git merge --continue
+git status --short --branch
+git log --oneline --graph --decorate --all</pre></div>
+    <h4 lang="fa">تصمیم سوم: سند تغییر کرد یا حذف شد؟</h4><h4 lang="en">Decision 3: update or delete the policy?</h4>
+    <p lang="fa">از main، branchی بساز که policy را دقیق‌تر می‌کند؛ از main دیگری بساز که همان policy را حذف می‌کند. بعد یکی را merge و دیگری را اجرا کن. این پرونده تصمیم محصول می‌خواهد، نه مقایسهٔ دو تکه متن؛ سیاست انتشار باید بماند، پس نسخهٔ اصلاح‌شده را نگه دار.</p>
+    <p lang="en">From main, create one branch that clarifies the policy and another that deletes it. Merge one, then attempt the other. This needs a product decision, not a text comparison: the release policy must remain, so keep the revised version.</p>
+    <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash · modify/delete conflict</span><button class="copy">کپی</button></div><pre dir="ltr">git switch -c feature/policy-update
+printf 'قانون نسخه: پایدار بماند؛ انتشار فقط پس از بازبینی\n' &gt; policy.txt
+git add policy.txt &amp;&amp; git commit -m 'Clarify release policy'
+git switch main
+git switch -c feature/remove-old-policy
+git rm policy.txt
+git commit -m 'Remove obsolete policy'
+git switch main
+git merge feature/policy-update
+git merge feature/remove-old-policy
+git status
+git ls-files -u
+git show :1:policy.txt
+git show :2:policy.txt</pre></div>
+    <p lang="fa">stage 3 برای نسخهٔ حذف‌شده وجود ندارد. تصمیم پروژه نگه‌داشتن سیاست است؛ فایل را بازبینی کن و با <code>git add policy.txt</code> stage کن، سپس merge را ادامه بده. اگر تصمیم واقعی تیم حذف بود، باید <code>git rm policy.txt</code> می‌زدی. در دفترچه بنویس چه مدرکی Git داد، چه چیزی را نمی‌دانست و انسان چه تصمیمی گرفت.</p>
+    <p lang="en">Stage 3 is absent for the deleted version. The project decision is to retain the policy: review it and stage it with <code>git add policy.txt</code>, then continue the merge. If the team's real decision were deletion, you would use <code>git rm policy.txt</code>. Record what Git showed, what it could not know, and what the human decided.</p>
+    <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash · verify the project</span><button class="copy">کپی</button></div><pre dir="ltr">git add policy.txt
+git diff --cached
+git merge --continue
+git status --short --branch
+git log --oneline --graph --decorate --all
+git show HEAD:policy.txt</pre></div>
+    <details class="ex-hint"><summary><span lang="fa">راهنمایی اگر گراف گیج‌کننده شد</span><span lang="en">Hint if the graph gets confusing</span></summary><p lang="fa">در هر تعارض، branch جاری را با <code>git branch --show-current</code> پیدا کن. اسم branch ورودی را از فرمان merge بردار؛ مثلاً در تعارض دوم پروژه <code>git merge-base HEAD feature/engineering-greeting</code> و <code>git log --graph --oneline --decorate --all</code> را بخوان. برای هر فایل فقط وقتی همهٔ نیازها را فهمیدی تصمیم بگیر.</p><p lang="en">For each conflict, identify the current branch with <code>git branch --show-current</code>. Use the incoming branch name from your merge command; for the second project conflict, for example, run <code>git merge-base HEAD feature/engineering-greeting</code>, then inspect <code>git log --graph --oneline --decorate --all</code>. Decide on each file only after you understand the requirements.</p></details>
+    <div class="note safe"><div class="note-t"><span lang="fa">دفترچهٔ ادغام</span><span lang="en">Merge journal</span></div><p lang="fa">برای هر سه ادغام ثبت کن: Git چه چیزی را خودکار فهمید؟ کدام بخشِ معنا را نمی‌دانست؟ چه تصمیم انسانی نتیجه را تعیین کرد؟ اگر بتوانی جواب‌ها را از روی گراف، index و diff نشان بدهی، پروژه کامل است.</p><p lang="en">For each of the three integrations, record: What could Git infer automatically? What meaning did it lack? Which human decision determined the result? If you can support your answers with the graph, index, and diff, the project is complete.</p></div>
+  </div>
+</section>
+
+<section id="handoff">
+  <h2><span lang="fa">merge دو خط تاریخ را نگه می‌دارد؛ قدم بعدی چه می‌شود؟</span><span lang="en">Merge preserves both lines—what comes next?</span></h2>
+  <p class="lede" lang="fa">حالا می‌توانی fast-forward را از merge commit تشخیص بدهی، merge base را در گراف پیدا کنی و تعارض را به‌عنوان تصمیم حل‌نشده بخوانی، نه خرابی Git. merge دو خط تاریخ را با یک commit چندوالدی به هم وصل می‌کند.</p>
+  <p class="lede" lang="en">You can now distinguish a fast-forward from a merge commit, locate the merge base, and read a conflict as an unresolved decision rather than Git malfunction. A merge joins two lines of history with a multi-parent commit.</p>
+  <p lang="fa">فصل ۰۷ سؤال تازه‌ای می‌پرسد: اگر به‌جای وصل‌کردن دو مسیر، commitهای خودمان را روی پایهٔ جدید دوباره اجرا کنیم چه می‌شود؟ جواب، <code>rebase</code> است—و چون commit از والدش ID می‌گیرد، IDها عوض می‌شوند.</p>
+  <p lang="en">Chapter 07 asks a different question: what if instead of joining two lines, we replay our commits onto a new base? That is <code>rebase</code>—and because a commit’s ID depends on its parent, the IDs change.</p>
+</section>
+
+<section id="quick-reference">
+  <h2><span lang="fa">نقشهٔ سریع merge</span><span lang="en">Quick merge reference</span></h2>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">اگر این را می‌بینی…</span><span lang="en">If you see…</span></th><th><span lang="fa">بررسی کن…</span><span lang="en">Check…</span></th><th><span lang="fa">یادت بماند…</span><span lang="en">Remember…</span></th></tr></thead><tbody>
+    <tr><td><code>Already up to date</code></td><td><code>git log --graph --oneline --decorate --all</code></td><td><span lang="fa">خطا نیست؛ ورودی احتمالاً از قبل در ancestry هست.</span><span lang="en">Not an error; the input is probably already an ancestor.</span></td></tr>
+    <tr><td><code>Fast-forward</code></td><td><code>git rev-parse HEAD topic</code></td><td><span lang="fa">ref حرکت می‌کند؛ merge commit ساخته نمی‌شود.</span><span lang="en">The ref moves; no merge commit is created.</span></td></tr>
+    <tr><td><code>CONFLICT</code></td><td><code>git status</code> · <code>git ls-files -u</code></td><td><span lang="fa">قصد را مشخص کن، بعد فایل را stage کن.</span><span lang="en">Determine intent, then stage the result.</span></td></tr>
+    <tr><td><span lang="fa">حل شد؟</span><span lang="en">Resolved?</span></td><td><code>git diff --cached</code> · <code>git merge --continue</code></td><td><span lang="fa">خالی‌شدن stageها، درستی معنایی را ثابت نمی‌کند.</span><span lang="en">No unmerged stages does not prove semantic correctness.</span></td></tr>
+    <tr><td><span lang="fa">نمی‌خواهی ادامه بدهی</span><span lang="en">Need to back out?</span></td><td><code>git merge --abort</code></td><td><span lang="fa">بازسازی تلاش می‌شود؛ کار dirty قبلی تضمیناً برنمی‌گردد.</span><span lang="en">Reconstruction is attempted; prior dirty work is not guaranteed.</span></td></tr>
+  </tbody></table></div>
+  <div class="note safe"><div class="note-t"><span lang="fa">سه جمله برای نگه‌داشتن</span><span lang="en">Three ideas to keep</span></div><ul><li lang="fa">fast-forward فقط ref را جلو می‌برد؛ تاریخچهٔ تازه نمی‌سازد.</li><li lang="en">A fast-forward moves a ref; it creates no new history node.</li><li lang="fa">merge commit دو parent دارد و دو مسیر را به هم وصل می‌کند.</li><li lang="en">A merge commit has two parents and joins two lines.</li><li lang="fa">conflict یعنی Git شواهد دارد اما قصد نهایی را نمی‌داند؛ تصمیم و بازبینی با انسان است.</li><li lang="en">A conflict means Git has evidence but lacks intent; a person decides and reviews.</li></ul></div>
+</section>
