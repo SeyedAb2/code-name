@@ -36,14 +36,14 @@
 ```bash
 git clone https://github.com/SeyedAb2/code-name.git
 cd code-name
-npm install
+npm ci
 
 npm run dev     # http://localhost:3000
 npm run build   # ساخت نسخهٔ نهایی
 npm start       # اجرای همان نسخه
 ```
 
-Node نسخهٔ ۲۰ به بالا لازم است.
+Node.js نسخهٔ ۲۰٫۹ به بالا لازم است؛ برای استقرار، Node.js ۲۲ پیشنهاد می‌شود.
 
 ---
 
@@ -85,6 +85,10 @@ docker compose up -d --build     # http://localhost:8080
 ایمیج سه‌مرحله‌ای است و نسخهٔ نهایی فقط خروجی `standalone` را روی یک
 Node کوچک اجرا می‌کند. برای انتشار روی دامنه، نمونهٔ پیکربندی Nginx در
 [`deploy/nginx.conf`](deploy/nginx.conf) هست.
+
+برای اجرای محلی نسخهٔ production، `npm start` فایل‌های `public` و
+`.next/static` را کنار سرور standalone آماده می‌کند. در Docker این فایل‌ها
+هنگام ساخت ایمیج کپی می‌شوند.
 
 ---
 

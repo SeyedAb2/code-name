@@ -1,0 +1,372 @@
+<!--meta
+title: reflog: تور نجات
+desc: وقتی یک commit از مسیر معمول تاریخچه بیرون می‌افتد، ردّ جابه‌جایی refها را در مخزن محلی پیدا کن؛ اما reflog را با نسخهٔ پشتیبان اشتباه نگیر.
+-->
+
+<div class="masthead">
+  <span class="eyebrow"><span class="dot"></span><span lang="fa">گیت · فصل ۱۰</span><span lang="en">Git · Chapter 10</span></span>
+  <h1 lang="fa"><code>reflog</code>: تور نجات</h1>
+  <h1 lang="en">Reflog: Git's local safety journal</h1>
+  <p class="sub" lang="fa">دو commit را با <code>reset --hard</code> از مسیر عادی <code>log</code> بیرون برده‌ای. Git خراب شده؟ شاید فقط نام شاخه را جابه‌جا کرده‌ای. قبل از هر فرمان دیگری بپرس: «ردّ حرکت قبلی ref کجاست؟»</p>
+  <p class="sub" lang="en">You moved two commits out of the ordinary <code>log</code> path with <code>reset --hard</code>. Is Git broken—or did you only move the branch name? Before running another command, ask: “Where is the record of that ref's earlier position?”</p>
+  <div class="facts">
+    <div class="fact"><span class="fact-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg></span><span class="fact-v"><b>۱۶</b><span lang="fa">بخش</span><span lang="en">sections</span></span></div>
+    <div class="fact"><span class="fact-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span class="fact-v"><b>۸۰<span class="u" lang="fa">دقیقه</span><span class="u" lang="en">min</span></b><span lang="fa">زمان مطالعه</span><span lang="en">reading time</span></span></div>
+    <div class="fact"><span class="fact-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg></span><span class="fact-v"><b>۱۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></span></div>
+    <div class="fact"><span class="fact-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v14H4zM8 9h8M8 13h5"/></svg></span><span class="fact-v"><b>۴</b><span lang="fa">نمودار</span><span lang="en">diagrams</span></span></div>
+  </div>
+</div>
+
+<section id="story">
+  <h2><span lang="fa">دو commit از دید <code>log</code> ناپدید شدند</span><span lang="en">Two commits vanished from <code>log</code></span></h2>
+  <p class="lede" lang="fa">دیروز سه commit روی <code>main</code> داشتی. امروز با عجله زدی <code>git reset --hard HEAD~2</code>. حالا <code>git log --oneline</code> فقط commit پایه را نشان می‌دهد. همکارت می‌گوید: «تاریخچه پاک شد.» آیا واقعاً commitها حذف شده‌اند، یا فقط نامی که به آن‌ها می‌رسید جابه‌جا شده؟</p>
+  <p class="lede" lang="en">Yesterday, <code>main</code> had three commits. In a hurry today, you ran <code>git reset --hard HEAD~2</code>. Now <code>git log --oneline</code> shows only the base commit. A teammate says, “The history was deleted.” Were the commits actually erased, or did only the name that reached them move?</p>
+  <p lang="fa">فصل ۰۹ یاد داد <code>reset</code> شاخه را حرکت می‌دهد و <code>--hard</code> فایل‌های ردیابی‌شده را هم با مقصد جور می‌کند. اما objectهای commit ممکن است هنوز در مخزن باشند. حالا باید سرنخ درست را بخوانیم: <code>git reflog</code>.</p>
+  <p lang="en">Chapter 09 showed that <code>reset</code> moves a branch and <code>--hard</code> also makes tracked files match the target. The commit objects may still be in the repository. Now we need the right clue: <code>git reflog</code>.</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 900 300" role="img" aria-labelledby="g10-d1" xmlns="http://www.w3.org/2000/svg" direction="ltr">
+      <title id="g10-d1">Reset moves main from C to A while the reflog records the old and new tips</title>
+      <rect class="dg-fill dg-stroke" x="28" y="24" width="844" height="252" rx="20"/>
+      <text class="dg-tm" x="450" y="54" text-anchor="middle">commit ancestry stays; a ref moves</text>
+      <rect class="dg-fill-v dg-stroke-v" x="88" y="100" width="150" height="72" rx="14"/><text class="dg-t" x="163" y="129" text-anchor="middle">A</text><text class="dg-ts" x="163" y="153" text-anchor="middle">base commit</text>
+      <rect class="dg-fill-b dg-stroke-b" x="374" y="100" width="150" height="72" rx="14"/><text class="dg-t" x="449" y="129" text-anchor="middle">B</text><text class="dg-ts" x="449" y="153" text-anchor="middle">older tip</text>
+      <rect class="dg-fill-g dg-stroke-g" x="660" y="100" width="150" height="72" rx="14"/><text class="dg-t" x="735" y="129" text-anchor="middle">C</text><text class="dg-ts" x="735" y="153" text-anchor="middle">old main tip</text>
+      <path class="dg-stroke-v" d="M240 136h124M526 136h124" stroke-width="3"/>
+      <path class="dg-arrow" d="M360 131l10 5-10 5zM646 131l10 5-10 5z"/>
+      <rect class="dg-fill-w dg-stroke-w" x="300" y="202" width="300" height="48" rx="12"/>
+      <text class="dg-ts" x="450" y="222" text-anchor="middle">main: C → A</text><text class="dg-ts" x="450" y="241" text-anchor="middle">reflog keeps the local move record</text>
+      <path class="dg-stroke-w" d="M450 200V178" stroke-width="2"/><path class="dg-arrow" d="M445 181l5-10 5 10z"/>
+      <text class="dg-ts" x="163" y="198" text-anchor="middle">ordinary log now follows A</text>
+    </svg>
+    <figcaption class="diagram-cap" lang="fa">نمودار ۱ — commitها در زنجیرهٔ والدها هنوز به هم وصل‌اند؛ reset فقط <code>main</code> را از C به A برد. reflog محلی حرکت ref را ثبت می‌کند، نه نسخه‌ای جدا از همهٔ فایل‌ها.</figcaption>
+    <figcaption class="diagram-cap" lang="en">Diagram 1 — The commits remain linked by parent relationships; reset moved only <code>main</code> from C to A. The local reflog records the ref movement, not a separate copy of every file.</figcaption>
+  </figure>
+</section>
+
+<section id="model">
+  <h2><span lang="fa">reflog دفترچهٔ حرکت نام‌هاست</span><span lang="en">A reflog is a journal of ref movements</span></h2>
+  <p lang="fa">Git یک branch را به‌صورت نامی می‌بیند که به commit اشاره می‌کند. هر بار آن اشاره‌گر در مخزن محلی حرکت کند، reflog معمولاً ردّ حرکت قبلی و تازه را ثبت می‌کند. <code>HEAD</code> هم reflog خودش را دارد؛ برای همین رفت‌وآمد میان شاخه‌ها و commitهای detached اغلب سرنخ می‌گذارد.</p>
+  <p lang="en">Git treats a branch as a name pointing to a commit. When that pointer moves in a local repository, a reflog usually records the old and new positions. <code>HEAD</code> has its own reflog too, which is why branch switches and detached-HEAD commits often leave clues.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">چیزی که می‌بینی</span><span lang="en">What you inspect</span></th><th><span lang="fa">چه چیزی می‌گوید؟</span><span lang="en">What it tells you</span></th><th><span lang="fa">چه چیزی را نمی‌گوید؟</span><span lang="en">What it does not tell you</span></th></tr></thead><tbody>
+    <tr><td><code>git log</code></td><td><span lang="fa">commitهای قابل‌دسترسی از refهای انتخاب‌شده</span><span lang="en">Commits reachable from the selected refs</span></td><td><span lang="fa">همهٔ حرکت‌های قبلی ref</span><span lang="en">Every earlier ref movement</span></td></tr>
+    <tr><td><code>git reflog</code></td><td><span lang="fa">رویدادهای ثبت‌شده برای HEAD در همین مخزن</span><span lang="en">Recorded HEAD events in this repository</span></td><td><span lang="fa">تاریخچهٔ مشترک یا هر بایت ویرایش</span><span lang="en">Shared history or every byte of an edit</span></td></tr>
+    <tr><td><code>git fsck</code></td><td><span lang="fa">objectهایی که از ریشه‌های بررسی‌شده قابل‌دسترسی نیستند</span><span lang="en">Objects unreachable from the roots being checked</span></td><td><span lang="fa">اینکه object یتیم متعلق به کدام فایل/نسخه بوده</span><span lang="en">Which file or version an orphan belonged to</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa"><code>HEAD@{0}</code> یعنی آخرین جایگاه ثبت‌شدهٔ HEAD؛ <code>HEAD@{1}</code> جایگاه قبلی در دفترچه. این عدد، شمارهٔ والد commit نیست. برای حرکت در زنجیرهٔ والدها از <code>HEAD~1</code> استفاده می‌کنی. این دو نحو شبیه هم‌اند ولی یک سؤال را جواب نمی‌دهند.</p>
+  <p lang="en"><code>HEAD@{0}</code> means the latest recorded position of HEAD; <code>HEAD@{1}</code> is the previous reflog position. That number is not a commit-parent number. Use <code>HEAD~1</code> to walk to a parent. The syntax looks similar, but the questions differ.</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 900 310" role="img" aria-labelledby="g10-d2" xmlns="http://www.w3.org/2000/svg" direction="ltr">
+      <title id="g10-d2">Reflog order records events by time, while commit ancestry follows parent links</title>
+      <rect class="dg-fill dg-stroke" x="28" y="24" width="844" height="274" rx="20"/>
+      <text class="dg-tm" x="450" y="54" text-anchor="middle">two different ways to ask “previous”</text>
+      <text class="dg-ts" x="118" y="94" text-anchor="middle">reflog · newest first</text>
+      <rect class="dg-fill-w dg-stroke-w" x="72" y="112" width="210" height="58" rx="12"/><text class="dg-t" x="177" y="137" text-anchor="middle">HEAD@{0}</text><text class="dg-ts" x="177" y="158" text-anchor="middle">reset to A</text>
+      <rect class="dg-fill-w dg-stroke-w" x="344" y="112" width="210" height="58" rx="12"/><text class="dg-t" x="449" y="137" text-anchor="middle">HEAD@{1}</text><text class="dg-ts" x="449" y="158" text-anchor="middle">was at C</text>
+      <rect class="dg-fill-w dg-stroke-w" x="616" y="112" width="210" height="58" rx="12"/><text class="dg-t" x="721" y="137" text-anchor="middle">HEAD@{2}</text><text class="dg-ts" x="721" y="158" text-anchor="middle">was at B</text>
+      <path class="dg-stroke-w" d="M286 141h52M558 141h52" stroke-width="2"/><path class="dg-arrow" d="M334 136l10 5-10 5zM606 136l10 5-10 5z"/>
+      <text class="dg-ts" x="118" y="213" text-anchor="middle">commit ancestry · parent links</text>
+      <rect class="dg-fill-v dg-stroke-v" x="72" y="226" width="210" height="44" rx="12"/><text class="dg-t" x="177" y="254" text-anchor="middle">C</text>
+      <rect class="dg-fill-v dg-stroke-v" x="344" y="226" width="210" height="44" rx="12"/><text class="dg-t" x="449" y="254" text-anchor="middle">B</text>
+      <rect class="dg-fill-v dg-stroke-v" x="616" y="226" width="210" height="44" rx="12"/><text class="dg-t" x="721" y="254" text-anchor="middle">A</text>
+      <path class="dg-stroke-v" d="M286 248h52M558 248h52" stroke-width="2"/><path class="dg-arrow" d="M334 243l10 5-10 5zM606 243l10 5-10 5z"/>
+      <text class="dg-ts" x="450" y="292" text-anchor="middle">HEAD@{1} is a reflog position; HEAD~1 follows a parent</text>
+    </svg>
+    <figcaption class="diagram-cap" lang="fa">نمودار ۲ — ردیف بالا ترتیب eventهای reflog است؛ ردیف پایین رابطهٔ والد commitها. بعد از reset، <code>HEAD@{1}</code> می‌تواند C باشد؛ اما <code>HEAD~1</code> والد commit فعلی را می‌پرسد.</figcaption>
+    <figcaption class="diagram-cap" lang="en">Diagram 2 — The top row is reflog event order; the bottom row is commit ancestry. After reset, <code>HEAD@{1}</code> may be C, while <code>HEAD~1</code> asks for the current commit's parent.</figcaption>
+  </figure>
+</section>
+
+<section id="first-rescue">
+  <h2><span lang="fa">آزمایش امن: commitها را به مسیر برگردان</span><span lang="en">Safe experiment: bring commits back into reach</span></h2>
+  <p class="lede" lang="fa">این فرمان مخرب را فقط در مخزن تمرینی تازه اجرا کن. سه commit می‌سازیم، عمداً main را دو قدم عقب می‌بریم و بعد با خواندن reflog یک branch نجات می‌سازیم. پیش از شروع، پوشهٔ جداگانه انتخاب کن.</p>
+  <p class="lede" lang="en">Run this destructive command only in a fresh practice repository. We will make three commits, deliberately move main back two steps, then use the reflog to create a rescue branch. Start in a separate disposable folder.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">isolated reflog-lab · create three commits</span><button class="copy">کپی</button></div><pre dir="ltr">mkdir reflog-lab
+cd reflog-lab
+git init -b main
+git config user.name "Reflog Learner"
+git config user.email reflog@example.test
+printf 'A\n' &gt; notes.txt
+git add notes.txt
+git commit -m "A: baseline"
+printf 'B\n' &gt;&gt; notes.txt
+git commit -am "B: add second line"
+printf 'C\n' &gt;&gt; notes.txt
+git commit -am "C: add third line"
+git log --oneline --decorate -3</pre></div>
+  <p lang="fa">خروجی log را نگه دار؛ شناسهٔ کامل commit C را هم با <code>git rev-parse HEAD</code> ثبت کن. حالا پیش‌بینی کن بعد از reset چه چیزی در log می‌ماند و فایل روی دیسک چه محتوایی خواهد داشت.</p>
+  <p lang="en">Keep the log output and record C's full ID with <code>git rev-parse HEAD</code>. Predict what will remain in log and what the disk file will contain after the reset.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">deliberate reset · only inside this disposable repository</span><button class="copy">کپی</button></div><pre dir="ltr">git reset --hard HEAD~2
+git log --oneline --decorate
+git status --short
+cat notes.txt
+git reflog</pre></div>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">representative reflog output · IDs vary</span><button class="copy">کپی</button></div><pre dir="ltr">a1a1a1a HEAD@{0}: reset: moving to HEAD~2
+c3c3c3c HEAD@{1}: commit: C: add third line
+b2b2b2b HEAD@{2}: commit: B: add second line
+a1a1a1a HEAD@{3}: commit (initial): A: baseline</pre></div>
+  <p lang="fa">حالا باید <code>main</code> روی A باشد و فایل هم فقط خط A را داشته باشد؛ این را reset واقعاً انجام داده. در reflog دنبال رویداد <code>reset: moving to HEAD~2</code> بگرد. ثبت قبلی معمولاً C را نشان می‌دهد. به شمارهٔ ثابت تکیه نکن؛ پیام، زمان، شناسه و نتیجهٔ <code>git show</code> را با هم بسنج.</p>
+  <p lang="en">Now <code>main</code> should point to A and the file should contain only line A; reset really did that. In the reflog, find <code>reset: moving to HEAD~2</code>. The preceding entry commonly identifies C. Do not trust a memorised index: compare the message, time, ID, and <code>git show</code>.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">inspect, rescue, verify · substitute the ID you inspected</span><button class="copy">کپی</button></div><pre dir="ltr">git show --stat --oneline &lt;C_ID_FROM_REFLOG&gt;
+git branch rescue/after-reset &lt;C_ID_FROM_REFLOG&gt;
+git show-ref --verify refs/heads/rescue/after-reset
+git log --oneline --decorate --all</pre></div>
+  <p lang="fa">شاخهٔ نجات را با شناسه‌ای بساز که واقعاً بررسی کرده‌ای. آخرین فرمان باید دوباره B و C را در گراف نشان دهد، اما <code>main</code> هنوز روی A است. حالا commitها از ref قابل‌دسترسی‌اند و می‌توانی با آرامش تصمیم بگیری ادامهٔ کار چه باشد؛ هنوز فایل‌های C را روی main نیاورده‌ای.</p>
+  <p lang="en">Create the rescue branch from the ID you actually inspected. The final command should show B and C in the graph again while <code>main</code> stays at A. The commits are now reachable through a ref, so you can decide what to do next; you have not yet brought C's files onto main.</p>
+</section>
+
+<section id="selectors">
+  <h2><span lang="fa">شمارهٔ دفترچه را با شمارهٔ والد اشتباه نگیر</span><span lang="en">Do not confuse journal positions with parent numbers</span></h2>
+  <p lang="fa">عبارت‌های زمانی را می‌توان مستقیم به command بدهی. برای نمونه <code>git show 'HEAD@{1}'</code> شیئی را نشان می‌دهد که HEAD در رویداد قبلی به آن اشاره می‌کرد؛ <code>git show HEAD~1</code> والد commit فعلی را می‌خواند. برای تاریخ هم <code>HEAD@{yesterday}</code> ممکن است مفید باشد، اما نتیجه به ثبت‌های موجود و قالب زمان وابسته است.</p>
+  <p lang="en">You can pass time-based selectors directly to commands. For example, <code>git show 'HEAD@{1}'</code> displays the object HEAD pointed to at the previous event; <code>git show HEAD~1</code> reads the current commit's parent. A date selector such as <code>HEAD@{yesterday}</code> can help too, but depends on available entries and date parsing.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">عبارت</span><span lang="en">Expression</span></th><th><span lang="fa">پرسشی که جواب می‌دهد</span><span lang="en">Question it answers</span></th><th><span lang="fa">تفسیر نکن به‌عنوان</span><span lang="en">Do not read it as</span></th></tr></thead><tbody>
+    <tr><td><code>HEAD@{0}</code></td><td><span lang="fa">آخرین جایگاه ثبت‌شدهٔ HEAD کدام است؟</span><span lang="en">What is HEAD's latest recorded position?</span></td><td><span lang="fa">والد صفرم</span><span lang="en">A “zeroth parent”</span></td></tr>
+    <tr><td><code>HEAD@{1}</code></td><td><span lang="fa">در رویداد قبلی HEAD کجا بود؟</span><span lang="en">Where was HEAD at the previous event?</span></td><td><span lang="fa">commit والد فعلی</span><span lang="en">The current commit's parent</span></td></tr>
+    <tr><td><code>HEAD~1</code></td><td><span lang="fa">والد اول commit فعلی چیست؟</span><span lang="en">What is the first parent of the current commit?</span></td><td><span lang="fa">رویداد قبلی دفترچه</span><span lang="en">The previous journal event</span></td></tr>
+    <tr><td><code>main@{yesterday}</code></td><td><span lang="fa">ref محلی main در زمان تقریبی دیروز کجا بود؟</span><span lang="en">Where was local main around yesterday?</span></td><td><span lang="fa">تضمین نگهداری نامحدود</span><span lang="en">A guarantee of indefinite retention</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa">اگر selector داخل PowerShell یا shell دیگری بد تفسیر شد، آن را داخل نقل‌قول بگذار؛ شکل نقل‌قول بسته به shell فرق دارد. پیش از ساختن rescue، شناسه را با <code>git show --no-patch --format=fuller</code> بررسی کن. reflogها می‌توانند با هر فرمان بعدی شماره‌گذاری تازه‌ای پیدا کنند.</p>
+  <p lang="en">If a selector is misread by PowerShell or another shell, quote it; quoting syntax varies by shell. Before creating a rescue ref, inspect the ID with <code>git show --no-patch --format=fuller</code>. Later commands can change reflog numbering.</p>
+</section>
+
+<section id="rescue-ref">
+  <h2><span lang="fa">اول ref نجات بساز، بعد دربارهٔ ادغام تصمیم بگیر</span><span lang="en">Create a rescue ref first; decide how to integrate later</span></h2>
+  <p lang="fa">اگر commit موردنظر را پیدا کردی، آن را فقط در ذهن نگه ندار. یک نام تازه به آن وصل کن تا دیگر صرفاً به ثبت موقت reflog وابسته نباشد. اول شناسه را ببین، بعد شاخه بساز، و در پایان مقصد شاخه را ثابت کن.</p>
+  <p lang="en">Once you find the commit, do not leave it only in your notes. Attach a new name so it is no longer dependent on a temporary reflog entry. Inspect the ID, create a branch, then verify its target.</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 900 285" role="img" aria-labelledby="g10-d3" xmlns="http://www.w3.org/2000/svg" direction="ltr">
+      <title id="g10-d3">A rescue branch makes a reflog-discovered commit reachable by a durable local ref</title>
+      <rect class="dg-fill dg-stroke" x="28" y="24" width="844" height="238" rx="20"/>
+      <rect class="dg-fill-v dg-stroke-v" x="92" y="96" width="180" height="72" rx="14"/><text class="dg-t" x="182" y="125" text-anchor="middle">commit C</text><text class="dg-ts" x="182" y="150" text-anchor="middle">found by object ID</text>
+      <rect class="dg-fill-w dg-stroke-w" x="368" y="66" width="210" height="52" rx="12"/><text class="dg-t" x="473" y="98" text-anchor="middle">reflog entry</text>
+      <rect class="dg-fill-g dg-stroke-g" x="368" y="148" width="210" height="52" rx="12"/><text class="dg-t" x="473" y="180" text-anchor="middle">rescue branch</text>
+      <path class="dg-stroke-w" d="M366 92 286 116" stroke-width="2"/><path class="dg-arrow" d="M290 110l-11 8 13 2z"/>
+      <path class="dg-stroke-g" d="M366 174 286 148" stroke-width="2"/><path class="dg-arrow" d="M291 144l-13 1 10 9z"/>
+      <rect class="dg-fill dg-stroke" x="636" y="102" width="178" height="68" rx="14"/><text class="dg-t" x="725" y="131" text-anchor="middle">verify</text><text class="dg-ts" x="725" y="154" text-anchor="middle">show-ref + log</text>
+      <path class="dg-stroke-g" d="M580 174h48" stroke-width="2"/><path class="dg-arrow" d="M626 169l10 5-10 5z"/>
+      <text class="dg-ts" x="450" y="235" text-anchor="middle">a ref keeps the commit reachable after reflog expiry</text>
+    </svg>
+    <figcaption class="diagram-cap" lang="fa">نمودار ۳ — شناسهٔ C را از مدرک پیدا می‌کنی و rescue branch را به همان object وصل می‌کنی؛ بعد با show-ref و log مطمئن می‌شوی. این شاخه، برخلاف تکیهٔ تنها بر دفترچه، ref واقعی است.</figcaption>
+    <figcaption class="diagram-cap" lang="en">Diagram 3 — Find C's ID in the evidence, point a rescue branch at that object, then verify with show-ref and log. Unlike relying only on a journal entry, the branch is a real ref.</figcaption>
+  </figure>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">inspect before naming; verify after naming</span><button class="copy">کپی</button></div><pre dir="ltr">git show --no-patch --format=fuller &lt;OID&gt;
+git branch rescue/found-commit &lt;OID&gt;
+git show-ref --verify refs/heads/rescue/found-commit
+git log --oneline --decorate --all -5</pre></div>
+  <p lang="fa">این فرمان‌ها هیچ چیزی را از شاخهٔ فعلی پاک نمی‌کنند. اما «نجات» با «بازگرداندن فایل‌ها به main» یکی نیست؛ کار بعدی ممکن است مقایسه، cherry-pick یا ادغام باشد. تا وقتی هنوز مطمئن نیستی، ref نجات را نگه دار و مقصد را دست‌کاری نکن.</p>
+  <p lang="en">These commands do not remove anything from the current branch. But “rescue” is not the same as “put the files back on main”; the next step might be comparison, cherry-pick, or a merge. If uncertain, keep the rescue ref and leave the destination untouched.</p>
+</section>
+
+<section id="deleted-branch">
+  <h2><span lang="fa">شاخه پاک شده؛ اول دفترچهٔ HEAD را بخوان</span><span lang="en">A branch was deleted; start with HEAD's journal</span></h2>
+  <p lang="fa">حذف branch معمولاً نامی را که به commit اشاره می‌کرد برمی‌دارد. reflog همان branch ممکن است همراهش پاک شود؛ پس فرض نکن <code>git reflog show feature</code> هنوز کار می‌کند. اگر پیش از حذف از شاخه بیرون آمده‌ای، reflog مربوط به HEAD می‌تواند رویداد آخرِ checkout و commitهای ساخته‌شده را نشان بدهد.</p>
+  <p lang="en">Deleting a branch removes the name that pointed to its commit. The branch's own reflog may be removed with it, so do not assume <code>git reflog show feature</code> still works. If you switched away before deleting it, HEAD's reflog can show the checkout and earlier commits.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">search local evidence; deletion is not shared across clones</span><button class="copy">کپی</button></div><pre dir="ltr">git reflog --date=local
+git reflog show --all --date=local
+git show --stat --oneline &lt;candidate-OID&gt;
+git branch rescue/deleted-feature &lt;candidate-OID&gt;
+git show-ref --verify refs/heads/rescue/deleted-feature</pre></div>
+  <p lang="fa">اگر branch را در clone دیگری حذف کرده‌اند، reflog clone تو آن حرکت را ندارد؛ هر دفترچه محلی است. اگر هیچ entry مناسبی پیدا نشد، سراغ بخش objectهای یتیم و <code>git fsck</code> برو. خروجی را با <code>git show</code> بررسی کن؛ صرف دیدن یک SHA دلیل نمی‌شود commit موردنظرت باشد.</p>
+  <p lang="en">If the branch was deleted in another clone, your reflog does not contain that event; each journal is local. If no useful entry appears, move to unreachable objects and <code>git fsck</code>. Inspect candidates with <code>git show</code>; seeing a SHA alone does not prove it is the commit you need.</p>
+</section>
+
+<section id="rebase">
+  <h2><span lang="fa">rebase محلی نتیجهٔ بد داد؟ tip قبلی را پیدا کن</span><span lang="en">A local rebase went wrong? Find the previous tip</span></h2>
+  <p lang="fa">فصل ۰۷ نشان داد rebase commitهای تازه می‌سازد و شاخه را به آن‌ها می‌رساند. اگر نتیجه خراب شد، <code>git reflog show topic</code> را بخوان و رویدادهای rebase را پیدا کن. ممکن است قبل و بعد از بازپخش چند ثبت ببینی؛ شماره را از حفظ انتخاب نکن.</p>
+  <p lang="en">Chapter 07 showed that rebase creates replacement commits and moves the branch to them. If the result is wrong, inspect <code>git reflog show topic</code> and locate the rebase events. You may see several entries from before and after replay; do not choose an index from memory.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">compare candidate tips before restoring one</span><button class="copy">کپی</button></div><pre dir="ltr">git reflog show topic --date=local
+git show --stat --oneline &lt;candidate-OID&gt;
+git log --oneline --graph --decorate --all --boundary -12
+git branch rescue/topic-before-rebase &lt;candidate-OID&gt;
+git show-ref --verify refs/heads/rescue/topic-before-rebase</pre></div>
+  <p lang="fa">شاخهٔ rescue فقط یک مقصد امن برای بررسی می‌سازد. حالا می‌توانی تغییرهای دو طرف را مقایسه کنی و با دانسته‌های فصل ۰۷ تصمیم بگیری. اگر کار را روی remote push کرده‌ای یا همکاران بر پایه‌اش commit ساخته‌اند، توقف کن و با تیم هماهنگ شو؛ بازیابی محلی مجوز force-push نیست.</p>
+  <p lang="en">The rescue branch creates a safe point for inspection. Now compare both lines and choose a next step using Chapter 07's model. If the work was pushed or teammates built on it, stop and coordinate; local recovery is not permission to force-push.</p>
+</section>
+
+<section id="detached">
+  <h2><span lang="fa">commit در detached HEAD گم به‌نظر می‌رسد</span><span lang="en">A detached-HEAD commit appears lost</span></h2>
+  <p lang="fa">در فصل ۰۵ دیدی HEAD گاهی مستقیم به commit اشاره می‌کند، نه به نام branch. اگر آنجا commit بسازی و بعد به main برگردی، main آن commit را دنبال نمی‌کند. اما رویداد commit معمولاً در reflog مربوط به HEAD سرنخ می‌گذارد.</p>
+  <p lang="en">Chapter 05 showed that HEAD can point directly to a commit instead of naming a branch. A commit made there is not automatically followed by main when you switch back. But the commit event usually leaves a clue in HEAD's reflog.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">find the detached commit and give it a name</span><button class="copy">کپی</button></div><pre dir="ltr">git reflog --date=local
+git show --stat --oneline &lt;detached-commit-OID&gt;
+git branch rescue/detached-work &lt;detached-commit-OID&gt;
+git log --oneline --decorate --all -8</pre></div>
+  <p lang="fa">پس از ساخت branch، commit دیگر بی‌نام نیست. پیش از آنکه بگویی «فایل‌ها را برگرداندم»، با <code>git show</code> محتوای snapshot و با log والدش را بررسی کن. reflog کمک می‌کند نامزد را پیدا کنی؛ تصمیم اینکه این کار باید وارد کدام شاخه شود هنوز با توست.</p>
+  <p lang="en">After creating the branch, the commit is no longer unnamed. Before saying “the files are back,” inspect the snapshot with <code>git show</code> and its ancestry with log. The reflog helps locate a candidate; choosing which branch should receive it is still your decision.</p>
+</section>
+
+<section id="objects">
+  <h2><span lang="fa">محتوای stageشده ممکن است بماند، حتی وقتی reflog کمکی نمی‌کند</span><span lang="en">Staged content may remain even when the reflog cannot help</span></h2>
+  <p lang="fa">فصل ۰۱ ثابت کرد <code>git add</code> محتوا را در object database می‌نویسد. اگر بعداً آن محتوا از index هم کنار برود، ممکن است blob بی‌نام و بی‌ref شود. reflog فقط حرکت refها را می‌بیند، نه فهرست blobهای ساخته‌شده؛ برای جست‌وجوی object یتیم ابزار دیگری لازم است.</p>
+  <p lang="en">Chapter 01 demonstrated that <code>git add</code> writes content into the object database. If that content later leaves the index too, its blob may become unnamed and unreferenced. The reflog records ref movement, not a catalog of created blobs; a different tool is needed to search for unreachable objects.</p>
+  <p lang="fa">بیا در همان <code>reflog-lab</code> یک فایل تازه بساز، نسخهٔ اول را stage کن و بعد محتوای دیگری را دوباره stage کن. فایل روی دیسک و index حالا نسخهٔ دوم را دارند؛ نسخهٔ اول commit یا ref ندارد، اما ممکن است blob آن هنوز در object database باشد:</p>
+  <p lang="en">In the disposable <code>reflog-lab</code>, create a new file, stage version one, then stage different content. The disk and index now hold version two; version one has no commit or ref, but its blob may still be in the object database:</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">one file · two stored blobs · inspect only</span><button class="copy">کپی</button></div><pre dir="ltr">printf 'draft version one\n' &gt; scratch.txt
+git add scratch.txt
+printf 'draft version two\n' &gt; scratch.txt
+git add scratch.txt
+git fsck --no-reflogs --unreachable</pre></div>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">representative output · IDs and other objects vary</span><button class="copy">کپی</button></div><pre dir="ltr">unreachable blob 8c9b2f1…</pre></div>
+  <p lang="fa">فقط candidateای را باز کن که نوعش <code>blob</code> است و محتوایش با نسخهٔ گمشده جور درمی‌آید. شناسه‌ها و objectهای دیگر فرق می‌کنند. این راه ثابت نمی‌کند نام فایل یا نسخهٔ قبلیِ درست را یافته‌ای؛ آن را با یادداشت‌ها، diffها یا کپی دیگری تطبیق بده.</p>
+  <p lang="en">Inspect only a candidate whose type is <code>blob</code> and whose content matches the missing version. IDs and other objects vary. This does not prove you found the right filename or version; compare against notes, diffs, or another copy.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">read-only inspection · output may include unrelated objects</span><button class="copy">کپی</button></div><pre dir="ltr">git fsck --no-reflogs --unreachable
+git cat-file -t &lt;candidate-OID&gt;
+git cat-file -p &lt;candidate-OID&gt;</pre></div>
+  <p lang="fa">این بررسی ممکن است commit، tree یا blobهای زیادی را نام ببرد؛ شناسهٔ هرکدام را اول با <code>-t</code> طبقه‌بندی کن. اگر blob متن است، <code>cat-file -p</code> محتوا را چاپ می‌کند، اما لزوماً نام فایل، مسیر یا رابطه‌اش با نسخهٔ قبلی را نمی‌داند. پیش از استخراج، خروجی را به فایل تازه و جدا هدایت کن؛ روی فایل فعلی ننویس.</p>
+  <p lang="en">This inspection may list many commits, trees, or blobs; classify each candidate with <code>-t</code> first. For a text blob, <code>cat-file -p</code> prints the content, but may not know its filename, path, or relationship to an earlier version. Before extracting anything, write it to a new separate file; do not overwrite current work.</p>
+  <p lang="fa">stash هم ref محلی و reflog خودش را دارد و ممکن است با <code>git reflog show refs/stash</code> بررسی شود؛ جزئیات ساخت و اعمال stash را فصل ۱۱ یاد می‌گیریم. هیچ‌کدام از این راه‌ها تضمین ابدی نیستند: آنچه Git هرگز به object تبدیل نکرده، از reflog یا fsck ظاهر نمی‌شود.</p>
+  <p lang="en">A stash also has a local ref and reflog that you can inspect with <code>git reflog show refs/stash</code>; Chapter 11 will teach creating and applying stashes. None of these paths is an eternal guarantee: content Git never turned into an object will not appear in a reflog or fsck.</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 900 310" role="img" aria-labelledby="g10-d4" xmlns="http://www.w3.org/2000/svg" direction="ltr">
+      <title id="g10-d4">Git can search stored objects, but cannot recover work never written into its object database</title>
+      <rect class="dg-fill dg-stroke" x="28" y="24" width="844" height="274" rx="20"/>
+      <rect class="dg-fill-g dg-stroke-g" x="72" y="78" width="350" height="142" rx="16"/><text class="dg-t" x="247" y="108" text-anchor="middle">written as a Git object</text>
+      <rect class="dg-fill dg-stroke" x="100" y="130" width="132" height="58" rx="12"/><text class="dg-ts" x="166" y="154" text-anchor="middle">staged blob</text><text class="dg-ts" x="166" y="176" text-anchor="middle">may be unreachable</text>
+      <rect class="dg-fill-v dg-stroke-v" x="258" y="130" width="132" height="58" rx="12"/><text class="dg-ts" x="324" y="154" text-anchor="middle">commit / stash</text><text class="dg-ts" x="324" y="176" text-anchor="middle">usually has refs</text>
+      <rect class="dg-fill-w dg-stroke-w" x="514" y="78" width="310" height="142" rx="16"/><text class="dg-t" x="669" y="108" text-anchor="middle">never written to Git</text>
+      <rect class="dg-fill dg-stroke" x="558" y="130" width="222" height="58" rx="12"/><text class="dg-ts" x="669" y="154" text-anchor="middle">unsaved editor buffer</text><text class="dg-ts" x="669" y="176" text-anchor="middle">untracked, never added</text>
+      <text class="dg-ts" x="247" y="250" text-anchor="middle">reflog or fsck may provide a clue</text><text class="dg-ts" x="669" y="250" text-anchor="middle">Git has no object to find</text>
+    </svg>
+    <figcaption class="diagram-cap" lang="fa">نمودار ۴ — اگر محتوا به object رسیده باشد، reflog یا fsck شاید سرنخی بدهد؛ ولی blob بی‌نام ممکن است مسیرش را از دست داده باشد. بافر ویرایشگری که هرگز ذخیره یا stage نشده اصلاً در object database نیست.</figcaption>
+    <figcaption class="diagram-cap" lang="en">Diagram 4 — If content became an object, the reflog or fsck may offer a clue, though an unnamed blob may have lost its path. An editor buffer never saved or staged is not in the object database at all.</figcaption>
+  </figure>
+</section>
+
+<section id="orig-head">
+  <h2><span lang="fa"><code>ORIG_HEAD</code> سرنخ کمکی است، نه دفترچهٔ کامل</span><span lang="en"><code>ORIG_HEAD</code> is a clue, not a complete journal</span></h2>
+  <p lang="fa">برخی فرمان‌های بزرگ مثل reset، rebase یا merge ممکن است پیش از حرکت، جای قبلی HEAD را در <code>ORIG_HEAD</code> بگذارند. اما این نام همیشه وجود ندارد و عملیات بعدی می‌تواند آن را عوض کند. اگر هست، فقط بخوانش و با reflog و گراف تطبیق بده:</p>
+  <p lang="en">Some large operations such as reset, rebase, or merge may save the earlier HEAD in <code>ORIG_HEAD</code>. But it is not always present, and a later operation may replace it. If it exists, inspect it and compare it with the reflog and graph:</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">check whether this repository currently has the hint</span><button class="copy">کپی</button></div><pre dir="ltr">git show --no-patch --format=fuller ORIG_HEAD
+git rev-parse --verify ORIG_HEAD
+git reflog --date=local</pre></div>
+  <p lang="fa">اگر <code>rev-parse</code> خطا داد، این ref حاضر نیست؛ چیزی را خراب نکرده‌ای. اگر شناسه چاپ شد، هنوز باید commit و تغییرهایش را با <code>git show</code> بشناسی. آن را کورکورانه به <code>reset --hard</code> نده؛ ممکن است به‌روزرسانی تازه‌تری را کنار بزند.</p>
+  <p lang="en">If <code>rev-parse</code> fails, the ref is absent; you have not broken anything. If it prints an ID, still identify the commit and its changes with <code>git show</code>. Do not feed it blindly to <code>reset --hard</code>; that could discard newer work.</p>
+</section>
+
+<section id="retention">
+  <h2><span lang="fa">این دفترچه دائمی نیست</span><span lang="en">The journal is not permanent</span></h2>
+  <p lang="fa">reflog محلی است و زمان نگهداری‌اش تنظیم‌پذیر. در تنظیم پیش‌فرض نسخه‌های رایج Git، entryهای قابل‌دسترسی معمولاً تا ۹۰ روز و entryهای unreachable معمولاً تا ۳۰ روز نگه داشته می‌شوند؛ تنظیمات مخزن/کاربر و نسخه می‌توانند فرق کنند. این مهلت وعدهٔ بازیابی نیست و objectها هم ممکن است با پاک‌سازی از بین بروند.</p>
+  <p lang="en">A reflog is local and its retention is configurable. In common Git defaults, reachable entries are generally kept for 90 days and unreachable entries for 30 days; repository/user configuration and versions can differ. These windows are not a recovery promise, and cleanup can eventually remove objects too.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">چیزی که منقضی می‌شود</span><span lang="en">What expires</span></th><th><span lang="fa">رفتار پیش‌فرض مستندشده</span><span lang="en">Documented default</span></th><th><span lang="fa">نتیجهٔ عملی</span><span lang="en">Practical consequence</span></th></tr></thead><tbody>
+    <tr><td>reflog entry قابل‌دسترسی</td><td><span lang="fa">معمولاً ۹۰ روز</span><span lang="en">Usually 90 days</span></td><td><span lang="fa">قدیمی‌بودن را با ماندگاری اشتباه نگیر</span><span lang="en">Do not assume old means retained</span></td></tr>
+    <tr><td>entry مربوط به object unreachable</td><td><span lang="fa">معمولاً ۳۰ روز</span><span lang="en">Usually 30 days</span></td><td><span lang="fa">همان روز rescue ref بساز</span><span lang="en">Create a rescue ref promptly</span></td></tr>
+    <tr><td>object یتیم</td><td><span lang="fa">ممکن است بعداً پاک شود؛ بازه به تنظیم prune و نگهداری وابسته است</span><span lang="en">May later be pruned; timing depends on prune and maintenance settings</span></td><td><span lang="fa">در زمان نجات سراغ gc/prune نرو</span><span lang="en">Avoid gc/prune during recovery</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa">برای خود objectهای unreachable هم یک ساعت قطعی وجود ندارد. در مستندات فعلی، <code>git gc</code> معمولاً prune objectهای loose را با مهلت پیش‌فرض حدود دو هفته انجام می‌دهد؛ تنظیم <code>gc.pruneExpire</code>، cruft packها و این‌که هنوز ref یا reflogی object را نگه داشته باشد، نتیجه را عوض می‌کنند. این عدد هم مهلت تضمینی نیست.</p>
+  <p lang="en">Unreachable objects have no guaranteed countdown either. Current documentation says <code>git gc</code> normally prunes loose objects with a default grace period of about two weeks; <code>gc.pruneExpire</code>, cruft packs, and whether any ref or reflog still retains an object all affect the result. This is not a guaranteed recovery window.</p>
+  <p lang="fa">در حادثه، کار درست «تمیزکاری» نیست. <code>git gc</code>، <code>git prune</code>، <code>git reflog expire</code> یا فرمان‌های دارای <code>--prune=now</code> را اجرا نکن. اول شناسه را پیدا و با ref نجات حفظ کن؛ بعد که وضعیت روشن شد دربارهٔ نگهداری مخزن تصمیم بگیر.</p>
+  <p lang="en">During an incident, cleanup is not the next move. Do not run <code>git gc</code>, <code>git prune</code>, <code>git reflog expire</code>, or commands using <code>--prune=now</code>. First identify and preserve the object with a rescue ref; decide on repository maintenance only after the situation is clear.</p>
+</section>
+
+<section id="troubles">
+  <h2><span lang="fa">اگر سرنخ درست را پیدا نکردی</span><span lang="en">When the expected clue is missing</span></h2>
+  <div class="pitfalls">
+    <div class="pit"><h3 lang="fa">شمارهٔ entry اشتباه بود</h3><h3 lang="en">The reflog index was wrong</h3><p lang="fa">شماره با هر رویداد تازه جابه‌جا می‌شود. دوباره reflog را بخوان، entry را با پیام و زمان پیدا کن، OID را به‌صورت صریح کپی و با <code>show</code> بررسی کن؛ بعد branch بساز.</p><p lang="en">Indices shift after new events. Read the reflog again, identify the entry by message and time, inspect its explicit OID with show, then create a branch.</p></div>
+    <div class="pit"><h3 lang="fa">دنبال رخداد clone دیگر می‌گردی</h3><h3 lang="en">You are looking for another clone's event</h3><p lang="fa">reflogها بین remoteها push نمی‌شوند. در همان cloneای بررسی کن که فرمان در آن اجرا شده؛ اگر وجود ندارد، از همکار بخواه clone محلی خودش را بررسی کند.</p><p lang="en">Reflogs are not pushed to remotes. Inspect the clone where the command ran; if you do not have it, ask the teammate to inspect their local clone.</p></div>
+    <div class="pit"><h3 lang="fa">reflog چیزی نشان نمی‌دهد</h3><h3 lang="en">The reflog shows no candidate</h3><p lang="fa">ممکن است log منقضی/حذف شده باشد یا حرکت در clone دیگری رخ داده باشد. <code>git fsck --no-reflogs --unreachable</code> را فقط برای objectهای ذخیره‌شده بررسی کن؛ خروجی را نوع‌بندی کن و برای blob بی‌نام، مسیر اصلی را قطعی فرض نکن.</p><p lang="en">The log may have expired/been removed, or the event happened in another clone. Use <code>git fsck --no-reflogs --unreachable</code> to inspect stored objects only; classify results and do not assume an unnamed blob's original path.</p></div>
+    <div class="pit"><h3 lang="fa">می‌خواهی مخزن را زود پاک‌سازی کنی</h3><h3 lang="en">You want to clean up the repository first</h3><p lang="fa">فعلاً نه. پاک‌سازی می‌تواند فرصت را کم کند. هر برنامهٔ maintenance را متوقف نکن مگر دلیل عملیاتی مشخصی داری؛ اما فرمان prune/gc دستی نزن و از مخزن نسخهٔ جدا بگیر، سپس بازیابی را آنجا بررسی کن.</p><p lang="en">Not yet. Cleanup can reduce your options. Do not interfere with maintenance without an operational reason, but avoid manual prune/gc; make a separate repository copy and investigate recovery there.</p></div>
+  </div>
+</section>
+
+<section id="exercises">
+  <h2><span lang="fa">تمرین‌ها: سرنخ را پیدا کن، نه شمارهٔ حفظی را</span><span lang="en">Exercises: find evidence, not a memorised index</span></h2>
+  <p class="lede" lang="fa">هر تمرین یک پروندهٔ کوچک است. قبل از بازکردن پاسخ، بگو کدام ref یا object را دنبال می‌کنی و چه چیزی هنوز ثابت نشده.</p>
+  <p class="lede" lang="en">Each exercise is a small incident. Before opening the solution, say which ref or object you are tracing and what remains unproven.</p>
+
+  <div class="ex" id="g10-ex01"><div class="ex-h"><span class="ex-n">۱</span><span class="ex-lvl lvl-1">مبتدی / Beginner</span></div><p lang="fa">بعد از reset، <code>git log</code> فقط A را نشان می‌دهد. کدام فرمان را اول می‌زنی و چه چیزی دنبالش می‌گردی؟</p><p lang="en">After reset, <code>git log</code> shows only A. What do you run first, and what are you looking for?</p><details class="ex-hint"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">commitها ممکن است هنوز object باشند؛ دنبال حرکت ref بگرد.</p><p lang="en">The commits may still be objects; inspect ref movements.</p></details><details class="ex-sol"><summary><span lang="fa">توضیح</span><span lang="en">Reasoning</span></summary><p lang="fa"><code>git reflog</code> را بزن و entry مربوط به reset و OID قبلی را پیدا کن. سپس <code>git show OID</code>. خالی‌بودن log عادی فقط می‌گوید از refهای فعلی به آن commit نمی‌رسی.</p><p lang="en">Run <code>git reflog</code>, find the reset entry and prior OID, then inspect it with <code>git show OID</code>. An ordinary log only says current refs do not reach that commit.</p></details></div>
+  <div class="ex" id="g10-ex02"><div class="ex-h"><span class="ex-n">۲</span><span class="ex-lvl lvl-1">مبتدی / Beginner</span></div><p lang="fa">در reflog نوشته <code>HEAD@{1}</code>. آیا این یعنی والد commit فعلی؟</p><p lang="en">The reflog shows <code>HEAD@{1}</code>. Does that mean the current commit's parent?</p><details class="ex-hint"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">یکی زمان را می‌شمارد، یکی پیوند commit را.</p><p lang="en">One counts events; the other follows commit links.</p></details><details class="ex-sol"><summary><span lang="fa">فرق دو نحو</span><span lang="en">Two different selectors</span></summary><p lang="fa">نه. <code>HEAD@{1}</code> جایگاه قبلی HEAD در reflog است؛ <code>HEAD~1</code> والد اول commit فعلی است. بعد از checkout، reset یا commit ممکن است پاسخشان کاملاً متفاوت شود.</p><p lang="en">No. <code>HEAD@{1}</code> is HEAD's previous reflog position; <code>HEAD~1</code> is the current commit's first parent. Checkout, reset, or commit events can make them differ.</p></details></div>
+  <div class="ex" id="g10-ex03"><div class="ex-h"><span class="ex-n">۳</span><span class="ex-lvl lvl-1">مبتدی / Beginner</span></div><p lang="fa">OID مشکوک پیدا شده. یک فرمان برای دیدن پیام و snapshot و یک فرمان برای ثابت‌کردن rescue branch بنویس.</p><p lang="en">You found a suspicious OID. Name a command to inspect its message/snapshot and one to prove a rescue branch exists.</p><details class="ex-hint"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">اول show، بعد branch و show-ref.</p><p lang="en">Inspect first, then name and verify.</p></details><details class="ex-sol"><summary><span lang="fa">ترتیب امن</span><span lang="en">Safe sequence</span></summary><p lang="fa"><code>git show --stat --oneline OID</code> را بخوان؛ اگر هدف درست بود، <code>git branch rescue/candidate OID</code> و <code>git show-ref --verify refs/heads/rescue/candidate</code>. ساخت branch بدون بررسی می‌تواند فقط اشتباه را نام‌گذاری کند.</p><p lang="en">Inspect with <code>git show --stat --oneline OID</code>; if it is the target, create <code>git branch rescue/candidate OID</code> and verify with show-ref. Naming before inspection can preserve the wrong candidate.</p></details></div>
+  <div class="ex" id="g10-ex04"><div class="ex-h"><span class="ex-n">۴</span><span class="ex-lvl lvl-1">مبتدی / Beginner</span></div><p lang="fa">همکارت branch را در لپ‌تاپ خودش حذف کرده. چرا reflog لپ‌تاپ تو احتمالاً آن رویداد را ندارد؟</p><p lang="en">A teammate deleted a branch on their laptop. Why will your reflog probably not contain that event?</p><details class="ex-hint"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">کدام بخش Git به remote push می‌شود؟</p><p lang="en">Which part of Git is pushed to the remote?</p></details><details class="ex-sol"><summary><span lang="fa">محدودهٔ محلی</span><span lang="en">Local scope</span></summary><p lang="fa">reflog محلی است و با push/fetch به clone دیگر منتقل نمی‌شود. از همکارت بخواه reflog خودش را بخواند یا OID/نسخهٔ پشتیبان را بدهد؛ remote-tracking branchها دفترچهٔ رویدادهای clone او نیستند.</p><p lang="en">A reflog is local and is not transferred by push/fetch. Ask the teammate to inspect theirs or provide the OID/backup; remote-tracking branches are not their clone's event journal.</p></details></div>
+  <div class="ex" id="g10-ex05"><div class="ex-h"><span class="ex-n">۵</span><span class="ex-lvl lvl-2">متوسط / Intermediate</span></div><p lang="fa">می‌خواهی <code>HEAD@{yesterday}</code> را در PowerShell اجرا کنی، اما shell بخشی از عبارت را تفسیر می‌کند. چه کار می‌کنی؟</p><p lang="en">You want to use <code>HEAD@{yesterday}</code> in PowerShell, but the shell parses part of it. What do you do?</p><details class="ex-hint"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">shell و Git دو لایهٔ تفسیر دارند.</p><p lang="en">The shell and Git parse separate layers.</p></details><details class="ex-sol"><summary><span lang="fa">selector را نقل‌قول کن</span><span lang="en">Quote the selector</span></summary><p lang="fa">عبارت را طبق قواعد همان shell نقل‌قول کن، مثلاً <code>git show 'HEAD@{yesterday}'</code> در shellهای POSIX؛ در PowerShell از نقل‌قولی استفاده کن که آن shell می‌پذیرد. اگر کار نکرد، syntax shell را بررسی کن، نه اینکه معنای Git را حدس بزنی.</p><p lang="en">Quote it according to that shell, for example <code>git show 'HEAD@{yesterday}'</code> in POSIX shells; use quoting accepted by PowerShell there. If it fails, check shell syntax rather than guessing Git semantics.</p></details></div>
+  <div class="ex" id="g10-ex06"><div class="ex-h"><span class="ex-n">۶</span><span class="ex-lvl lvl-2">متوسط / Intermediate</span></div><p lang="fa">reflog نشان می‌دهد branch از C به A reset شده. تیم گفته فایل C لازم است اما هنوز باید معلوم شود کدام تغییر را نگه داریم. قدم بعد چیست؟</p><p lang="en">The reflog shows a branch reset from C to A. The team needs C's files but has not decided which changes to keep. What next?</p><details class="ex-hint"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">اول نتیجه را حفظ کن، بعد مقایسه.</p><p lang="en">Preserve the candidate before comparing.</p></details><details class="ex-sol"><summary><span lang="fa">نجات بدون ادغام عجولانه</span><span lang="en">Rescue without premature integration</span></summary><p lang="fa">OID C را با <code>show</code> تأیید و <code>rescue/C</code> بساز. بعد diff/log دو ref را بررسی و با تیم دربارهٔ cherry-pick/merge تصمیم بگیر. داشتن rescue ref به معنی اینکه همهٔ C باید روی main بیاید نیست.</p><p lang="en">Verify C with show and create <code>rescue/C</code>. Compare both refs, then decide with the team whether to cherry-pick or merge. A rescue ref does not mean all of C belongs on main.</p></details></div>
+  <div class="ex" id="g10-ex07"><div class="ex-h"><span class="ex-n">۷</span><span class="ex-lvl lvl-2">متوسط / Intermediate</span></div><p lang="fa">branch حذف شده و <code>git reflog show feature</code> خطا می‌دهد. کدام دفترچه را بعد بررسی می‌کنی؟</p><p lang="en">A branch was deleted and <code>git reflog show feature</code> errors. Which journal do you inspect next?</p><details class="ex-hint"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">branch reflog ممکن است حذف شده باشد؛ checkout از کجا ثبت می‌شود؟</p><p lang="en">The branch log may be gone; where is checkout recorded?</p></details><details class="ex-sol"><summary><span lang="fa">از HEAD شروع کن</span><span lang="en">Start with HEAD</span></summary><p lang="fa"><code>git reflog</code> یا <code>git reflog --all</code> را بخوان؛ به‌ویژه checkout از feature و commitهای پیش از آن. اگر این clone آن حرکت را نداشته، clone همکار را بررسی کن. حذف ref branch ممکن است reflog خودش را هم برداشته باشد.</p><p lang="en">Inspect <code>git reflog</code> or <code>git reflog --all</code>, especially the checkout from feature and its preceding commits. If this clone lacks the event, inspect the teammate's clone. Deleting a branch may remove its own reflog.</p></details></div>
+  <div class="ex" id="g10-ex08"><div class="ex-h"><span class="ex-n">۸</span><span class="ex-lvl lvl-2">متوسط / Intermediate</span></div><p lang="fa">می‌خواهی بدانی HEAD در ساعت مشخصی کجا بود. آیا <code>HEAD~3</code> همین را می‌گوید؟</p><p lang="en">You want to know where HEAD was at a particular time. Does <code>HEAD~3</code> answer that?</p><details class="ex-hint"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">یکی زمان، دیگری نسل commit.</p><p lang="en">One is time; the other is ancestry depth.</p></details><details class="ex-sol"><summary><span lang="fa">selector زمانی</span><span lang="en">Use a time selector</span></summary><p lang="fa">نه؛ <code>HEAD~3</code> سه والد اول در گراف را دنبال می‌کند. برای جایگاه زمانی از selectorهای reflog مثل <code>HEAD@{yesterday}</code> استفاده کن و OID را با entryهای اطراف تأیید کن.</p><p lang="en">No; <code>HEAD~3</code> follows three first-parent links. Use a reflog selector such as <code>HEAD@{yesterday}</code> for a time-based position and verify it against neighboring entries.</p></details></div>
+  <div class="ex" id="g10-ex09"><div class="ex-h"><span class="ex-n">۹</span><span class="ex-lvl lvl-2">متوسط / Intermediate</span></div><p lang="fa">یک entry را خواندی و rescue branch ساختی. چه دو بررسی‌ای ثابت می‌کند branch به commit مدنظر رسیده؟</p><p lang="en">You read an entry and created a rescue branch. Which two checks prove it points to the intended commit?</p><details class="ex-hint"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">یکی ref را می‌خواند، دیگری تاریخچه را.</p><p lang="en">One checks the ref; the other checks history.</p></details><details class="ex-sol"><summary><span lang="fa">دو نوع مدرک</span><span lang="en">Two kinds of evidence</span></summary><p lang="fa"><code>git show-ref --verify refs/heads/rescue/name</code> وجود و OID شاخه را نشان می‌دهد؛ <code>git log --oneline --decorate rescue/name</code> جای آن را در ancestry می‌گذارد. برای محتوای واقعی، خود commit را با <code>git show</code> بخوان.</p><p lang="en">show-ref verifies the branch and its OID; log places it in ancestry. Use <code>git show</code> to inspect the actual commit content.</p></details></div>
+  <div class="ex" id="g10-ex10"><div class="ex-h"><span class="ex-n">۱۰</span><span class="ex-lvl lvl-2">متوسط / Intermediate</span></div><p lang="fa">بعد از rebase، سه OID نامزد داری. چرا انتخاب <code>HEAD@{1}</code> بدون بررسی ایدهٔ بدی است؟</p><p lang="en">After a rebase, you have three candidate OIDs. Why is choosing <code>HEAD@{1}</code> without inspection a bad idea?</p><details class="ex-hint"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">rebase می‌تواند چند event ثبت کند.</p><p lang="en">A rebase can record multiple events.</p></details><details class="ex-sol"><summary><span lang="fa">رویداد را تفسیر کن</span><span lang="en">Interpret the event</span></summary><p lang="fa">نزدیک‌ترین entry شاید commit توقف، checkout یا بازپخش میانی باشد نه tip قبل از rebase. پیام‌ها، زمان، OIDها و گراف را کنار هم بگذار؛ candidate را با show بررسی و بعد rescue کن.</p><p lang="en">The nearest entry may be a stopped commit, checkout, or intermediate replay—not the pre-rebase tip. Compare messages, times, IDs, and graph; inspect the candidate, then rescue it.</p></details></div>
+  <div class="ex" id="g10-ex11"><div class="ex-h"><span class="ex-n">۱۱</span><span class="ex-lvl lvl-2">متوسط / Intermediate</span></div><p lang="fa">یک blob از <code>fsck</code> پیدا شده. آیا با این کار نام فایل و مسیرش هم معلوم است؟</p><p lang="en">You found a blob through <code>fsck</code>. Does that reveal its filename and path?</p><details class="ex-hint"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">نام مسیر در blob ذخیره نمی‌شود.</p><p lang="en">A blob does not store its pathname.</p></details><details class="ex-sol"><summary><span lang="fa">محتوا با هویت مسیر فرق دارد</span><span lang="en">Content is not path identity</span></summary><p lang="fa">خیر. blob بایت‌های محتوا را نگه می‌دارد؛ نام و مسیر در treeها هستند. با <code>cat-file -p</code> محتوا را ببین، اما بدون tree یا شواهد دیگر مسیر اصلی ممکن است نامعلوم بماند.</p><p lang="en">No. A blob stores content bytes; names and paths live in trees. Inspect with cat-file, but without a tree or other evidence the original path may remain unknown.</p></details></div>
+  <div class="ex" id="g10-ex12"><div class="ex-h"><span class="ex-n">۱۲</span><span class="ex-lvl lvl-2">متوسط / Intermediate</span></div><p lang="fa">ورودی <code>ORIG_HEAD</code> پیدا شد و به commit معقولی می‌رسد. آیا حالا <code>reset --hard ORIG_HEAD</code> امن است؟</p><p lang="en">ORIG_HEAD exists and points to a plausible commit. Is <code>reset --hard ORIG_HEAD</code> now safe?</p><details class="ex-hint"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">پوشهٔ کاری و هدف فرمان را هم بررسی کن.</p><p lang="en">Inspect the working tree and the command's effect too.</p></details><details class="ex-sol"><summary><span lang="fa">سرنخ به‌معنای مجوز نیست</span><span lang="en">A clue is not permission</span></summary><p lang="fa">نه خودبه‌خود. <code>ORIG_HEAD</code> ممکن است از عملیات دیگری مانده باشد. اول آن commit را با show بشناس، کار محلی را جدا حفظ کن و ref نجات بساز. reset hard می‌تواند ویرایش‌های ردیابی‌شدهٔ فعلی را کنار بگذارد.</p><p lang="en">Not automatically. ORIG_HEAD may come from another operation. Identify it, preserve local work separately, and create a rescue ref first. Hard reset can discard current tracked edits.</p></details></div>
+  <div class="ex" id="g10-ex13"><div class="ex-h"><span class="ex-n">۱۳</span><span class="ex-lvl lvl-3">پیشرفته / Advanced</span></div><p lang="fa">دو هفته از reset گذشته و branch نجات نساخته‌ای. آیا ۳۰ روز را می‌توانی تضمین فرض کنی؟</p><p lang="en">Two weeks have passed since reset and you made no rescue branch. Can you treat 30 days as a guarantee?</p><details class="ex-hint"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">default با قول برابر نیست.</p><p lang="en">A default is not a promise.</p></details><details class="ex-sol"><summary><span lang="fa">همین حالا بررسی کن</span><span lang="en">Inspect now</span></summary><p lang="fa">نه. زمان‌های پیش‌فرض قابل تنظیم‌اند و maintenance ممکن است متفاوت بوده باشد. فوری reflog و fsck را بررسی کن؛ اگر object درست را پیدا کردی، branch بساز و تأییدش کن. زمان را برای تعلل مجوز ندان.</p><p lang="en">No. Defaults are configurable and maintenance may differ. Inspect reflog and fsck now; if you find the right object, create and verify a branch. Do not use the window as permission to wait.</p></details></div>
+  <div class="ex" id="g10-ex14"><div class="ex-h"><span class="ex-n">۱۴</span><span class="ex-lvl lvl-3">پیشرفته / Advanced</span></div><p lang="fa">همکارت می‌خواهد برای «خلوت‌کردن مخزن» همین الان <code>git gc --prune=now</code> بزند، در حالی که داری commit گمشده را نجات می‌دهی. چه می‌گویی؟</p><p lang="en">A teammate wants to run <code>git gc --prune=now</code> to “tidy the repository” while you are rescuing a lost commit. What do you say?</p><details class="ex-hint"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">object unreachable ممکن است هدف prune باشد.</p><p lang="en">An unreachable object may be exactly what pruning targets.</p></details><details class="ex-sol"><summary><span lang="fa">اول حفاظت، بعد نگهداری</span><span lang="en">Preserve first, maintain later</span></summary><p lang="fa">فعلاً اجرا نکند. اول OID را پیدا، بررسی و به rescue ref وصل کن؛ حتی‌المقدور نسخهٔ جدا از مخزن بگیر. prune-now می‌تواند objectهای unreachable را حذف کند و هم‌زمانی نوشتن هم خطر دارد.</p><p lang="en">Ask them to wait. Find and inspect the OID, attach a rescue ref, and preferably make a separate repository copy. Prune-now can remove unreachable objects, and concurrent writes add risk.</p></details></div>
+  <div class="ex" id="g10-ex15"><div class="ex-h"><span class="ex-n">۱۵</span><span class="ex-lvl lvl-3">پیشرفته / Advanced</span></div><p lang="fa">پس از حذف branch، reflog خودش نیست؛ در HEAD یک checkout از آن شاخه می‌بینی. چه چیزی را هنوز باید ثابت کنی؟</p><p lang="en">After branch deletion, its own reflog is gone; HEAD shows a checkout from that branch. What must you still prove?</p><details class="ex-hint"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">checkout به‌تنهایی commit موردنظر را مشخص نمی‌کند.</p><p lang="en">A checkout alone does not identify the target commit.</p></details><details class="ex-sol"><summary><span lang="fa">شناسه و محتوا</span><span lang="en">ID and content</span></summary><p lang="fa">OID رویداد را با <code>show</code> بررسی کن: پیام، والدها و فایل‌ها باید با feature موردنظر بخوانند. سپس branch نجات بساز و ref را verify کن. ممکن است روی branch چند commit ساخته شده باشد و checkout فقط tip آن لحظه را برگرداند.</p><p lang="en">Inspect the event's OID with show: message, parents, and files should match the intended feature. Then create and verify the rescue branch. Several commits may have existed; the checkout records only the tip at that moment.</p></details></div>
+  <div class="ex" id="g10-ex16"><div class="ex-h"><span class="ex-n">۱۶</span><span class="ex-lvl lvl-3">پیشرفته / Advanced</span></div><p lang="fa">پس از rebase، یکی از commitهای قدیمی را پیدا کردی. آیا این ثابت می‌کند کل شاخهٔ پیش از rebase را کامل داری؟</p><p lang="en">After rebase, you found one old commit. Does that prove you have the entire pre-rebase branch?</p><details class="ex-hint"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">یک commit ممکن است فقط بخشی از زنجیره باشد.</p><p lang="en">One commit may be only part of the series.</p></details><details class="ex-sol"><summary><span lang="fa">والدها و tip را دنبال کن</span><span lang="en">Trace parents and the tip</span></summary><p lang="fa">نه. parent chain و commit tip موردنظر را با <code>git log OID</code> دنبال کن و با گراف قبل/بعد تطبیق بده. rescue را به tip درست وصل کن، نه به اولین commitی که آشنا به نظر می‌رسد.</p><p lang="en">No. Trace its parent chain and intended tip with <code>git log OID</code>, then compare the graph before and after. Point rescue at the correct tip, not the first familiar-looking commit.</p></details></div>
+  <div class="ex" id="g10-ex17"><div class="ex-h"><span class="ex-n">۱۷</span><span class="ex-lvl lvl-3">پیشرفته / Advanced</span></div><p lang="fa">فایل تازه‌ای را در ویرایشگر نوشتی، هرگز ذخیره یا stage نکردی، سپس editor بسته شد. آیا reflog یا fsck راه قطعی دارد؟</p><p lang="en">You typed a new file in an editor, never saved or staged it, then the editor closed. Is reflog or fsck a guaranteed route?</p><details class="ex-hint"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">Git باید قبلاً بایت‌ها را دریافت کرده باشد.</p><p lang="en">Git must have received the bytes first.</p></details><details class="ex-sol"><summary><span lang="fa">مرز بازیابی</span><span lang="en">Recovery boundary</span></summary><p lang="fa">نه. Git نه refی برای آن و نه objectی از محتوایش دارد. نسخه‌های editor، autosave، سیستم فایل یا backup را جدا بررسی کن؛ تضمین نده اگر هیچ‌کدام چیزی ثبت نکرده‌اند.</p><p lang="en">No. Git has neither a ref movement nor an object containing that text. Check editor recovery, autosave, filesystem, or backups separately; do not promise recovery if none recorded it.</p></details></div>
+  <div class="ex" id="g10-ex18"><div class="ex-h"><span class="ex-n">۱۸</span><span class="ex-lvl lvl-3">پرونده / Incident</span></div><p lang="fa">reflog خالی است، fsck چند commit و blob نامرتبط داده و کسی <code>gc</code> هم اجرا کرده. سه قدم محتاطانهٔ بعدی چیست؟</p><p lang="en">The reflog is empty, fsck lists unrelated commits and blobs, and someone has run gc. What are three careful next steps?</p><details class="ex-hint"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">پاک‌سازی را متوقف کن، نسخه‌ها را جدا کن، شواهد را دسته‌بندی کن.</p><p lang="en">Stop cleanup, isolate copies, and classify evidence.</p></details><details class="ex-sol"><summary><span lang="fa">پرونده را حدس نزن</span><span lang="en">Do not guess at the incident</span></summary><p lang="fa">۱) gc/prune بیشتر نزن و از مخزن فعلی نسخهٔ جدا بگیر. ۲) cloneهای دیگر و backupها را بررسی کن؛ refها و reflogهای هرکدام محلی‌اند. ۳) روی کپی، objectها را با نوع، پیام، والد و محتوا طبقه‌بندی کن و فقط candidate تأییدشده را rescue کن. ممکن است محتوای واقعاً ذخیره‌نشده یا pruneشده قابل‌بازیابی نباشد.</p><p lang="en">1) Stop gc/prune and copy the repository. 2) Check other clones and backups; refs and reflogs are local. 3) On the copy, classify objects by type, message, parents, and content; rescue only a verified candidate. Never-stored or already-pruned content may be unrecoverable.</p></details></div>
+</section>
+
+<section id="rescue-desk">
+  <h2><span lang="fa">پروژهٔ کوچک: میز نجات Git</span><span lang="en">Mini-project: the Git rescue desk</span></h2>
+  <p class="lede" lang="fa">سه پروندهٔ واقعی‌نما به میزت رسیده: branch حذف‌شده، reset اشتباه و commit ساخته‌شده در detached HEAD. هر سه را در مخزن دورریختنی بساز و برای هرکدام گزارش کوتاه «نشانه، ref/object پیدا‌شده، تصمیم نجات، مدرک نهایی» تحویل بده.</p>
+  <p class="lede" lang="en">Three realistic incidents arrive at your desk: a deleted branch, a mistaken reset, and a commit made in detached HEAD. Reproduce all three in a disposable repository and write a short report for each: symptom, ref/object found, rescue decision, and final proof.</p>
+  <p lang="fa">برای شروع هر پرونده یک مخزن دورریختنی در پوشهٔ جدا بساز تا رویدادهای پروندهٔ قبلی شمارهٔ سرنخ‌های بعدی را جابه‌جا نکند. فرمان‌های حذف و reset فقط در همین پوشه‌های آزمایشی اجرا شوند.</p>
+  <p lang="en">Give each incident its own disposable repository in a separate folder so earlier events do not shift later clues. Run deletion and reset commands only in these practice folders.</p>
+  <ol class="ranked">
+    <li><b lang="fa">پروندهٔ شاخهٔ حذف‌شده</b><b lang="en">Deleted branch</b><p lang="fa">branch بساز، دو commit مرتبط روی آن ثبت کن، از آن بیرون برو و branch را حذف کن. با reflog محلی OID tip را پیدا کن، با show محتوایش را ثابت کن، rescue branch بساز و گراف نهایی را ثبت کن.</p><p lang="en">Create a branch, make two related commits, switch away, and delete it. Find the tip OID in the local reflog, verify it with show, create a rescue branch, and record the final graph.</p></li>
+    <li><b lang="fa">پروندهٔ reset</b><b lang="en">Mistaken reset</b><p lang="fa">سه commit روی main بساز و به عمد دو commit آخر را با hard reset از مسیر عادی خارج کن. reflog را بخوان، candidateها را مقایسه کن، rescue branch بساز و ثابت کن main هنوز همان‌جاست.</p><p lang="en">Make three commits on main and deliberately move it back two commits with hard reset. Inspect the reflog, compare candidates, create a rescue branch, and prove main has not moved again.</p></li>
+    <li><b lang="fa">پروندهٔ detached HEAD</b><b lang="en">Detached-HEAD commit</b><p lang="fa">به commit مشخص checkout کن، commit تازه بساز و به main برگرد. از reflog HEAD شناسه را پیدا کن، محتوا و والد را بررسی و branch نجات بساز.</p><p lang="en">Check out a specific commit, create a new commit, and return to main. Find its ID in HEAD's reflog, inspect content and parent, and create a rescue branch.</p></li>
+  </ol>
+  <details class="ex-hint"><summary><span lang="fa">راه‌اندازی دورریختنی هر پرونده</span><span lang="en">Disposable setup for each case</span></summary><p lang="fa">هر قطعه را در پوشهٔ جداگانه اجرا کن؛ نام پوشه‌ها را عوض نکن و فرمان حذف/reset را بیرون از آن‌ها نزن. این کدها فقط خرابی را می‌سازند؛ مسیر نجات را خودت از روی reflog پیدا کن.</p><p lang="en">Run each block in its own folder. Keep the folders separate and do not run deletion/reset commands elsewhere. These commands create the incident; use the reflog yourself to find the recovery path.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">case 1 · deleted branch</span><button class="copy">کپی</button></div><pre dir="ltr">mkdir rescue-case-branch
+cd rescue-case-branch
+git init -b main
+git config user.name "Rescue Learner"
+git config user.email rescue@example.test
+printf 'base\n' &gt; notes.txt
+git add notes.txt
+git commit -m "baseline"
+git switch -c topic
+printf 'topic one\n' &gt;&gt; notes.txt
+git commit -am "topic: first change"
+printf 'topic two\n' &gt;&gt; notes.txt
+git commit -am "topic: second change"
+git switch main
+git branch -D topic</pre></div>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">case 2 · reset --hard</span><button class="copy">کپی</button></div><pre dir="ltr">mkdir ../rescue-case-reset
+cd ../rescue-case-reset
+git init -b main
+git config user.name "Rescue Learner"
+git config user.email rescue@example.test
+printf 'A\n' &gt; notes.txt
+git add notes.txt
+git commit -m "A: baseline"
+printf 'B\n' &gt;&gt; notes.txt
+git commit -am "B: second commit"
+printf 'C\n' &gt;&gt; notes.txt
+git commit -am "C: third commit"
+git reset --hard HEAD~2</pre></div>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">case 3 · detached-HEAD commit</span><button class="copy">کپی</button></div><pre dir="ltr">mkdir ../rescue-case-detached
+cd ../rescue-case-detached
+git init -b main
+git config user.name "Rescue Learner"
+git config user.email rescue@example.test
+printf 'base\n' &gt; notes.txt
+git add notes.txt
+git commit -m "baseline"
+git switch --detach HEAD
+printf 'detached work\n' &gt;&gt; notes.txt
+git commit -am "commit made while detached"
+git switch main</pre></div>
+  </details>
+  <div class="note safe"><div class="note-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4.5 4.5L19 7"/></svg><span lang="fa">گزارش وقتی کامل است که ادعا را ثابت کند</span><span lang="en">A report is complete when it proves its claim</span></div><ul><li lang="fa">خروجی reflog را با پیام رویداد، زمان و OID نگه دار.</li><li lang="en">Save the reflog entry with its message, time, and OID.</li><li lang="fa">commit نجات‌یافته را با show و والدهایش بشناس.</li><li lang="en">Identify the rescued commit with show and inspect its parents.</li><li lang="fa">با show-ref و <code>log --graph --all</code> ثابت کن rescue نام دارد و branch اصلی ناخواسته حرکت نکرده.</li><li lang="en">Use show-ref and <code>log --graph --all</code> to prove the rescue is named and the original branch did not move unexpectedly.</li></ul></div>
+  <details class="ex-hint"><summary><span lang="fa">اگر در یکی از پرونده‌ها سرنخ پیدا نشد</span><span lang="en">If one case has no visible clue</span></summary><p lang="fa">اول مطمئن شو در clone درست هستی و زمان entryها را بر اساس شمارهٔ فعلی دوباره بخوان. بعد، روی نسخهٔ جدا از مخزن، objectهای unreachable را با fsck بررسی کن. هیچ پاک‌سازی‌ای را برای «آسان‌ترشدن» انجام نده؛ اگر Git محتوا را ذخیره نکرده یا object حذف شده باشد، گزارش باید همین محدودیت را صادقانه بگوید.</p><p lang="en">First confirm you are in the right clone and reread entries rather than trusting old indices. Then inspect unreachable objects on a separate repository copy. Do not clean anything to “make it easier”; if Git never stored the content or the object was removed, report that limit honestly.</p></details>
+</section>
+
+<section id="handoff">
+  <h2><span lang="fa">همه‌چیز را به آخرین وضعیتِ ذخیره‌شده برنمی‌گردانیم</span><span lang="en">Not every interruption needs a rescue</span></h2>
+  <p lang="fa">حالا می‌دانی reflog حرکت refها را در همین clone ثبت می‌کند و چطور یک commit پیدا‌شده را با شاخهٔ rescue از انقضا جدا نگه داری. اما گاهی commit بد نیست؛ وسط کاری و فقط لازم داری موقتاً کنار بروی. فصل ۱۱ سه ابزار کوچک برای وقفه و جابه‌جایی انتخابی می‌آورد: <code>stash</code>، <code>cherry-pick</code> و <code>tag</code>.</p>
+  <p lang="en">You now know that a reflog records ref movements in this clone and how a rescue branch preserves a discovered commit beyond journal expiry. But sometimes nothing is wrong—you simply need to pause. Chapter 11 introduces three small tools for interruption and selective movement: <code>stash</code>, <code>cherry-pick</code>, and <code>tag</code>.</p>
+</section>
+
+<section id="quick-reference">
+  <h2><span lang="fa">مرور کوتاه</span><span lang="en">Quick reference</span></h2>
+  <div class="capsule"><div class="capsule-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v14H4zM8 9h8M8 13h5"/></svg><span lang="fa">وقتی commit از دید log ناپدید می‌شود</span><span lang="en">When a commit disappears from log</span></div><ul>
+    <li lang="fa"><code>git reflog</code> برای رویدادهای HEAD و <code>git reflog show REF</code> برای دفترچهٔ یک ref محلی است.</li><li lang="en"><code>git reflog</code> shows HEAD events; <code>git reflog show REF</code> inspects a local ref's journal.</li>
+    <li lang="fa"><code>HEAD@{n}</code> جایگاه زمانی reflog است؛ <code>HEAD~n</code> از والدهای commit می‌گذرد.</li><li lang="en"><code>HEAD@{n}</code> is a reflog position; <code>HEAD~n</code> walks commit parents.</li>
+    <li lang="fa">OID را با <code>show</code> بررسی کن؛ اول rescue ref بساز و آن را با show-ref ثابت کن.</li><li lang="en">Inspect the OID with show; create a rescue ref first and verify it with show-ref.</li>
+    <li lang="fa">reflog به clone دیگر منتقل نمی‌شود؛ هر clone دفترچهٔ خودش را دارد.</li><li lang="en">A reflog is not transferred to another clone; each clone has its own journal.</li>
+    <li lang="fa">برای object بی‌ref، fsck شاید سرنخ بدهد؛ نام مسیر blob تضمین نیست.</li><li lang="en">For unreferenced objects, fsck may help; a blob's original path is not guaranteed.</li>
+    <li lang="fa">کار هرگز ذخیره‌نشده در Git را نمی‌توان با reflog یا fsck تضمینی بازگرداند.</li><li lang="en">Reflog and fsck cannot guarantee recovery of work Git never stored.</li>
+    <li lang="fa">هنگام نجات، gc/prune/expire را اجرا نکن؛ بعد از یافتن، ref نجات را زود بساز.</li><li lang="en">During recovery, avoid gc/prune/expire; create a rescue ref promptly after finding the object.</li>
+  </ul></div>
+  <div class="note safe"><div class="note-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4.5 4.5L19 7"/></svg><span lang="fa">قاعدهٔ آخر</span><span lang="en">The final rule</span></div><p lang="fa">کاری که Git ذخیره کرده، اغلب برای مدتی سرنخ بازیابی دارد؛ کاری که Git هرگز ذخیره نکرده، ممکن است هیچ‌وقت از داخل Git برنگردد. سرنخ را پیدا کن، commit را بشناس، ref نجات بساز و بعد تصمیم بگیر.</p><p lang="en">Work Git stored often leaves a recovery clue for some time; work Git never stored may never come back from Git. Find the clue, identify the commit, create a rescue ref, then decide what to do.</p></div>
+  <p lang="fa">برای جزئیات جاری، راهنمای رسمی <a href="https://git-scm.com/docs/git-reflog" rel="noreferrer"><code>git reflog</code></a>، <a href="https://git-scm.com/docs/git-branch" rel="noreferrer"><code>git branch</code></a>، <a href="https://git-scm.com/docs/gitrevisions" rel="noreferrer">revisionها و selectorهای زمانی</a>، <a href="https://git-scm.com/docs/git-fsck" rel="noreferrer"><code>git fsck</code></a> و <a href="https://git-scm.com/docs/git-gc" rel="noreferrer"><code>git gc</code></a> را ببین. بازه‌های نگهداری تنظیم‌پذیرند؛ <code>git config --show-origin --get-regexp 'gc\.(reflogExpire|reflogExpireUnreachable|pruneExpire)'</code> کمک می‌کند تنظیم مؤثر را پیدا کنی.</p>
+  <p lang="en">For current details, see the official manuals for <a href="https://git-scm.com/docs/git-reflog"><code>git reflog</code></a>, <a href="https://git-scm.com/docs/git-branch"><code>git branch</code></a>, <a href="https://git-scm.com/docs/gitrevisions">revision and date selectors</a>, <a href="https://git-scm.com/docs/git-fsck"><code>git fsck</code></a>, and <a href="https://git-scm.com/docs/git-gc"><code>git gc</code></a>. Retention is configurable; <code>git config --show-origin --get-regexp 'gc\.(reflogExpire|reflogExpireUnreachable|pruneExpire)'</code> helps locate effective settings.</p>
+</section>

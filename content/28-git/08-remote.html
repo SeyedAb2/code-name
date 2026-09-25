@@ -1,0 +1,478 @@
+<!--meta
+title: مخزن راه دور
+desc: با دو clone و یک bare repository ببین fetch کدام ref را جلو می‌برد، pull چطور تغییرها را ادغام می‌کند، چرا push گاهی رد می‌شود و رابطهٔ upstream دقیقاً چیست.
+-->
+
+<div class="masthead">
+  <span class="eyebrow"><span class="dot"></span><span lang="fa">گیت · فصل ۸</span><span lang="en">Git · Chapter 8</span></span>
+  <h1 lang="fa">مخزن راه دور</h1>
+  <h1 lang="en">Remotes: fetch, pull, push, and tracking branches</h1>
+  <p class="sub" lang="fa">آلیس یک commit را push کرده و ترمینالش می‌گوید کار تمام شد. باب همان لحظه پوشهٔ پروژه را باز می‌کند؛ فایل‌ها و <code>git log</code> او هیچ تغییری نکرده‌اند. commit آلیس در رایانهٔ باب کجاست؟ قبل از جواب، دو clone و یک bare repository می‌سازیم و هر ref را جداگانه نگاه می‌کنیم.</p>
+  <p class="sub" lang="en">Alice pushes a commit and her terminal says it worked. Bob opens his project at the same moment; neither his files nor his <code>git log</code> has changed. Where is Alice’s commit on Bob’s machine? Before answering, we’ll create two clones and one bare repository, then inspect each ref separately.</p>
+  <div class="facts">
+    <div class="fact"><span class="fact-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg></span><span class="fact-v"><b>۱۵</b><span lang="fa">بخش</span><span lang="en">sections</span></span></div>
+    <div class="fact"><span class="fact-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span class="fact-v"><b>۸۰<span class="u" lang="fa">دقیقه</span><span class="u" lang="en">min</span></b><span lang="fa">زمان مطالعه</span><span lang="en">reading time</span></span></div>
+    <div class="fact"><span class="fact-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 11 2 2 4-4"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg></span><span class="fact-v"><b>۱۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></span></div>
+    <div class="fact"><span class="fact-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v14H4zM8 9h8M8 13h5"/></svg></span><span class="fact-v"><b>۵</b><span lang="fa">نمودار</span><span lang="en">diagrams</span></span></div>
+  </div>
+</div>
+
+<section id="story">
+  <h2><span lang="fa">آلیس push کرد؛ باب هنوز چیزی نمی‌بیند</span><span lang="en">Alice pushed; Bob still sees nothing</span></h2>
+  <p class="lede" lang="fa">فصل ۰۷ همه‌چیز را داخل یک مخزن نگه داشت: refهای <code>main</code> و <code>feature</code> محلی بودند. حالا سه نسخه داریم: یک مخزن مرکزی به نام <code>server.git</code> و دو clone به نام‌های <code>alice</code> و <code>bob</code>. فرض کن آلیس commit تازه‌ای بسازد و push کند. پیش از اینکه باب فرمانی اجرا کند، فایل او عوض می‌شود؟ branch محلی <code>main</code> او جلو می‌رود؟</p>
+  <p class="lede" lang="en">Chapter 07 kept everything inside one repository: main and feature were local refs. Now we have three copies: a central repository named server.git and two clones named alice and bob. Suppose Alice creates and pushes a commit. Before Bob runs a command, do his files change? Does his local main advance?</p>
+  <p lang="fa">نه. push آلیس refهای مخزن راه دور را به‌روزرسانی می‌کند. clone باب مستقل است؛ تا وقتی از remote خبر نگیرد، حتی نمی‌داند commit تازه‌ای وجود دارد. امروز سه واژه را از هم جدا می‌کنیم: <code>fetch</code> برای گرفتن خبر و objectها، انتخاب آگاهانه برای واردکردن تغییر به شاخهٔ خودمان، و <code>push</code> برای فرستادن commitها.</p>
+  <p lang="en">No. Alice’s push updates refs in the remote repository. Bob’s clone is independent; until it contacts the remote, it does not know that the new commit exists. We will separate three actions: fetch objects and information, intentionally integrate changes into our branch, and push commits outward.</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 900 300" role="img" aria-labelledby="g8-d1" xmlns="http://www.w3.org/2000/svg" direction="ltr">
+      <title id="g8-d1">Alice pushes to a bare repository; Bob fetches from it into his local repository</title>
+      <defs>
+        <marker id="g8-a1" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path class="dg-arrow-b" d="M0 0 10 5 0 10z"/></marker>
+        <marker id="g8-a2" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path class="dg-arrow" d="M0 0 10 5 0 10z"/></marker>
+      </defs>
+      <rect class="dg-fill dg-stroke" x="32" y="28" width="836" height="244" rx="20"/>
+      <rect class="dg-fill-b dg-stroke-b" x="78" y="103" width="210" height="112" rx="16"/>
+      <text class="dg-t" x="183" y="143" text-anchor="middle">Alice</text>
+      <text class="dg-ts" x="183" y="172" text-anchor="middle">local clone</text>
+      <rect class="dg-fill-v dg-stroke-v" x="345" y="91" width="210" height="136" rx="16"/>
+      <text class="dg-t" x="450" y="140" text-anchor="middle">server.git</text>
+      <text class="dg-ts" x="450" y="169" text-anchor="middle">bare repository</text>
+      <text class="dg-tm" x="450" y="198" text-anchor="middle">shared refs + objects</text>
+      <rect class="dg-fill-g dg-stroke-g" x="612" y="103" width="210" height="112" rx="16"/>
+      <text class="dg-t" x="717" y="143" text-anchor="middle">Bob</text>
+      <text class="dg-ts" x="717" y="172" text-anchor="middle">local clone</text>
+      <path class="dg-stroke-b" d="M290 143h52" stroke-width="3" marker-end="url(#g8-a1)"/>
+      <path class="dg-stroke-v" d="M558 181h52" stroke-width="3" marker-end="url(#g8-a2)"/>
+      <text class="dg-tm" x="316" y="119" text-anchor="middle">push</text>
+      <text class="dg-tm" x="582" y="158" text-anchor="middle">fetch</text>
+      <text class="dg-tm" x="450" y="252" text-anchor="middle">Bob changes only after Bob fetches and then integrates</text>
+    </svg>
+    <figcaption class="diagram-cap" lang="fa">نمودار ۱ — فلش آبی حرکت push از clone آلیس به مخزن مشترک است؛ فلش بنفش fetch از مخزن به clone باب. این‌ها دو عملیات جدا هستند و هیچ‌کدام به‌تنهایی فایل‌های کاری باب را ادغام نمی‌کند.</figcaption>
+    <figcaption class="diagram-cap" lang="en">Diagram 1 — The blue arrow is Alice pushing from her clone to the shared repository; the violet arrow is Bob fetching from it. These are separate operations, and neither alone integrates changes into Bob’s working files.</figcaption>
+  </figure>
+</section>
+
+<section id="model">
+  <h2><span lang="fa">«remote» نام یک مخزن است؛ «origin» فقط اسم رایج آن</span><span lang="en">A remote names a repository; origin is only a common name</span></h2>
+  <p class="lede" lang="fa">داخل clone باب، تنظیماتی هست که می‌گوید آدرس نسخهٔ مشترک کجاست و refهایش چطور در این مخزن محلی ثبت شوند. Git به این مقصد یک نام کوتاه می‌دهد؛ <code>origin</code> قرارداد رایج clone است، نه واژه‌ای رزروشده و نه نام خود GitHub.</p>
+  <p class="lede" lang="en">Bob’s clone stores configuration describing where the shared copy lives and how its refs map into this local repository. Git gives that destination a short name. origin is the conventional name created by clone, not a reserved keyword and not the name of GitHub itself.</p>
+  <p lang="fa">در بخش بعد پوشه‌های آزمایش را می‌سازیم؛ فعلاً این فرمان‌ها را فقط به‌عنوان نمونهٔ تنظیمات یک clone بخوان. وقتی به مرحلهٔ ساخت رسیدی، آن‌ها را در پوشهٔ <code>bob/</code> اجرا کن. این فرمان‌ها فقط تنظیمات محلی را می‌خوانند و چیزی push یا fetch نمی‌کنند. آدرس‌های fetch و push را مقایسه کن. اگر token اشتباهی داخل URL است، آن را در خروجی یا تصویر پخش نکن و آدرس را امن اصلاح کن.</p>
+  <p lang="en">We create the lab folders in the next section; for now, read these as a sample of one clone’s configuration. When you reach the setup, run them inside <code>bob/</code>. They only read local settings; they do not push or fetch. Compare fetch and push URLs. If a token was accidentally embedded in a URL, do not share it in output or screenshots; replace the URL safely.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">inside bob/</span><button class="copy">کپی</button></div><pre dir="ltr">git remote -v
+git remote show origin</pre></div>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">representative output · URL and branch names vary</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="s">origin  ../server.git (fetch)
+origin  ../server.git (push)
+
+* remote origin
+  Fetch URL: ../server.git
+  Push  URL: ../server.git
+  HEAD branch: main
+  Remote branch:
+    main tracked</span></pre></div>
+  <p lang="fa">در این آزمایش، آدرس نسبی است چون همه‌چیز روی یک دیسک است. در کار واقعی ممکن است HTTPS یا SSH ببینی. <code>git remote show origin</code> بدون گزینهٔ <code>-n</code> معمولاً از remote هم اطلاعات می‌پرسد؛ اگر شبکه یا دسترسی مشکل داشته باشد ممکن است خطا بدهد. خروجی می‌گوید Git چه تنظیم و چه اطلاعاتی دارد؛ تضمین نمی‌کند push مجاز است یا remote در همین لحظه بی‌خطاست.</p>
+  <p lang="en">The URL is relative because our lab lives on one disk. In real work, you may see HTTPS or SSH. Without <code>-n</code>, <code>git remote show origin</code> normally queries the remote; network or access problems can make it fail. The output describes configuration and known information, not whether pushing is authorized or the remote is currently healthy.</p>
+  <div class="note">
+    <div class="note-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/></svg><span lang="fa">چهار نام شبیه‌اند، اما یکی نیستند</span><span lang="en">Four similar names, four different things</span></div>
+    <p lang="fa"><code>server.git</code> همان مخزن راه دور در آزمایش ماست. تنظیم <code>origin</code> در clone می‌گوید با کدام مقصد حرف بزن. <code>main</code> شاخهٔ محلی توست. <code>origin/main</code> یک remote-tracking ref در مخزن محلی توست: آخرین وضعیت شاخه‌ای که از remote به نام origin دریافت کرده‌ای. این اسم، خودِ شاخهٔ زندهٔ روی سرور نیست.</p>
+    <p lang="en"><code>server.git</code> is our remote repository. The <code>origin</code> configuration tells a clone which destination to contact. <code>main</code> is your local branch. <code>origin/main</code> is a remote-tracking ref in your local repository: the latest state of the branch from origin that you have fetched. It is not the live branch on the server.</p>
+  </div>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">نام</span><span lang="en">Name</span></th><th><span lang="fa">کجا ثبت می‌شود؟</span><span lang="en">Where is it stored?</span></th><th><span lang="fa">چه معنایی دارد؟</span><span lang="en">What does it mean?</span></th></tr></thead><tbody>
+    <tr><td><code>server.git</code></td><td><span lang="fa">مخزن جدا</span><span lang="en">A separate repository</span></td><td><span lang="fa">objectها و refهای مشترک تیم را نگه می‌دارد.</span><span lang="en">Stores shared team objects and refs.</span></td></tr>
+    <tr><td><code>origin</code></td><td><span lang="fa">تنظیمات clone محلی</span><span lang="en">Local clone configuration</span></td><td><span lang="fa">نام کوتاه برای URL و refspecهای مقصد.</span><span lang="en">A short name for the destination URL and refspecs.</span></td></tr>
+    <tr><td><code>main</code></td><td><span lang="fa">ref محلی <code>refs/heads/main</code></span><span lang="en">Local ref <code>refs/heads/main</code></span></td><td><span lang="fa">شاخه‌ای که ممکن است checkout و روی آن commit بسازی.</span><span lang="en">A branch you may check out and commit on.</span></td></tr>
+    <tr><td><code>origin/main</code></td><td><span lang="fa">ref محلی <code>refs/remotes/origin/main</code></span><span lang="en">Local ref <code>refs/remotes/origin/main</code></span></td><td><span lang="fa">آخرین وضعیت دریافتی از main روی origin.</span><span lang="en">The latest fetched state of origin’s main.</span></td></tr>
+    <tr><td>upstream</td><td><span lang="fa">تنظیم branch محلی</span><span lang="en">Local branch configuration</span></td><td><span lang="fa">می‌گوید مقایسه و pull پیش‌فرض با کدام ref انجام شود.</span><span lang="en">Names the ref used for comparison and default pull.</span></td></tr>
+  </tbody></table></div>
+</section>
+
+<section id="fetch">
+  <h2><span lang="fa">fetch خبر را می‌آورد، اما main باب را جلو نمی‌برد</span><span lang="en">Fetch brings the news, but does not advance Bob’s main</span></h2>
+  <p class="lede" lang="fa">برای دیدن تفاوت، دقیقاً سه پوشه می‌سازیم: <code>alice/</code>، <code>bob/</code> و <code>server.git</code>. آلیس مخزن اولیه را می‌سازد و اولین push را انجام می‌دهد؛ بعد باب clone می‌گیرد. مخزن bare محل نگهداری objectها و refهای مشترک است و برخلاف clone معمولی working tree ندارد، اما Git می‌تواند از آن clone بگیرد و به آن push کند.</p>
+  <p class="lede" lang="en">To see the distinction, create exactly three directories: alice/, bob/, and server.git. Alice creates the initial repository and makes the first push; Bob clones afterward. The bare repository stores shared objects and refs without an ordinary working tree, but Git can clone from it and accept pushes.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash · create a bare remote and two clones</span><button class="copy">کپی</button></div><pre dir="ltr">mkdir git-remote-lab &amp;&amp; cd git-remote-lab
+git init -b main alice
+cd alice
+git config user.name 'Nika Example'
+git config user.email nika@example.test
+printf 'شروع پروژه\n' &gt; README.txt
+git add README.txt
+git commit -m 'Create project'
+cd ..
+git init --bare server.git
+git --git-dir=server.git symbolic-ref HEAD refs/heads/main
+cd alice
+git remote add origin ../server.git
+git push -u origin main
+cd ..
+git clone server.git bob</pre></div>
+  <p lang="fa">حالا آلیس یک فایل را عوض می‌کند و commit را به مخزن مشترک می‌فرستد. چون clone آلیس از شاخهٔ main گرفته شده و upstream معمول دارد، <code>git push</code> بدون آرگومان در این آزمایش مقصد و شاخه را از تنظیمات می‌فهمد. در یک مخزن دیگر ممکن است این پیش‌فرض‌ها فرق کند؛ بعداً رابطهٔ upstream را جدا می‌بینیم.</p>
+  <p lang="en">Alice now changes a file and sends the commit to the shared repository. Her clone has the usual upstream configured for main, so argument-less <code>git push</code> knows the destination in this lab. Other repositories may have different defaults; we will inspect the upstream relationship shortly.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">alice/ · make one commit and push</span><button class="copy">کپی</button></div><pre dir="ltr">cd alice
+printf 'یادداشت آلیس\n' &gt; alice.txt
+git add alice.txt
+git commit -m 'Add Alice note'
+git push</pre></div>
+  <p lang="fa">حالا پیش از اجرای هر فرمان شبکه‌ای در باب، دو ID را یادداشت کن. این مقایسه نشان می‌دهد clone باب از آخرین ارتباطش با remote چه می‌داند و branch محلی خودش کجاست:</p>
+  <p lang="en">Before Bob runs any network command, record two IDs. This comparison shows what his clone knows from its last contact with the remote and where his local branch points:</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bob/ · before fetching</span><button class="copy">کپی</button></div><pre dir="ltr">cd ../bob
+git status -sb
+git rev-parse main
+git rev-parse origin/main
+git log --oneline --graph --decorate --all</pre></div>
+  <p lang="fa">پیش از fetch، معمولاً <code>main</code> و <code>origin/main</code> به یک commit می‌رسند؛ اما هیچ‌کدام commit آلیس را نام نمی‌برند. حالا فقط خبر را بگیر:</p>
+  <p lang="en">Before fetch, main and origin/main usually resolve to the same commit, and neither names Alice’s new commit. Now fetch only the remote state:</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bob/ · fetch, then inspect both refs</span><button class="copy">کپی</button></div><pre dir="ltr">git fetch origin
+git rev-parse main
+git rev-parse origin/main
+git log --oneline --graph --decorate --all
+git status -sb</pre></div>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">representative fetch result</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="s">From ../server
+   &lt;old&gt;..&lt;new&gt;  main  -&gt; origin/main</span></pre></div>
+  <p lang="fa">خط <code>main -&gt; origin/main</code> شاهد اصلی است: Git objectهای لازم را گرفته و remote-tracking ref باب را جلو برده. ID <code>main</code> محلی هنوز همان قبلی است و فایل‌های باب هم عوض نشده‌اند. <code>git fetch</code> معمولاً <code>FETCH_HEAD</code> را هم می‌نویسد. این فرمان خبر را می‌آورد، نه اینکه خودش تصمیم بگیرد تغییر را در branch کاری تو ادغام کند.</p>
+  <p lang="en">The line <code>main -&gt; origin/main</code> is the key evidence: Git fetched the required objects and advanced Bob’s remote-tracking ref. Local main still has its old ID, and Bob’s files have not changed. <code>git fetch</code> also normally writes <code>FETCH_HEAD</code>. Fetch brings the news; it does not decide to integrate it into your working branch.</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 900 290" role="img" aria-labelledby="g8-d2" xmlns="http://www.w3.org/2000/svg" direction="ltr">
+      <title id="g8-d2">Fetching advances origin/main to a new commit while local main remains at the old commit</title>
+      <defs><marker id="g8-a3" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path class="dg-arrow-b" d="M0 0 10 5 0 10z"/></marker></defs>
+      <rect class="dg-fill dg-stroke" x="34" y="28" width="832" height="234" rx="20"/>
+      <text class="dg-tm" x="78" y="64" direction="ltr" unicode-bidi="isolate">inside Bob’s local clone · before and after fetch</text>
+      <rect class="dg-fill-b dg-stroke-b" x="110" y="111" width="160" height="72" rx="15"/>
+      <text class="dg-t" x="190" y="141" text-anchor="middle">B</text><text class="dg-ts" x="190" y="166" text-anchor="middle">old commit</text>
+      <rect class="dg-fill-v dg-stroke-v" x="390" y="111" width="160" height="72" rx="15"/>
+      <text class="dg-t" x="470" y="141" text-anchor="middle">C</text><text class="dg-ts" x="470" y="166" text-anchor="middle">Alice’s commit</text>
+      <path class="dg-stroke-b" d="M272 147h116" stroke-width="3" marker-end="url(#g8-a3)"/>
+      <text class="dg-tm" x="190" y="216" text-anchor="middle">main stays → B</text>
+      <text class="dg-tm" x="470" y="216" text-anchor="middle">origin/main moves → C</text>
+      <text class="dg-ts" x="700" y="127" text-anchor="middle">fetch updates this</text>
+      <text class="dg-ts" x="700" y="151" text-anchor="middle">local tracking ref</text>
+      <text class="dg-ts" x="700" y="187" text-anchor="middle">working files stay</text>
+      <text class="dg-ts" x="700" y="211" text-anchor="middle">unchanged for now</text>
+    </svg>
+    <figcaption class="diagram-cap" lang="fa">نمودار ۲ — گره C فقط در clone باب شناخته شده است؛ fetch آن را به origin/main وصل می‌کند. main محلی هنوز روی B است و فایل‌ها هم تا زمان integration همان نسخهٔ B را نشان می‌دهند.</figcaption>
+    <figcaption class="diagram-cap" lang="en">Diagram 2 — Bob’s clone now knows commit C; fetch moves origin/main to it. Local main stays at B, and the files still show B until an integration step.</figcaption>
+  </figure>
+</section>
+
+<section id="tracking">
+  <h2><span lang="fa">upstream یک رابطهٔ محلی است، نه فرمان مخفی سرور</span><span lang="en">An upstream is a local relationship, not a server command</span></h2>
+  <p class="lede" lang="fa">باب حالا دو ref را می‌بیند: <code>main</code> خودش و <code>origin/main</code> که fetch تازه به‌روزش کرده. برای اینکه Git بداند مقایسه و pull پیش‌فرض را با کدام ref انجام دهد، branch محلی می‌تواند upstream داشته باشد. clone معمولاً این رابطه را از همان اول تنظیم می‌کند.</p>
+  <p class="lede" lang="en">Bob now sees two refs: his main and origin/main, updated by the last fetch. A local branch can have an upstream so Git knows which ref to compare against and use for a default pull. Clone normally sets this relationship up.</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 900 275" role="img" aria-labelledby="g8-d3" xmlns="http://www.w3.org/2000/svg" direction="ltr">
+      <title id="g8-d3">The local main branch has an upstream relationship to the local remote-tracking ref origin/main</title>
+      <defs>
+        <marker id="g8-a4" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path class="dg-arrow-b" d="M0 0 10 5 0 10z"/></marker>
+        <marker id="g8-a5" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path class="dg-arrow" d="M0 0 10 5 0 10z"/></marker>
+      </defs>
+      <rect class="dg-fill dg-stroke" x="30" y="28" width="840" height="214" rx="20"/>
+      <text class="dg-tm" x="72" y="64" direction="ltr" unicode-bidi="isolate">both refs are stored in Bob’s local repository</text>
+      <rect class="dg-fill-b dg-stroke-b" x="82" y="95" width="260" height="78" rx="15"/>
+      <text class="dg-t" x="212" y="127" text-anchor="middle">main</text>
+      <text class="dg-ts" x="212" y="153" text-anchor="middle">refs/heads/main</text>
+      <rect class="dg-fill-v dg-stroke-v" x="558" y="95" width="260" height="78" rx="15"/>
+      <text class="dg-t" x="688" y="127" text-anchor="middle">origin/main</text>
+      <text class="dg-ts" x="688" y="153" text-anchor="middle">refs/remotes/origin/main</text>
+      <path class="dg-stroke-v" d="M345 114h211" stroke-width="3" stroke-dasharray="8 6" marker-end="url(#g8-a5)"/>
+      <text class="dg-ts" x="450" y="101" text-anchor="middle">upstream config</text>
+      <rect class="dg-fill dg-stroke" x="350" y="193" width="200" height="32" rx="12"/>
+      <text class="dg-ts" x="450" y="214" text-anchor="middle">may differ</text>
+    </svg>
+    <figcaption class="diagram-cap" lang="fa">نمودار ۳ — خط‌چین رابطهٔ upstream در تنظیمات branch محلی است، نه جریان داده. main و origin/main هر دو نام refهای محلی‌اند و ممکن است به commitهای متفاوت اشاره کنند.</figcaption>
+    <figcaption class="diagram-cap" lang="en">Diagram 3 — The dashed line is an upstream relationship in local branch configuration, not data flow. Both main and origin/main are local refs and may point to different commits.</figcaption>
+  </figure>
+  <p lang="fa">برای دیدن این رابطه <code>git branch -vv</code> را اجرا کن. کروشهٔ <code>[origin/main]</code> upstream را معرفی می‌کند؛ علامت‌هایی مثل <code>ahead</code> و <code>behind</code> نسبت به آخرین اطلاعاتی‌اند که در clone داری. اگر از آخرین fetch مدت زیادی گذشته باشد، این شمارش نمی‌گوید remote همین حالا چه وضعی دارد.</p>
+  <p lang="en">Run <code>git branch -vv</code> to see the relationship. The bracketed <code>[origin/main]</code> names the upstream; ahead and behind counts use the information currently stored in your clone. If you have not fetched recently, those counts do not tell you the remote’s live state.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">representative output</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="s">* main  1a2b3c4 [origin/main: behind 1] Create project</span></pre></div>
+  <p lang="fa">اگر شاخه‌ای را از remote-tracking ref بسازی، Git معمولاً upstream را تنظیم می‌کند: <code>git switch -c feature/notes --track origin/feature/notes</code>. اگر branch از قبل هست، رابطه را با <code>git branch --set-upstream-to=origin/main main</code> تنظیم می‌کنی. این فرمان config مخزن خودت را تغییر می‌دهد، نه چیزی را روی server.</p>
+  <p lang="en">When you create a branch from a remote-tracking ref, Git normally sets its upstream: <code>git switch -c feature/notes --track origin/feature/notes</code>. For an existing branch, use <code>git branch --set-upstream-to=origin/main main</code>. This changes local repository configuration, not the server.</p>
+</section>
+
+<section id="push">
+  <h2><span lang="fa">push شاخهٔ تو را به مخزن مشترک می‌فرستد</span><span lang="en">Push sends your branch to the shared repository</span></h2>
+  <p class="lede" lang="fa">باب تغییر آلیس را fetch و بعد از دیدن گراف، با <code>git merge --ff-only origin/main</code> به main خودش آورده است. حالا می‌خواهد یک شاخهٔ تازه برای یادداشت‌ها بسازد و همان branch را برای همکارش منتشر کند. پیش از push حدس بزن: آیا remote هم خودبه‌خود همهٔ شاخه‌های محلی باب را دارد؟</p>
+  <p class="lede" lang="en">Bob fetched Alice’s change, inspected the graph, then used <code>git merge --ff-only origin/main</code> to advance his main. Now he wants to create and publish a new branch for notes. Before pushing, predict: does the remote automatically have every branch in Bob’s clone?</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bob/ · explicitly integrate the fetched main first</span><button class="copy">کپی</button></div><pre dir="ltr">git switch main
+git merge --ff-only origin/main
+git status -sb</pre></div>
+  <p lang="fa">نه؛ شاخهٔ تازه فقط در clone باب است تا آن را صریحاً push کنی. <code>-u</code> (یا <code>--set-upstream</code>) علاوه بر push موفق، upstream را هم برای شاخهٔ محلی تنظیم می‌کند. از این به بعد ابزارهایی مثل <code>status</code> و فرمان‌های بدون آرگومان می‌توانند آن رابطه را به‌کار ببرند.</p>
+  <p lang="en">No. The new branch exists only in Bob’s clone until he explicitly pushes it. <code>-u</code> (or <code>--set-upstream</code>) sets the local branch’s upstream after a successful push. Commands such as status and some argument-less operations can then use that relationship.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bob/ · publish a new branch</span><button class="copy">کپی</button></div><pre dir="ltr">git switch -c feature/notes
+printf 'نکتهٔ باب\n' &gt; bob.txt
+git add bob.txt
+git commit -m 'Add Bob note'
+git push -u origin feature/notes
+git branch -vv</pre></div>
+  <p lang="fa">اگر push موفق باشد، Git روی remote شاخهٔ <code>feature/notes</code> می‌سازد و upstream محلی را به <code>origin/feature/notes</code> پیوند می‌دهد. این خروجی ثابت می‌کند شاخه به مقصد نام‌برده رسیده؛ ثابت نمی‌کند کسی آن را review کرده یا آمادهٔ ادغام است. بعد از اولین push هم می‌توانی صریح بمانی: <code>git push origin feature/notes</code>.</p>
+  <p lang="en">On success, Git creates feature/notes at the remote and links the local branch’s upstream to origin/feature/notes. This proves the branch reached the named destination; it does not prove anyone reviewed it or that it is ready to merge. You can keep being explicit on later pushes with <code>git push origin feature/notes</code>.</p>
+  <p lang="fa">اگر branch upstream ندارد، <code>git push</code> ساده ممکن است مقصد را حدس نزند یا طبق تنظیمات تو رفتار متفاوتی داشته باشد. برای اولین انتشار، نام remote و branch را بنویس و <code>-u</code> را فقط وقتی می‌خواهی رابطه ثبت شود اضافه کن. شاخهٔ جاری را با <code>git branch --show-current</code> تأیید کن؛ اشتباه‌گرفتن نام branch می‌تواند تغییر را به مقصد دیگری بفرستد.</p>
+  <p lang="en">Without an upstream, plain <code>git push</code> may not infer a destination or may follow your configuration. For the first publication, name the remote and branch, adding <code>-u</code> if you want the relationship recorded. Confirm the current branch with <code>git branch --show-current</code>; a wrong branch name can send changes somewhere unintended.</p>
+  <p lang="fa">در این فصل فقط branchها را منتشر کردیم. tag ref جداگانه‌ای است و انتشارش را می‌توان جداگانه کنترل کرد؛ در فصل ۱۱ سراغ tag و push کردن آن می‌رویم.</p>
+  <p lang="en">This chapter published branches only. Tags are separate refs whose publication can be controlled separately; Chapter 11 covers tags and pushing them.</p>
+</section>
+
+<section id="pull">
+  <h2><span lang="fa">pull را باز کن: اول fetch، بعد یک انتخاب برای integration</span><span lang="en">Unpack pull: fetch first, then choose an integration</span></h2>
+  <p class="lede" lang="fa">آلیس تغییر تازه‌ای push کرده و باب می‌خواهد سریع sync شود. <code>git pull</code> فقط یک اسم دیگر برای fetch نیست؛ اول fetch می‌کند، بعد ref انتخاب‌شده را با branch جاری ادغام می‌کند. اینکه integration با fast-forward، merge یا rebase انجام شود به گزینه‌ها و تنظیمات Git بستگی دارد.</p>
+  <p class="lede" lang="en">Alice pushed another change and Bob wants to sync. <code>git pull</code> is not just another name for fetch: it fetches first, then integrates the selected ref into the current branch. Whether integration uses fast-forward, merge, or rebase depends on options and configuration.</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 900 270" role="img" aria-labelledby="g8-d5" xmlns="http://www.w3.org/2000/svg" direction="ltr">
+      <title id="g8-d5">Pull fetches remote refs and then integrates a selected upstream using fast-forward, merge, or rebase</title>
+      <defs><marker id="g8-a6" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path class="dg-arrow-b" d="M0 0 10 5 0 10z"/></marker></defs>
+      <rect class="dg-fill dg-stroke" x="28" y="28" width="844" height="210" rx="20"/>
+      <rect class="dg-fill-v dg-stroke-v" x="60" y="90" width="155" height="82" rx="15"/>
+      <text class="dg-t" x="137" y="124" text-anchor="middle">remote</text><text class="dg-ts" x="137" y="150" text-anchor="middle">selected ref</text>
+      <rect class="dg-fill-b dg-stroke-b" x="265" y="90" width="155" height="82" rx="15"/>
+      <text class="dg-t" x="342" y="124" text-anchor="middle">fetch</text><text class="dg-ts" x="342" y="150" text-anchor="middle">objects + ref</text>
+      <rect class="dg-fill-v dg-stroke-v" x="470" y="90" width="170" height="82" rx="15"/>
+      <text class="dg-t" x="555" y="124" text-anchor="middle">integration</text><text class="dg-ts" x="555" y="150" text-anchor="middle">chosen behavior</text>
+      <rect class="dg-fill-g dg-stroke-g" x="690" y="78" width="145" height="106" rx="15"/>
+      <text class="dg-ts" x="762" y="108" text-anchor="middle">fast-forward</text>
+      <text class="dg-ts" x="762" y="132" text-anchor="middle">merge</text>
+      <text class="dg-ts" x="762" y="156" text-anchor="middle">or rebase</text>
+      <path class="dg-stroke-b" d="M217 131h46M422 131h46M642 131h46" stroke-width="3" marker-end="url(#g8-a6)"/>
+      <text class="dg-tm" x="450" y="211" text-anchor="middle">git pull = fetch + selected integration</text>
+    </svg>
+    <figcaption class="diagram-cap" lang="fa">نمودار ۵ — pull دو مرحلهٔ مفهومی دارد: دریافت refها و objectها، سپس integration. گزینه‌هایی مثل <code>--ff-only</code>، <code>--no-rebase</code> و <code>--rebase</code> انتخاب مرحلهٔ دوم را روشن می‌کنند.</figcaption>
+    <figcaption class="diagram-cap" lang="en">Diagram 5 — Pull has two conceptual steps: fetch refs and objects, then integrate. Options such as <code>--ff-only</code>, <code>--no-rebase</code>, and <code>--rebase</code> make the second step explicit.</figcaption>
+  </figure>
+  <p lang="fa">برای شاخه‌ای که فقط عقب مانده و commit محلی جداگانه ندارد، <code>git pull --ff-only</code> انتخاب محافظه‌کارانه‌ای است: اگر fast-forward ممکن نباشد، متوقف می‌شود تا اول تاریخچه را ببینی. وقتی شاخه‌ها واگرا شده‌اند، می‌توانی پس از بررسی با <code>git pull --no-rebase</code> merge کنی یا با <code>git pull --rebase</code> commitهای محلی را روی پایهٔ تازه بازپخش کنی. دومی همان ملاحظهٔ فصل ۰۷ را دارد: commitهای محلی را بازنویسی می‌کند.</p>
+  <p lang="en">For a branch that is simply behind with no separate local commits, <code>git pull --ff-only</code> is a conservative choice: it stops if a fast-forward is impossible, giving you a chance to inspect the graph. When histories diverge, you can inspect and then use <code>git pull --no-rebase</code> to merge or <code>git pull --rebase</code> to replay local commits onto the new base. The latter has Chapter 07’s caveat: it rewrites local commits.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">فرمان</span><span lang="en">Command</span></th><th><span lang="fa">چه می‌کند؟</span><span lang="en">What it does</span></th><th><span lang="fa">چه چیزی را خودکار نمی‌کند؟</span><span lang="en">What it does not do by itself</span></th></tr></thead><tbody>
+    <tr><td><code>git fetch origin</code></td><td><span lang="fa">objectها و refهای remote-tracking مثل <code>origin/main</code> را به‌روز می‌کند.</span><span lang="en">Updates objects and remote-tracking refs such as <code>origin/main</code>.</span></td><td><span lang="fa">شاخهٔ محلی جاری را ادغام یا جابه‌جا نمی‌کند.</span><span lang="en">Does not integrate or move the current local branch.</span></td></tr>
+    <tr><td><code>git pull --ff-only</code></td><td><span lang="fa">fetch می‌کند و فقط اگر fast-forward ممکن باشد شاخهٔ جاری را جلو می‌برد.</span><span lang="en">Fetches and advances the current branch only when fast-forward is possible.</span></td><td><span lang="fa">تاریخچهٔ واگرا را خودکار حل نمی‌کند؛ متوقف می‌شود.</span><span lang="en">Does not resolve divergent history; it stops.</span></td></tr>
+    <tr><td><code>git pull --no-rebase</code></td><td><span lang="fa">fetch می‌کند و از روش merge استفاده می‌کند؛ نتیجه به وضعیت تاریخچه بستگی دارد.</span><span lang="en">Fetches and uses merge integration; the result depends on the history.</span></td><td><span lang="fa">جای بررسی conflict یا انتخاب آگاهانهٔ سیاست را نمی‌گیرد.</span><span lang="en">Does not replace conflict review or a deliberate policy choice.</span></td></tr>
+    <tr><td><code>git pull --rebase</code></td><td><span lang="fa">fetch می‌کند و commitهای محلی را روی پایهٔ تازه بازپخش می‌کند.</span><span lang="en">Fetches and replays local commits on the updated base.</span></td><td><span lang="fa">شناسهٔ commitهای بازپخش‌شده عوض می‌شود؛ برای تاریخچهٔ مشترک بی‌فکر به‌کار نبر.</span><span lang="en">Replayed commits get new IDs; do not apply casually to shared history.</span></td></tr>
+    <tr><td><code>git push</code></td><td><span lang="fa">refها و objectهای لازم را به مقصد می‌فرستد، اگر مجاز و امن باشد.</span><span lang="en">Sends refs and required objects when authorized and safely fast-forwardable.</span></td><td><span lang="fa">working tree cloneهای دیگر را به‌روز نمی‌کند.</span><span lang="en">Does not update other clones’ working trees.</span></td></tr>
+  </tbody></table></div>
+  <div class="note warn"><div class="note-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 2.8 20h18.4L12 3zM12 9v5m0 3v.01"/></svg><span lang="fa">pull را بدون دیدن تنظیمات، یک رفتار قطعی فرض نکن</span><span lang="en">Do not assume pull has one fixed integration behavior</span></div><p lang="fa">گزینهٔ فرمان و تنظیم‌هایی مثل <code>pull.rebase</code> و <code>pull.ff</code> روی integration اثر دارند؛ در شاخهٔ واگرا، نسخه‌ها و تنظیم‌ها ممکن است رفتار متفاوت یا درخواست انتخاب صریح نشان دهند. برای یادگیری، fetch و integration را جدا اجرا کن. اگر از pull استفاده می‌کنی، گزینهٔ مورد نظر را در فرمان بنویس تا منظور روشن باشد.</p><p lang="en">Command-line options and settings such as <code>pull.rebase</code> and <code>pull.ff</code> affect integration. For divergent branches, versions and configuration may behave differently or ask for an explicit choice. While learning, run fetch and integration separately. When using pull, name the intended option so the choice is visible.</p></div>
+</section>
+
+<section id="rejected-push">
+  <h2><span lang="fa">push باب رد شد؛ این شکست نیست، یک هشدار محافظتی است</span><span lang="en">Bob’s push was rejected; that is protection, not a crash</span></h2>
+  <p class="lede" lang="fa">باب و آلیس هر دو از یک commit شروع کرده‌اند. آلیس commit خودش را push می‌کند؛ باب هم پیش از fetch یک commit مستقل می‌سازد. وقتی باب push می‌زند، نوک remote دیگر نیاکان commit او نیست. Git معمولاً push عادی را رد می‌کند تا commit آلیس از شاخهٔ مشترک کنار نرود.</p>
+  <p class="lede" lang="en">Alice and Bob started from one commit. Alice pushes her change while Bob creates an independent commit before fetching. When Bob pushes, the remote tip is no longer an ancestor of his commit. Git normally rejects the push so Alice’s commit is not displaced from the shared branch.</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 900 300" role="img" aria-labelledby="g8-d4" xmlns="http://www.w3.org/2000/svg" direction="ltr">
+      <title id="g8-d4">Alice and Bob have diverged from a shared base; Bob's non-fast-forward push is rejected</title>
+      <defs>
+        <marker id="g8-a7" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path class="dg-arrow-b" d="M0 0 10 5 0 10z"/></marker>
+        <marker id="g8-a8" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path class="dg-arrow" d="M0 0 10 5 0 10z"/></marker>
+      </defs>
+      <rect class="dg-fill dg-stroke" x="34" y="28" width="832" height="244" rx="20"/>
+      <rect class="dg-fill dg-stroke" x="86" y="112" width="120" height="72" rx="14"/>
+      <text class="dg-t" x="146" y="142" text-anchor="middle">B</text><text class="dg-ts" x="146" y="166" text-anchor="middle">shared base</text>
+      <rect class="dg-fill-b dg-stroke-b" x="344" y="81" width="135" height="66" rx="14"/>
+      <text class="dg-t" x="411" y="121" text-anchor="middle">A</text>
+      <rect class="dg-fill-v dg-stroke-v" x="344" y="179" width="135" height="66" rx="14"/>
+      <text class="dg-t" x="411" y="219" text-anchor="middle">Bob’s B′</text>
+      <rect class="dg-fill-g dg-stroke-g" x="644" y="81" width="170" height="66" rx="14"/>
+      <text class="dg-t" x="729" y="121" text-anchor="middle">remote/main → A</text>
+      <path class="dg-stroke-b" d="M208 132l134-35M208 164l134 39" stroke-width="3" marker-end="url(#g8-a7)"/>
+      <path class="dg-stroke-b" d="M480 114h162" stroke-width="3" marker-end="url(#g8-a7)"/>
+      <path class="dg-stroke-v" d="M480 212h174" stroke-width="3" stroke-dasharray="8 6" marker-end="url(#g8-a8)"/>
+      <rect class="dg-fill-w dg-stroke-w" x="660" y="184" width="138" height="50" rx="13"/>
+      <text class="dg-t" x="729" y="215" text-anchor="middle">rejected</text>
+    </svg>
+    <figcaption class="diagram-cap" lang="fa">نمودار ۴ — A و B′ فرزندهای جداگانهٔ B هستند؛ B′ از A نیامده، پس push باب fast-forward نیست. فلش‌چین درخواست ردشده را نشان می‌دهد، نه تغییری روی remote.</figcaption>
+    <figcaption class="diagram-cap" lang="en">Diagram 4 — A and B′ are separate children of B; B′ does not descend from A, so Bob’s push is not a fast-forward. The dashed arrow marks a rejected request, not a remote update.</figcaption>
+  </figure>
+  <p lang="fa">به‌جای force، ابتدا fetch کن و بعد graph و تفاوت commitها را بخوان. حالا باید هر دو خط را در یک تاریخچهٔ جدید جمع کنی؛ بسته به سیاست تیم، merge یا rebase انتخاب می‌شود. چون این آزمایش commit باب هنوز خصوصی است، می‌توانی rebase را تمرین کنی؛ برای شاخهٔ مشترک اول هماهنگ شو. پس از integration تست کن و سپس push عادی را دوباره انجام بده.</p>
+  <p lang="en">Instead of forcing, fetch first and inspect the graph and commits. Then combine both lines in a new history; the team’s policy determines whether to merge or rebase. Since Bob’s commit is still private in this exercise, you can practice rebase; coordinate before rewriting a shared branch. Test after integration, then retry a normal push.</p>
+  <p lang="fa">در دستورهای آزمایش، باب را از شاخهٔ <code>feature/notes</code> به <code>main</code> برمی‌گردانیم. این commit آزمایشی روی شاخهٔ خودش می‌ماند؛ اینجا فقط main را برای ساختن واگرایی تازه بررسی می‌کنیم.</p>
+  <p lang="en">In the experiment, Bob switches from feature/notes back to main. The test commit remains on its own branch; here we use main to create a separate divergence scenario.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">a safe investigation sequence</span><button class="copy">کپی</button></div><pre dir="ltr">git fetch origin
+git status -sb
+git log --oneline --graph --decorate --all
+git show --stat HEAD
+git show --stat origin/main</pre></div>
+  <p lang="fa">اگر بعد از fetch دیدی دو شاخه واگرا هستند، حالا انتخاب روشن است. برای merge کنترل‌شده: <code>git merge origin/main</code> و حل هر conflict؛ برای بازپخش commitهای خصوصی باب: <code>git rebase origin/main</code>. بعد از هرکدام، تست و log را بررسی کن و push معمولی بزن. <code>--force</code> راهی برای ردشدن از این بررسی نیست.</p>
+  <p lang="en">If the fetch shows divergence, the choice is now informed. For a controlled merge, use <code>git merge origin/main</code> and resolve any conflicts; to replay Bob’s private commits, use <code>git rebase origin/main</code>. After either, test, inspect the log, then make a normal push. <code>--force</code> is not a substitute for this investigation.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">reproduce a rejection · run each labeled part in that clone</span><button class="copy">کپی</button></div><pre dir="ltr"># from the lab parent, enter alice/ · both clones currently share the same main
+cd alice
+printf 'new work from Alice\n' &gt;&gt; alice.txt
+git add alice.txt
+git commit -m 'Add Alice update'
+git push origin main
+
+# from alice/, switch to Bob's sibling clone before fetching
+cd ../bob
+git switch main
+printf 'new work from Bob\n' &gt;&gt; bob.txt
+git add bob.txt
+git commit -m 'Add Bob update'
+git push origin main
+
+# bob/ · the push is rejected; now inspect and integrate
+git fetch origin
+git log --oneline --graph --decorate --all
+git merge origin/main
+git show --stat --oneline HEAD
+git push origin main
+
+# from bob/, return to alice/ to learn about Bob's accepted commit
+cd ../alice
+git fetch origin
+git log --oneline --graph --decorate --all
+git merge --ff-only origin/main</pre></div>
+  <p lang="fa">در این آزمایش، اولین push آلیس موفق می‌شود. push باب باید رد شود، چون commit او از commit تازهٔ remote فرزند نشده. بعد از fetch، هر دو فایل را جداگانه می‌بینی؛ merge آن دو مسیر را وصل می‌کند، سپس push باب remote را به‌صورت fast-forward جلو می‌برد. در پایان آلیس باید fetch کند تا از commit باب باخبر شود.</p>
+  <p lang="en">In this experiment, Alice’s first push succeeds. Bob’s push should be rejected because his commit is not a descendant of the remote’s new commit. After fetching, both files are present; merge joins the lines, then Bob’s push fast-forwards the remote. Alice must fetch afterward to learn about Bob’s commit.</p>
+</section>
+
+<section id="lease">
+  <h2><span lang="fa">force-with-lease حصار است؛ مجوز بی‌فکری نیست</span><span lang="en">force-with-lease is a guard, not permission to stop thinking</span></h2>
+  <p class="lede" lang="fa">فصل ۰۷ mechanism بازنویسی را نشان داد: بعد از rebase، commitهای تازه IDهای تازه دارند. اگر تاریخچه را پیش‌تر push کرده‌ای، push عادی آن جایگزینی را رد می‌کند. <code>--force-with-lease</code> فقط در یک شاخهٔ دورریختنی کمک می‌کند بفهمی remote از زمانی که آخرین بار وضعیتش را گرفتی جلو رفته یا نه.</p>
+  <p class="lede" lang="en">Chapter 07 showed the rewrite mechanism: rebasing creates new commit IDs. If you already pushed the old history, a normal push rejects its replacement. On a disposable branch, <code>--force-with-lease</code> helps detect whether the remote moved since your last recorded view.</p>
+  <p lang="fa">آزمایش را فقط در cloneهای تازه و دورریختنی همین درس انجام بده. آلیس شاخهٔ آزمایشی می‌سازد و push می‌کند؛ باب آن را fetch می‌کند، commit را با پیام تازه amend می‌کند، اما هنوز fetch دیگری نمی‌زند. آلیس روی commit اصلی یک commit جدید push می‌کند. حالا refی که باب آخرین بار از remote دیده با ref واقعی فرق دارد:</p>
+  <p lang="en">Run this only in fresh, disposable clones for this lesson. Alice creates and pushes a test branch. Bob fetches it, amends the commit message, and does not fetch again. Alice then pushes another commit on top of the original. Bob’s last-seen remote ref now differs from the actual remote:</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">alice/ · create a disposable branch</span><button class="copy">کپی</button></div><pre dir="ltr">git switch -c scratch/lease main
+printf 'lease test base\n' &gt; lease.txt
+git add lease.txt
+git commit -m 'Create lease test'
+git push -u origin scratch/lease</pre></div>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bob/ · fetch, create branch, then rewrite locally</span><button class="copy">کپی</button></div><pre dir="ltr">git fetch origin
+git switch -c scratch/lease --track origin/scratch/lease
+git commit --amend -m 'Rewrite disposable lease commit'</pre></div>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">alice/ · advance the remote after Bob's fetch</span><button class="copy">کپی</button></div><pre dir="ltr">git switch scratch/lease
+printf 'Alice advanced the remote\n' &gt; alice-lease.txt
+git add alice-lease.txt
+git commit -m 'Advance lease test'
+git push origin scratch/lease</pre></div>
+  <p lang="fa">حالا Bob می‌تواند گراف محلی خودش را ببیند و lease را امتحان کند:</p>
+  <p lang="en">Bob can now inspect his local graph and test the lease:</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bob/ · disposable branch only</span><button class="copy">کپی</button></div><pre dir="ltr">git log --oneline --graph --decorate --all
+git push --force-with-lease origin scratch/lease</pre></div>
+  <p lang="fa">push باید رد شود، چون <code>origin/scratch/lease</code> در clone باب هنوز به commitی اشاره می‌کند که قبل از push تازهٔ آلیس دیده بود. این شاهد، حفاظ lease را در این تنظیم معمول نشان می‌دهد؛ برای تنظیم‌های fetch پس‌زمینهٔ غیرمعمول تضمین مطلق نیست. اگر خروجی unexpectedly موفق شد، ادامه نده: این مخزن فقط آزمایشی است، وضعیت remote را بررسی کن و فهم علت را به‌جای تکرار فرمان در اولویت بگذار.</p>
+  <p lang="en">The push should be rejected because Bob’s local origin/scratch/lease still names the commit he saw before Alice’s latest push. This demonstrates the lease guard in the usual setup; it is not an absolute guarantee under unusual background-fetch configurations. If the push unexpectedly succeeds, stop: this repository is disposable. Inspect the remote and understand why instead of repeating the command.</p>
+  <p lang="fa">اگر lease رد شد، فوراً fetch نکن که فقط remote-tracking ref را به‌روز کنی و بعد همان force را تکرار کنی؛ ممکن است آن‌وقت lease با مقدار تازه موافق شود، درحالی‌که تو هنوز تغییر آلیس را وارد نکرده‌ای. اول وضعیت واقعی remote را بشناس، تغییرها را ادغام کن و با هم‌تیمی هماهنگ شو. lease از حدس کهنه محافظت می‌کند، نه از تصمیم آگاهانهٔ اشتباه یا همهٔ تنظیم‌های غیرمعمول fetch در پس‌زمینه.</p>
+  <p lang="en">If the lease is rejected, do not simply fetch to refresh the tracking ref and retry the same force; the lease may then match even though you have not integrated Alice’s change. First inspect the remote state, integrate the work, and coordinate with your teammate. A lease guards against a stale assumption, not an informed but wrong choice or every unusual background-fetch setup.</p>
+</section>
+
+<section id="prune">
+  <h2><span lang="fa">شاخهٔ remote حذف شده، اما ردّش در clone تو مانده</span><span lang="en">The remote branch is gone, but your clone still remembers it</span></h2>
+  <p class="lede" lang="fa">آلیس شاخهٔ <code>feature/notes</code> را که باب push کرده از remote حذف می‌کند. باب قبلاً آن را fetch کرده و هنوز در <code>git branch -r</code> نام <code>origin/feature/notes</code> را می‌بیند. آیا حذف remote شکست خورده؟ نه؛ باب فقط هنوز خبر حذف را نگرفته است.</p>
+  <p class="lede" lang="en">Alice deletes the feature/notes branch Bob pushed. Bob fetched it earlier and still sees origin/feature/notes in <code>git branch -r</code>. Did the remote deletion fail? No; Bob has not fetched the deletion yet.</p>
+  <p lang="fa">این بار باب پیش از حذف، ref را fetch می‌کند تا واقعاً نسخهٔ remote-tracking داشته باشد. بعد از حذف، fetch معمولی ممکن است ref stale را نگه دارد؛ برای پاک‌کردن نام قدیمی از <code>git fetch --prune origin</code> استفاده کن. این پاک‌سازی، branch محلی <code>feature/notes</code> را حذف نمی‌کند و فرمان حذف branch روی سرور هم نیست؛ فقط نام محلیِ ازمدافتاده را تمیز می‌کند.</p>
+  <p lang="en">Bob fetches the ref before deletion so he has a remote-tracking copy. After deletion, a normal fetch may retain the stale name; use <code>git fetch --prune origin</code> to clean it up. This does not delete Bob’s local feature/notes branch and does not issue a deletion to the server; it removes only the stale local tracking name.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">alice deletes remote ref · bob prunes stale knowledge</span><button class="copy">کپی</button></div><pre dir="ltr"># from alice/, switch to bob/ and record the remote branch
+cd ../bob
+git fetch origin
+git branch -r
+
+# switch back to alice/ and delete the published branch
+cd ../alice
+git push origin --delete feature/notes
+
+# return to bob/, confirm it is stale, then prune
+cd ../bob
+git branch -r
+git fetch --prune origin
+git branch -r
+git branch --list feature/notes</pre></div>
+  <p lang="fa">اگر Git نام شاخه را اشتباه می‌گیرد، پیش از prune می‌توانی <code>git remote prune --dry-run origin</code> را اجرا کنی تا ببیند چه refهایی را stale می‌داند، بدون اینکه پاکشان کند. نکتهٔ پیشرفته: prune بر اساس refspec تنظیم‌شده عمل می‌کند؛ اگر tagها را با refspec ویژه در namespace مشترک fetch کرده‌ای، prune ممکن است tagهای محلی بیشتری از انتظار حذف کند. با <code>--prune-tags</code> بی‌فکر بازی نکن.</p>
+  <p lang="en">If you are unsure what Git considers stale, run <code>git remote prune --dry-run origin</code> first; it reports candidates without deleting them. Advanced note: pruning follows configured refspecs. If tags are explicitly fetched into a shared namespace, pruning may remove more local tags than expected. Do not add <code>--prune-tags</code> casually.</p>
+</section>
+
+<section id="hosted">
+  <h2><span lang="fa">حالا همین مدل را روی GitHub ببین</span><span lang="en">Now map the same model onto GitHub</span></h2>
+  <p class="lede" lang="fa">آزمایش bare repository آفلاین بود، اما مدل عوض نمی‌شود: GitHub یا GitLab میزبانیِ remote است؛ clone تو همچنان refs محلی و تنظیمات remote خودش را دارد. اسم <code>origin</code> هنوز قراردادی است و می‌توانی remote دیگری مثل <code>upstream</code> هم داشته باشی.</p>
+  <p class="lede" lang="en">The bare-repository lab was offline, but the model is unchanged: GitHub or GitLab hosts a remote; your clone still has its own local refs and remote configuration. origin remains conventional, and you can add another remote such as upstream.</p>
+  <p lang="fa">برای افزودن URL، اول مطمئن شو در پوشهٔ مخزن درست هستی و remote فعلی را بررسی کن. اگر <code>origin</code> از قبل وجود دارد، به‌جای تکرار add، همان URL را با <code>git remote set-url</code> اصلاح کن یا remote دوم را با نام مناسب اضافه کن.</p>
+  <p lang="en">Before adding a URL, confirm you are in the right repository and inspect existing remotes. If origin already exists, update it with <code>git remote set-url</code> or add a second remote under a suitable name instead of repeating add.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">hosted remote · replace placeholders with your repository URL</span><button class="copy">کپی</button></div><pre dir="ltr">git remote add origin https://github.com/OWNER/REPOSITORY.git
+git remote -v
+git fetch origin</pre></div>
+  <p lang="fa">برای GitHub، HTTPS برای عملیات نوشتن به روش احراز هویت پشتیبانی‌شده نیاز دارد؛ رمز حساب را در prompt گیت وارد نکن. از روش فعلی مورد تأیید GitHub مثل credential helper یا SSH key استفاده کن و secret را در URL، تاریخچهٔ shell، فایل پروژه یا screenshot نگذار. موفقیت fetch فقط دسترسی خواندن را نشان می‌دهد؛ برای push ممکن است مجوز نوشتن جدا لازم باشد.</p>
+  <p lang="en">GitHub requires a supported authentication method for HTTPS writes; do not use your account password at Git’s prompt. Use a currently supported method such as a credential helper or SSH key, and keep secrets out of URLs, shell history, project files, and screenshots. A successful fetch proves read access only; pushing may require separate write permission.</p>
+  <p lang="fa">اگر origin از قبل هست، این‌ها شواهد مفیدند: <code>git remote -v</code> برای URL تنظیم‌شده، <code>git remote show origin</code> برای شاخه‌ها و وضعیت قابل‌مشاهده، و <code>git ls-remote origin</code> برای refهایی که remote اکنون اعلام می‌کند. هیچ‌کدام به‌تنهایی نشان نمی‌دهد کدام commit در فایل‌های working tree تو checkout شده است.</p>
+  <p lang="en">If origin already exists, useful checks include <code>git remote -v</code> for configured URLs, <code>git remote show origin</code> for branches and observed status, and <code>git ls-remote origin</code> for refs the remote currently advertises. None alone tells you which commit is checked out in your working tree.</p>
+</section>
+
+<section id="pitfalls">
+  <h2><span lang="fa">وقتی حرف‌زدن با remote به مشکل می‌خورد</span><span lang="en">When communication with a remote goes wrong</span></h2>
+  <p class="lede" lang="fa">پیام خطا را به‌عنوان سرنخ بخوان، نه دستور برای امتحان تصادفی گزینه‌ها. اول مشخص کن مشکل در URL، احراز هویت، مجوز نوشتن، refspec یا واگرایی تاریخچه است.</p>
+  <p class="lede" lang="en">Read an error as a clue, not an invitation to try random flags. First identify whether the problem is the URL, authentication, write permission, refspec, or divergent history.</p>
+  <div class="pitfalls">
+    <div class="pit"><h3 lang="fa">origin از قبل وجود دارد</h3><h3 lang="en">origin already exists</h3><p lang="fa">با <code>git remote -v</code> ببین origin الان به کجا می‌رود. اگر فقط URL اشتباه است، پس از تأیید مقصد از <code>git remote set-url origin URL</code> استفاده کن. حذف و افزودن دوباره معمولاً لازم نیست و ممکن است اطلاعات مفید تنظیمات را پاک کند.</p><p lang="en">Inspect the current destination with <code>git remote -v</code>. If only the URL is wrong, verify the intended target and use <code>git remote set-url origin URL</code>. Removing and recreating the remote is usually unnecessary and may discard useful configuration.</p></div>
+    <div class="pit"><h3 lang="fa">authentication failed یا permission denied</h3><h3 lang="en">Authentication failed or permission denied</h3><p lang="fa">اول URL و نوع پروتکل را ببین؛ بعد روش احراز هویت همان میزبان را بررسی کن. fetch موفق و push ناموفق می‌تواند یعنی خواندن مجاز است اما نوشتن نه. token را چاپ نکن و برای حل خطا <code>--force</code> نزن؛ force مجوز دسترسی نمی‌سازد.</p><p lang="en">Check the URL and protocol first, then the host’s authentication method. A successful fetch with a failed push may mean read access exists but write access does not. Do not print tokens or use <code>--force</code>; force does not grant permission.</p></div>
+    <div class="pit"><h3 lang="fa">push با non-fast-forward رد شد</h3><h3 lang="en">Push was rejected as non-fast-forward</h3><p lang="fa">remote از پایهٔ commit تو جلوتر است یا تاریخچه‌ات بازنویسی شده. <code>git fetch</code> بزن، graph دو مسیر را ببین، commitهای هر طرف را بخوان، بعد merge یا rebase را آگاهانه انتخاب کن. تست و push عادی را تکرار کن؛ force کور ممکن است کار همکار را کنار بزند.</p><p lang="en">The remote is ahead of your base, or your history was rewritten. Fetch, inspect both lines, review each side’s commits, then choose merge or rebase deliberately. Test and retry a normal push; blind force can displace a teammate’s work.</p></div>
+    <div class="pit"><h3 lang="fa">fetch کردم؛ چرا فایل تغییر نکرد؟</h3><h3 lang="en">I fetched; why did no file change?</h3><p lang="fa"><code>fetch</code> objectها و remote-tracking refها را به‌روز می‌کند؛ working tree و main محلی را ادغام نمی‌کند. <code>git status -sb</code> و <code>git log --graph --oneline --decorate --all</code> را ببین، بعد در صورت نیاز integration صریح انجام بده.</p><p lang="en"><code>fetch</code> updates objects and remote-tracking refs; it does not integrate into local main or the working tree. Inspect <code>git status -sb</code> and the graph, then choose an explicit integration if needed.</p></div>
+    <div class="pit"><h3 lang="fa">HEAD detached است و می‌خواهی push کنی</h3><h3 lang="en">HEAD is detached and you want to push</h3><p lang="fa">اول با <code>git status</code> و <code>git branch --show-current</code> تأیید کن HEAD به branch اشاره نمی‌کند. commit ممکن است وجود داشته باشد ولی نام branch نداری که منتشرش کنی. اگر commit باید بماند، یک branch بساز و آن را checkout کن، سپس push را با مقصد صریح انجام بده؛ تا پیش از آن چیزی را پاک نکن.</p><p lang="en">Confirm the detached state with <code>git status</code> and <code>git branch --show-current</code>. The commit may exist without a branch name to publish. If it should be kept, create a branch at it, switch to that branch, then push explicitly; do not delete anything first.</p></div>
+    <div class="pit"><h3 lang="fa">remote branch حذف شده اما هنوز در branch -r هست</h3><h3 lang="en">A deleted remote branch still appears in branch -r</h3><p lang="fa">این فهرست آخرین remote-tracking refهای ثبت‌شده در clone توست. <code>git fetch --prune origin</code> آن refهای منطبق را تمیز می‌کند؛ branch محلی هم‌نام را جداگانه بررسی کن، چون prune آن را حذف نمی‌کند.</p><p lang="en">The list shows remote-tracking refs last recorded in your clone. <code>git fetch --prune origin</code> cleans matching stale refs; inspect a same-named local branch separately because pruning does not delete it.</p></div>
+  </div>
+</section>
+
+<section id="exercises">
+  <h2><span lang="fa">تمرین‌ها: از ref محلی تا تصمیم دوهم‌تیمی</span><span lang="en">Exercises: from local refs to two-developer decisions</span></h2>
+  <p class="lede" lang="fa">قبل از بازکردن هر پاسخ، بگو کدام clone و کدام ref عوض می‌شود. جواب‌هایی که «remote را آپدیت می‌کنم» می‌گویند کافی نیستند؛ باید نام ref و چیزی را که هنوز تغییر نکرده مشخص کنی.</p>
+  <p class="lede" lang="en">Before opening each solution, name the clone and the ref that changes. “I update the remote” is not precise enough; identify the ref and what remains unchanged.</p>
+  <div class="ex-stat"><span lang="fa">۱۸ تمرین حل‌شده · پیش‌بینی، عیب‌یابی و همکاری</span><span lang="en">18 solved exercises · prediction, debugging, and collaboration</span></div>
+
+  <div class="ex" id="g8-ex01"><div class="ex-h"><span class="ex-n">۰۱</span><span class="ex-lvl lvl-1">مدل پایه / Basic model</span></div><p lang="fa">آلیس commit می‌سازد ولی هنوز push نکرده. باب <code>git fetch origin</code> می‌زند. آیا commit آلیس حالا در remote-tracking ref باب هست؟</p><p lang="en">Alice makes a commit but has not pushed it. Bob runs <code>git fetch origin</code>. Is Alice’s commit now in Bob’s remote-tracking ref?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">remote هنوز از commit آلیس خبر ندارد.</p><p lang="en">The remote does not know Alice’s commit yet.</p></details><details class="ex-sol"><summary><span lang="fa">تحلیل</span><span lang="en">Reasoning</span></summary><p lang="fa">نه. fetch باب از remote می‌خواند و commit محلی push‌نشدهٔ آلیس در آن نیست. آلیس باید اول به remote push کند؛ بعد باب می‌تواند آن را fetch کند.</p><p lang="en">No. Bob fetches from the remote, which does not contain Alice’s unpushed local commit. Alice must push first; then Bob can fetch it.</p></details></div>
+
+  <div class="ex" id="g8-ex02"><div class="ex-h"><span class="ex-n">۰۲</span><span class="ex-lvl lvl-1">چه چیزی حرکت کرد؟ / What moved?</span></div><p lang="fa">پیش از fetch، <code>main</code> و <code>origin/main</code> هر دو به X می‌رسند. پس از fetch، <code>origin/main</code> به Y رفته ولی <code>main</code> هنوز X است. چه اتفاقی افتاد؟</p><p lang="en">Before fetch, main and origin/main both point to X. Afterward, origin/main points to Y while main stays at X. What happened?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">یک ref دانش محلی از remote است؛ دیگری branch کاری.</p><p lang="en">One ref records remote state locally; the other is the working branch.</p></details><details class="ex-sol"><summary><span lang="fa">تفسیر</span><span lang="en">Interpretation</span></summary><p lang="fa">fetch ref محلی <code>origin/main</code> را به Y جلو برد، اما branch محلی <code>main</code> و working tree را ادغام نکرد. برای واردکردن Y باید پس از بررسی، مثلاً <code>git merge --ff-only origin/main</code> را اجرا کنی.</p><p lang="en">Fetch advanced the local origin/main ref to Y but did not integrate it into local main or the working tree. After inspection, you can integrate it with a command such as <code>git merge --ff-only origin/main</code>.</p></details></div>
+
+  <div class="ex" id="g8-ex03"><div class="ex-h"><span class="ex-n">۰۳</span><span class="ex-lvl lvl-1">origin / Convention</span></div><p lang="fa">آیا Git اجازه می‌دهد نام remote تو <code>upstream</code> باشد و نه <code>origin</code>؟</p><p lang="en">Can your remote be named upstream instead of origin?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">فکر کن origin از کجا به تنظیمات آمد.</p><p lang="en">Consider where origin came from in the first place.</p></details><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">بله. origin فقط نام قراردادی‌ای است که clone معمولاً می‌سازد. می‌توانی نام‌های دیگری به‌کار ببری یا remote دوم اضافه کنی؛ دستوراتت باید نام درست همان مخزن را بنویسند.</p><p lang="en">Yes. origin is the conventional name clone normally creates. You may use another name or add another remote; commands must use the correct name for that repository.</p></details></div>
+
+  <div class="ex" id="g8-ex04"><div class="ex-h"><span class="ex-n">۰۴</span><span class="ex-lvl lvl-1">خواندن remote -v / Read remote -v</span></div><p lang="fa"><code>git remote -v</code> یک URL برای fetch و URL دیگری برای push نشان می‌دهد. این ناممکن است؟</p><p lang="en"><code>git remote -v</code> shows one URL for fetch and another for push. Is that impossible?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">تنظیم fetch و push می‌تواند جدا باشد، اما مقصدها باید آگاهانه انتخاب شده باشند.</p><p lang="en">Fetch and push URLs can differ, but the destinations must be intentional.</p></details><details class="ex-sol"><summary><span lang="fa">توضیح</span><span lang="en">Explanation</span></summary><p lang="fa">ممکن است، اما دلیل و تنظیمش را بررسی کن. اگر fetch از یک upstream و push به مخزن انتشار جداست، اغلب دو remote با نام‌های جدا شفاف‌ترند. آدرس‌ها را افشا نکن اگر token در URL باشد.</p><p lang="en">It is possible, but inspect why it is configured. If you fetch from an upstream and publish elsewhere, separate named remotes are often clearer. Do not expose URLs containing tokens.</p></details></div>
+
+  <div class="ex" id="g8-ex05"><div class="ex-h"><span class="ex-n">۰۵</span><span class="ex-lvl lvl-2">upstream / Tracking</span></div><p lang="fa">در خروجی <code>git branch -vv</code> کنار main نوشته <code>[origin/main: behind 2]</code>. آیا این یعنی remote همین الآن دو commit جلوتر است؟</p><p lang="en">git branch -vv shows <code>[origin/main: behind 2]</code> next to main. Does this mean the live remote is exactly two commits ahead right now?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">آخرین fetch چه زمانی بوده؟</p><p lang="en">When was the last fetch?</p></details><details class="ex-sol"><summary><span lang="fa">محدودیت شاهد</span><span lang="en">Evidence limit</span></summary><p lang="fa">این می‌گوید بر اساس ref محلی <code>origin/main</code> که آخرین بار fetch شده، main دو commit عقب است؛ اگر از آن زمان remote جلو رفته باشد، شمارش stale است. برای وضعیت تازه، fetch کن و دوباره branch -vv را ببین.</p><p lang="en">It says main is two commits behind the locally stored origin/main from the last fetch. If the remote moved since then, the count is stale. Fetch and inspect again for a fresher view.</p></details></div>
+
+  <div class="ex" id="g8-ex06"><div class="ex-h"><span class="ex-n">۰۶</span><span class="ex-lvl lvl-2">اولین push / First push</span></div><p lang="fa">شاخهٔ <code>feature/help</code> محلی را تازه ساخته‌ای و می‌خواهی آن را منتشر کنی و upstream هم تنظیم شود. فرمان؟</p><p lang="en">You created local feature/help and want to publish it while setting its upstream. What command?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">برای push اول، مقصد و نام branch را صریح بنویس.</p><p lang="en">Name the destination and branch explicitly on the first push.</p></details><details class="ex-sol"><summary><span lang="fa">فرمان</span><span lang="en">Command</span></summary><p lang="fa"><code>git push -u origin feature/help</code>. این branch را به مقصد origin می‌فرستد و رابطهٔ upstream را در تنظیم محلی می‌نویسد. بعد <code>git branch -vv</code> را ببین تا رابطه را تأیید کنی.</p><p lang="en"><code>git push -u origin feature/help</code>. This sends the branch to origin and records the upstream locally. Verify the relationship afterward with <code>git branch -vv</code>.</p></details></div>
+
+  <div class="ex" id="g8-ex07"><div class="ex-h"><span class="ex-n">۰۷</span><span class="ex-lvl lvl-2">pull یا fetch؟ / Pull or fetch?</span></div><p lang="fa">می‌خواهی اول graph تغییرهای remote را ببینی و بعد تصمیم بگیری merge کنی یا rebase. کدام شروع مناسب‌تر است؟</p><p lang="en">You want to inspect the remote graph before deciding whether to merge or rebase. Which is the better first step?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">کدام فرمان خبر را می‌گیرد ولی integration را انتخاب نمی‌کند؟</p><p lang="en">Which command fetches news without choosing integration?</p></details><details class="ex-sol"><summary><span lang="fa">تصمیم</span><span lang="en">Decision</span></summary><p lang="fa"><code>git fetch origin</code> بزن، سپس <code>git log --graph --oneline --decorate --all</code> را بخوان. بعد integration آگاهانه انتخاب کن. pull ممکن است همان لحظه مرحلهٔ integration را هم بر اساس گزینه یا config انجام دهد.</p><p lang="en">Run <code>git fetch origin</code>, then inspect <code>git log --graph --oneline --decorate --all</code>. Choose integration afterward. Pull may immediately perform the integration step according to options or configuration.</p></details></div>
+
+  <div class="ex" id="g8-ex08"><div class="ex-h"><span class="ex-n">۰۸</span><span class="ex-lvl lvl-2">تنظیم pull / Pull configuration</span></div><p lang="fa">در دو دستگاه، اجرای <code>git pull</code> برای یک شاخهٔ واگرا یکی merge commit می‌سازد و دیگری خطای نیاز به انتخاب strategy می‌دهد. آیا الزاماً یکی Git خراب دارد؟</p><p lang="en">On two machines, <code>git pull</code> on a divergent branch creates a merge commit on one and asks for a strategy on the other. Must one Git installation be broken?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">تنظیمات pull می‌تواند متفاوت باشد.</p><p lang="en">Pull configuration can differ.</p></details><details class="ex-sol"><summary><span lang="fa">توضیح</span><span lang="en">Explanation</span></summary><p lang="fa">نه. گزینه‌ها و تنظیم‌هایی مثل <code>pull.rebase</code> و <code>pull.ff</code> رفتار integration را عوض می‌کنند و نسخه‌ها هم ممکن است راهنمای متفاوتی بدهند. برای رفتار قابل‌پیش‌بینی از گزینهٔ صریح مثل <code>--ff-only</code>، <code>--no-rebase</code> یا <code>--rebase</code> استفاده و پیام config را بخوان.</p><p lang="en">No. Options and settings such as <code>pull.rebase</code> and <code>pull.ff</code> affect integration, and versions may guide you differently. Use an explicit option such as <code>--ff-only</code>, <code>--no-rebase</code>, or <code>--rebase</code>, and inspect the configuration message.</p></details></div>
+
+  <div class="ex" id="g8-ex09"><div class="ex-h"><span class="ex-n">۰۹</span><span class="ex-lvl lvl-2">fast-forward / Push safety</span></div><p lang="fa">remote روی A است و تو می‌خواهی branch را به B ببری. Git می‌گوید B نیاکان A نیست. چرا push را رد می‌کند؟</p><p lang="en">The remote is at A and you want to move the branch to B. Git says B is not a descendant of A. Why reject the push?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">ممکن است commitهای A با جابه‌جایی ref از دسترس شاخه خارج شوند.</p><p lang="en">Moving the ref might make commits from A disappear from that branch.</p></details><details class="ex-sol"><summary><span lang="fa">حفاظت</span><span lang="en">Protection</span></summary><p lang="fa">این به‌روزرسانی non-fast-forward است؛ B شامل A نیست. push عادی از کنارزدن تاریخچهٔ remote جلوگیری می‌کند. fetch کن، graph و commitهای هر دو طرف را ببین، merge/rebase کن، تست بگیر و push عادی بزن.</p><p lang="en">This is a non-fast-forward update; B does not contain A. A normal push prevents replacing remote history. Fetch, inspect both lines and commits, integrate, test, then push normally.</p></details></div>
+
+  <div class="ex" id="g8-ex10"><div class="ex-h"><span class="ex-n">۱۰</span><span class="ex-lvl lvl-2">remote add خطا داد / Remote already exists</span></div><p lang="fa">بعد از <code>git remote add origin URL</code> پیام <code>remote origin already exists</code> می‌گیری. اولین بررسی چیست؟</p><p lang="en">After <code>git remote add origin URL</code>, Git says the remote already exists. What do you check first?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">شاید origin الان تنظیم شده باشد.</p><p lang="en">Origin may already be configured.</p></details><details class="ex-sol"><summary><span lang="fa">بررسی</span><span lang="en">Check</span></summary><p lang="fa"><code>git remote -v</code> را اجرا و مقصد موجود را بخوان. اگر URL مقصد اشتباه است، پس از تأیید از <code>git remote set-url origin URL</code> استفاده کن؛ اگر به دو مخزن نیاز داری، remote دوم با نام متفاوت بساز.</p><p lang="en">Run <code>git remote -v</code> and inspect the existing destination. If it is wrong, verify the intended URL and use <code>git remote set-url origin URL</code>; if you need two repositories, add the second under another name.</p></details></div>
+
+  <div class="ex" id="g8-ex11"><div class="ex-h"><span class="ex-n">۱۱</span><span class="ex-lvl lvl-2">حذف branch دور / Delete a remote branch</span></div><p lang="fa">برای حذف branch آزمایشی <code>feature/notes</code> روی remote، چه فرمانی می‌زنی؟ آیا branch محلی باب هم حذف می‌شود؟</p><p lang="en">How do you delete the test branch feature/notes on the remote? Does Bob’s local branch disappear too?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">حذف remote و prune دو کار جدا هستند.</p><p lang="en">Remote deletion and pruning are separate operations.</p></details><details class="ex-sol"><summary><span lang="fa">پاسخ دقیق</span><span lang="en">Precise answer</span></summary><p lang="fa"><code>git push origin --delete feature/notes</code> ref remote را حذف می‌کند. clone باب تا fetch/prune بعدی ممکن است <code>origin/feature/notes</code> قدیمی را داشته باشد؛ branch محلی <code>feature/notes</code> هم با این فرمان حذف نمی‌شود.</p><p lang="en"><code>git push origin --delete feature/notes</code> deletes the remote ref. Bob may retain stale origin/feature/notes until fetch/prune, and the command does not delete his local feature/notes branch.</p></details></div>
+
+  <div class="ex" id="g8-ex12"><div class="ex-h"><span class="ex-n">۱۲</span><span class="ex-lvl lvl-3">prune / Clean stale refs</span></div><p lang="fa">پس از <code>git fetch --prune origin</code>، <code>origin/feature/notes</code> حذف شده ولی <code>git branch --list feature/notes</code> هنوز branch محلی را نشان می‌دهد. چه برداشتی درست است؟</p><p lang="en">After <code>git fetch --prune origin</code>, origin/feature/notes is gone but <code>git branch --list feature/notes</code> still shows a local branch. What is the right interpretation?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">این دو ref namespace متفاوت دارند.</p><p lang="en">The refs live in different namespaces.</p></details><details class="ex-sol"><summary><span lang="fa">توضیح</span><span lang="en">Explanation</span></summary><p lang="fa">prune فقط remote-tracking ref قدیمی را پاک کرده؛ branch محلی مستقل است و باقی می‌ماند. اگر آن branch را هم نمی‌خواهی، پیش از حذف بررسی کن commitهایش merge یا محفوظ شده‌اند؛ prune خودش مجوز حذف کار محلی نیست.</p><p lang="en">Pruning removed only the stale remote-tracking ref; the independent local branch remains. Before deleting it, check whether its commits are merged or preserved. Prune is not permission to delete local work.</p></details></div>
+
+  <div class="ex" id="g8-ex13"><div class="ex-h"><span class="ex-n">۱۳</span><span class="ex-lvl lvl-3">detached HEAD / Detached checkout</span></div><p lang="fa">روی commit مشخصی در detached HEAD هستی و <code>git push</code> پاسخ روشنی نمی‌دهد. commit قطعاً گم شده؟</p><p lang="en">You are at a commit in detached HEAD and <code>git push</code> does not behave as expected. Is the commit definitely lost?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">commit object و نام branch یکی نیستند.</p><p lang="en">A commit object and a branch name are different things.</p></details><details class="ex-sol"><summary><span lang="fa">تحلیل و قدم بعد</span><span lang="en">Analysis and next step</span></summary><p lang="fa">نه؛ detached HEAD یعنی HEAD به branch نام‌دار وصل نیست، نه اینکه commit وجود ندارد. <code>git status</code> و <code>git log</code> را بررسی کن. اگر باید نگهش داری، <code>git switch -c save-this-work</code> را از همان commit بساز، بعد branch را با مقصد صریح push کن.</p><p lang="en">No. Detached HEAD means HEAD is not attached to a named branch, not that the commit is absent. Inspect status and log. If you need to keep it, create a branch at that commit with <code>git switch -c save-this-work</code>, then push it explicitly.</p></details></div>
+
+  <div class="ex" id="g8-ex14"><div class="ex-h"><span class="ex-n">۱۴</span><span class="ex-lvl lvl-3">lease رد شد / Lease rejected</span></div><p lang="fa">push با <code>--force-with-lease</code> رد شده است. آیا بهتر است fetch کنی و همان فرمان را دوباره بزنی؟</p><p lang="en">A push with <code>--force-with-lease</code> was rejected. Should you fetch and immediately repeat the command?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">fetch می‌تواند ref مورد استفادهٔ lease را به‌روز کند.</p><p lang="en">Fetching can update the ref the lease uses as its expectation.</p></details><details class="ex-sol"><summary><span lang="fa">تصمیم امن</span><span lang="en">Safe decision</span></summary><p lang="fa">نه، نه بدون بررسی. ردشدن یعنی وضعیت remote با انتظار ثبت‌شده فرق دارد. اول از هم‌تیمی یا از log/remote بپرس چه commitی اضافه شده، آن را integrate و تست کن؛ فقط بعد از هماهنگی دربارهٔ بازنویسی تصمیم بگیر.</p><p lang="en">Not without inspection. Rejection means the remote differs from the recorded expectation. Find out what commit arrived, integrate and test it, and decide about rewriting only after coordination.</p></details></div>
+
+  <div class="ex" id="g8-ex15"><div class="ex-h"><span class="ex-n">۱۵</span><span class="ex-lvl lvl-3">احراز هویت / Authentication</span></div><p lang="fa">fetch از مخزن خصوصی GitHub موفق است اما push با permission denied رد می‌شود. آیا credential اشتباه تنها احتمال است؟</p><p lang="en">Fetching a private GitHub repository works, but push fails with permission denied. Is a bad credential the only possibility?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">خواندن و نوشتن دو مجوز جدا هستند.</p><p lang="en">Read and write access are distinct permissions.</p></details><details class="ex-sol"><summary><span lang="fa">تشخیص</span><span lang="en">Diagnosis</span></summary><p lang="fa">نه. ممکن است احراز هویت کار کند اما حساب/کلید مجوز نوشتن نداشته باشد، branch محافظت شده باشد یا URL push متفاوت باشد. <code>git remote -v</code> را بدون افشای راز بررسی کن و مجوز همان میزبان را جداگانه تأیید کن؛ force این محدودیت را رفع نمی‌کند.</p><p lang="en">No. Authentication may work while the account/key lacks write permission, the branch is protected, or the push URL differs. Inspect remotes without exposing secrets and verify host permissions separately; force does not bypass these controls.</p></details></div>
+
+  <div class="ex" id="g8-ex16"><div class="ex-h"><span class="ex-n">۱۶</span><span class="ex-lvl lvl-3">تغییر نرفته / Change did not travel</span></div><p lang="fa">آلیس push موفق می‌بیند؛ باب fetch می‌کند اما <code>origin/main</code> تکان نمی‌خورد. سه بررسی تشخیصی چیست؟</p><p lang="en">Alice sees a successful push, but Bob fetches and origin/main does not move. Name three diagnostic checks.</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">آیا هر دو به همان remote و همان branch نگاه می‌کنند؟</p><p lang="en">Are both looking at the same remote and branch?</p></details><details class="ex-sol"><summary><span lang="fa">برنامهٔ بررسی</span><span lang="en">Investigation plan</span></summary><p lang="fa">۱) در هر clone <code>git remote -v</code> را مقایسه کن. ۲) روی آلیس <code>git branch --show-current</code> و خروجی push را بررسی کن تا branch مقصد روشن شود. ۳) در باب <code>git fetch origin</code>، <code>git branch -r</code> و <code>git rev-parse origin/main</code> را ببین؛ شاید commit به branch دیگری یا remote دیگری رفته باشد.</p><p lang="en">1) Compare <code>git remote -v</code> in both clones. 2) On Alice’s side, inspect the current branch and push result to identify the destination ref. 3) On Bob’s side, fetch origin and inspect remote branches and <code>origin/main</code>; the commit may have gone to another branch or remote.</p></details></div>
+
+  <div class="ex" id="g8-ex17"><div class="ex-h"><span class="ex-n">۱۷</span><span class="ex-lvl lvl-3">تصمیم integration / Integration decision</span></div><p lang="fa">شاخهٔ محلی clean است و فقط از <code>origin/main</code> عقب مانده؛ commit محلی جدا ندارد. کدام pull choice کمترین بازنویسی/اتصال اضافه را دارد؟</p><p lang="en">The local branch is clean and only behind origin/main, with no separate local commit. Which pull choice makes the fewest history changes?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">اگر ancestry اجازه دهد، ref را مستقیم جلو ببر.</p><p lang="en">If ancestry allows it, advance the ref directly.</p></details><details class="ex-sol"><summary><span lang="fa">گزینهٔ محتاطانه</span><span lang="en">Conservative choice</span></summary><p lang="fa"><code>git pull --ff-only</code> فقط در صورت fast-forward جلو می‌رود و اگر پیش‌بینی غلط باشد متوقف می‌شود. این گزینه history واگرا را حل نمی‌کند؛ توقفش فرصتی است برای fetch و بررسی graph، نه نشانهٔ خرابی.</p><p lang="en"><code>git pull --ff-only</code> advances only when a fast-forward is possible and stops otherwise. It does not resolve divergence; a stop is a chance to fetch and inspect, not proof of corruption.</p></details></div>
+
+  <div class="ex" id="g8-ex18"><div class="ex-h"><span class="ex-n">۱۸</span><span class="ex-lvl lvl-3">پروندهٔ دو clone / Two-clone incident</span></div><p lang="fa">Bob از آلیس commit می‌گیرد، تغییر محلی مستقل می‌سازد، push رد می‌شود، و remote branch هم‌نام حذف شده است. پیش از هر integration چه ترتیب کار معقولی داری؟</p><p lang="en">Bob receives Alice’s commit, creates an independent local change, gets a rejected push, and a same-named remote branch was deleted. What is a sensible sequence before integration?</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">ابتدا خبر تازه و گراف کامل را بگیر؛ حذف stale ref کار integration نیست.</p><p lang="en">Fetch fresh information and inspect the whole graph first; pruning is not integration.</p></details><details class="ex-sol"><summary><span lang="fa">تحلیل</span><span lang="en">Analysis</span></summary><p lang="fa">۱) <code>git fetch origin</code> را اجرا و refها را تازه کن. ۲) <code>git log --graph --decorate --oneline --all</code> و <code>git branch -vv</code> را بخوان تا commitهای هر طرف و upstream معلوم شوند. ۳) شاخهٔ حذف‌شده را با <code>git fetch --prune</code> از فهرست remote-tracking تمیز کن، اما branch محلی را نگه دار تا محتوایش بررسی شود. سپس merge/rebase را با توجه به مالکیت commitها انتخاب، تست، و push عادی کن.</p><p lang="en">1) Fetch origin to refresh refs. 2) Inspect the graph and branch -vv to identify each side’s commits and upstreams. 3) Prune stale remote-tracking refs while retaining the local branch for review. Then choose merge or rebase based on commit ownership, test, and push normally.</p></details></div>
+</section>
+
+<section id="mini-project">
+  <h2><span lang="fa">پروژهٔ کوچک: دو توسعه‌دهنده، یک bare remote</span><span lang="en">Mini-project: two developers, one bare remote</span></h2>
+  <p class="lede" lang="fa">نیکا و سام روی یک مخزن مشترک کار می‌کنند. هر دو باید یک commit مستقل بسازند؛ یکی push می‌کند، دیگری رد می‌شود، بعد با دیدن تاریخچه کار هر دو را نگه می‌دارند و در پایان هر دو clone به نتیجهٔ یکسان می‌رسند. هدف، حفظ refها و ارائهٔ مدرک است—نه زدن فرمان‌ها از حفظ.</p>
+  <p class="lede" lang="en">Nika and Sam work from a shared repository. Each must make an independent commit; one pushes and the other is rejected. They inspect history, preserve both changes, and finish with both clones at the same result. The goal is to reason about refs and show evidence, not recite commands.</p>
+  <p lang="fa">در یک پوشهٔ خالی مخزن seed بساز، آن را به <code>server.git</code> bare تبدیل کن و دو clone با نام‌های <code>nika</code> و <code>sam</code> بساز. در هر دو clone نام و ایمیل محلی آزمایشی تنظیم کن. فایل‌ها را جدا نگه دار تا اختلاف از تاریخچه باشد نه تعارض بی‌ربط محتوایی.</p>
+  <p lang="en">In an empty folder, create a seed repository, clone it bare as server.git, then make nika and sam clones. Set test-only names and emails in each clone. Keep edits in separate files so the lesson is about history divergence, not an unrelated content conflict.</p>
+  <p lang="fa">یکی commit خود را push کند. نفر دوم بدون fetch، commit مستقلی روی main بسازد و push کند؛ باید rejection معمول non-fast-forward را ببیند. پیش از هر integration، این چهار مدرک را تحویل بده:</p>
+  <p lang="en">One developer pushes a commit. The other makes an independent main commit without fetching and attempts to push; observe the normal non-fast-forward rejection. Before integrating, collect these four pieces of evidence:</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">evidence checklist · run in the rejected clone</span><button class="copy">کپی</button></div><pre dir="ltr">git remote -v
+git branch -vv
+git status -sb
+git log --oneline --graph --decorate --all</pre></div>
+  <p lang="fa">حالا fetch کن، تغییرهای هر طرف را با <code>git show</code> بخوان و با تیم تصمیم بگیر merge یا rebase مناسب است. در این پروژه commit بازندهٔ push هنوز در clone خودش است؛ آن را با reset یا force کنار نگذار. پس از integration، تست سادهٔ فایل‌ها را اجرا و push عادی را تکرار کن.</p>
+  <p lang="en">Fetch, inspect each side with <code>git show</code>, and choose merge or rebase intentionally. The rejected commit still exists in its clone; do not discard it with reset or force. After integrating, run a simple file check and retry a normal push.</p>
+  <p lang="fa">در پایان، نفر دیگر fetch کند، graph و refها را ببیند و integration نهایی را انجام دهد. پروژه وقتی تمام است که هر دو clone بتوانند ID commit نهایی مشترک را نشان دهند، فایل هر دو توسعه‌دهنده حاضر باشد و working tree clean باشد. اگر branch آزمایشی را از remote حذف می‌کنید، clone دیگر باید prune کند و تفاوت branch محلی با remote-tracking ref را ثبت کند.</p>
+  <p lang="en">Finally, the other developer fetches, inspects refs and graph, and integrates. The project is complete when both clones identify the same final shared commit, both developers’ files exist, and the working trees are clean. If you delete a test branch remotely, have the other clone prune it and record the difference between local and remote-tracking refs.</p>
+  <div class="note safe"><div class="note-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4.5 4.5L19 7"/></svg><span lang="fa">مدرک پایان کار</span><span lang="en">Proof of completion</span></div><ul><li lang="fa">خروجی push اول، rejection دوم و fetch پس از آن را ذخیره کن.</li><li lang="en">Save the first push, the second push rejection, and the later fetch output.</li><li lang="fa">گراف پیش و پس از integration را همراه ID commit مشترک ثبت کن.</li><li lang="en">Record before-and-after graphs and the shared final commit ID.</li><li lang="fa">نشان بده هر دو فایل باقی مانده و هر دو clone clean و هم‌گام‌اند.</li><li lang="en">Show both files remain and both clones are clean and synchronized.</li></ul></div>
+</section>
+
+<section id="handoff">
+  <h2><span lang="fa">حالا می‌توانیم تاریخچه را به اشتراک بگذاریم</span><span lang="en">Now we can share history</span></h2>
+  <p lang="fa">تا اینجا دیدیم Git برای چه چیزهایی ref محلی و remote-tracking نگه می‌دارد، چطور خبر را fetch می‌کنیم، چگونه تغییر را آگاهانه integrate می‌کنیم و چرا push غیر fast-forward را رد می‌کند. حالا commitها بین چند clone رفت‌وآمد می‌کنند؛ سؤال خطرناک بعدی این است: «این تغییر را چطور برگردانم؟» فصل ۰۹ نشان می‌دهد Git چند راه دارد، چون «undo» چند معنی متفاوت دارد.</p>
+  <p lang="en">We have seen which refs are local and remote-tracking, how to fetch updates, integrate deliberately, and why a non-fast-forward push is rejected. Commits now travel between clones. The next dangerous question is: “How do I undo this?” Chapter 09 shows several answers because “undo” can mean several different things.</p>
+</section>
+
+<section id="quick-reference">
+  <h2><span lang="fa">مرور کوتاه</span><span lang="en">Quick reference</span></h2>
+  <div class="capsule"><div class="capsule-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v14H4zM8 9h8M8 13h5"/></svg><span lang="fa">این پنج نکته را نگه دار</span><span lang="en">Keep these five ideas</span></div><ul><li lang="fa"><code>origin</code> نام رایج یک remote است؛ <code>origin/main</code> ref محلی برای آخرین وضعیت fetchشده است، نه شاخهٔ زندهٔ سرور.</li><li lang="en"><code>origin</code> is a common remote name; <code>origin/main</code> is a local ref for the last fetched state, not the server’s live branch.</li><li lang="fa"><code>fetch</code> objectها و remote-tracking refها را می‌آورد؛ به‌تنهایی branch کاری و فایل‌ها را ادغام نمی‌کند.</li><li lang="en"><code>fetch</code> obtains objects and updates remote-tracking refs; it does not by itself integrate into your working branch or files.</li><li lang="fa">upstream رابطهٔ تنظیم‌شدهٔ محلی بین branch و ref پیگیری‌شده است؛ <code>git branch -vv</code> آن را نشان می‌دهد.</li><li lang="en">An upstream is a local configured relationship between a branch and the ref it tracks; <code>git branch -vv</code> displays it.</li><li lang="fa"><code>pull</code> ابتدا fetch و بعد integration انتخاب‌شده را اجرا می‌کند؛ گزینه و config می‌توانند نتیجه را عوض کنند.</li><li lang="en"><code>pull</code> fetches and then performs a chosen integration; options and configuration affect the result.</li><li lang="fa">اگر push رد شد، fetch کن، graph را بخوان، merge/rebase را آگاهانه انتخاب کن، تست بگیر و push عادی بزن. force کور پاسخ پیش‌فرض نیست.</li><li lang="en">If push is rejected, fetch, inspect the graph, choose merge or rebase deliberately, test, and retry normally. Blind force is not the default fix.</li></ul></div>
+  <div class="note safe"><div class="note-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4.5 4.5L19 7"/></svg><span lang="fa">بعد از این فصل باید بتوانی</span><span lang="en">By the end of this chapter, you can</span></div><ul><li lang="fa">در دو clone میان branch محلی و remote-tracking ref فرق بگذاری.</li><li lang="en">Distinguish a local branch from a remote-tracking ref in two clones.</li><li lang="fa">با fetch خبر بگیری، graph را بررسی کنی و integration مناسب را انتخاب کنی.</li><li lang="en">Fetch updates, inspect the graph, and choose an appropriate integration.</li><li lang="fa">upstream را با <code>branch -vv</code> بخوانی و push اول را با <code>-u</code> ثبت کنی.</li><li lang="en">Read upstream with <code>branch -vv</code> and set it on first push with <code>-u</code>.</li><li lang="fa">rejection را تشخیص بدهی، تغییرهای دو طرف را نگه داری و از force بی‌بررسی پرهیز کنی.</li><li lang="en">Diagnose a rejection, preserve both sides’ work, and avoid uninspected force pushes.</li></ul></div>
+  <p lang="fa"><a href="https://git-scm.com/docs/git-fetch" rel="noreferrer">راهنمای رسمی fetch</a>، <a href="https://git-scm.com/docs/git-pull" rel="noreferrer">راهنمای pull</a> و <a href="https://git-scm.com/docs/git-push" rel="noreferrer">راهنمای push</a> مرجع جزئیات بیشترند. برای remote میزبانی‌شده، راهنمای رسمی <a href="https://docs.github.com/en/get-started/git-basics/managing-remote-repositories" rel="noreferrer">مدیریت remote در GitHub</a> را ببین.</p>
+  <p lang="en"><a href="https://git-scm.com/docs/git-fetch" rel="noreferrer">Official fetch documentation</a>, <a href="https://git-scm.com/docs/git-pull" rel="noreferrer">pull documentation</a>, and <a href="https://git-scm.com/docs/git-push" rel="noreferrer">push documentation</a> cover the details. For a hosted remote, see GitHub’s official guide to <a href="https://docs.github.com/en/get-started/git-basics/managing-remote-repositories" rel="noreferrer">managing remote repositories</a>.</p>
+</section>

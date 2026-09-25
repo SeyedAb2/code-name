@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
+    "start": "node tools/start-standalone.cjs",
+    "lint": "eslint src",
     "manifest": "node tools/export-manifest.js",
     "logo": "node tools/make-logo.js"
   },

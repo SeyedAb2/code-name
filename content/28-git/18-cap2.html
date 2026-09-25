@@ -1,0 +1,379 @@
+<!--meta
+title: پروژهٔ ۲ — گردش کار تیمی
+desc: با یک bare remote و دو clone، تغییرهای هم‌زمان را به PR قابل‌بازبینی، حل تعارض، ادغام طبق سیاست و همگام‌سازی نهایی تبدیل کن.
+-->
+
+<div class="masthead">
+  <span class="eyebrow"><span class="dot"></span><span lang="fa">Git · پروژهٔ نهایی ۲</span><span lang="en">Git · Final project 2</span></span>
+  <h1 lang="fa">پروژهٔ ۲ — گردش کار تیمی</h1>
+  <h1 lang="en">Project 2 — A real team workflow</h1>
+  <p class="sub" lang="fa">دیگر فقط تاریخچهٔ خودت را مرتب نمی‌کنی. آلیس و باب روی یک برنامهٔ مشترک کار می‌کنند؛ یک تغییر زودتر به <code>main</code> می‌رسد و دیگری باید بدون پاک‌کردن کار هم‌تیمی، خودش را با آن هماهنگ کند.</p>
+  <p class="sub" lang="en">You are no longer cleaning up only your own history. Alice and Bob are changing the same application; one change reaches <code>main</code> first, and the other must catch up without erasing a teammate’s work.</p>
+  <div class="facts">
+    <div class="fact"><span class="fact-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M8 7.5 10.7 15M16 7.5 13.3 15M8.5 6h7"/></svg></span><span class="fact-v"><b>۲</b><span lang="fa">هم‌تیمی</span><span lang="en">developers</span></span></div>
+    <div class="fact"><span class="fact-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h10"/></svg></span><span class="fact-v"><b>۵</b><span lang="fa">نمودار</span><span lang="en">diagrams</span></span></div>
+    <div class="fact"><span class="fact-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg></span><span class="fact-v"><b>۰</b><span lang="fa">تمرین مصنوعی</span><span lang="en">artificial exercises</span></span></div>
+  </div>
+</div>
+
+<section id="mission">
+  <h2><span lang="fa">مأموریت: دو تغییر، یک شاخهٔ اصلی</span><span lang="en">Mission: two changes, one main branch</span></h2>
+  <p class="lede" lang="fa">در پروژهٔ قبل تاریخچهٔ محلی را برای بازبینی مرتب کردی. حالا یک تیم کوچک از تو خواسته جریان کارش را راه بیندازی: شاخهٔ <code>main</code> باید قابل اتکا بماند، آلیس CSV اضافه می‌کند، باب JSON، و هر دو برای فعال‌شدن قالب تازه یک فایل تنظیمات مشترک را تغییر می‌دهند.</p>
+  <p class="lede" lang="en">In the previous project, you prepared local history for review. Now a small team asks you to make its collaboration work: <code>main</code> should stay dependable, Alice adds CSV, Bob adds JSON, and both edit the same configuration file to enable their new format.</p>
+  <p lang="fa">آلیس زودتر branch خودش را push می‌کند و یک PR باز می‌کند. باب هم تغییرش را push می‌کند. بعد از review، تغییر باب زودتر وارد <code>main</code> می‌شود. وقتی آلیس می‌خواهد کارش را به‌روز کند، branch او از <code>main</code> عقب است و هر دو تغییر روی یک خط تنظیمات دست گذاشته‌اند.</p>
+  <p lang="en">Alice pushes her branch and opens a PR first. Bob pushes his work too. After review, Bob’s change reaches <code>main</code> first. When Alice updates her work, her branch is behind <code>main</code>, and both changes touched the same configuration line.</p>
+  <p lang="fa">کار تو این نیست که هر طور شده merge سبز بگیری. باید ببینی چه کسی چه چیزی دارد، از کجا عقب افتاده‌ایم، تعارض را با حفظ هر دو قابلیت حل کنیم، آزمون بگیریم و تاریخچه را مطابق سیاستی که خود تیم انتخاب کرده تحویل بدهیم.</p>
+  <p lang="en">Your job is not to make the merge button turn green at any cost. Find out who has what, identify where the branches diverged, resolve the conflict while preserving both features, test, and hand off a graph that matches the team’s chosen policy.</p>
+  <figure><div class="diagram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 300" role="img" aria-labelledby="g18-d1-title g18-d1-desc" direction="ltr">
+    <title id="g18-d1-title">One bare remote and two independent working clones</title><desc id="g18-d1-desc">Alice and Bob work in separate clones. Each pushes a branch to the central bare remote and fetches remote refs back; fetch does not merge a branch.</desc>
+    <defs><marker id="g18-d1-a" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto"><path d="M0 0v9l8-4.5z" fill="#8290ff"/></marker></defs>
+    <rect class="dg-fill-v dg-stroke-v" x="35" y="88" width="275" height="120" rx="16"/><rect class="dg-fill dg-stroke" x="382" y="88" width="276" height="120" rx="16"/><rect class="dg-fill-g dg-stroke-g" x="730" y="88" width="275" height="120" rx="16"/>
+    <g class="dg-t" text-anchor="middle" direction="ltr"><text x="172" y="132">Alice clone</text><text class="dg-ts" x="172" y="164">main · feature/alice-csv</text><text x="520" y="132">bare remote</text><text class="dg-ts" x="520" y="164">team.git · refs and objects</text><text class="dg-ts" x="520" y="188">no PR interface</text><text x="867" y="132">Bob clone</text><text class="dg-ts" x="867" y="164">main · feature/bob-json</text></g>
+    <path class="dg-arrow" d="M310 126h72M382 168h-72M730 126h-72M658 168h72" fill="none" stroke="#8290ff" stroke-width="2.5" marker-end="url(#g18-d1-a)"/>
+    <text class="dg-ts" x="346" y="112" text-anchor="middle" direction="ltr">push</text><text class="dg-ts" x="346" y="194" text-anchor="middle" direction="ltr">fetch</text><text class="dg-ts" x="694" y="112" text-anchor="middle" direction="ltr">push</text><text class="dg-ts" x="694" y="194" text-anchor="middle" direction="ltr">fetch</text>
+  </svg></div><figcaption><span lang="fa">نمودار ۱ — هر clone تاریخچهٔ محلی خودش را دارد. push شاخه را به bare remote می‌فرستد؛ fetch refهای تازه را می‌آورد، اما branch فعال را خودکار ادغام نمی‌کند. PR در این نمودار نیست چون PR متعلق به میزبان است، نه Git.</span><span lang="en">Diagram 1 — Each clone has its own local history. Push sends a branch to the bare remote; fetch brings back updated refs but does not merge them into the checked-out branch. A PR is absent because it belongs to a hosting platform, not Git.</span></figcaption></figure>
+</section>
+
+<section id="starter">
+  <h2><span lang="fa">شروع کوچک: برنامه‌ای که قالب‌هایش زیاد می‌شود</span><span lang="en">A small starter: an app that gains export formats</span></h2>
+  <p lang="fa">نیازی به نصب package نداریم؛ Node.js و آزمون داخلی <code>node:test</code> کافی است. کار برنامه هم محدود است: فهرست قالب‌های فعال را از تنظیمات می‌خواند و برای هر قالب یک تابع خروجی دارد. این سادگی کمک می‌کند توجه‌مان روی کار تیمی بماند.</p>
+  <p lang="en">No package installation is needed; Node.js and its built-in <code>node:test</code> runner are enough. The application has a narrow job: read enabled formats from configuration and provide an exporter for each one. Keeping it small lets us focus on collaboration.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">starter files · create these once in seed/</span><button class="copy">کپی</button></div><pre dir="ltr"><code>// package.json
+{
+  "name": "team-export",
+  "private": true,
+  "scripts": { "test": "node --test" }
+}
+
+// config/formats.json
+{
+  "enabled": ["text"]
+}
+
+// src/registry.js
+const { enabled } = require("../config/formats.json");
+
+function assertEnabled(format) {
+  if (!enabled.includes(format)) {
+    throw new Error(`Format is not enabled: ${format}`);
+  }
+}
+
+module.exports = { enabled, assertEnabled };
+
+// src/formats/text.js
+const { assertEnabled } = require("../registry");
+
+function text(rows) {
+  assertEnabled("text");
+  return rows.map((row) =&gt; `${row.name}: ${row.count}`).join("\n");
+}
+
+module.exports = { text };
+
+// test/baseline.test.js
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const { enabled } = require("../src/registry");
+const { text } = require("../src/formats/text");
+
+test("the baseline keeps text export enabled", () =&gt; {
+  assert.ok(enabled.includes("text"));
+  assert.equal(text([{ name: "tea", count: 2 }]), "tea: 2");
+});</code></pre></div>
+  <p lang="fa">فایل‌ها را در <code>seed/</code> بساز و از همان‌جا <code>node --test</code> را اجرا کن. باید یک آزمون موفق ببینی. فقط بعد از این خط مبنا، مخزن را بساز؛ اگر آزمون از ابتدا قرمز باشد، نمی‌فهمیم تعارض بعدی علتش بوده یا برنامهٔ پایه.</p>
+  <p lang="en">Create these files in <code>seed/</code> and run <code>node --test</code> there. You should see one passing test. Create the repository only after this baseline is green; otherwise a later conflict could be blamed for a problem that was already present.</p>
+  <div class="note safe"><div class="note-t"><span lang="fa">آنچه از قبل بلدیم</span><span lang="en">What you already know</span></div><p lang="fa">از فصل‌های ۵ تا ۸ branch، merge، remote، fetch و push را می‌شناسی؛ فصل ۱۴ هم فرق PR با خود Git و مسئولیت بازبین را روشن کرده. اینجا قرار نیست آن‌ها را از صفر درس بدهیم: باید در یک مأموریت واحد انتخاب درستشان را انجام بدهی.</p><p lang="en">Chapters 5–8 introduced branches, merges, remotes, fetch, and push; Chapter 14 separated a PR from Git itself and explored the reviewer’s role. We will not reteach them from scratch—you will choose and use them together in one mission.</p></div>
+</section>
+
+<section id="environment">
+  <h2><span lang="fa">محیط تیم: یک remote، دو clone</span><span lang="en">Team environment: one remote, two clones</span></h2>
+  <p lang="fa">برای بخش اصلی لازم نیست حساب GitHub یا GitLab داشته باشی. یک bare repository روی دیسک نقش remote را دارد و دو clone جدا نقش آلیس و باب را. این محیط برای دیدن refها، push، fetch، تعارض و merge واقعی است؛ اما خودش PR، review approval، CI یا قانون محافظت از <code>main</code> ایجاد نمی‌کند.</p>
+  <p lang="en">The core project does not require a GitHub or GitLab account. A bare repository on disk acts as the remote, and two separate clones act as Alice and Bob. This is enough to observe refs, pushes, fetches, conflicts, and real merges—but it does not create PRs, review approvals, CI, or branch-protection rules for <code>main</code>.</p>
+  <p lang="fa">همهٔ دستورهای مسیر محلی در یک ترمینال Bash مانند Git Bash یا WSL نوشته شده‌اند؛ مسیرهای ساخت پوشه را از workspace موقت خودت آغاز کن. فایل‌های starter را با ویرایشگر بساز. پوشه‌های <code>seed</code>، <code>team.git</code>، <code>alice</code>، <code>bob</code> و <code>handoff</code> کنار هم خواهند بود.</p>
+  <p lang="en">Local-route commands use a Bash-compatible terminal such as Git Bash or WSL; start from a disposable workspace. Create starter files with your editor. The <code>seed</code>, <code>team.git</code>, <code>alice</code>, <code>bob</code>, and <code>handoff</code> directories will sit side by side.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">ساخت خط پایه و bare remote / create baseline and remote</span><button class="copy">کپی</button></div><pre dir="ltr">cd /path/to/disposable/team-project
+cd seed
+git init -b main
+git config user.name "Seed Maintainer"
+git config user.email "seed@example.invalid"
+git add package.json config src test
+git commit -m "feat: add text export baseline"
+node --test
+cd ..
+git clone --bare seed team.git
+git clone team.git alice
+git clone team.git bob
+git -C alice config user.name "Alice"
+git -C alice config user.email "alice@example.invalid"
+git -C bob config user.name "Bob"
+git -C bob config user.email "bob@example.invalid"</pre></div>
+  <p lang="fa">اگر Git قدیمی‌تر از نسخه‌ای است که <code>git init -b</code> را می‌شناسد، <code>git init</code> بزن و بعد <code>git branch -M main</code>. حالا از هر دو clone آزمون خط مبنا را اجرا و <code>git remote -v</code> را ببین: هر دو باید remote محلی <code>team.git</code> را نشان دهند. ایمیل‌های <code>.invalid</code> نمونه‌اند و ایمیل واقعی کسی نیستند.</p>
+  <p lang="en">If your Git predates <code>git init -b</code>, run <code>git init</code> and then <code>git branch -M main</code>. Run the baseline test from both clones and inspect <code>git remote -v</code>; each should point to the local <code>team.git</code>. The <code>.invalid</code> email addresses are examples, not real people’s addresses.</p>
+  <figure><div class="diagram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 330" role="img" aria-labelledby="g18-d2-title g18-d2-desc" direction="ltr">
+    <title id="g18-d2-title">Pull request review and update loop</title><desc id="g18-d2-desc">The author pushes a branch and opens a pull request. A reviewer reads the diff and requests a change. The author pushes the fix, checks rerun, and the PR is reviewed again before merge.</desc>
+    <defs><marker id="g18-d2-a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0v10l9-5z" fill="#8290ff"/></marker></defs>
+    <rect class="dg-fill-v dg-stroke-v" x="35" y="50" width="250" height="100" rx="16"/><rect class="dg-fill dg-stroke" x="375" y="50" width="250" height="100" rx="16"/><rect class="dg-fill-w dg-stroke-w" x="715" y="50" width="250" height="100" rx="16"/><rect class="dg-fill-g dg-stroke-g" x="715" y="212" width="250" height="86" rx="16"/><rect class="dg-fill dg-stroke" x="375" y="212" width="250" height="86" rx="16"/>
+    <g class="dg-t" text-anchor="middle" direction="ltr"><text x="160" y="91">Author pushes branch</text><text class="dg-ts" x="160" y="120">opens PR · explains scope</text><text x="500" y="91">Reviewer reads diff</text><text class="dg-ts" x="500" y="120">correctness + clarification</text><text x="840" y="91">Request changes</text><text class="dg-ts" x="840" y="120">review decision on host</text><text x="840" y="248">Author pushes fix</text><text class="dg-ts" x="840" y="275">tests run again</text><text x="500" y="248">fresh review → merge</text><text class="dg-ts" x="500" y="275">policy + chosen method</text></g>
+    <path class="dg-arrow" d="M285 100h78M625 100h78M840 150v54M715 255h-78M375 255H160V160" fill="none" stroke="#8290ff" stroke-width="2.5" marker-end="url(#g18-d2-a)"/>
+  </svg></div><figcaption><span lang="fa">نمودار ۲ — PR چرخه‌ای از diff و گفت‌وگوست که میزبان نگه می‌دارد. push به شاخهٔ PR معمولاً همان درخواست باز را به‌روز می‌کند؛ در مسیر bare Git این چرخه را با یادداشت دستی شبیه‌سازی می‌کنیم.</span><span lang="en">Diagram 2 — A PR is a host-managed cycle around a diff and its discussion. Pushing to the PR branch normally updates that open request; with bare Git, we simulate the cycle in a written record.</span></figcaption></figure>
+</section>
+
+<section id="constraints">
+  <h2><span lang="fa">قیدها و سیاست تیم</span><span lang="en">Constraints and team policy</span></h2>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">قید</span><span lang="en">Constraint</span></th><th><span lang="fa">قاعدهٔ مأموریت</span><span lang="en">Mission rule</span></th><th><span lang="fa">دلیل</span><span lang="en">Reason</span></th></tr></thead><tbody>
+    <tr><td><code>main</code></td><td><span lang="fa">پایدار؛ کار روزانه روی feature branch</span><span lang="en">Stable; daily work happens on feature branches</span></td><td><span lang="fa">تغییر ناتمام وارد خط پایه نشود.</span><span lang="en">Keep unfinished work out of the baseline.</span></td></tr>
+    <tr><td><span lang="fa">انتشار تغییر</span><span lang="en">Publishing changes</span></td><td><span lang="fa">push معمولی؛ بدون force push</span><span lang="en">Normal push; no force-push</span></td><td><span lang="fa">بازنویسی branch منتشرشده لازم نیست.</span><span lang="en">There is no need to rewrite a published branch.</span></td></tr>
+    <tr><td><span lang="fa">بازبینی</span><span lang="en">Review</span></td><td><span lang="fa">یک نظر correctness و یک نظر شفاف‌سازی</span><span lang="en">One correctness comment and one clarification</span></td><td><span lang="fa">نظر باید به تغییر یا توضیح قابل مشاهده برسد.</span><span lang="en">Feedback must lead to a visible change or explanation.</span></td></tr>
+    <tr><td><span lang="fa">main جلو می‌رود</span><span lang="en">main advances</span></td><td><span lang="fa">fetch، دیدن graph، سپس integration آگاهانه</span><span lang="en">Fetch, inspect the graph, then integrate deliberately</span></td><td><span lang="fa">push ردشده مجوز force کردن نیست.</span><span lang="en">A rejected push is not permission to force.</span></td></tr>
+    <tr><td><span lang="fa">سیاست ادغام</span><span lang="en">Merge policy</span></td><td><span lang="fa">merge commit با <code>--no-ff</code></span><span lang="en">Merge commits with <code>--no-ff</code></span></td><td><span lang="fa">رابطهٔ شاخه‌ها و نقطهٔ ادغام در graph می‌ماند.</span><span lang="en">Branch relationships and integration points remain visible.</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa">این انتخاب قانون همیشگی نیست. merge commit در این مأموریت کمک می‌کند مسیر هر feature را پس از ادغام ببینی. تیمی دیگر ممکن است squash را برای یک commit نهایی به‌ازای هر PR بخواهد یا rebase را برای تاریخچهٔ خطی انتخاب کند. روش‌های قابل انتخاب در GitHub هم تابع تنظیمات همان مخزن‌اند؛ merge محلی به‌تنهایی policy میزبان را فعال نمی‌کند.</p>
+  <p lang="en">This is not a universal rule. A merge commit helps this mission retain each feature’s path after integration. Another team might prefer squash for one final commit per PR, or rebase for a linear history. GitHub’s available methods depend on repository settings; a local merge does not enable host policy.</p>
+</section>
+
+<section id="milestones">
+  <h2><span lang="fa">مسیر کار: از دو branch تا یک تحویل</span><span lang="en">Work plan: from two branches to one handoff</span></h2>
+  <h3><span lang="fa">۱ — خط پایه را در هر دو clone ثابت کن</span><span lang="en">1 — Establish the baseline in both clones</span></h3>
+  <p lang="fa">در <code>alice/</code> و <code>bob/</code> آزمون‌ها باید سبز باشند و <code>git status --short --branch</code> نباید تغییر کاری نشان بدهد. شناسهٔ commit پایه را ثبت کن. <code>git rev-parse main</code> باید در هر دو یکسان باشد.</p><p lang="en">Tests should pass in both <code>alice/</code> and <code>bob/</code>, with no working changes in status. Record the baseline commit ID. <code>git rev-parse main</code> should match in both clones.</p>
+  <h3><span lang="fa">۲ — آلیس feature را push و PR را آماده می‌کند</span><span lang="en">2 — Alice pushes a feature and prepares its PR</span></h3>
+  <p lang="fa">آلیس branch کوتاه‌عمر <code>feature/alice-csv</code> می‌سازد، CSV و آزمون ساده‌اش را اضافه می‌کند و مقدار <code>csv</code> را به آرایهٔ مشترک <code>config/formats.json</code> می‌افزاید. commit روشن <code>feat: add CSV export</code> بسازد، آزمون بگیرد و branch را با upstream push کند.</p><p lang="en">Alice creates short-lived <code>feature/alice-csv</code>, adds CSV support and a simple test, and appends <code>csv</code> to shared <code>config/formats.json</code>. She makes a clear <code>feat: add CSV export</code> commit, tests, and pushes with an upstream.</p>
+  <p lang="fa">پروندهٔ PR را با پنج بخش بنویس: مشکل، راه‌حل، محدوده، آزمون‌های اجراشده و محدودیت شناخته‌شده. عمداً در نسخهٔ اول، comma و quote داخل مقدار CSV را escape نکن؛ آزمون ساده فعلاً سبز است. reviewer باید این نقص را پیدا کند.</p><p lang="en">Write the PR brief with five parts: problem, approach, scope, tests run, and known limitation. Deliberately leave commas and quotes inside CSV values unescaped in version one; the simple test still passes. The reviewer should catch the gap.</p>
+  <h3><span lang="fa">۳ — باب هم‌زمان JSON را جلو می‌برد</span><span lang="en">3 — Bob independently advances JSON</span></h3>
+  <p lang="fa">باب از همان خط پایه branch <code>feature/bob-json</code> می‌سازد، خروجی JSON و آزمونش را اضافه می‌کند و همان <code>config/formats.json</code> را تغییر می‌دهد تا <code>json</code> هم فعال باشد. branch را push کند؛ هنوز کار آلیس را در clone خودش ندارد. دو clone یعنی دو واقعیت محلی متفاوت.</p><p lang="en">Bob branches from the same baseline as <code>feature/bob-json</code>, adds JSON output and its test, and edits the same config to enable <code>json</code>. He pushes; Alice’s work is not in his clone yet. Two clones mean two different local realities.</p>
+  <h3><span lang="fa">۴ — تغییر باب وارد main می‌شود؛ آلیس عقب می‌افتد</span><span lang="en">4 — Bob’s change reaches main; Alice falls behind</span></h3>
+  <p lang="fa">در مسیر bare، پروندهٔ review باب را با آزمون و نظر قابل پاسخ کامل کن؛ سپس نقش maintainer را بازی کن و تغییر باب را با merge commit به <code>main</code> وارد و push کن. این نقش میزبان را شبیه‌سازی می‌کند؛ bare repository خودش PR یا مجوز push را enforce نمی‌کند.</p><p lang="en">On the bare route, complete Bob’s review record with a test and actionable comment, then act as maintainer: merge Bob into <code>main</code> with a merge commit and push. This simulates the host’s decision; bare Git does not enforce PRs or push permissions.</p>
+  <p lang="fa">حالا از branch آلیس fetch کن و پیش از integration، graph همهٔ refها را بخوان. <code>origin/main</code> جلوتر است و branch آلیس هنوز آن commit را ندارد. در config تعارض خواهی دید؛ هر دو قابلیت را نگه دار و آزمون CSV و JSON را اجرا کن. قبل از حل، حدس بزن کدام خط تعارض می‌کند.</p><p lang="en">Fetch from Alice’s branch and inspect the all-refs graph before integrating. <code>origin/main</code> is ahead, and Alice’s branch lacks that commit. Config will conflict; preserve both features and test CSV and JSON. Predict which line conflicts before resolving.</p>
+  <figure><div class="diagram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 360" role="img" aria-labelledby="g18-d3-title g18-d3-desc" direction="ltr">
+    <title id="g18-d3-title">Alice is behind after Bob's feature reaches main</title><desc id="g18-d3-desc">Alice and Bob branch from B0. Alice has A1; Bob has J1 and main advances to M1. Alice fetches and integrates origin/main, where config conflicts.</desc>
+    <defs><marker id="g18-d3-a" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto"><path d="M0 0v9l8-4.5z" fill="#8290ff"/></marker></defs>
+    <path d="M160 159L309 105M160 181L309 243M374 90h138" fill="none" stroke="#8290ff" stroke-width="2.5" marker-end="url(#g18-d3-a)"/>
+    <circle class="dg-fill" cx="130" cy="170" r="34"/><circle class="dg-fill-g" cx="340" cy="90" r="34"/><circle class="dg-fill-v" cx="340" cy="258" r="34"/><circle class="dg-fill" cx="550" cy="90" r="38"/>
+    <g class="dg-t" text-anchor="middle" direction="ltr"><text x="130" y="176">B0</text><text x="340" y="96">J1</text><text x="340" y="264">A1</text><text x="550" y="96">M1</text><text class="dg-ts" x="130" y="222">shared base</text><text class="dg-ts" x="340" y="138">Bob: JSON</text><text class="dg-ts" x="340" y="312">Alice: CSV · local tip</text><text class="dg-ts" x="550" y="143">origin/main</text></g>
+    <rect class="dg-fill" x="685" y="212" width="275" height="88" rx="14"/><text class="dg-t" x="822" y="248" text-anchor="middle" direction="ltr">fetch → inspect → merge</text><text class="dg-ts" x="822" y="276" text-anchor="middle" direction="ltr">then resolve shared config</text>
+    <path class="dg-arrow" d="M574 112C625 140 656 180 684 220" fill="none" stroke="#8290ff" stroke-width="2.5" marker-end="url(#g18-d3-a)"/>
+  </svg></div><figcaption><span lang="fa">نمودار ۳ — دو شاخه از <code>B0</code> جدا می‌شوند. باب به <code>M1</code> می‌رسد؛ آلیس هنوز در <code>A1</code> است. پیکان از نوک main تازه به تصمیم آلیس می‌رود؛ integration تعارض config را آشکار می‌کند.</span><span lang="en">Diagram 3 — The branches diverge at <code>B0</code>. Bob reaches <code>M1</code>; Alice remains at <code>A1</code>. The arrow carries the new main tip to Alice’s decision; integration exposes the config conflict.</span></figcaption></figure>
+  <h3><span lang="fa">۵ — review را به اصلاح قابل آزمون تبدیل کن</span><span lang="en">5 — Turn review feedback into a tested fix</span></h3>
+  <p lang="fa">reviewer یک نظر correctness می‌گذارد: مقدار دارای comma، quote یا newline باید طبق قرارداد CSV encode شود. نظر دوم می‌پرسد اگر قالب فعال نباشد یا ورودی خالی باشد رفتار چیست، و چرا تنظیم فعال‌بودن بیرون از exporter است. این فقط سلیقه نیست؛ قرارداد را در README و آزمون روشن کن.</p><p lang="en">The reviewer leaves a correctness comment: CSV values containing commas, quotes, or newlines must be encoded correctly. A second asks what happens when the format is disabled or input is empty, and why enablement lives outside the exporter. This is more than taste; clarify the contract in docs and tests.</p>
+  <p lang="fa">آلیس quoteهای داخلی را دوبرابر و سلول‌های دارای comma، quote یا newline را quote می‌کند؛ آزمون می‌نویسد و رفتار ورودی خالی را مشخص می‌کند. نظر دوم را با توضیح یا تغییر مستند پاسخ می‌دهد. بازخورد را در commit جدا مثل <code>fix: escape CSV fields</code> ثبت و branch را عادی push می‌کند. اگر policy میزبان approval قبلی را stale کند، reviewer نسخهٔ تازه را دوباره می‌بیند.</p><p lang="en">Alice doubles embedded quotes, quotes cells containing commas, quotes, or newlines, adds tests, and defines empty-input behavior. She answers the second comment with a documentation change or explanation. She records the follow-up in a separate commit such as <code>fix: escape CSV fields</code> and pushes normally. If host policy marks approval stale, the reviewer checks the new version.</p>
+  <h3><span lang="fa">۶ — ادغام، پاک‌سازی و همگام‌سازی باب</span><span lang="en">6 — Merge, clean up, and synchronize Bob</span></h3>
+  <p lang="fa">پس از حل تعارض و review، push را عادی انجام بده؛ اگر رد شد fetch و graph را دوباره ببین. maintainer تغییر آلیس را با merge commit وارد <code>main</code> می‌کند. شاخه‌ها را فقط پس از اثبات ادغام پاک کن؛ Bob fetch می‌کند، <code>main</code> خودش را fast-forward می‌کند و همان آزمون را اجرا می‌کند.</p><p lang="en">After conflict resolution and review, push normally; if rejected, fetch and inspect the graph again. The maintainer integrates Alice with a merge commit. Delete branches only after proving they were merged; Bob fetches, fast-forwards his <code>main</code>, and runs the same tests.</p>
+</section>
+
+<section id="pr-record">
+  <h2><span lang="fa">PR باید سؤال روشنی برای بازبین بسازد</span><span lang="en">A PR should give reviewers a clear question</span></h2>
+  <p lang="fa">در مسیر local-bare، خود Git چیزی به اسم PR ندارد؛ برای اینکه review را فقط در ذهن اجرا نکنی، دو پرونده در <code>handoff/</code> بیرون از cloneها نگه دار: <code>alice-pr.md</code> و <code>review-log.md</code>. این یادداشت‌ها جای remote یا commit نیستند؛ تصمیم‌های میزبان را در محیطی ثبت می‌کنند که میزبان واقعی ندارد.</p><p lang="en">In the local bare route, Git has no PR object. To make review observable rather than imaginary, keep <code>alice-pr.md</code> and <code>review-log.md</code> in <code>handoff/</code>, outside the clones. These notes are not a remote or commits; they record host decisions in an environment without a host.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">بخش PR</span><span lang="en">PR field</span></th><th><span lang="fa">پرسش</span><span lang="en">Question</span></th><th><span lang="fa">مدرک</span><span lang="en">Evidence</span></th></tr></thead><tbody>
+    <tr><td><span lang="fa">مشکل</span><span lang="en">Problem</span></td><td><span lang="fa">چه نیازی داریم؟</span><span lang="en">What need are we addressing?</span></td><td><span lang="fa">قالب‌های خروجی محدودند.</span><span lang="en">Available export formats are limited.</span></td></tr>
+    <tr><td><span lang="fa">راه‌حل</span><span lang="en">Approach</span></td><td><span lang="fa">چه چیزی عوض می‌شود؟</span><span lang="en">What changes?</span></td><td><span lang="fa">افزودن exporter و فعال‌کردن فرمت در config.</span><span lang="en">Add an exporter and enable it in config.</span></td></tr>
+    <tr><td><span lang="fa">محدوده</span><span lang="en">Scope</span></td><td><span lang="fa">چه چیزی بیرون است؟</span><span lang="en">What is out of scope?</span></td><td><span lang="fa">بدون dependency تازه یا تغییر API پایه.</span><span lang="en">No new dependency or baseline API change.</span></td></tr>
+    <tr><td><span lang="fa">آزمون</span><span lang="en">Testing</span></td><td><span lang="fa">چه چیزی اجرا شد؟</span><span lang="en">What ran?</span></td><td><code>node --test</code> <span lang="fa">و نتیجه‌اش</span><span lang="en">and its result</span></td></tr>
+    <tr><td><span lang="fa">ریسک</span><span lang="en">Risk</span></td><td><span lang="fa">چه محدودیتی مانده؟</span><span lang="en">What limitation remains?</span></td><td><span lang="fa">نسخهٔ اول CSV escape کامل ندارد و نباید merge شود.</span><span lang="en">Initial CSV lacks escaping and must not merge yet.</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa">در GitHub، نظر inline، وضعیت review و check کنار PR ثبت می‌شوند؛ در bare route آن‌ها را در review-log با نام reviewer، commit بررسی‌شده، نظرها، پاسخ آلیس و آزمون یادداشت کن. “Request changes” به‌تنهایی همیشه قفل فنی نیست؛ اگر branch protection/ruleset آن را الزام نکرده باشد، ممکن است maintainer بتواند merge کند. ظاهر review را با policy enforceشده یکی نگیر.</p><p lang="en">On GitHub, inline comments, review state, and checks attach to the PR; in the bare route, record reviewer, reviewed commit, comments, Alice’s response, and test result. “Request changes” is not always a technical lock: without an enforcing branch protection rule or ruleset, a maintainer may still merge. Do not confuse review status with enforced policy.</p>
+  <figure><div class="diagram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 285" role="img" aria-labelledby="g18-d4-title g18-d4-desc" direction="ltr">
+    <title id="g18-d4-title">Git data and hosting review are different layers</title><desc id="g18-d4-desc">Git stores commits and branches; a host attaches PR description, review decisions, and CI to those refs and gates merge only according to configured rules.</desc>
+    <defs><marker id="g18-d4-a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0v10l9-5z" fill="#8290ff"/></marker></defs>
+    <rect class="dg-fill-v dg-stroke-v" x="35" y="58" width="260" height="120" rx="16"/><rect class="dg-fill dg-stroke" x="360" y="58" width="260" height="120" rx="16"/><rect class="dg-fill-g dg-stroke-g" x="685" y="58" width="260" height="120" rx="16"/>
+    <g class="dg-t" text-anchor="middle" direction="ltr"><text x="165" y="98">Local Git</text><text class="dg-ts" x="165" y="127">commits · branches · merge</text><text class="dg-ts" x="165" y="153">objects in repositories</text><text x="490" y="98">Remote refs</text><text class="dg-ts" x="490" y="127">push / fetch</text><text class="dg-ts" x="490" y="153">bare or hosted service</text><text x="815" y="98">Hosting platform</text><text class="dg-ts" x="815" y="127">PR · review · checks</text><text class="dg-ts" x="815" y="153">rules may gate merge</text></g>
+    <path class="dg-arrow" d="M295 118h55M620 118h55" fill="none" stroke="#8290ff" stroke-width="2.5" marker-end="url(#g18-d4-a)"/>
+    <rect class="dg-fill" x="245" y="218" width="490" height="44" rx="12"/><text class="dg-ts" x="490" y="246" text-anchor="middle" direction="ltr">PR metadata and review history are not Git commit objects.</text>
+  </svg></div><figcaption><span lang="fa">نمودار ۴ — commit و branch دادهٔ Git هستند؛ PR و review دادهٔ میزبان‌اند که به refها اشاره می‌کنند. CI فقط وقتی gate ادغام است که policy مخزن آن را لازم بداند.</span><span lang="en">Diagram 4 — Commits and branches are Git data; PRs and reviews are host data that refer to refs. CI gates integration only when repository policy requires it.</span></figcaption></figure>
+</section>
+
+<section id="failure-drills">
+  <h2><span lang="fa">گیرهای تمرین: قبل از واکنش، شاهد جمع کن</span><span lang="en">Project snags: collect evidence before reacting</span></h2>
+  <div class="pitfalls">
+    <div class="pitfall"><b lang="fa">push آلیس رد می‌شود</b><b lang="en">Alice’s push is rejected</b><p lang="fa">پیام ردشدن را نگه دار، <code>git fetch origin</code> بزن و <code>git log --oneline --graph --decorate --all</code> را بخوان. ردشدن می‌گوید remote ref جلوتر یا ناسازگار است؛ هنوز نمی‌گوید کدام integration درست است. force نکن.</p><p lang="en">Keep the rejection message, fetch, and inspect the all-refs graph. Rejection says the remote ref is ahead or incompatible; it does not choose an integration for you. Do not force-push.</p></div>
+    <div class="pitfall"><b lang="fa">config بعد از merge فقط یکی از فرمت‌ها را دارد</b><b lang="en">Config enables only one format after merge</b><p lang="fa">حل conflict یعنی انتخاب نیت نهایی، نه بردن یک سمت. مقدار نهایی باید <code>text</code>، <code>csv</code> و <code>json</code> را داشته باشد. config را بخوان و آزمون هر دو feature را اجرا کن.</p><p lang="en">Conflict resolution chooses the intended result, not a winning side. The final config must include <code>text</code>, <code>csv</code>, and <code>json</code>. Inspect it and test both features.</p></div>
+    <div class="pitfall"><b lang="fa">marker تعارض باقی مانده</b><b lang="en">Conflict markers remain</b><p lang="fa">پیش از commit، <code>git diff --check</code> و جست‌وجوی <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code>، <code>=======</code> و <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code> را انجام بده. آزمون ممکن است markerهای بی‌اثر را نبیند؛ جست‌وجو مدرک مکمل است.</p><p lang="en">Before committing, run <code>git diff --check</code> and search for conflict-marker strings. Tests may miss inert markers; the search is complementary evidence.</p></div>
+    <div class="pitfall"><b lang="fa">باب commitهای تازه را نمی‌بیند</b><b lang="en">Bob cannot see the new commits</b><p lang="fa">remote جلو رفته اما clone خودکار عوض نمی‌شود. fetch کن، graph را بخوان و فقط با working tree تمیز <code>git merge --ff-only origin/main</code> بزن. اگر fast-forward ممکن نباشد، فرمان متوقف می‌شود تا تاریخچه را بفهمی.</p><p lang="en">The remote moved; Bob’s clone did not update itself. Fetch, inspect the graph, and run <code>git merge --ff-only origin/main</code> only with a clean tree. If fast-forward is impossible, the command stops so you can understand the history.</p></div>
+    <div class="pitfall"><b lang="fa">review سبز است اما روش merge فرق می‌کند</b><b lang="en">Review is green but the merge method differs</b><p lang="fa">میزبان ممکن است روش‌های خاص یا up-to-date بودن branch را لازم بداند. تنظیمات repo را بررسی کن؛ merge محلی جای تصمیم GitHub/GitLab نیست.</p><p lang="en">The host may restrict merge methods or require an up-to-date branch. Check repository settings; a local merge is not the host’s decision.</p></div>
+  </div>
+</section>
+
+<section id="acceptance">
+  <h2><span lang="fa">معیار تحویل: هر دو نفر به یک نتیجه برسند</span><span lang="en">Acceptance: both people reach the same result</span></h2>
+  <p lang="fa">این بررسی را در هر دو clone انجام بده. معیار مهم، شناسهٔ یکسان commit نهایی روی <code>main</code> است؛ نه اینکه فقط نام branchها شبیه باشد.</p><p lang="en">Run these checks in both clones. The important criterion is the same final commit ID on <code>main</code>, not merely matching branch names.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">در alice/ و bob/ · run in both clones</span><button class="copy">کپی</button></div><pre dir="ltr">node --test
+git status --short --branch
+git fetch --prune origin
+git log --oneline --graph --decorate --all
+git rev-parse main
+git rev-parse origin/main
+git diff --check origin/main
+git grep -n -E '^(<<<<<<<|=======|>>>>>>>)' main --
+git branch -vv
+git branch -r</pre></div>
+  <p lang="fa">قبولی یعنی هر دو exporter آزمون را می‌گذرانند؛ config هر سه فرمت را فعال می‌کند؛ فرمان جست‌وجوی marker در <code>main</code> خروجی ندارد (کد خروجی ۱ در این حالت یعنی موردی پیدا نشده)؛ status tracked تمیز است؛ شناسهٔ <code>main</code> و <code>origin/main</code> در هر clone برابرند و مقدار main در clone آلیس و باب هم یکی است؛ شاخه‌های feature حذف شده‌اند؛ و graph merge commitهای سیاست را نشان می‌دهد. <code>node --test</code> را اینجا خودت اجرا می‌کنی؛ این کار به‌تنهایی CI نیست. در مسیر میزبانی‌شده، check فقط وقتی جلوی merge را می‌گیرد که تنظیمات مخزن آن را لازم کرده باشد.</p><p lang="en">Pass means both exporters pass; config enables all three formats; the marker search on <code>main</code> prints nothing (exit code 1 means no match here); tracked status is clean; local <code>main</code> equals <code>origin/main</code> in each clone and both clones agree; feature branches are deleted; and the graph shows the policy’s merge commits. You run <code>node --test</code> locally; that alone is not CI. On a hosted route, a check blocks merging only if repository rules require it.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">بررسی</span><span lang="en">Check</span></th><th><span lang="fa">چه چیزی ثابت می‌شود</span><span lang="en">What it proves</span></th><th><span lang="fa">مرزش</span><span lang="en">Its limit</span></th></tr></thead><tbody>
+    <tr><td><code>node --test</code></td><td><span lang="fa">رفتارهای آزموده‌شدهٔ هر دو فرمت درست‌اند.</span><span lang="en">Tested behavior for both formats passes.</span></td><td><span lang="fa">هر ورودی ممکن CSV را ثابت نمی‌کند.</span><span lang="en">Does not prove every possible CSV input.</span></td></tr>
+    <tr><td><code>git rev-parse main origin/main</code></td><td><span lang="fa">main محلی و remote-tracking ref یک commit دارند.</span><span lang="en">Local main and remote-tracking ref name the same commit.</span></td><td><span lang="fa">هر clone را جداگانه باید بسنجی.</span><span lang="en">Must be checked in each clone.</span></td></tr>
+    <tr><td><code>git log --graph --all</code></td><td><span lang="fa">مسیر featureها و نقطه‌های merge دیده می‌شود.</span><span lang="en">Feature paths and integration points are visible.</span></td><td><span lang="fa">review یا CI را ثبت نمی‌کند.</span><span lang="en">Does not record review or CI.</span></td></tr>
+    <tr><td><span lang="fa">پرونده‌های تحویل</span><span lang="en">Handoff files</span></td><td><span lang="fa">PR، نظرها، پاسخ‌ها و نتیجهٔ check مستندند.</span><span lang="en">PR, comments, responses, and checks are documented.</span></td><td><span lang="fa">یادداشت، enforcement میزبان نیست.</span><span lang="en">A note does not enforce host policy.</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa">در bare route، graph و شناسه‌ها را ثابت می‌کنی؛ handoff فقط review را شبیه‌سازی می‌کند. در GitHub واقعی، وضعیت PR، review ثبت‌شده و checkهای میزبان را هم نگه دار. هیچ‌کدام تضمین نمی‌کند تیم در آینده همیشه policy را رعایت کند.</p><p lang="en">With bare Git, you prove graph and commit IDs; handoff only simulates review. In GitHub, retain PR state, submitted reviews, and host checks too. None of this guarantees the team will always follow policy later.</p>
+</section>
+
+<section id="hints">
+  <h2><span lang="fa">اگر گیر کردی، پله‌پله جلو برو</span><span lang="en">If you get stuck, take hints one at a time</span></h2>
+  <details><summary><span lang="fa">۱ — از کجا بفهمم دو clone جدا دارم؟</span><span lang="en">1 — How do I know these are separate clones?</span></summary><p lang="fa"><code>git rev-parse --show-toplevel</code> و <code>git remote -v</code> را در هر دو ببین. مسیر rootها متفاوت ولی remote محلی یکسان است. تغییر فایل در Alice نباید پیش از commit و push در Bob دیده شود.</p><p lang="en">Inspect <code>git rev-parse --show-toplevel</code> and <code>git remote -v</code> in each. Roots differ but the remote matches. Alice’s unpushed file change should not appear in Bob’s clone.</p></details>
+  <details><summary><span lang="fa">۲ — push رد شد؛ اول چه کنم؟</span><span lang="en">2 — Push was rejected; what first?</span></summary><p lang="fa">fetch کن، بعد graph همهٔ refها را ببین. commit remoteای را پیدا کن که HEAD تو ندارد. سپس با توجه به policy تصمیم بگیر merge یا rebase؛ این پروژه merge را انتخاب کرده تا رابطهٔ ادغام در graph دیده شود.</p><p lang="en">Fetch, then inspect all refs. Find the remote commit your HEAD lacks. Choose merge or rebase according to policy; this project uses merge to keep the integration relationship visible.</p></details>
+  <details><summary><span lang="fa">۳ — conflict را به کدام سمت حل کنم؟</span><span lang="en">3 — Which side should win the conflict?</span></summary><p lang="fa">اگر یکی را انتخاب کنی یک feature گم می‌شود. config نهایی باید <code>text</code>، <code>csv</code> و <code>json</code> داشته باشد. خط را بازنویسی کن، markerها را بردار و هر دو exporter را تست کن.</p><p lang="en">Choosing one side loses a feature. Final config needs <code>text</code>, <code>csv</code>, and <code>json</code>. Rewrite the line, remove markers, and test both exporters.</p></details>
+  <details><summary><span lang="fa">۴ — review چه وقت پاسخ گرفته؟</span><span lang="en">4 — When is review feedback addressed?</span></summary><p lang="fa">کد یا مستندات را تغییر بده، آزمون مرتبط را اضافه و پاسخ هر نظر را ثبت کن. پرسش قراردادی ممکن است با توضیح حل شود؛ نگرانی correctness به آزمون نیاز دارد. اگر diff عوض شد، در hosted PR درخواست review تازه بده.</p><p lang="en">Update code or docs, add relevant tests, and record each response. A contract question may be answered with clarification; a correctness concern needs a test. If the diff changes, request another hosted review.</p></details>
+  <details><summary><span lang="fa">۵ — چطور Bob را به main نهایی برسانم؟</span><span lang="en">5 — How do I bring Bob to final main?</span></summary><p lang="fa">بعد از push نهایی، Bob fetch می‌کند، تمیزبودن working tree را می‌سنجد و <code>git merge --ff-only origin/main</code> می‌زند. اگر fast-forward نشد، توقف کن و graph را بفهم؛ دستور عمداً از ساختن integration پنهانی خودداری می‌کند.</p><p lang="en">After the final push, Bob fetches, checks for a clean tree, and runs <code>git merge --ff-only origin/main</code>. If fast-forward fails, stop and inspect the graph; the command intentionally avoids a hidden integration.</p></details>
+</section>
+
+<section id="reference">
+  <h2><span lang="fa">راه‌حل مرجع، بعد از انجام مأموریت</span><span lang="en">Reference solution, after attempting the mission</span></h2>
+  <p lang="fa">راه‌حل دو لایه دارد: A) Git خالص با bare remote و دو clone؛ B) مسیر PR میزبانی‌شده. لازم نیست فرمان‌ها را از حفظ بگویی؛ باید graph، آزمون و تصمیم review را توضیح بدهی.</p><p lang="en">The reference has two layers: A) pure Git with a bare remote and two clones; B) a hosted PR path. You do not need to memorize commands; explain the graph, tests, and review decisions.</p>
+  <details class="ex-sol"><summary><span lang="fa">راه‌حل A — bare remote</span><span lang="en">Solution A — bare remote</span></summary>
++    <h3><span lang="fa">branch بساز، تغییر را بفرست</span><span lang="en">Branch, commit, and push</span></h3>
+    <p lang="fa">پوشهٔ Alice و Bob جداست؛ پیش از push اول، commit را در clone مربوطه و روی شاخهٔ کوتاه‌عمر بساز. فایل‌های تغییرکرده را مشخص stage کن؛ <code>git add .</code> را جای بازبینی diff نگذار.</p><p lang="en">Alice and Bob have separate working directories. Make each commit in its own clone on the short-lived feature branch. Stage intended paths explicitly; do not use <code>git add .</code> as a substitute for reviewing the diff.</p>
+    <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">فرمان‌های دو feature / feature branch commands</span><button class="copy">کپی</button></div><pre dir="ltr"># Alice clone
+cd ../alice
+git switch -c feature/alice-csv
+# create src/formats/csv.js and test/csv.test.js; append csv to config
+node --test
+git diff --check
+git add config/formats.json src/formats/csv.js test/csv.test.js
+git diff --cached
+git commit -m "feat: add CSV export"
+git push -u origin feature/alice-csv
+
+# Bob clone, independently from baseline main
+cd ../bob
+git switch -c feature/bob-json
+# create src/formats/json.js and test/json.test.js; append json to config
+node --test
+git diff --check
+git add config/formats.json src/formats/json.js test/json.test.js
+git diff --cached
+git commit -m "feat: add JSON export"
+git push -u origin feature/bob-json</pre></div>
+
+    <h3><span lang="fa">پیاده‌سازی مرجع featureها</span><span lang="en">Reference feature implementations</span></h3>
+    <p lang="fa">Alice روی branch خودش config را به text و csv تغییر می‌دهد؛ پس از merge باب، main به text و json رسیده و تعارض باید هر سه را نگه دارد. آزمون خط پایه فقط وجود text را می‌سنجد، پس با اضافه‌شدن قالب‌ها معتبر می‌ماند. نسخهٔ کامل CSV قرارداد escape را روشن می‌کند: سلولی که comma، quote یا newline دارد quote می‌شود و quote داخلی دوبرابر می‌شود.</p><p lang="en">Alice’s branch enables text and csv; after Bob’s merge, main enables text and json, so conflict resolution must preserve all three. The baseline test checks only that text remains enabled, so it stays valid as formats are added. The completed CSV code makes escaping explicit: quote cells containing commas, quotes, or newlines, and double embedded quotes.</p>
+    <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">src/formats/csv.js و src/formats/json.js</span><button class="copy">کپی</button></div><pre dir="ltr"><code>// src/formats/csv.js
+const { assertEnabled } = require("../registry");
+
+function cell(value) {
+  const raw = String(value);
+  if (/[",\r\n]/.test(raw)) {
+    return `"${raw.replaceAll('"', '""')}"`;
+  }
+  return raw;
+}
+
+function csv(rows) {
+  assertEnabled("csv");
+  const records = rows.map((row) =&gt; `${cell(row.name)},${cell(row.count)}`);
+  return ["name,count", ...records].join("\n");
+}
+
+module.exports = { csv };
+
+// src/formats/json.js
+const { assertEnabled } = require("../registry");
+
+function json(rows) {
+  assertEnabled("json");
+  return JSON.stringify(rows, null, 2);
+}
+
+module.exports = { json };</code></pre></div>
+    <p lang="fa">آزمون CSV باید مقدار ساده، comma، quote و ورودی خالی را بپوشاند. در این قرارداد، آرایهٔ خالی فقط header را برمی‌گرداند. آزمون JSON خروجی را با <code>JSON.parse</code> بخواند و داده را مقایسه کند؛ به فاصله‌گذاری اتفاقی وابسته نشود.</p><p lang="en">CSV tests should cover a plain value, comma, quote, and empty input. Under this contract, an empty array returns only the header. The JSON test should parse output and compare data rather than depend on incidental whitespace.</p>
+    <h3><span lang="fa">ترتیب تغییرها</span><span lang="en">Change sequence</span></h3>
+    <ol>
+      <li><span lang="fa">آلیس از main شاخهٔ <code>feature/alice-csv</code> می‌سازد؛ exporter CSV ساده و آزمونش را اضافه می‌کند، config را تغییر می‌دهد، commit می‌زند و <code>git push -u origin feature/alice-csv</code> را اجرا می‌کند.</span><span lang="en">Alice creates <code>feature/alice-csv</code>, adds a simple CSV exporter and test, edits config, commits, and runs <code>git push -u origin feature/alice-csv</code>.</span></li>
+      <li><span lang="fa">باب از همان baseline شاخهٔ <code>feature/bob-json</code> می‌سازد، JSON و آزمونش را اضافه می‌کند، همان config را تغییر می‌دهد و push می‌کند.</span><span lang="en">Bob branches from the same baseline as <code>feature/bob-json</code>, adds JSON and its test, changes the same config, and pushes.</span></li>
+      <li><span lang="fa">پس از ثبت review باب، maintainer در clone آلیس main را به‌روز می‌کند، <code>origin/feature/bob-json</code> را با <code>--no-ff</code> merge و main را push می‌کند. این شبیه‌سازی نقش میزبان است؛ bare Git قانون PR را اجرا نکرده.</span><span lang="en">After recording Bob’s review, the maintainer updates main in Alice’s clone, merges <code>origin/feature/bob-json</code> with <code>--no-ff</code>, then pushes main. This simulates the host; bare Git did not enforce a PR rule.</span></li>
+      <li><span lang="fa">آلیس روی feature، fetch و graph را می‌بیند، <code>origin/main</code> را merge می‌کند، conflict config را با هر سه فرمت حل می‌کند و آزمون می‌گیرد.</span><span lang="en">On her feature, Alice fetches and inspects the graph, merges <code>origin/main</code>, resolves config with all three formats, and tests.</span></li>
+      <li><span lang="fa">بازخورد CSV را با escape سلول‌های دارای comma/quote/newline، دوبرابرکردن quote و آزمون پاسخ می‌دهد. برای clarification قرارداد config و ورودی خالی را در README روشن می‌کند.</span><span lang="en">She addresses CSV feedback by escaping cells with commas, quotes, or newlines, doubling embedded quotes, and testing. She clarifies config and empty-input behavior in the README.</span></li>
+      <li><span lang="fa">تغییر review را جدا commit و عادی push می‌کند؛ پس از review تازه maintainer branch را با merge commit وارد main می‌کند.</span><span lang="en">She commits review changes separately and pushes normally; after a fresh review, the maintainer merges the branch with a merge commit.</span></li>
+    </ol>
+    <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">نمونهٔ conflict / representative conflict</span><button class="copy">کپی</button></div><pre dir="ltr"><<<<<<< HEAD
+  "enabled": ["text", "csv"]
+=======
+  "enabled": ["text", "json"]
+>>>>>>> origin/main</pre></div>
+    <p lang="fa">markerها را به نتیجهٔ موردنظر تبدیل کن؛ آن‌ها را با هم commit نکن. در این پروژه، آرایهٔ نهایی <code>[\"text\", \"csv\", \"json\"]</code> است. ترتیب JSON array اینجا بخشی از قرارداد آزمون تیم است؛ اگر در پروژهٔ واقعی ترتیب معنا ندارد، مستند کن که چرا هر ترتیبی پذیرفته می‌شود.</p><p lang="en">Replace the markers with the intended result; do not commit them. Here the final array is <code>[\"text\", \"csv\", \"json\"]</code>. Its order is part of this project’s test contract; if order is irrelevant in a real project, document why any order is accepted.</p>
+    <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">ادغام باب، تازه‌سازی آلیس و همگام‌سازی / integration sequence</span><button class="copy">کپی</button></div><pre dir="ltr"># Alice clone: integrate Bob's approved branch as maintainer
+git switch main
+git fetch origin
+git merge --ff-only origin/main
+git merge --no-ff origin/feature/bob-json -m "merge: integrate Bob JSON export"
+node --test
+git push origin main
+
+# Alice: return to her feature and inspect the new remote tip
+git switch feature/alice-csv
+git fetch origin
+git log --oneline --graph --decorate --all
+git merge origin/main
+# resolve config/formats.json, test, then complete the merge
+node --test
+git diff --check
+git add config/formats.json
+git commit -m "merge: sync CSV branch with main"
+
+# after review fixes and tests
+node --test
+git push</pre></div>
+    <p lang="fa">این ترتیب عمداً <code>main</code> را فقط در نقش maintainer جلو می‌برد؛ در GitHub واقعی، PR باید از میزبان merge شود تا policy enforce شود. پس از حل تعارض، branch آلیس از remote عقب نیست و push معمولی کافی است. اگر remote باز هم جلو رفت، دوباره fetch و graph را بررسی کن.</p><p lang="en">This sequence advances main only while acting as maintainer; on GitHub, merge the PR on the host so its policy is enforced. After conflict resolution, Alice’s branch can be pushed normally. If the remote moves again, fetch and inspect the graph again.</p>
+    <h3><span lang="fa">نمودار پایانی مورد انتظار</span><span lang="en">Expected final graph</span></h3>
+    <figure><div class="diagram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1020 340" role="img" aria-labelledby="g18-d5-title g18-d5-desc" direction="ltr">
+      <title id="g18-d5-title">Merge-commit policy preserves both feature paths</title><desc id="g18-d5-desc">The base splits into Alice and Bob. Bob is merged into main first. Alice merges that updated main into her feature branch to resolve the config conflict, then Alice's reviewed feature is merged into main.</desc>
+      <defs><marker id="g18-d5-a" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto"><path d="M0 0v9l8-4.5z" fill="#8290ff"/></marker></defs>
+      <circle class="dg-fill" cx="70" cy="170" r="28"/><circle class="dg-fill-v" cx="250" cy="78" r="28"/><circle class="dg-fill-v" cx="415" cy="78" r="28"/><circle class="dg-fill-g" cx="250" cy="270" r="28"/><circle class="dg-fill-g" cx="435" cy="270" r="32"/><circle class="dg-fill-w" cx="635" cy="78" r="32"/><circle class="dg-fill" cx="870" cy="170" r="32"/>
+      <path d="M95 157L225 91M278 78h109M443 78h160M95 183L225 257M278 270h125M443 247L613 94M467 270L840 180M667 90L842 157" fill="none" stroke="#8290ff" stroke-width="2.5" marker-end="url(#g18-d5-a)"/>
+      <g class="dg-t" text-anchor="middle" direction="ltr"><text x="70" y="176">B0</text><text x="250" y="84">A1</text><text x="415" y="84">A2</text><text x="250" y="276">J1</text><text x="435" y="276">M1</text><text x="635" y="84">U1</text><text x="870" y="176">M2</text><text class="dg-ts" x="70" y="216">base</text><text class="dg-ts" x="250" y="120">Alice CSV</text><text class="dg-ts" x="415" y="120">review fix</text><text class="dg-ts" x="250" y="318">Bob JSON</text><text class="dg-ts" x="435" y="318">Bob → main</text><text class="dg-ts" x="635" y="122">Alice merges new main</text><text class="dg-ts" x="870" y="218">Alice → main</text></g>
+    </svg></div><figcaption><span lang="fa">نمودار ۵ — B0 دو شاخه می‌سازد. M1 تغییر باب را وارد main می‌کند؛ U1 آن main تازه را در branch آلیس ادغام می‌کند؛ M2 PR آلیس را وارد main می‌کند. پیکان‌ها parentهای commit ادغام را نشان می‌دهند، نه مقیاس زمانی.</span><span lang="en">Diagram 5 — B0 splits into two branches. M1 integrates Bob into main; U1 merges updated main into Alice’s branch; M2 integrates Alice’s PR. Arrows represent merge-parent relationships, not a time scale.</span></figcaption></figure>
+    <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">باب: دریافت main نهایی و حذف refهای کهنه / Bob: sync and prune</span><button class="copy">کپی</button></div><pre dir="ltr">git fetch --prune origin
+git switch main
+git merge --ff-only origin/main
+node --test
+git rev-parse main
+git rev-parse origin/main
+
+# after both PRs have been integrated
+git push origin --delete feature/alice-csv feature/bob-json
+git fetch --prune origin
+git branch -d feature/bob-json</pre></div>
+    <p lang="fa">در clone باب، branch محلی آلیس وجود ندارد مگر خودت ساخته باشی؛ پس branch محلی را فقط جایی حذف کن که وجود دارد. در clone آلیس هم بعد از رفتن روی main، <code>git fetch --prune</code> و <code>git branch -d feature/alice-csv</code> اجرا کن. prune فقط remote-tracking refهای حذف‌شده را پاک می‌کند، نه شاخه‌های محلی یا commitهای reachable.</p><p lang="en">Bob’s clone has no local Alice branch unless you created one, so delete local branches only where they exist. In Alice’s clone, switch to main, prune, and delete <code>feature/alice-csv</code>. Prune removes stale remote-tracking refs, not local branches or reachable commits.</p>
+  </details>
+  <details class="ex-sol"><summary><span lang="fa">راه‌حل B — hosted PR</span><span lang="en">Solution B — hosted PRs</span></summary>
+    <p lang="fa">اگر GitHub در دسترس است، repository خصوصی یا آزمایشی بساز و Alice و Bob را collaborator کن. مخزن را خالی بساز تا README اولیه با baseline تعارض نکند. دو PR جدا با base برابر <code>main</code> باز کن. باب review می‌خواهد؛ آلیس دو نظر inline ثبت می‌کند؛ باب PR خودش را تکمیل و طبق روش مجاز merge می‌کند تا main جلو برود. آلیس branch را از base تازه sync، تعارض را حل، آزمون را اجرا و push می‌کند؛ PR همان branch تازه را نشان می‌دهد.</p><p lang="en">If GitHub is available, create a private or test repository and add Alice and Bob as collaborators. Start empty so an initial README does not conflict with the baseline. Open two PRs targeting <code>main</code>. Bob requests review; Alice leaves two inline comments; Bob updates and merges his PR using an allowed method so main advances. Alice syncs from the new base, resolves the conflict, tests, and pushes; the existing PR reflects the updated branch.</p>
+    <p lang="fa">روی مخزن تمرین branch protection/ruleset بگذار: PR لازم، approval، check آزمون و در صورت نیاز حل conversationها. “Request changes” بدون policy مرتبط الزاماً جلوی merge را نمی‌گیرد. اگر commit تازه روی شاخهٔ آلیس آمد، policy ممکن است approval قبلی را stale کند؛ پس reviewer باید diff جدید را ببیند. در پایان merge commit را طبق انتخاب این پروژه بزن و branchها را پس از تأیید ادغام پاک کن.</p><p lang="en">Configure branch protection or a ruleset on the test repo: require PRs, approval, the test check, and optionally resolved conversations. “Request changes” without the relevant policy does not necessarily block merging. New commits on Alice’s branch may make approval stale; have the reviewer inspect the new diff. Finish with a merge commit as chosen for this project, then delete branches after verifying integration.</p>
+    <p lang="fa">نام گزینه‌ها و رفتار UI را فقط به GitHub تعمیم بده؛ اگر از GitLab یا میزبان دیگری استفاده می‌کنی، مستندات رسمی همان میزبان را بررسی کن.</p><p lang="en">Apply UI labels and behavior only to GitHub; if you use GitLab or another host, verify that host’s official documentation.</p>
+  </details>
+</section>
+
+<section id="reflection">
+  <h2><span lang="fa">بازنگری و تحویل به تیم</span><span lang="en">Reflection and team handoff</span></h2>
+  <p lang="fa">به این سؤال‌ها با اشاره به graph یا فایل‌های خودت جواب بده؛ «همه‌چیز sync شد» به‌تنهایی مدرک نیست.</p><p lang="en">Answer these by pointing to your graph or artifacts; “everything synced” alone is not evidence.</p>
+  <ul>
+    <li><span lang="fa">کدام بخش را Git ذخیره کرد و کدام فقط در میزبان PR ثبت شد؟</span><span lang="en">Which parts did Git store, and which existed only in the PR host?</span></li>
+    <li><span lang="fa">اگر push باب اول رد می‌شد، پیش از integration چه چیزی را fetch و بررسی می‌کردی؟</span><span lang="en">If Bob’s push were rejected first, what would you fetch and inspect before integrating?</span></li>
+    <li><span lang="fa">چه مدرکی نشان می‌دهد هر دو قابلیت مانده و هر دو clone به یک main رسیده‌اند؟</span><span lang="en">What proves both features survived and both clones reached the same main?</span></li>
+    <li><span lang="fa">کدام عمل می‌توانست کار منتشرشدهٔ هم‌تیمی را بازنویسی کند و چرا لازم نبود؟</span><span lang="en">Which action could rewrite a teammate’s published work, and why was it unnecessary?</span></li>
+  </ul>
+  <p lang="fa">گزارش handoff شامل graph نهایی، شناسهٔ یکسان main، خروجی آزمون در هر دو clone، config نهایی، پاسخ reviewها و refهای پاک‌شده است. فقط از مدرکی حرف بزن که واقعاً جمع کرده‌ای؛ bare remote ثابت نمی‌کند PR یا CI واقعی اجرا شده است.</p><p lang="en">The handoff includes the final graph, matching main IDs, test output from both clones, final config, review responses, and deleted refs. Report only evidence you collected; a bare remote cannot prove a real PR or CI run.</p>
+  <div class="note safe"><div class="note-t"><span lang="fa">پاک‌سازی امن</span><span lang="en">Safe cleanup</span></div><p lang="fa">فقط پس از تحویل گزارش و اطمینان از اینکه workspace همان فضای disposable این پروژه است آن را پاک کن. remote یا clone واقعی هم‌تیمی را هدف نگیر. اگر شک داری، پوشه را نگه دار؛ از دست‌رفتن شواهد بهای تمیزشدن دیسک نیست.</p><p lang="en">Only after handoff and confirming the workspace is disposable may you remove it. Do not target a teammate’s real remote or clone. If unsure, keep it; losing evidence is not worth a tidier disk.</p></div>
+</section>
+
+<section id="next">
+  <h2><span lang="fa">پروژهٔ آخر: این بار مخزن از قبل خراب است</span><span lang="en">Final project: this time, the repository is already broken</span></h2>
+  <p lang="fa">اینجا baseline پایدار بود و تعارض را پیش از گم‌شدن کار حل کردیم. اما گاهی به تیم می‌رسی وقتی push اشتباه شده، branch حذف شده یا فایل لازم دیگر در working tree نیست. پروژهٔ ۳ نرده‌ها را کنار می‌زند: مخزن از قبل به‌هم‌ریخته است و باید با شواهد، نه حدس، آن را نجات بدهی.</p><p lang="en">Here the baseline was stable and we resolved conflict before work disappeared. Sometimes you join after a bad push, deleted branch, or missing working-tree file. Project 3 removes the rails: the repository is already broken, and you must rescue it with evidence rather than guesses.</p>
+</section>
+
+<section id="official-docs">
+  <h2><span lang="fa">مراجع رسمی برای مسیر میزبان</span><span lang="en">Official references for the hosted route</span></h2>
+  <p lang="fa">این پیوندها رفتار GitHub را توضیح می‌دهند؛ برای میزبان دیگر، راهنمای رسمی همان سرویس را بخوان.</p><p lang="en">These links describe GitHub behavior; consult the relevant host’s official docs for another service.</p>
+  <ul>
+    <li><a href="https://docs.github.com/en/pull-requests/how-tos/review-pull-requests/reviewing-proposed-changes-in-a-pull-request" target="_blank" rel="noreferrer">Reviewing proposed changes in a pull request</a></li>
+    <li><a href="https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches" target="_blank" rel="noreferrer">About protected branches</a></li>
+    <li><a href="https://docs.github.com/en/pull-requests/how-tos/create-pull-requests/keeping-your-pull-request-in-sync-with-the-base-branch" target="_blank" rel="noreferrer">Keeping a pull request in sync with the base branch</a></li>
+    <li><a href="https://docs.github.com/en/pull-requests/reference/pull-request-merges" target="_blank" rel="noreferrer">Pull request merge methods</a></li>
+  </ul>
+</section>

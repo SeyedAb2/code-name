@@ -11325,7 +11325,7 @@ export const TRACKS: Track[] = [
       {
         "n": "07",
         "file": "07-rebase.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -11342,7 +11342,7 @@ export const TRACKS: Track[] = [
       {
         "n": "08",
         "file": "08-remote.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -11359,7 +11359,7 @@ export const TRACKS: Track[] = [
       {
         "n": "09",
         "file": "09-undo.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -11376,16 +11376,16 @@ export const TRACKS: Track[] = [
       {
         "n": "10",
         "file": "10-reflog.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
           "t": "reflog: تور نجات",
-          "d": "تقریباً هیچ چیزی در Git واقعاً گم نمی‌شود."
+          "d": "ردّ حرکت refها را پیدا کن؛ و مرزهای واقعی بازیابی را بشناس."
         },
         "en": {
-          "t": "reflog: the safety net",
-          "d": "Almost nothing in Git is ever truly lost."
+          "t": "Reflog: Git's local safety journal",
+          "d": "Find ref movement clues—and understand the limits of recovery."
         },
         "kw": "reflog recover lost commit dangling",
         "cap": 0
@@ -11393,16 +11393,16 @@ export const TRACKS: Track[] = [
       {
         "n": "11",
         "file": "11-stash.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 70,
+        "mins": 80,
         "fa": {
           "t": "stash، cherry-pick، tag",
-          "d": "سه ابزار کوچک که روزت را نجات می‌دهند."
+          "d": "کار نیمه‌تمام را امن کنار بگذار، hotfix مشخص را انتخابی بیاور و انتشار را با tag دقیق مشخص کن."
         },
         "en": {
-          "t": "stash, cherry-pick, tag",
-          "d": "Three small tools that save your day."
+          "t": "Stash, cherry-pick, and tags",
+          "d": "Set unfinished work aside, apply a selected hotfix, and mark the release with an exact tag."
         },
         "kw": "stash cherry-pick tag annotated",
         "cap": 0
@@ -11410,16 +11410,16 @@ export const TRACKS: Track[] = [
       {
         "n": "12",
         "file": "12-bisect.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
           "t": "bisect: پیدا کردن commit خراب",
-          "d": "جستجوی دودویی روی تاریخچه، به‌صورت خودکار."
+          "d": "با آزمون تکرارپذیر، مرز سالم و خراب را در تاریخچه پیدا کن و نتیجه را با patch ثابت کن."
         },
         "en": {
-          "t": "bisect: finding the bad commit",
-          "d": "Binary search over history, automated."
+          "t": "Bisect: finding the commit that introduced a bug",
+          "d": "Use a repeatable test to find the good/bad boundary and verify the culprit from its patch."
         },
         "kw": "bisect regression debug automate",
         "cap": 0
@@ -11427,16 +11427,16 @@ export const TRACKS: Track[] = [
       {
         "n": "13",
         "file": "13-workflow.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
           "t": "استراتژی شاخه‌بندی",
-          "d": "trunk-based، GitHub Flow، Git Flow — کدام برای کدام تیم."
+          "d": "عمر شاخه، انتشار، CI و نیازهای تیم را بسنج؛ trunk-based، GitHub Flow یا Git Flow را با هزینه‌ها و trade-offهایش انتخاب کن."
         },
         "en": {
           "t": "Branching strategies",
-          "d": "Trunk-based, GitHub Flow, Git Flow — which for which team."
+          "d": "Assess branch lifetime, releases, CI, and team needs; choose trunk-based, GitHub Flow, or Git Flow with their costs and trade-offs."
         },
         "kw": "workflow gitflow trunk based feature branch",
         "cap": 0
@@ -11444,16 +11444,16 @@ export const TRACKS: Track[] = [
       {
         "n": "14",
         "file": "14-collab.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
           "t": "کار تیمی: PR و بازبینی کد",
-          "d": "commit خوب، پیام خوب، و PR قابل بازبینی."
+          "d": "commitهای معنادار، توضیح روشن PR، گفت‌وگوی سازندهٔ review، checkهای CI و انتخاب روش merge با دیدن تاریخچه."
         },
         "en": {
-          "t": "Collaboration: PRs and code review",
-          "d": "Good commits, good messages, and a reviewable PR."
+          "t": "Team collaboration: pull requests and code review",
+          "d": "Meaningful commits, clear PR context, constructive review, CI checks, and choosing a merge method with history in mind."
         },
         "kw": "pull request review conventional commit",
         "cap": 0
@@ -11461,7 +11461,7 @@ export const TRACKS: Track[] = [
       {
         "n": "15",
         "file": "15-advanced.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
@@ -11469,7 +11469,7 @@ export const TRACKS: Track[] = [
           "d": "worktree، submodule، sparse checkout، hook و LFS."
         },
         "en": {
-          "t": "Advanced tooling",
+          "t": "Advanced Git tools: worktree, submodule, sparse-checkout, hooks, and LFS",
           "d": "worktree, submodules, sparse checkout, hooks and LFS."
         },
         "kw": "worktree submodule hook lfs sparse",
@@ -11478,16 +11478,16 @@ export const TRACKS: Track[] = [
       {
         "n": "16",
         "file": "16-recovery.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
           "t": "وقتی همه‌چیز خراب شد",
-          "d": "سناریوهای واقعی فاجعه و راه بیرون آمدن از هرکدام."
+          "d": "از نشانه تا مدرک و تشخیص: نجات امن refها، commitها و دادهٔ Git، و شناخت مرز چیزی که هرگز ذخیره نشده است."
         },
         "en": {
           "t": "When everything goes wrong",
-          "d": "Real disaster scenarios and the way out of each."
+          "d": "Move from symptom to evidence and diagnosis: safely rescue refs, commits, and Git-stored data while recognizing what was never stored."
         },
         "kw": "recovery detached head force push disaster",
         "cap": 0
@@ -11495,61 +11495,61 @@ export const TRACKS: Track[] = [
       {
         "n": "17",
         "file": "17-cap1.html",
-        "ready": false,
-        "ex": 5,
-        "mins": 60,
+        "ready": true,
+        "ex": 0,
+        "mins": 100,
         "fa": {
           "t": "پروژهٔ ۱ — تاریخچهٔ تمیز",
-          "d": "یک مجموعه تغییر آشفته را به تاریخچه‌ای خوانا تبدیل کن."
+          "d": "یک مخزن محلیِ آشفته را با staging دقیق و rebase تعاملی به تاریخچه‌ای خوانا تبدیل کن؛ محتوا را با آزمون و مقایسهٔ درخت ثابت کن."
         },
         "en": {
-          "t": "Project 1 — a clean history",
-          "d": "Turn a messy set of changes into a readable history."
+          "t": "Project 1 — Build a clean, readable history",
+          "d": "Reshape a messy local repository with deliberate staging and interactive rebase; prove the result with tests and tree comparison."
         },
-        "kw": "capstone rebase history",
+        "kw": "capstone git history interactive rebase staging clean commits",
         "cap": 1
       },
       {
         "n": "18",
         "file": "18-cap2.html",
-        "ready": false,
-        "ex": 7,
-        "mins": 90,
+        "ready": true,
+        "ex": 0,
+        "mins": 160,
         "fa": {
           "t": "پروژهٔ ۲ — گردش کار تیمی",
-          "d": "شاخه، PR، بازبینی و ادغام روی یک مخزن واقعی."
+          "d": "با bare remote و دو clone، دو feature هم‌زمان را با PR، review، حل تعارض و merge policy یکپارچه کن؛ همگامی آلیس و باب را با شواهد ثابت کن."
         },
         "en": {
-          "t": "Project 2 — a team workflow",
-          "d": "Branch, PR, review and merge on a real repository."
+          "t": "Project 2 — A real team workflow",
+          "d": "Integrate two concurrent features through a bare remote and two clones; review, resolve a conflict, apply a merge policy, and prove both clones agree."
         },
-        "kw": "capstone workflow pr",
+        "kw": "capstone team workflow bare remote clone fetch push pull request code review conflict merge policy",
         "cap": 2
       },
       {
         "n": "19",
         "file": "19-cap3.html",
-        "ready": false,
-        "ex": 9,
-        "mins": 120,
+        "ready": true,
+        "ex": 0,
+        "mins": 180,
         "fa": {
           "t": "پروژهٔ ۳ — نجات مخزن",
-          "d": "یک مخزن به‌هم‌ریخته را بدون از دست دادن کار بازیابی کن."
+          "d": "cloneهای خراب را با reflog، rescue ref، بررسی objectها و نگه‌داشتن کار هم‌تیمی ترمیم کن؛ تفاوت دادهٔ بازیافتنی و فایلی را که Git ذخیره نکرده با مدرک گزارش بده."
         },
         "en": {
-          "t": "Project 3 — rescue a repository",
-          "d": "Recover a broken repository without losing any work."
+          "t": "Project 3 — Rescue a damaged repository without losing recoverable work",
+          "d": "Preserve evidence, recover commits from reflogs and a teammate clone, repair the remote safely, and report what Git never stored."
         },
-        "kw": "capstone recovery reflog",
+        "kw": "capstone git rescue recovery reflog fsck unreachable force-push detached HEAD recoverable objects incident",
         "cap": 3
       }
     ],
     "stats": {
       "chapters": 19,
-      "exercises": 303,
-      "minutes": 1570,
+      "exercises": 282,
+      "minutes": 1750,
       "capstones": 3,
-      "ready": 6
+      "ready": 19
     }
   },
   {

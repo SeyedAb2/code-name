@@ -1,0 +1,467 @@
+<!--meta
+title: ابزارهای پیشرفته
+desc: برای کار موازی، وابستگی مستقل، monorepo، کنترل محلی و فایل حجیم، ابزار را از روی مسئله و مدرک انتخاب کن.
+-->
+<div class="masthead">
+  <span class="eyebrow"><span class="dot"></span><span lang="fa">گیت · فصل ۱۵</span><span lang="en">Git · Chapter 15</span></span>
+  <h1 lang="fa">ابزارهای پیشرفته</h1><h1 lang="en">Advanced Git tools: worktree, submodule, sparse-checkout, hooks, and LFS</h1>
+  <p class="sub" lang="fa">هم‌زمان hotfix می‌خواهی، فقط بخشی از یک monorepo را لازم داری، یک کتابخانهٔ مستقل کنار پروژه نگه می‌داری، اشتباه تکراری را زود می‌گیری و چند فایل حجیم را هم نسخه‌بندی می‌کنی. مسئله‌ها شبیه هم نیستند؛ پس اول تشخیص می‌دهیم هرکدام کدام بُعد کار را تغییر می‌دهد.</p>
+  <p class="sub" lang="en">You need a hotfix alongside unfinished work, only part of a monorepo, an independently maintained library, an early check for a recurring mistake, and versioned large files. These are different problems, so we will first identify which part of the workflow each tool changes.</p>
+  <div class="facts">
+    <div class="fact"><span class="fact-v"><b>۱۲</b><span lang="fa">بخش</span><span lang="en">sections</span></span></div>
+    <div class="fact"><span class="fact-v"><b>۸۵</b><span lang="fa">دقیقه</span><span lang="en">minutes</span></span></div>
+    <div class="fact"><span class="fact-v"><b>۱۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></span></div>
+    <div class="fact"><span class="fact-v"><b>۵</b><span lang="fa">نمودار</span><span lang="en">diagrams</span></span></div>
+  </div>
+</div>
+
+  <section id="choose-shape">
+    <h2><span lang="fa">اول مسئله را بشناسیم</span><span lang="en">Name the problem before the tool</span></h2>
+    <p lang="fa">فرض کن هم‌زمان باید یک اصلاح فوری را آماده کنی، بخشی از مخزن بزرگ را ببینی، یک کتابخانهٔ جداگانه را کنار برنامه نگه داری، جلوی یک اشتباه تکراری را بگیری و چند فایل حجیم را هم نسخه‌بندی کنی. وسوسه می‌شوی دنبال «ابزار پیشرفتهٔ Git» بگردی؛ اما این پنج مسئله یکی نیستند.</p>
+    <p lang="en">Imagine preparing an urgent fix, inspecting only part of a large repository, keeping an independent library beside an application, preventing a recurring mistake, and versioning large files—all at once. It is tempting to search for “an advanced Git tool,” but these are five different problems.</p>
+    <p lang="fa">هر ابزار یک بُعد متفاوت را تغییر می‌دهد: <code>worktree</code> محل‌های کاری هم‌زمان می‌سازد؛ <code>submodule</code> یک مخزن مستقل را به نسخه‌ای مشخص از مخزن والد وصل می‌کند؛ <code>sparse-checkout</code> تعیین می‌کند چه مسیرهایی در working tree دیده شوند؛ hook یک فرمان محلی را در نقطه‌ای از گردش کار اجرا می‌کند؛ و Git LFS محتوای فایل‌های بزرگ را بیرون از مخزن عادی نگه می‌دارد و در Git به آن اشاره می‌کند.</p>
+    <p lang="fa">در این فصل هر بار از یک درد واقعی شروع می‌کنیم، یک آزمایش کوچک انجام می‌دهیم و بعد مرز ابزار را هم می‌گوییم. ابزار پیشرفته قرار نیست جای فهم مدل Git را بگیرد؛ فقط وقتی مسئله‌اش را درست تشخیص داده باشیم کمک می‌کند.</p>
+    <p lang="en">Each tool changes a different dimension: <code>worktree</code> creates concurrent working trees; <code>submodule</code> pins an independent repository to a specific commit; <code>sparse-checkout</code> chooses which paths appear in the working tree; a hook runs a local command at a workflow event; Git LFS keeps large-file payloads outside ordinary Git objects while Git stores a pointer.</p>
+    <p lang="en">We will begin each topic with a real frustration, run a small experiment, and then state the tool’s boundary. Advanced tools do not replace understanding Git’s model; they help only after we identify the right problem.</p>
+  </section>
+
+  <section id="worktree">
+    <h2><span lang="fa">۱. اصلاح فوری، بدون به‌هم‌زدن کار نیمه‌تمام</span><span lang="en">1. Make a hotfix without disturbing unfinished work</span></h2>
+    <p lang="fa">روی شاخهٔ <code>feature/search</code> مشغول کاری و فایل‌هایت هنوز آمادهٔ commit نیستند. ناگهان یک باگ مهم گزارش می‌شود که باید روی <code>main</code> اصلاح شود. stash کردن ممکن است، اما اگر این جابه‌جایی چند بار تکرار شود، احتمال اشتباه بالا می‌رود. آیا لازم است هر بار یک working tree را جمع کنیم تا شاخه عوض شود؟</p>
+    <p lang="fa"><code>git worktree</code> اجازه می‌دهد یک مخزن، چند working tree داشته باشد. داده‌ها و مخزن Git مشترک‌اند، اما هر محل کاری پوشه و شاخهٔ خودش را دارد. به این ترتیب، کار نیمه‌تمام در پوشهٔ خودش می‌ماند و hotfix در پوشه‌ای دیگر انجام می‌شود.</p>
+    <figure class="diagram">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 310" role="img" aria-labelledby="g15-d1-title g15-d1-desc" direction="ltr">
+        <title id="g15-d1-title">چند working tree روی یک مخزن Git</title>
+        <desc id="g15-d1-desc">دو پوشهٔ جدا برای feature و hotfix، هر دو به دادهٔ مشترک مخزن Git وصل‌اند.</desc>
+        <defs><marker id="g15-d1-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#7c8cff"/></marker></defs>
+        <rect x="24" y="24" width="250" height="96" rx="16" fill="#18233d" stroke="#8793ff"/>
+        <text x="149" y="62" text-anchor="middle" fill="#eef1ff" font-size="20" direction="ltr">feature/search</text>
+        <text x="149" y="94" text-anchor="middle" fill="#bdc8e5" font-size="16" direction="ltr">working tree A</text>
+        <rect x="24" y="190" width="250" height="96" rx="16" fill="#18233d" stroke="#52c99a"/>
+        <text x="149" y="228" text-anchor="middle" fill="#eef1ff" font-size="20" direction="ltr">hotfix</text>
+        <text x="149" y="260" text-anchor="middle" fill="#bdc8e5" font-size="16" direction="ltr">working tree B</text>
+        <rect x="570" y="92" width="300" height="116" rx="18" fill="#10172a" stroke="#9aa6c9"/>
+        <text x="720" y="140" text-anchor="middle" fill="#eef1ff" font-size="20" direction="ltr">shared Git repository</text>
+        <text x="720" y="174" text-anchor="middle" fill="#bdc8e5" font-size="16" direction="ltr">objects · refs · config</text>
+        <path d="M274 72 C390 72 440 112 570 132" fill="none" stroke="#7c8cff" stroke-width="3" marker-end="url(#g15-d1-arrow)"/>
+        <path d="M274 238 C390 238 440 190 570 170" fill="none" stroke="#52c99a" stroke-width="3" marker-end="url(#g15-d1-arrow)"/>
+      </svg>
+      <figcaption class="diagram-cap"><span lang="fa">یک مخزن، دو پوشهٔ کاری؛ تاریخچه و اشیای Git مشترک‌اند، فایل‌های در حال ویرایش جدا.</span><span lang="en">One repository, two working trees: shared Git data, separate checked-out files.</span></figcaption>
+    </figure>
+    <p lang="fa">برای اینکه آزمایش روی مخزن واقعی یا کاری ناتمام اثر نگذارد، یک مخزن disposable بساز:</p>
+    <pre dir="ltr"><code>mkdir worktree-lab
+cd worktree-lab
+git init -b main
+git config user.name "Learner"
+git config user.email "learner@example.test"
+echo "base" &gt; app.txt
+git add app.txt
+git commit -m "base"
+git worktree add ../hotfix-lab -b hotfix
+git worktree list
+git -C ../hotfix-lab status</code></pre>
+    <p lang="fa">حالا در پوشهٔ اصلی یک فایل را تغییر بده و در پوشهٔ <code>hotfix-lab</code> فایل دیگری را. هر کدام status جداگانه دارند. شاخه‌ها و اشیای commit اما متعلق به همان مخزن مشترک‌اند.</p>
+    <div class="callout">
+      <p lang="fa"><strong>یک محدودیت مهم:</strong> به‌طور معمول Git اجازه نمی‌دهد یک شاخه را هم‌زمان در دو worktree checkout کنی. اگر دستور می‌گوید شاخه از قبل در جای دیگری استفاده می‌شود، اول با <code>git worktree list</code> محلش را پیدا کن؛ با force کردن، مسئله را پنهان نکن. مستند رسمی این رفتار و فرمان‌های مدیریت worktree را توضیح می‌دهد: <a href="https://git-scm.com/docs/git-worktree">مستند git-worktree</a>.</p>
+    </div>
+    <p lang="fa">بعد از تمام‌شدن کار، از ریشهٔ مخزن می‌توانی محل اضافه را با <code>git worktree remove ../hotfix-lab</code> حذف کنی. Git اگر آن worktree تغییر ثبت‌نشده داشته باشد از حذف عادی محافظت می‌کند. اگر پوشه را بیرون از Git پاک کرده‌ای و رکوردش مانده، ابتدا <code>git worktree prune --dry-run</code> را ببین؛ فقط پس از بررسی خروجی، prune واقعی را اجرا کن. پوشه‌ای را که هنوز به تغییرهایش نیاز داری حذف نکن.</p>
+    <p lang="fa"><strong>کِی استفاده نکنیم؟</strong> اگر فقط گاهی شاخه عوض می‌کنی و stash یا commit موقت مسئله را ساده حل می‌کند، چند worktree مدیریت اضافه‌ای است. برای اجرای موازی buildها یا اصلاح فوری کنار یک کار نیمه‌تمام، ارزشش بیشتر می‌شود.</p>
+    <p lang="en">You are midway through <code>feature/search</code>, with uncommitted files, when an important bug must be fixed on <code>main</code>. Stashing is possible, but repeated switching increases the chance of mistakes. Must we keep packing away one working tree to change branches?</p>
+    <p lang="en"><code>git worktree</code> lets one repository have multiple working trees. Repository data is shared, but each working location has its own directory and checked-out branch. The unfinished feature stays where it is while the hotfix happens elsewhere.</p>
+    <p lang="en">Run the commands above in a disposable repository. Change different files in the original directory and <code>hotfix-lab</code>; each location has its own status, while commits and repository objects belong to the same repository.</p>
+    <p lang="en"><strong>Important limit:</strong> Git normally prevents the same branch from being checked out in two worktrees at once. If a command says the branch is already in use, locate it with <code>git worktree list</code>; do not hide the problem with force. The <a href="https://git-scm.com/docs/git-worktree">official git-worktree documentation</a> describes this behavior and the management commands.</p>
+    <p lang="en">When finished, remove the additional location from the main repository with <code>git worktree remove ../hotfix-lab</code>. Git protects a worktree with uncommitted changes from ordinary removal. If you deleted its directory outside Git, inspect <code>git worktree prune --dry-run</code> before pruning stale records. Do not prune a worktree that is merely on a temporarily disconnected drive.</p>
+    <p lang="en"><strong>When not to use it:</strong> if you switch branches occasionally and stash or a temporary commit is simple, extra worktrees add management overhead. They are more useful for parallel builds or a hotfix beside unfinished work.</p>
+  </section>
+
+  <section id="submodule">
+    <h2><span lang="fa">۲. کتابخانهٔ جداگانه را به نسخهٔ مشخص وصل کنیم</span><span lang="en">2. Pin an independent library to a specific version</span></h2>
+    <p lang="fa">تیم یک کتابخانهٔ داخلی دارد که تاریخچه، دسترسی و انتشار خودش را دارد. کپی‌کردن فایل‌هایش داخل برنامه، ارتباط با مخزن اصلی را از بین می‌برد. در عوض می‌توانیم آن مخزن را به‌عنوان submodule اضافه کنیم.</p>
+    <p lang="fa">submodule «پوشه‌ای که Git والد همهٔ فایل‌هایش را مثل بقیه دنبال کند» نیست. والد یک gitlink نگه می‌دارد: اشاره‌ای به commit مشخص از مخزن فرزند. مسیر و نشانی اولیهٔ مخزن فرزند هم در <code>.gitmodules</code> ثبت می‌شود. تاریخچه و commitهای کتابخانه همچنان در مخزن خودش‌اند.</p>
+    <p lang="en">To add one, run <code>git submodule add URL vendor/library</code> with a reachable child-repository URL in a disposable parent repository. Inspect the staged <code>.gitmodules</code> and gitlink, then commit them in the parent. The URL here is a placeholder, not a working public repository.</p>
+    <pre dir="ltr"><code>git submodule add URL vendor/library
+git status --short
+git diff --cached -- .gitmodules
+git commit -m "Add library submodule"</code></pre>
+    <figure class="diagram">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 330" role="img" aria-labelledby="g15-d2-title g15-d2-desc" direction="ltr">
+        <title id="g15-d2-title">رابطهٔ مخزن والد و submodule</title>
+        <desc id="g15-d2-desc">مخزن والد در commit خود به یک commit ثابت در مخزن فرزند اشاره می‌کند؛ فایل gitmodules مسیر و URL را نگه می‌دارد.</desc>
+        <defs><marker id="g15-d2-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#7c8cff"/></marker></defs>
+        <rect x="36" y="50" width="340" height="220" rx="18" fill="#17213a" stroke="#8793ff"/>
+        <text x="206" y="91" text-anchor="middle" fill="#eef1ff" font-size="21" direction="ltr">parent repository</text>
+        <rect x="72" y="126" width="268" height="54" rx="10" fill="#10172a" stroke="#6e7b9f"/>
+        <text x="206" y="160" text-anchor="middle" fill="#dce3ff" font-size="17" direction="ltr">.gitmodules: path + URL</text>
+        <rect x="72" y="196" width="268" height="48" rx="10" fill="#10172a" stroke="#6e7b9f"/>
+        <text x="206" y="226" text-anchor="middle" fill="#dce3ff" font-size="17" direction="ltr">gitlink: child commit ID</text>
+        <rect x="548" y="92" width="316" height="150" rx="18" fill="#20203c" stroke="#b192ff"/>
+        <text x="706" y="135" text-anchor="middle" fill="#eef1ff" font-size="21" direction="ltr">child repository</text>
+        <text x="706" y="174" text-anchor="middle" fill="#dce3ff" font-size="17" direction="ltr">its own commits + branches</text>
+        <text x="706" y="208" text-anchor="middle" fill="#bdc8e5" font-size="16" direction="ltr">checked out at pinned commit</text>
+        <path d="M340 220 C430 220 454 202 548 190" fill="none" stroke="#7c8cff" stroke-width="3" marker-end="url(#g15-d2-arrow)"/>
+      </svg>
+      <figcaption class="diagram-cap"><span lang="fa">والد، مسیر و URL را معرفی می‌کند و یک commit فرزند را pin می‌کند؛ مالکیت تاریخچه جدا می‌ماند.</span><span lang="en">The parent records a path, URL, and pinned child commit; histories remain separate.</span></figcaption>
+    </figure>
+    <p lang="fa">فردی که مخزن والد را تازه می‌گیرد، ممکن است پوشهٔ submodule را خالی ببیند؛ چون clone معمولی لزوماً محتوای فرزند را checkout نمی‌کند. برای دریافت همهٔ submoduleهای تو‌در‌تو:</p>
+    <pre dir="ltr"><code>git clone --recurse-submodules URL
+# یا پس از clone معمولی:
+git submodule update --init --recursive
+git submodule status</code></pre>
+    <p lang="fa">در خروجی status، پیشوندها سرنخ‌اند: <code>-</code> یعنی هنوز initialize نشده، <code>+</code> یعنی commit checkout‌شده با commit ثبت‌شده در والد فرق دارد، و فاصله یعنی با نسخهٔ ثبت‌شده هم‌خوان است. به‌روزرسانی معمول submodule می‌تواند آن را روی commit مشخص و detached HEAD بگذارد؛ این به‌خودی‌خود خطا نیست. مستندات رسمی، رفتار clone، update و status را شرح می‌دهند: <a href="https://git-scm.com/docs/git-submodule">git-submodule</a> و <a href="https://git-scm.com/docs/gitsubmodules">gitsubmodules</a>.</p>
+    <p lang="fa">اگر می‌خواهی نسخهٔ کتابخانه را جلو ببری، وارد پوشهٔ فرزند شو، شاخهٔ مناسب را checkout کن، تغییر را در خود مخزن فرزند commit و به remote آن push کن. بعد برگرد به والد و تغییر gitlink را commit کن. اگر commit فرزند را push نکنی، هم‌تیمی‌ها شاید به commit اشاره‌شده دسترسی نداشته باشند.</p>
+    <p lang="fa"><strong>کِی استفاده نکنیم؟</strong> اگر وابستگی نسخهٔ بسته‌بندی‌شده و مدیریت‌شده‌ای دارد، package manager معمولاً نصب و انتشار ساده‌تری می‌دهد. submodule وقتی معنادار است که واقعاً می‌خواهی کد و تاریخچهٔ آن مخزن مستقل بماند ولی پروژه روی یک commit مشخص تکیه کند.</p>
+    <p lang="en">Suppose another team owns an internal library with its own history, access rules, and releases. Copying its files into your application loses the link to its source repository. A submodule can instead connect the repositories while keeping their ownership separate.</p>
+    <p lang="en">A submodule is not an ordinary directory whose files the parent tracks normally. The parent stores a gitlink—a reference to a particular commit in the child repository—and records the child path and initial URL in <code>.gitmodules</code>. The child keeps its own commits and branches.</p>
+    <p lang="en">A fresh clone may show an empty submodule directory because the child has not yet been checked out. Use the recursive clone command above, or initialize an existing clone. In <code>git submodule status</code>, <code>-</code> means uninitialized, <code>+</code> means the checked-out commit differs from the parent’s recorded commit, and a leading space indicates a match. Updating commonly checks out the pinned commit in detached-HEAD state; that is not automatically an error. See the official <a href="https://git-scm.com/docs/git-submodule">git-submodule</a> and <a href="https://git-scm.com/docs/gitsubmodules">gitsubmodules</a> references.</p>
+    <p lang="en">To advance the library, work inside the child repository: check out the intended branch, commit there, and push to its remote. Then return to the parent and commit the updated gitlink. If the child commit is not pushed, teammates may be unable to retrieve the commit the parent references.</p>
+    <p lang="en"><strong>When not to use it:</strong> if the dependency is released and managed by a package manager, that is usually simpler. A submodule makes sense when the child’s repository and history should remain independent while the parent pins an exact commit.</p>
+  </section>
+
+  <section id="sparse-checkout">
+    <h2><span lang="fa">۳. مخزن بزرگ است؛ همهٔ فایل‌ها را لازم نداریم</span><span lang="en">3. A large repository does not mean every file is needed</span></h2>
+    <p lang="fa">در یک monorepo چندین سرویس وجود دارد، اما تو فقط روی <code>services/catalog</code> کار می‌کنی. حذف بقیه با دست، فایل‌ها را از دید Git پنهان نمی‌کند و دوباره‌سازی محیط هم شکننده می‌شود. sparse-checkout مشخص می‌کند کدام مسیرها در working tree ظاهر شوند.</p>
+    <figure class="diagram">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 330" role="img" aria-labelledby="g15-d3-title g15-d3-desc" direction="ltr">
+        <title id="g15-d3-title">از کل درخت پروژه تا working tree انتخابی</title>
+        <desc id="g15-d3-desc">مخزن شامل چند سرویس و مستندات است، اما working tree فقط مسیر انتخاب‌شده و مسیرهای سطح بالا را نشان می‌دهد.</desc>
+        <rect x="32" y="34" width="430" height="260" rx="18" fill="#17213a" stroke="#7684ad"/>
+        <text x="247" y="72" text-anchor="middle" fill="#eef1ff" font-size="21" direction="ltr">repository tree</text>
+        <rect x="70" y="98" width="348" height="48" rx="10" fill="#173b36" stroke="#52c99a"/>
+        <text x="244" y="128" text-anchor="middle" fill="#e7fff5" font-size="18" direction="ltr">services/catalog  · included</text>
+        <rect x="70" y="160" width="348" height="48" rx="10" fill="#10172a" stroke="#48536f"/>
+        <text x="244" y="190" text-anchor="middle" fill="#98a4c1" font-size="18" direction="ltr">services/billing  · omitted</text>
+        <rect x="70" y="222" width="348" height="42" rx="10" fill="#10172a" stroke="#48536f"/>
+        <text x="244" y="250" text-anchor="middle" fill="#98a4c1" font-size="17" direction="ltr">docs  · omitted</text>
+        <path d="M462 164 L548 164" stroke="#7c8cff" stroke-width="3"/>
+        <path d="M534 154 L550 164 L534 174" fill="none" stroke="#7c8cff" stroke-width="3"/>
+        <rect x="550" y="82" width="316" height="164" rx="18" fill="#20203c" stroke="#b192ff"/>
+        <text x="708" y="126" text-anchor="middle" fill="#eef1ff" font-size="20" direction="ltr">working tree</text>
+        <text x="708" y="170" text-anchor="middle" fill="#dce3ff" font-size="18" direction="ltr">catalog + selected roots</text>
+        <text x="708" y="207" text-anchor="middle" fill="#bdc8e5" font-size="16" direction="ltr">other paths stay in repository</text>
+      </svg>
+      <figcaption class="diagram-cap"><span lang="fa">انتخاب sparse-checkout روی فایل‌های working tree اثر می‌گذارد؛ مسیرهای دیگر از تاریخچه حذف نمی‌شوند.</span><span lang="en">Sparse checkout shapes the working tree; it does not erase other paths from repository history.</span></figcaption>
+    </figure>
+    <p lang="fa">در مخزن آزمایشی‌ای که مسیرهای <code>services/catalog</code>، <code>services/billing</code> و <code>docs</code> دارد، از حالت cone استفاده کن:</p>
+    <pre dir="ltr"><code>git sparse-checkout init --cone
+git sparse-checkout set services/catalog
+git sparse-checkout list
+git status --short
+git ls-tree --name-only HEAD</code></pre>
+    <p lang="fa">حالت cone انتخاب را حول پوشه‌ها نگه می‌دارد و شکل ساده‌تر و قابل‌پیش‌بینی‌تری دارد؛ این حالت پیش‌فرض مستندات فعلی است. مسیرهای سطح بالا نیز ممکن است دیده شوند. فایل‌های بیرون الگو در working tree حاضر نیستند، اما commitها همچنان در مخزن‌اند. پیش از تغییر الگو، فایل‌های محلی مهم را بررسی کن: تغییر قوانین sparse می‌تواند فایل‌های نادیده‌گرفته‌شده‌ای را که زیر مسیر حذف‌شونده‌اند پاک کند.</p>
+    <p lang="fa">نکتهٔ ظریف: sparse-checkout به‌تنهایی تضمین نمی‌کند clone اولیه حجم کمتری از شبکه بگیرد؛ عمدتاً شکل working tree را کنترل می‌کند. برای دریافت تدریجی محتوای فایل‌ها، partial clone را جداگانه بررسی می‌کنیم:</p>
+    <pre dir="ltr"><code>git clone --filter=blob:none --sparse URL
+cd repository
+git sparse-checkout set services/catalog</code></pre>
+    <p lang="fa"><code>--filter=blob:none</code> دریافت blobها را تا زمان نیاز به تعویق می‌اندازد، اگر سرور از فیلتر پشتیبانی کند؛ Git ممکن است بعداً برای نمایش یا checkout فایل، آن داده را بگیرد. پس sparse انتخاب مسیر است و partial clone انتخاب میزان دریافت object؛ یکی را به‌جای دیگری فرض نکن. مرجع‌ها: <a href="https://git-scm.com/docs/git-sparse-checkout">git-sparse-checkout</a> و <a href="https://git-scm.com/docs/git-clone">git-clone</a>.</p>
+    <p lang="fa"><strong>کِی استفاده نکنیم؟</strong> در مخزن کوچک، پیچیدگی الگوها سودی ندارد. برای monorepo بزرگ و کار محدود به چند پوشه مفید است؛ اگر مسئله حجم انتقال اولیه است، باید filtering را هم جداگانه ارزیابی کنی.</p>
+    <p lang="en">A monorepo contains several services, but you work only on <code>services/catalog</code>. Manually deleting the other directories is fragile and does not tell Git to ignore them. Sparse checkout selects which paths appear in your working tree.</p>
+    <p lang="en">In a disposable repository containing <code>services/catalog</code>, <code>services/billing</code>, and <code>docs</code>, try cone mode with the commands above. Cone mode selects directories and is the default in current documentation. Top-level paths may also appear. Excluded files remain in repository history, but changing the sparse patterns can remove ignored files beneath directories that are no longer selected—inspect local files first.</p>
+    <p lang="en">A subtle distinction: sparse checkout alone does not guarantee that the initial clone transfers fewer objects; it primarily shapes the working tree. Partial clone separately defers blob downloads with <code>--filter=blob:none</code>, when the server supports filtering. Git may fetch those objects later when needed. Sparse checkout chooses paths; partial clone filters object transfer. See <a href="https://git-scm.com/docs/git-sparse-checkout">git-sparse-checkout</a> and <a href="https://git-scm.com/docs/git-clone">git-clone</a>.</p>
+    <p lang="en"><strong>When not to use it:</strong> pattern management is not worth it for a small repository. It helps in a large monorepo when work is limited to a few directories; if the problem is initial transfer size, evaluate filtering separately.</p>
+  </section>
+
+  <section id="hooks">
+    <h2><span lang="fa">۴. اشتباه تکراری را زودتر متوقف کنیم</span><span lang="en">4. Catch a recurring mistake earlier</span></h2>
+    <p lang="fa">در تیم چند بار رشتهٔ آزمایشی <code>DEBUG_ONLY</code> با commit وارد مخزن شده و بعداً دردسر ساخته است. یک کنترل سبک پیش از commit می‌تواند همان لپ‌تاپ را خبر کند. Git hook اسکریپتی است که در رویدادی مشخص اجرا می‌شود؛ مثلاً <code>pre-commit</code> پیش از ساخت commit، یا <code>commit-msg</code> برای بررسی پیام.</p>
+    <figure class="diagram">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 300" role="img" aria-labelledby="g15-d4-title g15-d4-desc" direction="ltr">
+        <title id="g15-d4-title">hook محلی میان درخواست commit و ساخت commit</title>
+        <desc id="g15-d4-desc">درخواست commit به pre-commit می‌رسد؛ کد صفر اجازهٔ ادامه می‌دهد و کد غیرصفر commit را متوقف می‌کند.</desc>
+        <defs><marker id="g15-d4-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#7c8cff"/></marker></defs>
+        <rect x="24" y="98" width="220" height="92" rx="16" fill="#17213a" stroke="#8793ff"/>
+        <text x="134" y="137" text-anchor="middle" fill="#eef1ff" font-size="19" direction="ltr">git commit</text>
+        <text x="134" y="166" text-anchor="middle" fill="#bdc8e5" font-size="15" direction="ltr">request</text>
+        <rect x="340" y="78" width="250" height="132" rx="16" fill="#20203c" stroke="#b192ff"/>
+        <text x="465" y="125" text-anchor="middle" fill="#eef1ff" font-size="20" direction="ltr">pre-commit hook</text>
+        <text x="465" y="162" text-anchor="middle" fill="#bdc8e5" font-size="16" direction="ltr">check staged changes</text>
+        <rect x="686" y="28" width="190" height="82" rx="15" fill="#173b36" stroke="#52c99a"/>
+        <text x="781" y="62" text-anchor="middle" fill="#e7fff5" font-size="18" direction="ltr">exit 0</text>
+        <text x="781" y="88" text-anchor="middle" fill="#bdc8e5" font-size="15" direction="ltr">commit proceeds</text>
+        <rect x="686" y="190" width="190" height="82" rx="15" fill="#3a292f" stroke="#ff9b9b"/>
+        <text x="781" y="224" text-anchor="middle" fill="#fff0f0" font-size="18" direction="ltr">non-zero</text>
+        <text x="781" y="250" text-anchor="middle" fill="#e7caca" font-size="15" direction="ltr">commit stops</text>
+        <path d="M244 144 L340 144" stroke="#7c8cff" stroke-width="3" marker-end="url(#g15-d4-arrow)"/>
+        <path d="M590 105 C632 86 642 70 686 70" fill="none" stroke="#52c99a" stroke-width="3" marker-end="url(#g15-d4-arrow)"/>
+        <path d="M590 184 C632 202 642 230 686 230" fill="none" stroke="#ff9b9b" stroke-width="3" marker-end="url(#g15-d4-arrow)"/>
+      </svg>
+      <figcaption class="diagram-cap"><span lang="fa">hook محلی می‌تواند جلوی ادامهٔ یک عملیات را بگیرد؛ تضمین سازمانی یا جایگزین CI نیست.</span><span lang="en">A local hook can stop an operation; it is not an organization-wide guarantee or a CI replacement.</span></figcaption>
+    </figure>
+    <p lang="fa">در ریشهٔ مخزن آزمایشی، این hook کوچک را بساز. این فقط یک نمونهٔ آموزشی برای محتوای staged است:</p>
+    <pre dir="ltr"><code>mkdir .githooks
+cat &gt; .githooks/pre-commit &lt;&lt;'EOF'
+#!/bin/sh
+if git diff --cached --unified=0 | grep '^+' | grep -F 'DEBUG_ONLY' &gt;/dev/null; then
+  echo "Remove DEBUG_ONLY from staged changes." &gt;&amp;2
+  exit 1
+fi
+exit 0
+EOF
+chmod +x .githooks/pre-commit
+git config core.hooksPath .githooks</code></pre>
+    <p lang="fa">حالا رشته را در یک فایل بگذار، stage کن و commit بزن. hook باید پیام بدهد و commit انجام نشود؛ تغییر staged سر جایش می‌ماند تا اصلاحش کنی. خط را پاک کن، دوباره stage کن و commit را تکرار کن.</p>
+    <p lang="fa">برای اجراشدن، hook باید executable باشد و مسیر hooks درست پیکربندی شده باشد. می‌توانی مسیر را با <code>git config --get core.hooksPath</code> بررسی کنی. Git hookهای مخزن را به‌طور خودکار برای clone جدید فعال نمی‌کند؛ و درست هم همین است، چون اجرای خودکار اسکریپت دریافت‌شده می‌تواند ناامن باشد. همچنین کاربر محلی می‌تواند بعضی hookها را با گزینهٔ <code>--no-verify</code> دور بزند. پس hook برای بازخورد سریع خوب است، اما قانون مهم باید در CI یا سمت سرور هم بررسی شود. جزئیات hookها و نقاط اجرای آن‌ها در <a href="https://git-scm.com/docs/githooks">مستند رسمی githooks</a> آمده است.</p>
+    <p lang="fa"><strong>کِی استفاده نکنیم؟</strong> برای سیاستی که باید همه رعایت کنند، به hook محلی تنها تکیه نکن. از hook برای کنترل سریع و کم‌هزینه روی دستگاه توسعه‌دهنده استفاده کن و کنترل نهایی را جای قابل‌اعتمادتر اجرا کن.</p>
+    <p lang="en">A team has repeatedly committed the temporary marker <code>DEBUG_ONLY</code>. A lightweight local check can catch it before the commit is created. A Git hook is a script invoked at a workflow event, such as <code>pre-commit</code> or <code>commit-msg</code>.</p>
+    <p lang="en">Create the small teaching hook shown above in a disposable repository. Stage a line containing the marker and try to commit: the hook should print a message and return nonzero, so no commit is created while the staged changes remain. Remove the marker, stage the correction, and retry.</p>
+    <p lang="en">The hook must be executable and Git must be configured to use its directory; check <code>git config --get core.hooksPath</code>. Git does not automatically enable repository hooks in a fresh clone, which avoids silently running received code. A local user can also bypass some hooks with <code>--no-verify</code>. Use hooks for fast feedback, but enforce important policy in CI or on the server. See the <a href="https://git-scm.com/docs/githooks">official githooks documentation</a>.</p>
+    <p lang="en"><strong>When not to use it:</strong> do not rely on a local hook alone for a rule everyone must follow. Use it for cheap developer feedback and run the authoritative check somewhere trustworthy.</p>
+  </section>
+
+  <section id="lfs">
+    <h2><span lang="fa">۵. فایل حجیم را کجا نگه داریم؟</span><span lang="en">5. Where should large files live?</span></h2>
+    <p lang="fa">در یک بازی، فایل‌های PSD و ویدیوی خام چندصد مگابایت‌اند. هر تغییرشان می‌تواند اندازهٔ clone و تاریخچه را سنگین کند. Git برای متن و فایل‌های معمول عالی است، اما نگهداری نسخه‌های متعدد از فایل‌های دودویی حجیم می‌تواند برای مخزن و تیم هزینه‌ساز شود.</p>
+    <p lang="fa">Git LFS در Git یک فایل pointer کوچک نگه می‌دارد که شناسه و اندازهٔ محتوای واقعی را توصیف می‌کند. payload در سرویس LFS ذخیره می‌شود. هنگام checkout، فیلترهای LFS می‌توانند محتوای واقعی را دریافت کنند و هنگام push، Git LFS آن payload را به endpoint مربوط می‌فرستد. پس Git معمولی به‌تنهایی کل انتقال و میزبانی LFS را تضمین نمی‌کند؛ نصب ابزار و پشتیبانی میزبان و دسترسی شبکه/سهمیه هم لازم است.</p>
+    <figure class="diagram">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 320" role="img" aria-labelledby="g15-d5-title g15-d5-desc" direction="ltr">
+        <title id="g15-d5-title">Git LFS pointer و محتوای حجیم</title>
+        <desc id="g15-d5-desc">مخزن Git نسخهٔ pointer را نگه می‌دارد و سرویس LFS فایل حجیم را؛ clone و push با کمک فیلتر و فرایند LFS محتوا را منتقل می‌کنند.</desc>
+        <defs><marker id="g15-d5-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#7c8cff"/></marker></defs>
+        <rect x="30" y="70" width="310" height="182" rx="18" fill="#17213a" stroke="#8793ff"/>
+        <text x="185" y="112" text-anchor="middle" fill="#eef1ff" font-size="20" direction="ltr">Git repository</text>
+        <rect x="72" y="142" width="226" height="72" rx="12" fill="#10172a" stroke="#6e7b9f"/>
+        <text x="185" y="171" text-anchor="middle" fill="#dce3ff" font-size="17" direction="ltr">small pointer</text>
+        <text x="185" y="198" text-anchor="middle" fill="#bdc8e5" font-size="14" direction="ltr">object ID + size</text>
+        <rect x="560" y="70" width="310" height="182" rx="18" fill="#20203c" stroke="#b192ff"/>
+        <text x="715" y="112" text-anchor="middle" fill="#eef1ff" font-size="20" direction="ltr">LFS storage</text>
+        <rect x="602" y="142" width="226" height="72" rx="12" fill="#10172a" stroke="#6e7b9f"/>
+        <text x="715" y="171" text-anchor="middle" fill="#dce3ff" font-size="17" direction="ltr">large binary payload</text>
+        <text x="715" y="198" text-anchor="middle" fill="#bdc8e5" font-size="14" direction="ltr">served by LFS endpoint</text>
+        <path d="M340 135 L560 135" stroke="#7c8cff" stroke-width="3" marker-end="url(#g15-d5-arrow)"/>
+        <path d="M560 231 L340 231" stroke="#52c99a" stroke-width="3" marker-end="url(#g15-d5-arrow)"/>
+        <text x="450" y="119" text-anchor="middle" fill="#bdc8e5" font-size="15" direction="ltr">push payload</text>
+        <text x="450" y="263" text-anchor="middle" fill="#bdc8e5" font-size="15" direction="ltr">fetch payload</text>
+      </svg>
+      <figcaption class="diagram-cap"><span lang="fa">Git تاریخچهٔ pointer را ثبت می‌کند؛ سرویس LFS محتوای حجیم را نگه می‌دارد و ابزار LFS این دو را هماهنگ می‌کند.</span><span lang="en">Git versions the pointer; LFS storage holds the large content and the LFS client coordinates transfer.</span></figcaption>
+    </figure>
+    <p lang="fa">روی مخزن disposable و میزبان سازگار، ابتدا Git LFS را نصب و برای کاربر فعال کن، سپس الگو را ثبت کن:</p>
+    <pre dir="ltr"><code>git lfs install
+git lfs track "*.psd"
+git check-attr filter diff merge -- assets/mock.psd
+git add .gitattributes assets/mock.psd
+git lfs ls-files
+git show :assets/mock.psd</code></pre>
+    <p lang="fa">در انتهای آزمایش، نسخهٔ stage‌شدهٔ فایل تحت ردیابی معمولاً pointer متنی LFS را نشان می‌دهد، نه محتوای باینری. <code>.gitattributes</code> باید commit شود تا هم‌تیمی‌ها همان الگو را داشته باشند. فرمان‌های track در راهنمای رسمی <a href="https://github.com/git-lfs/git-lfs/blob/main/docs/man/git-lfs-track.adoc">git-lfs-track</a> آمده‌اند؛ معرفی پروژه و سازوکار pointer در <a href="https://github.com/git-lfs/git-lfs">مخزن رسمی Git LFS</a> است.</p>
+    <p lang="fa">اگر فایل حجیم را پیش از فعال‌کردن LFS commit کرده‌ای، اجرای <code>git lfs track</code> فایل‌های قدیمی تاریخچه را به‌تنهایی تبدیل نمی‌کند. انتقال تاریخی نیازمند عملیات جداگانه‌ای است که شناسهٔ commitها را عوض می‌کند؛ روی مخزن مشترک بدون هماهنگی انجامش نده. برای این فصل، تاریخچهٔ واقعی را بازنویسی نمی‌کنیم.</p>
+    <p lang="fa"><strong>کِی استفاده نکنیم؟</strong> برای فایل‌های کوچک یا میزبان بدون پشتیبانی LFS، خود Git یا راهکار بسته‌بندی معمولی ساده‌تر است. LFS وقتی مناسب است که فایل‌های دودویی بزرگ واقعاً بخشی از نسخهٔ پروژه‌اند و تیم ظرفیت/سهمیهٔ ذخیره‌سازی و انتقالش را دارد.</p>
+    <p lang="en">A game project includes large PSD files and raw video. Each revision can make clones and history heavier. Git is excellent for text and ordinary files, but repeated versions of large binaries can impose substantial storage and transfer costs.</p>
+    <p lang="en">Git LFS stores a small pointer in Git describing the content’s identifier and size, while an LFS service stores the actual payload. LFS filters can fetch the content during checkout and send it to the LFS endpoint during push. Ordinary Git alone does not guarantee LFS hosting or transfer: the client, host support, network access, and quota also matter.</p>
+    <p lang="en">In a disposable repository and on a compatible host, install Git LFS, track a harmless test file, stage it, and inspect it. The staged version of a tracked file should be a small text pointer rather than the binary payload. Commit <code>.gitattributes</code> so teammates share the tracking rule. See the official <a href="https://github.com/git-lfs/git-lfs/blob/main/docs/man/git-lfs-track.adoc">git-lfs-track guide</a> and <a href="https://github.com/git-lfs/git-lfs">Git LFS project</a>.</p>
+    <p lang="en">If a large file was committed before LFS tracking was enabled, <code>git lfs track</code> does not convert old history. Historical migration is a separate operation that changes commit IDs; do not run it on a shared repository without coordination. We will not rewrite real history in this chapter.</p>
+    <p lang="en"><strong>When not to use it:</strong> ordinary Git or a packaging system is simpler for small files or a host without LFS support. LFS is appropriate when large binaries are part of the versioned project and the team can support the storage, transfer, and quota requirements.</p>
+  </section>
+
+  <section id="tool-choice">
+    <h2><span lang="fa">کدام ابزار برای کدام درد؟</span><span lang="en">Which tool fits which problem?</span></h2>
+    <div class="table-wrap" lang="fa"><table class="doc-table">
+      <thead><tr><th>مسئله</th><th>ابزار محتمل</th><th>چه چیزی را عوض می‌کند؟</th><th>مرزش را یادت بماند</th></tr></thead>
+      <tbody>
+        <tr><td>دو کار هم‌زمان روی شاخه‌های جدا</td><td><code>worktree</code></td><td>چند working tree متصل به مخزن</td><td>یک شاخه را هم‌زمان در چند محل checkout نکن</td></tr>
+        <tr><td>وابستگی با تاریخچه و مالکیت جدا</td><td><code>submodule</code></td><td>ثبت یک commit فرزند در والد</td><td>clone و به‌روزرسانی فرزند مرحلهٔ جدا دارد</td></tr>
+        <tr><td>کار فقط روی بخشی از monorepo</td><td><code>sparse-checkout</code></td><td>مجموعهٔ مسیرهای حاضر در working tree</td><td>به‌تنهایی دریافت اولیهٔ objectها را کم نمی‌کند</td></tr>
+        <tr><td>بازخورد محلی هنگام عملیات Git</td><td>hook</td><td>اجرای اسکریپت در یک نقطهٔ مشخص</td><td>clone آن را خودکار فعال نمی‌کند و قابل دورزدن است</td></tr>
+        <tr><td>فایل دودویی حجیم نسخه‌دار</td><td>Git LFS</td><td>pointer در Git، payload در سرویس LFS</td><td>به نصب، میزبان، شبکه و سهمیه نیاز دارد</td></tr>
+        <tr><td>وابستگی release‌شده با نسخه‌بندی جاافتاده</td><td>package manager</td><td>دریافت artifact نسخه‌دار</td><td>شاید به checkout هم‌زمان سورس وابستگی نیاز نداشته باشی</td></tr>
+        <tr><td>مخزن کوچک و گردش کار ساده</td><td>هیچ‌کدام</td><td>پیچیدگی جدیدی وارد نمی‌شود</td><td>«پیشرفته» بودن دلیل استفاده نیست</td></tr>
+      </tbody>
+    </table></div>
+    <div class="table-wrap" lang="en"><table class="doc-table">
+      <thead><tr><th>Problem</th><th>Likely tool</th><th>What changes?</th><th>Remember its boundary</th></tr></thead>
+      <tbody>
+        <tr><td>Work on two branches concurrently</td><td><code>worktree</code></td><td>Multiple working trees attached to one repository</td><td>Do not check out one branch in multiple locations</td></tr>
+        <tr><td>Dependency with separate ownership and history</td><td><code>submodule</code></td><td>Records a child repository commit in the parent</td><td>Child initialization and updates are separate steps</td></tr>
+        <tr><td>Work on only part of a monorepo</td><td><code>sparse-checkout</code></td><td>Paths present in the working tree</td><td>Does not by itself reduce the initial object transfer</td></tr>
+        <tr><td>Local feedback during a Git operation</td><td>Hook</td><td>Runs a script at a specific workflow event</td><td>Not automatically enabled on clone; can be bypassed</td></tr>
+        <tr><td>Versioned large binary files</td><td>Git LFS</td><td>Pointer in Git, payload in LFS storage</td><td>Requires client, host support, access, and quota</td></tr>
+        <tr><td>Released dependency with managed versions</td><td>Package manager</td><td>Fetches a versioned artifact</td><td>You may not need the dependency source checked out</td></tr>
+        <tr><td>Small repository and simple workflow</td><td>None</td><td>Avoids introducing new complexity</td><td>“Advanced” is not a reason to use a tool</td></tr>
+      </tbody>
+    </table></div>
+    <p lang="fa">اگر هنوز نمی‌دانی درد دقیق چیست، فعلاً ابزار اضافه نکن. در فصل بعد با یک مخزن آسیب‌دیده روبه‌رو می‌شویم؛ آن‌جا همین عادت تشخیص، از حفظ‌کردن فرمان‌ها مهم‌تر است.</p>
+    <p lang="en">The table separates the tools by the problem they solve and the boundary each one keeps. If the problem is still unclear, do not add another tool yet. In the final chapter, we will inspect a damaged repository; the habit of diagnosis will matter more than memorizing commands.</p>
+  </section>
+
+  <section id="failure-desk">
+    <h2><span lang="fa">میز عیب‌یابی: نشانه را به مدرک وصل کن</span><span lang="en">Troubleshooting desk: connect symptoms to evidence</span></h2>
+    <div class="table-wrap" lang="fa"><table class="doc-table">
+      <thead><tr><th>نشانه</th><th>اول چه چیزی را بررسی کنیم؟</th><th>برداشت عجولانه‌ای که باید کنار گذاشت</th></tr></thead>
+      <tbody>
+        <tr><td>شاخه را در worktree جدید نمی‌سازد</td><td><code>git worktree list</code>؛ شاید شاخه در محل دیگری checkout است</td><td>این‌که فوراً باید force کنیم</td></tr>
+        <tr><td>پوشهٔ submodule خالی است</td><td><code>git submodule status</code> و سپس init/update</td><td>این‌که محتوا از commit والد حذف شده</td></tr>
+        <tr><td>فایل در ls-tree هست ولی در پوشه نیست</td><td>قواعد <code>git sparse-checkout list</code> و وضعیت مسیر</td><td>این‌که فایل از تاریخچه پاک شده</td></tr>
+        <tr><td>hook اجرا نشد</td><td><code>core.hooksPath</code>، مجوز executable و نام فایل</td><td>این‌که Git hookها را از clone فعال می‌کند</td></tr>
+        <tr><td>فایل LFS به شکل pointer دیده می‌شود</td><td>نصب Git LFS، دسترسی endpoint و دریافت payload</td><td>این‌که pointer یعنی فایل برای همیشه گم شده</td></tr>
+        <tr><td>push موفق بود اما payload در دسترس نیست</td><td>پشتیبانی میزبان، دسترسی/سهمیه و خطای فرمان LFS</td><td>این‌که Git معمولی payload را حتماً فرستاده</td></tr>
+        <tr><td>فایل از قبل در تاریخچه بود و هنوز سنگین است</td><td>بررسی تاریخچه و تصمیم هماهنگ برای مهاجرت</td><td>این‌که track کردن الگو، commitهای قدیمی را تغییر داده</td></tr>
+      </tbody>
+    </table></div>
+    <div class="table-wrap" lang="en"><table class="doc-table">
+      <thead><tr><th>Symptom</th><th>First evidence to inspect</th><th>Do not assume</th></tr></thead>
+      <tbody>
+        <tr><td>Cannot add a worktree for a branch</td><td><code>git worktree list</code>; it may already be checked out elsewhere</td><td>That force is the right first move</td></tr>
+        <tr><td>Submodule directory is empty</td><td><code>git submodule status</code>, then initialize/update</td><td>That the parent commit deleted its files</td></tr>
+        <tr><td>Path exists in the tree but not on disk</td><td><code>git sparse-checkout list</code> and path status</td><td>That the path was removed from history</td></tr>
+        <tr><td>Hook did not run</td><td><code>core.hooksPath</code>, executable permission, and filename</td><td>That Git enables hooks automatically on clone</td></tr>
+        <tr><td>LFS file appears as a pointer</td><td>Git LFS installation, endpoint access, and payload fetch</td><td>That the pointer proves the file is permanently lost</td></tr>
+        <tr><td>Push succeeded but payload is unavailable</td><td>Host support, access/quota, and LFS command errors</td><td>That ordinary Git necessarily sent the payload</td></tr>
+        <tr><td>History clone remains large after tracking</td><td>History and a coordinated migration decision</td><td>That tracking changed old commits</td></tr>
+      </tbody>
+    </table></div>
+    <p lang="fa">ترتیب امن همان عادت فصل‌های قبل است: وضعیت را ببین، مدرک جمع کن، بعد تغییر بده. فرمانی که فقط نشانه را پنهان کند، ممکن است عیب‌یابی بعدی را سخت‌تر کند.</p>
+    <p lang="en">Use the same safe order practiced in earlier chapters: inspect state, gather evidence, then change something. A command that merely hides the symptom can make the next diagnosis harder.</p>
+  </section>
+
+  <section id="mini-project">
+    <h2><span lang="fa">مینی‌پروژه: پنج درخواست از یک تیم</span><span lang="en">Mini-project: five requests from one team</span></h2>
+    <p lang="fa">برای این تمرین‌ها از مخزن disposable استفاده کن؛ روی پروژهٔ کاری یا فایل‌های ارزشمند، حذف و بازنویسی را آزمایش نکن. لازم نیست هر پنج ابزار را در یک مخزن قاطی کنی. برای هر سناریو، یک یادداشت کوتاه تحویل بده: مسئله، ابزار انتخابی، مدرکی که انتخاب را پشتیبانی می‌کند، و محدودیت راه‌حل.</p>
+    <ol>
+      <li><strong>hotfix در کنار feature:</strong> شاخهٔ feature تغییر staged‌نشده دارد و باید اصلاح فوری را جدا آماده کنی. دو worktree بساز، فهرستشان را ثبت کن و نشان بده هر کدام روی چه شاخه‌ای است.</li>
+      <li><strong>کتابخانهٔ متعلق به تیم دیگر:</strong> یک مخزن آزمایشی را submodule کن. در clone تازه، نبودن محتوای checkoutشده را مشاهده و با دستور recursive آن را آماده کن. commit ثبت‌شدهٔ والد را با وضعیت فرزند تطبیق بده.</li>
+      <li><strong>monorepo آزمایشی:</strong> سه پوشهٔ سرویس بساز و فقط یکی را در working tree نگه دار. تفاوت فهرست مسیر انتخابی و مسیرهای موجود در tree را با مدرک نشان بده.</li>
+      <li><strong>کنترل کیفیت سریع:</strong> hook بررسی DEBUG_ONLY را اضافه کن؛ یک بار commit را متوقف کن و بار دوم پس از اصلاح اجازه بده. در یادداشتت توضیح بده چرا تیم باز هم به CI نیاز دارد.</li>
+      <li><strong>دارایی حجیم:</strong> فقط اگر میزبان و دسترسی Git LFS داری، یک فایل آزمایشی کوچک و بی‌ارزش را track و round-trip آن را بررسی کن. اگر میزبان نداری، به‌جای جعل موفقیت، پیش‌نیازهای لازم را مستند کن و آزمایش را متوقف نگه دار.</li>
+    </ol>
+    <div class="callout">
+      <p lang="fa"><strong>چه وقت از هرکدام استفاده نکنیم؟</strong> worktree را برای تعویض شاخهٔ عادی اضافه نکن؛ submodule را جای package منتشرشده نگذار؛ sparse-checkout را برای مخزن کوچک فعال نکن؛ hook محلی را مرجع نهایی سیاست تیم ندان؛ LFS را برای فایل کم‌حجم یا میزبان ناسازگار انتخاب نکن. گاهی بهترین راه، ساده‌ترین workflow فعلی است.</p>
+    </div>
+    <p lang="fa">پایان کار، فقط پوشه‌های آزمایشی را پس از بررسی تغییرهایشان جمع کن. برای worktree از فرمان خود Git کمک بگیر؛ submodule یا فایل آزمایشی را از پروژهٔ واقعی حذف نکن. در گزارش، فرمان و خروجی‌ای را نگه دار که نفر بعدی بتواند انتخابت را بازبینی کند.</p>
+    <p lang="en">Use disposable repositories for these tasks; do not test removal or rewriting on a working project or valuable files. You do not need to combine all five tools in one repository. For each scenario, submit a short note: the problem, chosen tool, evidence supporting the choice, and the solution’s limitation.</p>
+    <ol lang="en">
+      <li><strong>Hotfix beside a feature:</strong> the feature branch has unstaged work, and you need a separate urgent fix. Create two worktrees, list them, and show which branch each uses.</li>
+      <li><strong>A library owned by another team:</strong> add a test repository as a submodule. In a fresh clone, observe the uninitialized child and then initialize it recursively. Compare its checked-out commit with the parent’s recorded commit.</li>
+      <li><strong>A sample monorepo:</strong> create three service directories and keep only one in the working tree. Show evidence distinguishing selected paths from paths present in the tree.</li>
+      <li><strong>Fast local quality check:</strong> add the DEBUG_ONLY hook, block one commit, then allow a commit after fixing it. Explain why the team still needs CI.</li>
+      <li><strong>A large asset:</strong> only if your host and access support Git LFS, track a small disposable file and test a round trip. Otherwise document the prerequisites and stop without pretending the test succeeded.</li>
+    </ol>
+    <p lang="en"><strong>When not to use each:</strong> do not add a worktree for ordinary branch switching; do not replace a published package with a submodule; do not enable sparse checkout for a tiny repository; do not treat a local hook as final team policy; and do not choose LFS for small files or an incompatible host. Sometimes the best choice is the existing simple workflow.</p>
+    <p lang="en">At the end, clean up only disposable locations after checking their changes. Use Git’s worktree command for worktrees, and do not remove a real project’s submodule or files. Keep commands and output in the report so another person can review the decision.</p>
+  </section>
+
+  <section id="exercises">
+    <h2><span lang="fa">۱۸ تمرین حل‌شده</span><span lang="en">18 solved exercises</span></h2>
+    <p lang="fa">این تمرین‌ها از تشخیص موقعیت شروع می‌شوند و به انتخاب هم‌زمان چند ابزار می‌رسند. اول خودت تصمیم بگیر، بعد راهنمای کوتاه را باز کن.</p>
+    <p lang="en">These exercises begin with recognizing a situation and build toward choosing several tools together. Decide first, then open the short hint and explanation.</p>
+    <div class="ex" id="g15-ex01"><details class="exercise">
+      <summary><span class="exercise-number">۱</span> <span lang="fa">کار روی feature نیمه‌تمام است و hotfix فوری لازم شده؛ کم‌دردسرترین مدل چیست؟</span><span lang="en">A feature is unfinished and an urgent hotfix is needed. Which workflow causes the least disruption?</span></summary>
+      <details class="note"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">آیا واقعاً باید همان پوشه یک شاخه را جایگزین شاخهٔ دیگر کند؟</p><p lang="en">Must the same directory replace one checked-out branch with another?</p></details>
+      <div class="ex-sol"><p lang="fa"><strong>پاسخ:</strong> اگر دو شاخه باید هم‌زمان در دسترس باشند، یک worktree برای hotfix بساز. فایل‌های feature در محل فعلی دست‌نخورده می‌مانند. اگر شاخه‌اش هنوز جای دیگری checkout است، اول فهرست worktreeها را بررسی کن.</p><p lang="en"><strong>Answer:</strong> Use a second worktree for the hotfix when both branches must remain available. The feature files stay in place; first check that the target branch is not already checked out elsewhere.</p></div>
+    </details></div>
+    <div class="ex" id="g15-ex02"><details class="exercise">
+      <summary><span class="exercise-number">۲</span> <span lang="fa">ساخت worktree برای شاخهٔ <code>release</code> رد می‌شود و Git می‌گوید شاخه در worktree دیگری استفاده می‌شود. چه می‌کنی؟</span><span lang="en">Git refuses a worktree for <code>release</code> because that branch is already in use elsewhere. What do you do?</span></summary>
+      <details class="note"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">پیش از هر حذف یا force، محل checkout فعلی را پیدا کن.</p><p lang="en">Locate the current checkout before removing anything or forcing the operation.</p></details>
+      <div class="ex-sol"><p lang="fa"><strong>پاسخ:</strong> <code>git worktree list</code> را اجرا و worktree مربوط به <code>release</code> را پیدا می‌کنم. اگر آن محل هنوز لازم است، شاخهٔ دیگری انتخاب می‌کنم؛ اگر تمام شده، تغییرهایش را بررسی و سپس با فرمان remove جمعش می‌کنم. force راه تشخیص نیست.</p><p lang="en"><strong>Answer:</strong> Run <code>git worktree list</code>, inspect the existing checkout, and either choose another branch or safely remove the finished worktree after checking its changes. Force is not diagnosis.</p></div>
+    </details></div>
+    <div class="ex" id="g15-ex03"><details class="exercise">
+      <summary><span class="exercise-number">۳</span> <span lang="fa">پوشهٔ یک worktree را دستی پاک کرده‌ای، ولی هنوز در فهرست دیده می‌شود. قدم امن بعدی چیست؟</span><span lang="en">You manually deleted a worktree directory, but it still appears in the list. What is the safe next step?</span></summary>
+      <details class="note"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">پیش‌نمایش پاک‌سازی را پیش از اجرای واقعی ببین.</p><p lang="en">Preview the cleanup before running it for real.</p></details>
+      <div class="ex-sol"><p lang="fa"><strong>پاسخ:</strong> از مخزن اصلی <code>git worktree prune --dry-run</code> اجرا می‌کنم و خروجی را بررسی می‌کنم؛ فقط رکوردهای stale موردنظر را بعد از اطمینان prune می‌کنم. اگر دیسک جداگانه موقتاً وصل نیست، prune نکن؛ شاید worktree فقط در دسترس نباشد.</p><p lang="en"><strong>Answer:</strong> Preview with <code>git worktree prune --dry-run</code> and prune only confirmed stale records. If a separate drive is merely offline, do not prune it as if it were deleted.</p></div>
+    </details></div>
+    <div class="ex" id="g15-ex04"><details class="exercise">
+      <summary><span class="exercise-number">۴</span> <span lang="fa">پس از clone، پوشهٔ کتابخانهٔ submodule خالی است. آیا commit والد فایل‌ها را حذف کرده؟</span><span lang="en">After cloning, the submodule library directory is empty. Did the parent commit delete its files?</span></summary>
+      <details class="note"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">وضعیت submodule را بخوان و تفاوت اشاره‌گر با محتوای checkoutشده را به یاد بیاور.</p><p lang="en">Inspect submodule status and distinguish a recorded pointer from checked-out child content.</p></details>
+      <div class="ex-sol"><p lang="fa"><strong>پاسخ:</strong> لزوماً نه. ابتدا <code>git submodule status</code> را می‌بینم؛ سپس <code>git submodule update --init --recursive</code> را اجرا می‌کنم. والد commit فرزند را ثبت می‌کند، اما clone تازه ممکن است هنوز محتوای فرزند را initialize نکرده باشد.</p><p lang="en"><strong>Answer:</strong> Not necessarily. Inspect <code>git submodule status</code>, then initialize recursively. The parent pins a child commit, but a fresh clone may not yet have checked out child content.</p></div>
+    </details></div>
+    <div class="ex" id="g15-ex05"><details class="exercise">
+      <summary><span class="exercise-number">۵</span> <span lang="fa">commit تازهٔ submodule روی رایانهٔ تو هست، اما هم‌تیمی با update نمی‌تواند آن را بگیرد. کدام مدرک را بررسی می‌کنی؟</span><span lang="en">A new submodule commit exists on your machine, but a teammate cannot retrieve it during update. What evidence do you check?</span></summary>
+      <details class="note"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">commit فرزند فقط در کدام repository وجود دارد؟</p><p lang="en">In which repository does the child commit exist?</p></details>
+      <div class="ex-sol"><p lang="fa"><strong>پاسخ:</strong> بررسی می‌کنم commit در مخزن فرزند به remote قابل‌دسترسی push شده باشد. commit کردن gitlink در والد به‌تنهایی payload یا commit فرزند را به مخزن والد منتقل نمی‌کند؛ پس از انتشار commit فرزند، اشارهٔ والد را ثبت می‌کنم.</p><p lang="en"><strong>Answer:</strong> Verify that the child commit was pushed to a remote the teammate can access. Committing the parent gitlink does not transfer the child commit into the parent repository.</p></div>
+    </details></div>
+    <div class="ex" id="g15-ex06"><details class="exercise">
+      <summary><span class="exercise-number">۶</span> <span lang="fa">پس از submodule update، داخل کتابخانه detached HEAD می‌بینی. آیا باید فوراً آن را اصلاح کنی؟</span><span lang="en">After updating a submodule, its HEAD is detached. Must you fix this immediately?</span></summary>
+      <details class="note"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">هدف والد، نسخهٔ شاخه‌ای است یا commit دقیق؟</p><p lang="en">Does the parent need a moving branch, or an exact commit?</p></details>
+      <div class="ex-sol"><p lang="fa"><strong>پاسخ:</strong> نه؛ checkout روی commit pin‌شده رفتار عادی submodule است و ممکن است detached باشد. اگر قرار است کتابخانه را ویرایش کنم، در مخزن فرزند یک شاخه بسازم یا checkout کنم، commit و push را آن‌جا انجام دهم و سپس gitlink والد را به‌روزرسانی کنم.</p><p lang="en"><strong>Answer:</strong> No. A pinned child commit is commonly checked out detached. For edits, create or switch to a branch in the child repository, publish its commit, then update the parent gitlink.</p></div>
+    </details></div>
+    <div class="ex" id="g15-ex07"><details class="exercise">
+      <summary><span class="exercise-number">۷</span> <span lang="fa"><code>git ls-tree</code> مسیری را نشان می‌دهد که در فایل‌سیستم نیست. از کجا شروع می‌کنی؟</span><span lang="en"><code>git ls-tree</code> shows a path that is absent from the filesystem. Where do you start?</span></summary>
+      <details class="note"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">آیا این clone sparse است؟</p><p lang="en">Is this a sparse checkout?</p></details>
+      <div class="ex-sol"><p lang="fa"><strong>پاسخ:</strong> <code>git sparse-checkout list</code> و <code>git status --short</code> را بررسی می‌کنم. اگر مسیر از الگوهای sparse بیرون است، نبودنش در working tree به معنی پاک‌شدن از commit نیست؛ الگو را آگاهانه اصلاح می‌کنم.</p><p lang="en"><strong>Answer:</strong> Check the sparse patterns and status. A path excluded from the working tree can still exist in the commit tree; adjust the pattern intentionally.</p></div>
+    </details></div>
+    <div class="ex" id="g15-ex08"><details class="exercise">
+      <summary><span class="exercise-number">۸</span> <span lang="fa">برای انتخاب یک پوشهٔ سرویس، cone mode را انتخاب می‌کنی یا الگوهای non-cone پیچیده؟</span><span lang="en">To select a service directory, would you use cone mode or complex non-cone patterns?</span></summary>
+      <details class="note"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">شکل نیاز واقعاً پوشه‌محور است؟</p><p lang="en">Is the requirement naturally expressed as directory selection?</p></details>
+      <div class="ex-sol"><p lang="fa"><strong>پاسخ:</strong> برای انتخاب پوشه، cone mode انتخاب طبیعی و ساده‌تر است: <code>git sparse-checkout init --cone</code> و سپس <code>set مسیر</code>. سراغ الگوهای پیچیده‌تر فقط وقتی می‌روم که نیاز دقیقاً با انتخاب پوشه‌ها بیان‌پذیر نباشد و محدودیت نسخهٔ Git را هم بررسی کرده باشم.</p><p lang="en"><strong>Answer:</strong> Use cone mode for directory-shaped selection. Reach for more complex patterns only when directories cannot express the requirement and the installed Git behavior has been checked.</p></div>
+    </details></div>
+    <div class="ex" id="g15-ex09"><details class="exercise">
+      <summary><span class="exercise-number">۹</span> <span lang="fa">sparse-checkout را روی clone معمولی فعال کردی؛ آیا دادهٔ منتقل‌شده در clone اولیه حتماً کمتر شده؟</span><span lang="en">You enabled sparse checkout after a normal clone. Did the initial clone necessarily transfer less data?</span></summary>
+      <details class="note"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">working tree با object transfer یک مفهوم نیست.</p><p lang="en">The working tree and object transfer are different concerns.</p></details>
+      <div class="ex-sol"><p lang="fa"><strong>پاسخ:</strong> نه. sparse-checkout عمدتاً مسیرهای حاضر در working tree را محدود می‌کند. برای کاهش دریافت blobهای اولیه، partial clone مانند <code>--filter=blob:none</code> را جداگانه بررسی می‌کنم؛ این راه به پشتیبانی سرور و دریافت احتمالی بعدی نیاز دارد.</p><p lang="en"><strong>Answer:</strong> No. Sparse checkout shapes the working tree. Partial clone filters object transfer separately, requires server support, and may fetch blobs later on demand.</p></div>
+    </details></div>
+    <div class="ex" id="g15-ex10"><details class="exercise">
+      <summary><span class="exercise-number">۱۰</span> <span lang="fa">hook فایلش در مخزن هست اما هنگام commit اجرا نمی‌شود. سه بررسی اول چیست؟</span><span lang="en">The hook file is in the repository but does not run on commit. What are your first three checks?</span></summary>
+      <details class="note"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">نام، مسیر فعال و مجوز اجرا.</p><p lang="en">Check the name, active path, and executable permission.</p></details>
+      <div class="ex-sol"><p lang="fa"><strong>پاسخ:</strong> نام دقیق hook، مقدار <code>git config --get core.hooksPath</code> و executable بودن فایل را بررسی می‌کنم. همچنین مطمئن می‌شوم Git از همان مخزنی اجرا می‌شود که تنظیم را در آن انجام داده‌ام.</p><p lang="en"><strong>Answer:</strong> Check the exact hook filename, active <code>core.hooksPath</code>, executable permission, and that Git is running in the repository with that configuration.</p></div>
+    </details></div>
+    <div class="ex" id="g15-ex11"><details class="exercise">
+      <summary><span class="exercise-number">۱۱</span> <span lang="fa">hook در رایانهٔ تو اجرا می‌شود ولی هم‌تیمی با clone تازه آن را نمی‌بیند. چه چیزی جا افتاده؟</span><span lang="en">The hook runs on your machine, but a teammate does not get it in a fresh clone. What is missing?</span></summary>
+      <details class="note"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">commit شدن اسکریپت و فعال‌سازی hook یک مرحله نیستند.</p><p lang="en">Committing a script and enabling a hook are separate steps.</p></details>
+      <div class="ex-sol"><p lang="fa"><strong>پاسخ:</strong> Git hookهای داخل پروژه را به‌طور خودکار فعال نمی‌کند. باید راه setup امن و روشن برای تنظیم <code>core.hooksPath</code> داشته باشیم یا ابزار تیم این کار را انجام دهد؛ کنترل ضروری را هم در CI بگذاریم، چون hook محلی قابل دورزدن است.</p><p lang="en"><strong>Answer:</strong> Git does not automatically enable repository hooks on clone. Provide an explicit safe setup path and enforce required checks in CI because local hooks can be bypassed.</p></div>
+    </details></div>
+    <div class="ex" id="g15-ex12"><details class="exercise">
+      <summary><span class="exercise-number">۱۲</span> <span lang="fa">hook با exit code غیرصفر commit را متوقف کرده است. آیا تغییرهای staged از بین رفته‌اند؟</span><span lang="en">A hook returned nonzero and stopped the commit. Were the staged changes lost?</span></summary>
+      <details class="note"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">ردشدن عملیات با حذف index یکی نیست.</p><p lang="en">A rejected operation is not the same as deleting the index.</p></details>
+      <div class="ex-sol"><p lang="fa"><strong>پاسخ:</strong> معمولاً نه؛ commit ساخته نشده و تغییرهای staged برای اصلاح باقی می‌مانند. <code>git status</code> را می‌خوانم، علت را رفع می‌کنم، فایل را دوباره stage می‌کنم و commit را تکرار می‌کنم.</p><p lang="en"><strong>Answer:</strong> Usually not. The commit was blocked while staged changes remain available. Inspect status, fix the cause, stage the correction, and retry.</p></div>
+    </details></div>
+    <div class="ex" id="g15-ex13"><details class="exercise">
+      <summary><span class="exercise-number">۱۳</span> <span lang="fa">checkout یک فایل را به شکل pointer متنی نشان می‌دهد. از کجا بفهمیم فایل خراب است یا payload دریافت نشده؟</span><span lang="en">A checkout shows a file as a text pointer. How can you tell whether it is corrupt or its payload was not fetched?</span></summary>
+      <details class="note"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">pointer در LFS نمایندهٔ محتواست؛ مسیر انتقال را بررسی کن.</p><p lang="en">An LFS pointer represents content; inspect the transfer path.</p></details>
+      <div class="ex-sol"><p lang="fa"><strong>پاسخ:</strong> ابتدا <code>git lfs ls-files</code> و نصب Git LFS را بررسی می‌کنم، سپس دسترسی endpoint، خطای smudge/fetch و وضعیت شبکه را می‌سنجم. pointer به‌تنهایی مدرک گم‌شدن فایل نیست؛ اگر endpoint در دسترس نیست، آن را گزارش می‌کنم و وانمود نمی‌کنم payload موجود است.</p><p lang="en"><strong>Answer:</strong> Check LFS installation and tracked files, then endpoint access and fetch/smudge errors. A pointer alone does not prove loss; report unavailable storage rather than claiming the payload exists.</p></div>
+    </details></div>
+    <div class="ex" id="g15-ex14"><details class="exercise">
+      <summary><span class="exercise-number">۱۴</span> <span lang="fa">Git push موفق شده ولی هم‌تیمی payload فایل حجیم را نمی‌گیرد. چه تفاوتی را باید در نظر گرفت؟</span><span lang="en">Git push succeeded, but a teammate cannot get the large-file payload. What distinction matters?</span></summary>
+      <details class="note"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">موفقیت انتقال Git و سرویس LFS را یکی نگیر.</p><p lang="en">Do not conflate Git transfer success with LFS service success.</p></details>
+      <div class="ex-sol"><p lang="fa"><strong>پاسخ:</strong> push عادی commit و pointer را منتقل می‌کند؛ payload ممکن است از endpoint جداگانهٔ LFS بیاید. پشتیبانی میزبان، دسترسی، سهمیه و خروجی Git LFS را بررسی می‌کنم. تا رفع آن، تحویل فایل را موفق اعلام نمی‌کنم.</p><p lang="en"><strong>Answer:</strong> A normal Git push transfers commits and pointers; the payload uses the LFS endpoint. Check host support, access, quota, and LFS output before declaring delivery successful.</p></div>
+    </details></div>
+    <div class="ex" id="g15-ex15"><details class="exercise">
+      <summary><span class="exercise-number">۱۵</span> <span lang="fa">امروز <code>git lfs track "*.psd"</code> را اجرا کردی، اما clone تاریخچه هنوز حجیم است. چرا؟</span><span lang="en">You ran <code>git lfs track "*.psd"</code> today, but cloning history is still large. Why?</span></summary>
+      <details class="note"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">الگوی آینده تاریخچهٔ گذشته را بازنویسی نمی‌کند.</p><p lang="en">A rule for future files does not rewrite past history.</p></details>
+      <div class="ex-sol"><p lang="fa"><strong>پاسخ:</strong> track کردن، قواعد attribute را برای فایل‌های بعدی ثبت می‌کند؛ commitهای قدیمی را مهاجرت نمی‌دهد. تبدیل تاریخچه ابزار جداگانه و بازنویسی شناسه‌ها می‌خواهد و باید با همهٔ مصرف‌کنندگان مخزن هماهنگ شود. در مخزن مشترک بی‌اجازه اجرا نمی‌کنم.</p><p lang="en"><strong>Answer:</strong> Tracking changes future attributes, not old commits. Historical migration rewrites object IDs and needs coordination with every consumer; do not run it casually on a shared repository.</p></div>
+    </details></div>
+    <div class="ex" id="g15-ex16"><details class="exercise">
+      <summary><span class="exercise-number">۱۶</span> <span lang="fa">قانون شرکت می‌گوید هیچ commitی نباید تست‌های لازم را دور بزند. hook محلی کافی است؟</span><span lang="en">Company policy says no commit may bypass required tests. Is a local hook enough?</span></summary>
+      <details class="note"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">چه کسی می‌تواند hook محلی را حذف یا دور بزند؟</p><p lang="en">Who can remove or bypass a local hook?</p></details>
+      <div class="ex-sol"><p lang="fa"><strong>پاسخ:</strong> کافی نیست. hook برای بازخورد زودهنگام است و می‌تواند غیرفعال یا دور زده شود. تست الزامی را در CI یا سیاست سمت سرور اعمال می‌کنم و hook را فقط کمک محلی می‌دانم.</p><p lang="en"><strong>Answer:</strong> No. Local hooks improve feedback but can be disabled or bypassed. Enforce mandatory checks in CI or server-side policy.</p></div>
+    </details></div>
+    <div class="ex" id="g15-ex17"><details class="exercise">
+      <summary><span class="exercise-number">۱۷</span> <span lang="fa">یک کتابخانه نسخهٔ release دارد و از registry نصب می‌شود؛ آیا submodule انتخاب اول است؟</span><span lang="en">A library has releases and is installed from a registry. Is a submodule the first choice?</span></summary>
+      <details class="note"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">آیا واقعاً به checkout سورس در commit دقیق نیاز داریم؟</p><p lang="en">Do you actually need the source checked out at an exact commit?</p></details>
+      <div class="ex-sol"><p lang="fa"><strong>پاسخ:</strong> معمولاً package manager ساده‌تر است؛ نسخهٔ release را مانند وابستگی‌های دیگر می‌گیرد. submodule زمانی ارزش دارد که اتصال مستقیم به commit مخزن فرزند یا workflow توسعهٔ هم‌زمان سورس لازم باشد.</p><p lang="en"><strong>Answer:</strong> Usually prefer the package manager for a released dependency. A submodule is justified when the parent needs a precise child commit or coordinated source development.</p></div>
+    </details></div>
+    <div class="ex" id="g15-ex18"><details class="exercise">
+      <summary><span class="exercise-number">۱۸</span> <span lang="fa">در monorepo، هم‌زمانی hotfix لازم است، checkout فقط یک سرویس می‌خواهی و فایل‌های ویدیویی حجیم هم داری. ابزارها را چگونه از هم تفکیک می‌کنی؟</span><span lang="en">In a monorepo, you need a concurrent hotfix, only one service checked out, and large video files. How do you assign tools to these needs?</span></summary>
+      <details class="note"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><p lang="fa">هر ابزار فقط یک بُعد از مسئله را پاسخ می‌دهد.</p><p lang="en">Each tool addresses only one dimension of the problem.</p></details>
+      <div class="ex-sol"><p lang="fa"><strong>پاسخ:</strong> برای hotfix موازی worktree؛ برای محدودکردن مسیرهای حاضر در working tree، sparse-checkout؛ و فقط اگر میزبان و سهمیه پشتیبانی می‌کند، برای فایل‌های بزرگ Git LFS. اگر کاهش دریافت اولیه هم لازم است، partial clone را جدا می‌سنجم. هیچ‌کدام جای دیگری را نمی‌گیرد و لازم نیست همه را فعال کنیم.</p><p lang="en"><strong>Answer:</strong> Use a worktree for parallel hotfix work, sparse checkout for the selected working-tree paths, and LFS for large files only with supported storage and quota. Evaluate partial clone separately for initial transfer; none substitutes for another.</p></div>
+    </details></div>
+  </section>
+
+  <section id="handoff">
+    <h2><span lang="fa">حالا نوبت اتاق نجات است</span><span lang="en">Next: the repository rescue room</span></h2>
+    <p lang="fa">در این فصل ابزارهایی دیدیم که محل کار، مرز مخزن، فایل‌های حاضر، کنترل‌های محلی یا شیوهٔ نگهداری payload را عوض می‌کنند. هیچ‌کدام «دکمهٔ جادویی» نیستند: worktree تغییر ثبت‌نشده را بیمه نمی‌کند؛ submodule دسترسی به commit منتشرنشده نمی‌سازد؛ sparse-checkout فایل را از تاریخچه حذف نمی‌کند؛ hook محلی قانون همگانی نیست؛ و LFS بدون سرویس و دسترسی، فایل حجیم را منتقل نمی‌کند.</p>
+    <p lang="fa">در فصل پایانی، قرار نیست دستور تازه‌ای را طوطی‌وار اجرا کنیم. یک مخزن به‌هم‌ریخته را بررسی می‌کنیم، مدرک جمع می‌کنیم و تصمیم می‌گیریم کدام کار را می‌شود امن انجام داد و کجا باید توقف کرد. ابزار خوب از تشخیص درست شروع می‌شود.</p>
+    <p lang="en">This chapter introduced tools that change working locations, repository boundaries, visible files, local checks, or large-payload storage. None is magic: a worktree does not protect uncommitted changes; a submodule cannot make an unpublished child commit available; sparse checkout does not erase paths from history; a local hook is not universal policy; and LFS cannot transfer a file without a service and access.</p>
+    <p lang="en">The final chapter will not ask you to blindly repeat a new command. We will inspect a troubled repository, collect evidence, and decide what can safely be done—and where we should stop. Good tooling starts with good diagnosis.</p>
+  </section>
+
+  <section id="quick-reference">
+    <h2><span lang="fa">برگهٔ همراه</span><span lang="en">Quick reference</span></h2>
+    <div class="table-wrap" lang="fa"><table class="doc-table">
+      <thead><tr><th>ابزار</th><th>برای چه؟</th><th>مدرک شروع</th><th>احتیاط</th></tr></thead>
+      <tbody>
+        <tr><td><code>worktree</code></td><td>working treeهای موازی</td><td><code>git worktree list</code></td><td>پیش از حذف، تغییرها را بررسی کن</td></tr>
+        <tr><td><code>submodule</code></td><td>اتصال به commit مخزن مستقل</td><td><code>git submodule status</code></td><td>فرزند باید قابل‌دسترسی و initialize باشد</td></tr>
+        <tr><td><code>sparse-checkout</code></td><td>انتخاب مسیرهای working tree</td><td><code>git sparse-checkout list</code></td><td>با partial clone یکی نیست</td></tr>
+        <tr><td>hook</td><td>بازخورد محلی هنگام عملیات</td><td><code>core.hooksPath</code> و مجوز اجرا</td><td>کنترل ضروری را در CI هم داشته باش</td></tr>
+        <tr><td>Git LFS</td><td>مدیریت فایل‌های حجیم</td><td><code>git lfs ls-files</code></td><td>endpoint، دسترسی و سهمیه لازم است</td></tr>
+      </tbody>
+    </table></div>
+    <div class="table-wrap" lang="en"><table class="doc-table">
+      <thead><tr><th>Tool</th><th>Use</th><th>First evidence</th><th>Caution</th></tr></thead>
+      <tbody>
+        <tr><td><code>worktree</code></td><td>Concurrent working trees</td><td><code>git worktree list</code></td><td>Inspect changes before removal</td></tr>
+        <tr><td><code>submodule</code></td><td>Pin a commit from an independent repository</td><td><code>git submodule status</code></td><td>Child must be accessible and initialized</td></tr>
+        <tr><td><code>sparse-checkout</code></td><td>Select working-tree paths</td><td><code>git sparse-checkout list</code></td><td>Not the same as partial clone</td></tr>
+        <tr><td>Hook</td><td>Local feedback during an operation</td><td><code>core.hooksPath</code> and executable bit</td><td>Enforce required checks in CI too</td></tr>
+        <tr><td>Git LFS</td><td>Manage large files</td><td><code>git lfs ls-files</code></td><td>Endpoint, access, and quota are required</td></tr>
+      </tbody>
+    </table></div>
+    <p lang="fa" class="closing">قاعدهٔ این فصل ساده است: اول درد و مدرک، بعد ابزار؛ و اگر ساده‌ترین راه جواب می‌دهد، همان را نگه دار.</p>
+    <p class="closing" lang="en">The rule is simple: identify the problem and evidence before choosing a tool. If the simplest workflow works, keep it.</p>
+  </section>

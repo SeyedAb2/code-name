@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePrefs } from "@/context/PrefsContext";
 import { useProgress } from "@/context/ProgressContext";
-import { num, pct, hours, t } from "@/lib/i18n";
+import { num, hours, t } from "@/lib/i18n";
 import { capstoneLabel, chapterSlug, resumeTarget } from "@/lib/track";
 import type { Track } from "@/lib/types";
 import AppShell from "@/components/layout/AppShell";

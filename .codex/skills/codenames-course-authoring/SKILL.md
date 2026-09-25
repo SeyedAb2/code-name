@@ -132,6 +132,8 @@ When a chapter has a fixed exercise count, preserve it exactly while deepening e
 
 Labs should feel like a small engineering story rather than a setup checklist. Normally include **initial goal → working baseline → observation → deliberate failure → diagnosis → repair → verification → cleanup/result check**, and explain why each checkpoint exists. Require commands and observable output, but do not frame the lab as trivia.
 
+If an exercise or lab depends on another actor, clone, service, or remote state, provide a reproducible setup for that participant and show the handoff/working-directory transitions. Do not make a learner merely pretend that external state exists when the lesson's conclusion depends on observing it.
+
 ## Project page contract
 
 A project/capstone page is a build brief, not another lecture or an oversized lab. Give the learner a believable scenario, explicit scope and deliverables, a runnable starter, staged milestones, observable acceptance criteria, a few purposeful failure drills, debugging hints, and a final review. Do not impose the chapter exercise-count convention on a project unless its brief explicitly requests exercises.
