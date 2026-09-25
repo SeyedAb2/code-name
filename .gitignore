@@ -56,7 +56,7 @@ test-results/
 .claude/
 .codex/
 .next/
-
+/prompt
 # ─── دارایی‌های تولیدی ────────────────────────────────────────────────────
 # نسخه‌های لوگو را tools/make-logo.js از assets/images/logo.png می‌سازد،
 # و src/lib/courses.data.ts و public/search-index.json را
