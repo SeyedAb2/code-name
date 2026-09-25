@@ -1,0 +1,431 @@
+<!--meta
+title: دستور زبان کانفیگ و context‌ها
+desc: خواندن directive و block در Nginx، محدودهٔ contextها، include، تفاوت وراثت directiveها و زمان ارزیابی متغیرها.
+-->
+
+<div class="masthead">
+  <span class="eyebrow"><span class="dot"></span><span lang="fa">Nginx · فصل ۲</span><span lang="en">Nginx · Chapter 2</span></span>
+  <h1 lang="fa">دستور زبان کانفیگ و context‌ها</h1>
+  <h1 lang="en">Config syntax and contexts</h1>
+  <p class="sub" lang="fa">یک خط را به کانفیگ اضافه می‌کنی، Nginx می‌گوید «این‌جا مجاز نیست». منظورش از «اینجا» کجاست؟ این فصل فایل کانفیگ را مثل یک برنامهٔ کوچک می‌خواند: دستورها کجا معتبرند، بلوک‌ها چطور تو‌در‌تو می‌شوند و کدام مقدار چه زمانی معنا پیدا می‌کند.</p>
+  <p class="sub" lang="en">You add one line to the configuration and Nginx says, “not allowed here.” What does “here” mean? This chapter treats the config as a small program: where directives are valid, how blocks nest, and when a value actually takes meaning.</p>
+  <div class="facts">
+    <div class="fact"><b>۷۰</b><span lang="fa">دقیقهٔ مطالعه</span><span lang="en">minutes</span></div>
+    <div class="fact"><b>۱۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></div>
+    <div class="fact"><b>۲</b><span lang="fa">نمودار مفهومی</span><span lang="en">concept diagrams</span></div>
+    <div class="fact"><b>۱</b><span lang="fa">آزمایش خراب‌کردن امن</span><span lang="en">safe failure experiment</span></div>
+  </div>
+</div>
+
+<section id="wrong-place">
+  <h2><span lang="fa">یک خط درست، در جای اشتباه</span><span lang="en">A valid-looking line in the wrong place</span></h2>
+  <p class="lede" lang="fa">در فصل قبل با <code>nginx -t</code> دیدی که می‌شود پیش از reload پیکربندی را بررسی کرد. حالا یک همکار می‌گوید: «برای اینکه workerها بیشتر connection بگیرند، <code>worker_connections 1024;</code> را به config اضافه کردم. اما تست خطا می‌دهد.» خط خودش عجیب نیست؛ شاید فقط در جای نامناسبی نوشته شده باشد.</p>
+  <p class="lede" lang="en">In the previous chapter, you used <code>nginx -t</code> to test a configuration before reloading. Now a teammate says, “I added <code>worker_connections 1024;</code> so workers can handle more connections, but the test fails.” The line itself looks reasonable; perhaps it is simply in the wrong place.</p>
+  <p lang="fa">پیش از اینکه جابه‌جایش کنیم، پیش‌بینی کن: آیا همهٔ دستورهای Nginx را می‌شود هر جای فایل نوشت؟ اگر جواب «نه» است، Nginx از کجا می‌فهمد این خط در context نامعتبر قرار گرفته؟</p>
+  <p lang="en">Before moving it, predict: can every Nginx directive go anywhere in the file? If not, how does Nginx know that this line is in an invalid context?</p>
+  <div class="note safe"><div class="note-t"><span lang="fa">مدل ساده</span><span lang="en">The simple model</span></div>
+    <p lang="fa">کانفیگ فقط فهرست تنظیمات نیست؛ ساختار تو‌در‌تویی دارد. هر دستور در یک یا چند جای مشخص مجاز است. آکولادها آن «جا»ها را می‌سازند و parser هنگام خواندن فایل، جای هر دستور را می‌داند.</p>
+    <p lang="en">A configuration is not just a list of settings; it has a nested structure. Each directive is valid in one or more defined places. Braces create those places, and the parser knows where each directive appears as it reads the file.</p>
+  </div>
+</section>
+
+<section id="grammar">
+  <h2><span lang="fa">directive و block چه فرقی دارند؟</span><span lang="en">What is the difference between a directive and a block?</span></h2>
+  <p class="lede" lang="fa">در Nginx، واحدهای اصلی config «directive» هستند. بعضی یک دستور ساده‌اند و با <code>;</code> تمام می‌شوند؛ بعضی block باز می‌کنند و directiveهای دیگری را داخل آکولاد جا می‌دهند. یک فاصلهٔ اضافه معمولاً مشکل نیست؛ جاافتادن نقطه‌ویرگول یا آکولاد می‌تواند ساختار را عوض کند.</p>
+  <p class="lede" lang="en">The basic units of Nginx configuration are directives. Some are simple statements ending in <code>;</code>; others open blocks that contain more directives inside braces. Extra whitespace is usually harmless; a missing semicolon or brace can change the structure.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">شکل</span><span lang="en">Form</span></th><th><span lang="fa">نمونه</span><span lang="en">Example</span></th><th><span lang="fa">چه چیزی را می‌گوید؟</span><span lang="en">What it means</span></th></tr></thead><tbody>
+    <tr><td><span lang="fa">directive ساده</span><span lang="en">Simple directive</span></td><td><code>worker_processes 1;</code></td><td><span lang="fa">یک نام، مقدارها و پایان با <code>;</code></span><span lang="en">A name, arguments, and a terminating semicolon</span></td></tr>
+    <tr><td><span lang="fa">block</span></td><td><code>events { ... }</code></td><td><span lang="fa">یک directive که بدنه‌اش با <code>{ }</code> مشخص می‌شود؛ معمولاً <code>;</code> بعد از آکولاد بسته نمی‌آید.</span><span lang="en">A directive whose body is delimited by braces; the closing brace is not normally followed by a semicolon.</span></td></tr>
+    <tr><td><span lang="fa">comment</span></td><td><code># فقط برای خواننده</code></td><td><span lang="fa">برای توضیح به انسان است و بخشی از تنظیمات اجرایی نیست.</span><span lang="en">It is for human readers and is not an active setting.</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa">هرجا <code>#</code> آغاز یک comment باشد، ادامهٔ خط توضیح است و Nginx آن را مثل directive اجرا نمی‌کند. comment برای مستندسازی config است؛ اگر خطی را با آن غیرفعال می‌کنی، مطمئن شو علامت پیش از directive آمده و آن خط دیگر به‌عنوان تنظیم فعال parse نمی‌شود.</p>
+  <p lang="en">When <code>#</code> begins a comment, the rest of the line is explanatory text, not an active directive. Comments document the config; if you use one to disable a line, make sure it precedes the directive so that line is no longer parsed as active configuration.</p>
+  <p lang="fa">این قطعه را بخوان. هنوز لازم نیست همهٔ directiveها را حفظ باشی؛ فقط دنبال شکل و مرز بلوک‌ها بگرد:</p>
+  <p lang="en">Read this fragment. You do not need to memorize every directive yet; just trace the syntax and block boundaries:</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">a small configuration skeleton</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="s"># Main context: a simple directive
+worker_processes 1;
+
+events {
+    worker_connections 128;
+}
+
+http {
+    default_type text/plain;
+
+    server {
+        listen 127.0.0.1:8088;
+
+        location / {
+            return 200 "Nginx is ready";
+        }
+    }
+}</span></pre></div>
+  <p lang="fa">نقطه‌ویرگول بعد از <code>worker_processes</code>، <code>worker_connections</code>، <code>default_type</code>، <code>listen</code> و <code>return</code> پایان هر دستور ساده است. اما بعد از آکولادهای بسته، نقطه‌ویرگول نمی‌بینی. اگر یکی را جا بیندازی، ممکن است تست خطا بدهد؛ پیام خطا معمولاً نام directive یا محل ساختاری مشکل را سرنخ می‌دهد، ولی همیشه دقیقاً همان کاراکتری را که جا انداخته‌ای نشان نمی‌دهد.</p>
+  <p lang="en">The semicolons after <code>worker_processes</code>, <code>worker_connections</code>, <code>default_type</code>, <code>listen</code>, and <code>return</code> terminate simple directives. Closing braces do not have semicolons after them. If one is missing, the test may fail; the message usually points to a directive or structural location, but it does not always identify the exact character you omitted.</p>
+  <p lang="fa">یک config فقط وقتی معنی دارد که از بیرون به داخل بخوانی. <code>http</code> در سطح اصلی است؛ <code>server</code> داخل <code>http</code>؛ و <code>location</code> داخل <code>server</code>. directiveای که داخل یک block است، در همان context و فرزندان مجازش قرار دارد، نه در همهٔ فایل.</p>
+  <p lang="en">A config makes sense when read from the outside in. <code>http</code> is at the main level; <code>server</code> is inside <code>http</code>; and <code>location</code> is inside <code>server</code>. A directive inside a block belongs to that context and its permitted descendants, not to every part of the file.</p>
+</section>
+
+<section id="contexts">
+  <h2><span lang="fa">contextها: دستور را کجا می‌توان گذاشت؟</span><span lang="en">Contexts: where may a directive live?</span></h2>
+  <p class="lede" lang="fa">از نام بلوک‌ها یک درخت می‌سازیم، نه اینکه آن‌ها را یک فهرست تخت فرض کنیم. همهٔ شاخه‌ها در هر نصب دقیقاً یکسان نیستند؛ این درخت، چهار context اصلی مورد نیاز این فصل و جایگاه معمول directiveهای مرتبط با HTTP را نشان می‌دهد.</p>
+  <p class="lede" lang="en">Build a tree from the block names instead of treating them as a flat list. Not every Nginx build has precisely the same branches; this tree shows the four core contexts for this chapter and the usual nesting for HTTP directives.</p>
+  <figure>
+    <div class="diagram">
+      <svg viewBox="0 0 760 450" role="img" aria-labelledby="context-tree-title" xmlns="http://www.w3.org/2000/svg">
+        <title id="context-tree-title">Nginx configuration contexts and nesting / درخت contextهای پیکربندی Nginx</title>
+        <defs><marker id="ctx-nest-arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" class="dg-arrow-b"/></marker></defs>
+        <rect class="dg-fill dg-stroke" x="220" y="24" width="320" height="58" rx="12"/><text class="dg-t" x="380" y="60" text-anchor="middle" direction="ltr" unicode-bidi="isolate">main context</text>
+        <path class="dg-stroke-b" d="M332 84V124H170V151" marker-end="url(#ctx-nest-arrow)"/>
+        <path class="dg-stroke-b" d="M428 84V124H590V151" marker-end="url(#ctx-nest-arrow)"/>
+        <rect class="dg-fill-v dg-stroke-v" x="70" y="160" width="200" height="62" rx="12"/><text class="dg-t" x="170" y="198" text-anchor="middle" direction="ltr" unicode-bidi="isolate">events</text>
+        <rect class="dg-fill-b dg-stroke-b" x="490" y="160" width="200" height="62" rx="12"/><text class="dg-t" x="590" y="198" text-anchor="middle" direction="ltr" unicode-bidi="isolate">http</text>
+        <path class="dg-stroke-b" d="M590 226V271" marker-end="url(#ctx-nest-arrow)"/>
+        <rect class="dg-fill-w dg-stroke-w" x="490" y="280" width="200" height="62" rx="12"/><text class="dg-t" x="590" y="318" text-anchor="middle" direction="ltr" unicode-bidi="isolate">server</text>
+        <path class="dg-stroke-b" d="M590 346V381" marker-end="url(#ctx-nest-arrow)"/>
+        <rect class="dg-fill-g dg-stroke-g" x="490" y="388" width="200" height="34" rx="10"/><text class="dg-t" x="590" y="411" text-anchor="middle" direction="ltr" unicode-bidi="isolate">location</text>
+        <text class="dg-ts" x="170" y="250" text-anchor="middle" direction="ltr" unicode-bidi="isolate">worker_connections</text>
+        <text class="dg-ts" x="590" y="250" text-anchor="middle" direction="ltr" unicode-bidi="isolate">HTTP-level settings</text>
+      </svg>
+      <figcaption class="diagram-cap"><span lang="fa">فلش یعنی بلوک پایینی را می‌توان در بدنهٔ context بالایی نوشت. <code>events</code> و <code>http</code> هر دو در <code>main</code> هستند؛ <code>location</code> زیرمجموعهٔ <code>server</code> است.</span><span lang="en">An arrow means the lower block may appear inside the upper context. <code>events</code> and <code>http</code> are both under <code>main</code>; <code>location</code> is nested under <code>server</code>.</span></figcaption>
+    </div>
+  </figure>
+  <p lang="fa">درخت می‌گوید «کجا». اما آیا هر directive اجازه دارد در هر گره قرار بگیرد؟ نه. هر directive، فهرست contextهای مجاز خودش را دارد؛ برای نمونه <code>worker_connections</code> متعلق به <code>events</code> است، <code>listen</code> معمولاً در <code>server</code> می‌آید و <code>return</code> می‌تواند در <code>server</code> یا <code>location</code> باشد. مستندات همان directive مرجع نهایی است.</p>
+  <p lang="en">The tree tells us “where,” but may every directive appear in every node? No. Each directive has its own list of valid contexts: for example, <code>worker_connections</code> belongs in <code>events</code>, <code>listen</code> is normally in <code>server</code>, and <code>return</code> can be used in <code>server</code> or <code>location</code>. The directive’s documentation is the authority.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">context</span></th><th><span lang="fa">نقشش در این مدل</span><span lang="en">Role in this model</span></th><th><span lang="fa">نمونهٔ directive</span><span lang="en">Example directive</span></th></tr></thead><tbody>
+    <tr><td><code>main</code></td><td><span lang="fa">سطح بیرونی فایل</span><span lang="en">The outermost configuration level</span></td><td><code>worker_processes</code></td></tr>
+    <tr><td><code>events</code></td><td><span lang="fa">تنظیمات ارتباط و workerها</span><span lang="en">Connection and worker settings</span></td><td><code>worker_connections</code></td></tr>
+    <tr><td><code>http</code></td><td><span lang="fa">تنظیمات ماژول HTTP و serverها</span><span lang="en">HTTP module settings and servers</span></td><td><code>default_type</code></td></tr>
+    <tr><td><code>server</code></td><td><span lang="fa">تنظیمات یک HTTP server block</span><span lang="en">One HTTP server block’s settings</span></td><td><code>listen</code></td></tr>
+    <tr><td><code>location</code></td><td><span lang="fa">تنظیمات وابسته به مسیر درخواست</span><span lang="en">Settings associated with a request URI</span></td><td><code>return</code></td></tr>
+  </tbody></table></div>
+  <p lang="fa">به این جدول مثل نقشهٔ شروع نگاه کن، نه مرجع کامل همهٔ directiveها. مثلاً <code>root</code> در <code>http</code>، <code>server</code> و <code>location</code> مجاز است؛ جای دقیقش روی مقداری که در سطح پایین‌تر تعریف شده اثر می‌گذارد. فصل چهارم رفتار انتخاب <code>location</code> را جداگانه باز می‌کند.</p>
+  <p lang="en">Treat this table as a starting map, not a complete reference for every directive. For example, <code>root</code> is valid in <code>http</code>, <code>server</code>, and <code>location</code>; its placement matters when a lower level defines its own value. Chapter 4 will examine location selection separately.</p>
+</section>
+
+<section id="parse-fail">
+  <h2><span lang="fa">بگذار خود Nginx بگوید خط کجاست</span><span lang="en">Let Nginx tell us what is wrong</span></h2>
+  <p class="lede" lang="fa">حالا همان اشتباه همکارت را کوچک و جدا از سرویس زنده بازسازی می‌کنیم. <code>worker_connections</code> را عمداً داخل <code>http</code> می‌گذاریم. پیش‌بینی: چون directive درست نوشته شده، تست می‌گذرد؟</p>
+  <p class="lede" lang="en">Let us reproduce your teammate’s mistake in a small, isolated file, away from the live service. We will deliberately put <code>worker_connections</code> inside <code>http</code>. Predict: because the directive is spelled correctly, will the test pass?</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bad.conf — deliberately wrong context</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">CTX_DIR="$(mktemp -d /tmp/nginx-context.XXXXXX)"
+mkdir -p "$CTX_DIR/logs"
+cat &gt; "$CTX_DIR/bad.conf" &lt;&lt;'NGINX'</span>
+<span class="s">worker_processes 1;
+error_log logs/error.log notice;
+events {}
+http {
+    worker_connections 64;
+}</span>
+<span class="k">NGINX
+
+nginx -t -p "$CTX_DIR/" -c "$CTX_DIR/bad.conf"</span>
+<span class="s">nginx: [emerg] "worker_connections" directive is not allowed here in /tmp/nginx-context.xxxxxx/bad.conf:5
+nginx: configuration file /tmp/nginx-context.xxxxxx/bad.conf test failed</span></pre></div>
+  <p lang="fa">عبارت تعیین‌کننده <code>is not allowed here</code> است: parser directive را می‌شناسد، اما context فعلی را برایش مجاز نمی‌داند. این با «unknown directive» فرق دارد که می‌تواند از غلط املایی یا نبود ماژول لازم خبر بدهد. خروجی نمونه است؛ مسیر و شمارهٔ خط روی ماشین تو فرق می‌کند.</p>
+  <p lang="en">The key phrase is <code>is not allowed here</code>: the parser recognizes the directive but rejects its current context. That differs from “unknown directive,” which may indicate a typo or missing module. The output is representative; paths and line numbers vary by host.</p>
+  <p lang="fa">برای تعمیر، فقط جابه‌جایی لازم را انجام می‌دهیم: این تنظیم به <code>events</code> می‌رود. بعد همان آزمون را تکرار می‌کنیم؛ پاسخ درست، موفق‌شدن parse همین فایل است، نه اثبات کارکرد هر سرویس HTTP.</p>
+  <p lang="en">The repair is to move only this setting into <code>events</code>. Then repeat the same test. A passing result proves this file parses; it does not prove that an HTTP service is serving the intended response.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">corrected context</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cat &gt; "$CTX_DIR/good.conf" &lt;&lt;'NGINX'</span>
+<span class="s">worker_processes 1;
+error_log logs/error.log notice;
+events {
+    worker_connections 64;
+}
+http {}</span>
+<span class="k">NGINX
+
+nginx -t -p "$CTX_DIR/" -c "$CTX_DIR/good.conf"</span>
+<span class="s">nginx: the configuration file /tmp/nginx-context.xxxxxx/good.conf syntax is ok
+nginx: configuration file /tmp/nginx-context.xxxxxx/good.conf test is successful</span></pre></div>
+  <p lang="fa">اگر باز هم خطا می‌بینی، شمارهٔ خط را در همان فایل دنبال کن و بررسی کن که اشتباهی آکولاد را زودتر نبسته باشی. برای ادامهٔ تحقیق، <code>nginx -T</code> فایل‌های includeشده را هم نشان می‌دهد؛ اگر مسئله از یک directive باشد، صفحهٔ مستندات همان directive بخش <em>Context</em> را دارد.</p>
+  <p lang="en">If it still fails, inspect the reported line and check whether an earlier brace closed a block too soon. For further investigation, <code>nginx -T</code> also shows included files; the directive’s documentation lists its allowed contexts under “Context.”</p>
+  <p lang="fa">بعد از دیدن هر دو نتیجه، فقط پوشه‌ای را که همین <code>mktemp</code> ساخته پاک کن؛ config زنده را تغییر ندادیم و این آزمایش هم سروری بالا نیاورد.</p>
+  <p lang="en">After seeing both results, remove only the directory created by this <code>mktemp</code>. We did not change the live config or start a server for this experiment.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">remove the isolated test files</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">printf 'Review target before cleanup: %s\n' "$CTX_DIR"
+rm -r -- "$CTX_DIR"</span></pre></div>
+</section>
+
+<section id="include">
+  <h2><span lang="fa"><code>include</code> فایل را به جایش می‌خواند</span><span lang="en"><code>include</code> reads a file at its insertion point</span></h2>
+  <p class="lede" lang="fa">وقتی فایل config بزرگ شد، طبیعی است تنظیم مشترک را در فایلی جدا بگذاری. یک نکتهٔ مهم: <code>include</code> یک context تازه نمی‌سازد. محتوای فایلِ واردشده انگار در همان نقطه نوشته شده؛ پس context مجازِ directiveهای درون آن، از جای include می‌آید.</p>
+  <p class="lede" lang="en">As a config grows, it is natural to put shared settings in separate files. The important detail is that <code>include</code> does not create a new context. The included file behaves as though its contents were written at that exact point, so the valid context for its directives comes from where the include appears.</p>
+  <p lang="fa">این دو تکه را مقایسه کن. اولی را می‌شود داخل <code>http</code> گذاشت؛ دومی را باید در context مناسبِ خودش نگه داشت. پس پسوند <code>.conf</code> یا اسم فایل، مجازبودن محتوا را تعیین نمی‌کند.</p>
+  <p lang="en">Compare these two fragments. The first can be included inside <code>http</code>; the second belongs in its own valid context. A <code>.conf</code> suffix or filename does not make its contents valid everywhere.</p>
+  <div class="cards">
+    <div class="card"><h3><span lang="fa">include در بدنهٔ <code>http</code></span><span lang="en">Include inside <code>http</code></span></h3><p lang="fa">محتوای نمونه: <code>default_type text/plain;</code>. پس از include، این directive همچنان در contextِ <code>http</code> قرار دارد.</p><p lang="en">Example content: <code>default_type text/plain;</code>. After inclusion, this directive is still in the <code>http</code> context.</p></div>
+    <div class="card"><h3><span lang="fa">همان محتوا در <code>events</code></span><span lang="en">The same content inside <code>events</code></span></h3><p lang="fa">اگر همان فایل را آنجا include کنی، <code>default_type</code> به‌خاطر context نادرست رد می‌شود.</p><p lang="en">If you include that same file there, <code>default_type</code> is rejected because the context is wrong.</p></div>
+  </div>
+  <p lang="fa">برای دیدن فایل‌های مؤثر، در config آزمایشی یا نصب فعال از <code>nginx -T</code> استفاده کن. سرآیندهایی که نام فایل را چاپ می‌کنند نشان می‌دهند کدام فایل‌ها باز شده‌اند. یک فایلِ موجود روی دیسک تا وقتی با <code>include</code> به درخت وصل نشده، تنظیم فعال نیست؛ و یک include موفق هم به‌تنهایی نمی‌گوید درخواست بعدی چطور پاسخ می‌گیرد.</p>
+  <p lang="en">Use <code>nginx -T</code> on the test configuration or active installation to inspect the effective files. Filename headers show which files were opened. A file on disk is not an active setting until it is connected with <code>include</code>; and a successful include alone does not tell us how the next request will be handled.</p>
+  <p lang="fa">خود directiveِ <code>include</code> در هر context قابل استفاده است؛ این اجازه به معنی آزادبودن محتوای فایل نیست. فایل includeشده باید در نقطه‌ای که وارد شده معتبر باشد و directiveهایش در همان محدوده بررسی می‌شوند.</p>
+  <p lang="en">The <code>include</code> directive itself is valid in any context; that does not make the included file’s contents unrestricted. The file must be valid at the insertion point, and its directives are checked in that same scope.</p>
+</section>
+
+<section id="inheritance">
+  <h2><span lang="fa">ارث‌بری دستورها قانون واحدی ندارد</span><span lang="en">Directives do not all inherit the same way</span></h2>
+  <p class="lede" lang="fa">یک config والد برای چند سایت تعریف کرده‌ای. انتظار طبیعی این است که تنظیم‌هایش به همهٔ فرزندان برسند. بعضی directiveها چنین می‌کنند؛ بعضی دیگر، اگر در context پایین‌تر دوباره تعریف شوند، تنظیم‌های والد را به شکل مورد انتظار تو ترکیب نمی‌کنند. باید رفتار همان directive را بخوانی، نه اینکه از روی آکولادها حدس بزنی.</p>
+  <p class="lede" lang="en">You define a shared parent configuration for several sites. It is natural to expect every setting to flow into every child. Some directives do; others, when defined again in a lower context, do not combine with the parent values the way you might expect. Check the rule for that directive instead of guessing from the braces.</p>
+  <p lang="fa">برای مثال، <code>root</code> از سطح بالاتر می‌آید وقتی در سطح فعلی دوباره نوشته نشده باشد. اگر در <code>server</code> مقدار بدهی و در <code>location</code> چیزی ننویسی، همان مقدار به کار می‌رود. اما <code>add_header</code> طبق رفتار استانداردش، فقط وقتی از سطح قبل به ارث می‌رسد که در سطح جاری هیچ <code>add_header</code>ای تعریف نشده باشد.</p>
+  <p lang="en">For example, <code>root</code> is inherited from a higher level when it is not redefined at the current level. Set it in <code>server</code> and omit it in <code>location</code>, and that value is used. By contrast, under the standard <code>add_header</code> inheritance rule, parent values are inherited only when the current level defines no <code>add_header</code> directives.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">read inheritance one level at a time</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="s">http {
+    add_header X-From-HTTP "parent" always;
+
+    server {
+        add_header X-From-Server "server" always;
+
+        location / {
+            # No local add_header: inherits from server level.
+            return 200 "root is inherited when not redefined";
+        }
+
+        location /special/ {
+            add_header X-From-Location "location" always;
+            return 200 "this level defines its own add_header";
+        }
+    }
+}</span></pre></div>
+  <p lang="fa">در پاسخ location اول، <code>X-From-Server</code> را انتظار داریم؛ <code>X-From-HTTP</code> در سطح <code>server</code> با تعریف محلیِ <code>add_header</code> کنار گذاشته شده. در location دوم، تعریف محلی خودش باعث می‌شود <code>X-From-Server</code> هم به آن سطح نرسد؛ فقط header همان location می‌ماند. پارامتر <code>always</code> را گذاشتیم تا افزودن header به statusهای خاص محدود نشود.</p>
+  <p lang="en">For the first location, expect <code>X-From-Server</code>; <code>X-From-HTTP</code> was not inherited into the server level because that level defined its own <code>add_header</code>. In the second location, its local directive means <code>X-From-Server</code> is not inherited there either; only the location’s header remains. We used <code>always</code> so header addition is not limited to a subset of response statuses.</p>
+  <div class="note warn"><div class="note-t"><span lang="fa">یک تلهٔ نسخه‌ای</span><span lang="en">A version-sensitive detail</span></div>
+    <p lang="fa">در Nginx جدید، directive جداگانهٔ <code>add_header_inherit</code> می‌تواند قاعدهٔ ارث‌بری <code>add_header</code> را تغییر دهد؛ گزینهٔ <code>merge</code> از نسخهٔ 1.29.3 اضافه شده است. این قابلیت را روی سرور قدیمی فرض نکن. نمونهٔ بالا رفتار پیش‌فرض مستندشده را می‌گوید؛ اگر config تو این directive را دارد، همان قاعدهٔ تغییر‌یافته را هم لحاظ کن.</p>
+    <p lang="en">Recent Nginx versions provide <code>add_header_inherit</code> to change the inheritance rule; its <code>merge</code> option was added in 1.29.3. Do not assume this exists on an older server. The example shows the documented default; if your config uses this directive, account for its changed rule.</p>
+  </div>
+  <p lang="fa">پس برای هر directive دو سؤال بنویس: در کدام contextها مجاز است؟ اگر در سطح پایین‌تر دوباره بیاید، مقدار قبلی حفظ، جایگزین یا ترکیب می‌شود؟ پاسخ را از مستندات رسمی همان directive و نسخهٔ نصب‌شده بگیر. برای مثال‌های دقیق <code>root</code> و <code>add_header</code>، پیوندهای پایان فصل را ببین.</p>
+  <p lang="en">For every directive, ask two questions: which contexts allow it, and if it appears lower down, is the parent value kept, replaced, or merged? Find the answer in that directive’s official documentation and your installed version. See the references at the end for the exact <code>root</code> and <code>add_header</code> rules.</p>
+</section>
+
+<section id="variables">
+  <h2><span lang="fa">متغیرها: هنگام درخواست، نه مثل قالب‌ساز</span><span lang="en">Variables: evaluated for requests, not used as a template engine</span></h2>
+  <p class="lede" lang="fa">در خط <code>return 200 "path=$uri";</code> مقدار <code>$uri</code> از یک درخواست می‌آید. Nginx این مقدار را مثل یک جای‌نگهدار متنی هنگام خواندن config با یک رشتهٔ ثابت جایگزین نمی‌کند؛ متغیرهای Nginx معمولاً در جریان پردازش درخواست معنا پیدا می‌کنند.</p>
+  <p class="lede" lang="en">In <code>return 200 "path=$uri";</code>, <code>$uri</code> comes from a request. Nginx does not replace it with one fixed string while reading the config like a text-template engine; Nginx variables usually become meaningful during request processing.</p>
+  <p lang="fa">اگر پیکربندی شامل این خط باشد، <code>nginx -t</code> می‌تواند syntax را بپذیرد؛ اما تا وقتی درخواست نیاید، مقدار واقعی <code>$uri</code> را نمی‌داند. دو درخواست به pathهای متفاوت می‌توانند دو مقدار متفاوت بسازند. این نتیجه به معنی آن نیست که هر متغیری را در هر directive می‌شود گذاشت؛ پشتیبانی متغیر به همان directive وابسته است.</p>
+  <p lang="en">If the config contains this line, <code>nginx -t</code> can accept its syntax, but the actual value of <code>$uri</code> is not known until a request arrives. Requests for different paths can produce different values. That does not mean every variable is supported by every directive; support depends on the directive.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">a request-time value</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="s">location / {
+    default_type text/plain;
+            return 200 "path=$uri";
+}</span>
+
+<span class="k">curl -i http://127.0.0.1:8088/docs/start</span>
+<span class="s">HTTP/1.1 200 OK
+...
+path=/docs/start</span></pre></div>
+  <p lang="fa">بدنهٔ <code>path=/docs/start</code> مدرکِ ارزیابی متغیر برای همین درخواست است؛ ثابت نمی‌کند configهای دیگر یا درخواست با path دیگری همان خروجی را دارند. همچنین متغیرها راه مناسب تکرارنکردن متن ثابت نیستند. برای بخش‌های ثابت و تکراری، فایل‌های includeشده یا ابزار بیرونیِ تولید config انتخاب روشن‌تری‌اند.</p>
+  <p lang="en">The <code>path=/docs/start</code> body proves the variable was evaluated for this request; it does not prove that other requests or configurations produce the same result. Variables are also not a good way to avoid repeating static text. Included files or an external configuration generator are clearer tools for reusable static fragments.</p>
+  <div class="note safe"><div class="note-t"><span lang="fa">دو زمان را قاطی نکن</span><span lang="en">Keep the two moments separate</span></div>
+    <p lang="fa">اول Nginx فایل‌ها را می‌خواند و ساختار و مجازبودن directiveها را بررسی می‌کند. بعد، هنگام رسیدن درخواست، بعضی مقدارها مثل <code>$uri</code> برای همان درخواست محاسبه می‌شوند. پذیرفته‌شدن مرحلهٔ اول، پاسخ مرحلهٔ دوم را تضمین نمی‌کند.</p>
+    <p lang="en">First Nginx reads files and checks their structure and directive validity. Later, when a request arrives, some values such as <code>$uri</code> are evaluated for that request. Passing the first phase does not guarantee the response in the second.</p>
+  </div>
+  <figure>
+    <div class="diagram">
+      <svg viewBox="0 0 800 290" role="img" aria-labelledby="parse-request-title" xmlns="http://www.w3.org/2000/svg">
+        <title id="parse-request-title">Configuration parsing precedes request processing / خواندن config پیش از پردازش درخواست</title>
+        <defs><marker id="phase-arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" class="dg-arrow"/></marker></defs>
+        <text class="dg-t" x="400" y="32" text-anchor="middle" direction="ltr" unicode-bidi="isolate">Two different moments</text>
+        <rect class="dg-fill-v dg-stroke-v" x="35" y="70" width="210" height="76" rx="12"/><text class="dg-t" x="140" y="101" text-anchor="middle" direction="ltr" unicode-bidi="isolate">read config files</text><text class="dg-ts" x="140" y="126" text-anchor="middle" direction="ltr" unicode-bidi="isolate">start / reload / nginx -t</text>
+        <path class="dg-stroke" d="M252 108H290" marker-end="url(#phase-arrow)"/>
+        <rect class="dg-fill-b dg-stroke-b" x="300" y="70" width="200" height="76" rx="12"/><text class="dg-t" x="400" y="101" text-anchor="middle" direction="ltr" unicode-bidi="isolate">validate structure</text><text class="dg-ts" x="400" y="126" text-anchor="middle" direction="ltr" unicode-bidi="isolate">directive + context</text>
+        <line class="dg-stroke-w" x1="540" y1="56" x2="540" y2="238" stroke-dasharray="7 6"/>
+        <text class="dg-ts" x="540" y="257" text-anchor="middle" direction="ltr" unicode-bidi="isolate">time passes</text>
+        <rect class="dg-fill-w dg-stroke-w" x="575" y="70" width="190" height="76" rx="12"/><text class="dg-t" x="670" y="101" text-anchor="middle" direction="ltr" unicode-bidi="isolate">request arrives</text><text class="dg-ts" x="670" y="126" text-anchor="middle" direction="ltr" unicode-bidi="isolate">evaluate request values</text>
+        <path class="dg-stroke-b" d="M504 108H571" marker-end="url(#phase-arrow)"/>
+        <text class="dg-ts" x="400" y="190" text-anchor="middle" direction="ltr" unicode-bidi="isolate">parse + validate before requests</text>
+        <text class="dg-ts" x="670" y="190" text-anchor="middle" direction="ltr" unicode-bidi="isolate">evaluate $uri per request</text>
+        <text class="dg-ts" x="400" y="218" text-anchor="middle" direction="ltr" unicode-bidi="isolate">$uri is not one fixed config-time string</text>
+      </svg>
+      <figcaption class="diagram-cap"><span lang="fa">آزمون پیکربندی در سمت چپ است؛ مقدارهایی مثل <code>$uri</code> سمت راست و برای هر درخواست محاسبه می‌شوند.</span><span lang="en">Configuration testing belongs on the left; values such as <code>$uri</code> are evaluated on the right, for each request.</span></figcaption>
+    </div>
+  </figure>
+</section>
+
+<section id="experiment">
+  <h2><span lang="fa">یک پیکربندی کوچک را خودت بساز</span><span lang="en">Build a small configuration yourself</span></h2>
+  <p class="lede" lang="fa">به‌جای دست‌کاری سرویس اصلی، یک Nginx آزمایشی روی پورت <code>18088</code> بالا می‌آوریم. پیشوند موقت کمک می‌کند pid و logهای همین آزمایش از سرویس معمولی جدا باشند. اگر پورت اشغال است، عدد دیگری بالاتر از 1024 انتخاب کن و در هر دو جا یکسان به کار ببر.</p>
+  <p class="lede" lang="en">Instead of changing the main service, we will run a test Nginx on port <code>18088</code>. A temporary prefix keeps this experiment’s PID and logs separate from the normal service. If the port is already in use, choose another port above 1024 and use it consistently.</p>
+  <p lang="fa">دایرکتوری موقتی و سه زیرپوشه می‌سازیم. متغیر پوسته فقط مسیر همین آزمایش است؛ پیش از پاک‌سازی آن را چاپ می‌کنیم تا معلوم باشد چه چیزی را ساخته‌ایم.</p>
+  <p lang="en">Create a temporary directory with three subdirectories. The shell variable holds only this experiment’s path; we will print it before cleanup so the created target is explicit.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">prepare an isolated workspace</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">LAB_DIR="$(mktemp -d /tmp/codenames-nginx.XXXXXX)"
+mkdir -p "$LAB_DIR/logs" "$LAB_DIR/snippets" "$LAB_DIR/html"
+printf 'Lab directory: %s\n' "$LAB_DIR"</span></pre></div>
+  <p lang="fa">پیش از اینکه همه‌چیز را با هم بنویسیم، config را سه پله بزرگ می‌کنیم. در پلهٔ اول فقط main، <code>events</code> و یک <code>http</code> خالی داریم. این فایل باید parse شود، هرچند هنوز هیچ serverی ندارد:</p>
+  <p lang="en">Before writing everything at once, grow the configuration in three steps. At step one, we have only main, <code>events</code>, and an empty <code>http</code> block. It should parse even though no server exists yet:</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">stage 1 — outer contexts</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cat &gt; "$LAB_DIR/stage-1.conf" &lt;&lt;'NGINX'
+worker_processes 1;
+error_log logs/error.log notice;
+events { worker_connections 64; }
+http {}
+NGINX
+nginx -t -p "$LAB_DIR/" -c "$LAB_DIR/stage-1.conf"</span>
+<span class="s">... syntax is ok
+... test is successful</span></pre></div>
+  <p lang="fa">یک <code>server</code> را داخل <code>http</code> می‌گذاریم و فقط یک پورت محلی معرفی می‌کنیم. اگر اشتباهی آن را بیرون از <code>http</code> بگذاری، تست باید پیش از هر درخواست جلویت را بگیرد:</p>
+  <p lang="en">Now place a <code>server</code> inside <code>http</code> and give it a local port. If you accidentally put it outside <code>http</code>, the test should stop you before any request is sent:</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">stage 2 — add server</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cat &gt; "$LAB_DIR/stage-2.conf" &lt;&lt;'NGINX'
+worker_processes 1;
+error_log logs/error.log notice;
+events { worker_connections 64; }
+http {
+    server { listen 127.0.0.1:18088; }
+}
+NGINX
+nginx -t -p "$LAB_DIR/" -c "$LAB_DIR/stage-2.conf"</span>
+<span class="s">... syntax is ok
+... test is successful</span></pre></div>
+  <p lang="fa">حالا یک <code>location</code> داخل همان server می‌آید و پاسخ کوچکی می‌سازد. این بار هنوز سرور را start نکرده‌ایم؛ سه بار <code>-t</code> فقط می‌گوید ساختار هر سه پله معتبر بوده است. برای دیدن رفتار درخواست، در مرحلهٔ بعد نسخهٔ کامل را بالا می‌آوریم.</p>
+  <p lang="en">Finally, add a <code>location</code> inside that server and make it return a small response. We still have not started the server: three runs of <code>-t</code> only show that the three structures are valid. We will start the full version next to observe request behavior.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">stage 3 — add location</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cat &gt; "$LAB_DIR/stage-3.conf" &lt;&lt;'NGINX'
+worker_processes 1;
+error_log logs/error.log notice;
+events { worker_connections 64; }
+http {
+    server {
+        listen 127.0.0.1:18088;
+        location / { return 200 "ready"; }
+    }
+}
+NGINX
+nginx -t -p "$LAB_DIR/" -c "$LAB_DIR/stage-3.conf"</span>
+<span class="s">... syntax is ok
+... test is successful</span></pre></div>
+  <p lang="fa">حالا یک include می‌سازیم که از context <code>http</code> وارد می‌شود. فایل فقط یک directive معتبر همان context دارد؛ پس include عملاً آن directive را در همان نقطه وارد می‌کند.</p>
+  <p lang="en">Now create an include inserted from the <code>http</code> context. The file contains a directive valid at that context, so inclusion effectively places it at that point.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">snippets/shared-http.conf</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cat &gt; "$LAB_DIR/snippets/shared-http.conf" &lt;&lt;'NGINX'
+add_header X-Lesson-Base "from-http" always;
+NGINX</span></pre></div>
+  <p lang="fa">فایل اصلی را بساز. در این‌جا <code>add_header</code> در سطح <code>http</code> از طریق include می‌آید؛ بلوک server یک header دیگر و location هم یکی دیگر دارد تا اثر تعریف در سطح پایین‌تر را ببینیم.</p>
+  <p lang="en">Create the main file. Here, <code>add_header</code> enters the <code>http</code> level through an include; the server and location each define another header so we can observe the effect of lower-level definitions.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">main experiment config</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cat &gt; "$LAB_DIR/nginx.conf" &lt;&lt;NGINX
+worker_processes 1;
+error_log $LAB_DIR/logs/error.log notice;
+pid $LAB_DIR/logs/nginx.pid;
+
+events {
+    worker_connections 64;
+}
+
+http {
+    include $LAB_DIR/snippets/*.conf;
+    default_type text/plain;
+
+    server {
+        listen 127.0.0.1:18088;
+        server_name localhost;
+        add_header X-Lesson-Server "from-server" always;
+
+        location / {
+            return 200 "uri=\$uri";
+        }
+
+        location /local/ {
+            add_header X-Lesson-Location "from-location" always;
+            return 200 "uri=\$uri";
+        }
+    }
+}
+NGINX</span></pre></div>
+  <p lang="fa">این config را با همان پیشوند و فایل آزمایش می‌کنیم؛ <code>-t</code> درخواست واقعی نمی‌فرستد و فقط امکان parse و بازکردن فایل‌های includeشده را می‌سنجد. باید پیام موفق ببینی؛ اگر خطایی به مسیر snippet اشاره می‌کند، اول مطمئن شو مسیر چاپ‌شدهٔ <code>LAB_DIR</code> با مسیر داخل فایل یکی است.</p>
+  <p lang="en">Test this config with the same prefix and file. <code>-t</code> does not send a real request; it checks parsing and opening included files. Expect a success message. If an error names the snippet path, first make sure the printed <code>LAB_DIR</code> matches the path written into the file.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">syntax test and effective config</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">nginx -t -p "$LAB_DIR/" -c "$LAB_DIR/nginx.conf"
+nginx -T -p "$LAB_DIR/" -c "$LAB_DIR/nginx.conf"</span>
+<span class="s">nginx: the configuration file .../nginx.conf syntax is ok
+nginx: configuration file .../nginx.conf test is successful
+# configuration file .../snippets/shared-http.conf:
+add_header X-Lesson-Base "from-http" always;</span></pre></div>
+  <p lang="fa">در خروجی <code>-T</code> باید نام snippet و خط <code>add_header</code> را ببینی. این ثابت می‌کند فایل include شده و نحو آن پذیرفته شده؛ هنوز فرایند آزمایشی بالا نیست. حالا آن را اجرا می‌کنیم و دو درخواست می‌فرستیم.</p>
+  <p lang="en">In <code>-T</code>, look for the snippet filename and its <code>add_header</code> line. This proves the file was included and accepted syntactically; the test process is not running yet. Start it and send two requests.</p>
+  <p lang="fa">یادت باشد <code>nginx -t</code> پورت را رزرو نمی‌کند. پیش از اجرا بررسی کن برنامهٔ دیگری روی <code>18088</code> گوش ندهد؛ اگر خروجی یک listener نشان داد، پورت دیگری انتخاب کن و در config و curl هر دو را یکسان عوض کن. نبودن ردیف listener یعنی این بررسی فعلاً پورت اشغال‌شده‌ای ندیده است؛ تضمین نمی‌کند چند لحظهٔ بعد برنامهٔ دیگری سراغ آن نرود.</p>
+  <p lang="en">Remember that <code>nginx -t</code> does not reserve the port. Before starting, check that nothing else listens on <code>18088</code>. If a listener appears, choose another port and change it consistently in the config and curl commands. No listener row means this check did not see one at that moment; it cannot guarantee that another program will not claim the port a moment later.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">check port, start, and observe</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">ss -ltn '( sport = :18088 )'
+nginx -p "$LAB_DIR/" -c "$LAB_DIR/nginx.conf"
+curl -i http://127.0.0.1:18088/docs/start
+curl -i http://127.0.0.1:18088/local/check</span>
+<span class="s">State  Recv-Q Send-Q Local Address:Port  Peer Address:Port
+
+HTTP/1.1 200 OK
+X-Lesson-Server: from-server
+...
+uri=/docs/start
+
+HTTP/1.1 200 OK
+X-Lesson-Location: from-location
+...
+uri=/local/check</span></pre></div>
+  <p lang="fa">در درخواست اول header سطح <code>server</code> را می‌بینی، نه header سطح <code>http</code>: چون server خودش <code>add_header</code> تعریف کرده، مقدار والد با رفتار پیش‌فرض به آن سطح منتقل نشده. در درخواست دوم فقط header سطح location می‌آید. دو path هم دو مقدار متفاوت برای <code>$uri</code> ساخته‌اند. این آزمایش نشان می‌دهد تفسیر config و پاسخ درخواست دو مرحله‌اند؛ پاسخ موفق هم فقط همین میزبان و همین درخواست‌ها را ثابت می‌کند.</p>
+  <p lang="en">The first request shows the server-level header, not the HTTP-level header: because the server defines its own <code>add_header</code>, the parent value is not carried into that level under the default rule. The second request shows only the location-level header. The two paths also produce different <code>$uri</code> values. This experiment separates config parsing from request handling; a successful response proves only these requests on this host.</p>
+  <p lang="fa">برای بستن همان فرایند آزمایشی، به‌جای kill دستی از graceful quit همین config استفاده کن. چون پایان graceful ممکن است چند لحظه طول بکشد، پیش از پاک‌کردن پوشه صبر می‌کنیم تا فایل PID واقعاً ناپدید شود.</p>
+  <p lang="en">To stop this test process, use a graceful quit for this exact config instead of killing a random PID. A graceful exit may take a moment, so wait for the PID file to disappear before removing the directory.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">targeted cleanup</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">nginx -p "$LAB_DIR/" -c "$LAB_DIR/nginx.conf" -s quit
+for _ in $(seq 1 25); do
+    [ ! -e "$LAB_DIR/logs/nginx.pid" ] &amp;&amp; break
+    sleep 0.2
+done
+if [ -e "$LAB_DIR/logs/nginx.pid" ]; then
+    echo "PID file still exists; inspect the test server before cleanup"
+    exit 1
+fi
+echo "test server stopped"
+printf 'Review before removing: %s\n' "$LAB_DIR"
+rm -r -- "$LAB_DIR"</span>
+<span class="s">test server stopped
+Review before removing: /tmp/codenames-nginx.xxxxxx</span></pre></div>
+  <div class="note warn"><div class="note-t"><span lang="fa">فقط همان مسیر آزمایش</span><span lang="en">Only the lab directory</span></div><p lang="fa">فرمان آخر را فقط پس از دیدن مسیری اجرا کن که خود <code>mktemp</code> ساخته و همین تمرین استفاده کرده است. مقدار خالی یا مسیر دیگری را جایگزین نکن؛ پوشهٔ واقعی سرویس را پاک نکن.</p><p lang="en">Run the final command only after reviewing the path created by <code>mktemp</code> and used by this lab. Do not substitute an empty or different path, and never remove the real service directory.</p></div>
+</section>
+
+<section id="exercises">
+  <h2><span lang="fa">تمرین‌ها: config را بخوان، نه اینکه حدس بزنی</span><span lang="en">Exercises: read the config instead of guessing</span></h2>
+  <p class="lede" lang="fa">در پاسخ‌هایت فقط نگو «این خط مجاز است». به context اشاره کن و بگو تست یا پاسخ HTTP دقیقاً چه چیزی را ثابت می‌کند. جواب‌ها را از پایین به بالا مرور کردیم تا نیمهٔ دوم هم به اندازهٔ شروع فصل دلیل و مثال داشته باشد.</p>
+  <p class="lede" lang="en">Do not merely say, “this line is valid.” Name the context and explain what the test or HTTP response actually proves. The solutions are reviewed from the end upward so the second half keeps the same reasoning and examples as the opening.</p>
+
+  <div class="ex" id="ex01"><h3><span lang="fa">۱. پیش‌بینی ساختار</span><span lang="en">1. Predict the structure</span></h3><p lang="fa">در این config چند directive ساده و چند block می‌بینی؟ آیا بعد از <code>}</code> پایانی باید <code>;</code> بیاید؟</p><p lang="en">How many simple directives and blocks do you see here? Should the final <code>}</code> be followed by a semicolon?</p><div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">snippet</span></div><pre dir="ltr">events { worker_connections 32; }</pre></div><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">یک block به نام <code>events</code> و یک directive سادهٔ <code>worker_connections 32;</code> داریم. آکولاد بسته block را می‌بندد و خودش نقطه‌ویرگول نمی‌گیرد؛ directive داخلی دارد.</p><p lang="en">There is one <code>events</code> block and one simple <code>worker_connections 32;</code> directive. The closing brace ends the block and has no semicolon; the directive inside does.</p></details></div>
+
+  <div class="ex" id="ex02"><h3><span lang="fa">۲. جای <code>listen</code></span><span lang="en">2. Where does <code>listen</code> belong?</span></h3><p lang="fa">یک نفر <code>listen 8080;</code> را کنار <code>worker_processes</code> در سطح اصلی نوشته. چه می‌کنی پیش از اینکه آن را جابه‌جا کنی؟</p><p lang="en">Someone put <code>listen 8080;</code> beside <code>worker_processes</code> at the main level. What do you check before moving it?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">context مجاز directive را در مستندات یا پیام <code>nginx -t</code> می‌سنجم؛ <code>listen</code> متعلق به <code>server</code> block است، نه main. بعد ساختار را اصلاح و همان فایل را دوباره با همان باینری/گزینه‌ها تست می‌کنم.</p><p lang="en">Check the directive’s allowed context in its documentation or the <code>nginx -t</code> message. <code>listen</code> belongs in a <code>server</code> block, not main. Then fix the structure and retest the same file with the same binary and options.</p></details></div>
+
+  <div class="ex" id="ex03"><h3><span lang="fa">۳. نقطه‌ویرگول جاافتاده</span><span lang="en">3. A missing semicolon</span></h3><p lang="fa">فایل به این خط می‌رسد: <code>default_type text/plain</code> و در خط بعد <code>server {</code>. آیا می‌توانی بدون آزمون بگویی تنها خطا همین‌جاست؟</p><p lang="en">The file contains <code>default_type text/plain</code> followed by <code>server {</code>. Can you declare this the only error without testing?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">این خط به احتمال زیاد نقطه‌ویرگول کم دارد، اما نتیجه را با <code>nginx -t</code> می‌گیریم و پیام و شمارهٔ خط را می‌خوانیم؛ خطاهای ساختاری قبلی ممکن است محل گزارش را جابه‌جا کنند. پس از اصلاح، آزمون را تکرار می‌کنیم.</p><p lang="en">The line likely lacks a semicolon, but confirm with <code>nginx -t</code> and read its message and line number; earlier structural errors may shift where the parser reports failure. Retest after the fix.</p></details></div>
+
+  <div class="ex" id="ex04"><h3><span lang="fa">۴. <code>worker_connections</code> در <code>http</code></span></h3><p lang="fa">نام directive درست است، ولی <code>nginx -t</code> می‌گوید <code>is not allowed here</code>. کدام فرض اشتباه بود؟</p><p lang="en">The directive name is correct, but <code>nginx -t</code> says <code>is not allowed here</code>. Which assumption was wrong?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">اینکه نوشتن directive درست در هر block مجاز باشد. باید آن را در <code>events</code> قرار داد؛ parser آن را می‌شناسد ولی context را رد کرده است. بعد از جابه‌جایی، همان config باید تست شود.</p><p lang="en">The assumption that a correctly spelled directive is valid in every block. Move it into <code>events</code>; the parser recognized the name but rejected its context. Test the same config after moving it.</p></details></div>
+
+  <div class="ex" id="ex05"><h3><span lang="fa">۵. هم‌سطح‌های <code>main</code></span><span lang="en">5. Siblings under <code>main</code></span></h3><p lang="fa">جایگاه معمول <code>events</code> و <code>http</code> نسبت به هم چیست؟ یکی را داخل دیگری می‌گذاری؟</p><p lang="en">How are <code>events</code> and <code>http</code> normally placed relative to each other? Does one go inside the other?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">هر دو زیرمجموعهٔ <code>main</code> و هم‌سطح‌اند؛ <code>events</code> داخل <code>http</code> نیست. درخت contextها را رسم کن؛ نام بلوک‌ها خودبه‌خود رابطهٔ والد-فرزندی نمی‌سازد.</p><p lang="en">Both are children of main and normally siblings; <code>events</code> is not nested inside <code>http</code>. Draw the context tree—block names do not create parent-child relationships by themselves.</p></details></div>
+
+  <div class="ex" id="ex06"><h3><span lang="fa">۶. نظر دربارهٔ comment</span><span lang="en">6. What does the comment do?</span></h3><p lang="fa">در فایل نوشته شده <code># root /srv/www;</code>. آیا Nginx این <code>root</code> را اعمال می‌کند؟</p><p lang="en">The file contains <code># root /srv/www;</code>. Does Nginx apply this <code>root</code>?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه؛ خط comment برای خواننده است، نه یک directive فعال. اگر صفحه از مسیر دیگری می‌آید، config بارشده را بررسی کن؛ commentشده‌بودن این خط نمی‌تواند root مؤثر را تعیین کند.</p><p lang="en">No. A comment is for readers, not an active directive. If the page comes from another path, inspect the loaded configuration; this commented line cannot determine the effective root.</p></details></div>
+
+  <div class="ex" id="ex07"><h3><span lang="fa">۷. include بدون جادو</span><span lang="en">7. Include without magic</span></h3><p lang="fa">یک فایل <code>shared.conf</code> داخل <code>/etc/nginx</code> وجود دارد، ولی هیچ‌جا include نشده. آیا directiveهایش فعال‌اند؟</p><p lang="en">A <code>shared.conf</code> file exists under <code>/etc/nginx</code>, but nothing includes it. Are its directives active?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">صرف وجود فایل کافی نیست؛ باید در درخت بارشده باشد. <code>nginx -T</code> را با config مربوط اجرا کن و دنبال سرآیند filename بگرد. اگر نمی‌آید، خط <code>include</code> یا glob آن را بررسی کن.</p><p lang="en">The file’s presence is not enough; it must be part of the loaded tree. Run <code>nginx -T</code> for that configuration and look for its filename header. If absent, inspect the <code>include</code> line or glob.</p></details></div>
+
+  <div class="ex" id="ex08"><h3><span lang="fa">۸. context از کجا می‌آید؟</span><span lang="en">8. Where does the context come from?</span></h3><p lang="fa">فایل <code>shared.conf</code> فقط <code>default_type text/plain;</code> دارد. اگر از بدنهٔ <code>http</code> include شود، در کدام context خوانده می‌شود؟</p><p lang="en">A <code>shared.conf</code> file contains only <code>default_type text/plain;</code>. If included inside the <code>http</code> body, in which context is it read?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">در همان context <code>http</code>، چون include مرز یا محدودهٔ تازه نمی‌سازد؛ محتوا در نقطهٔ includeشده قرار می‌گیرد. پس همان فایل اگر داخل <code>events</code> وارد شود، context نامعتبر خواهد بود.</p><p lang="en">It is read in the <code>http</code> context because include creates no new boundary or scope; its contents are inserted where the include appears. Put the same file in <code>events</code> and the context is invalid.</p></details></div>
+
+  <div class="ex" id="ex09"><h3><span lang="fa">۹. متغیر ثابت است؟</span><span lang="en">9. Is the variable fixed?</span></h3><p lang="fa">دو درخواست با URIهای <code>/a</code> و <code>/b</code> به <code>return 200 "$uri";</code> می‌رسند. کدام خروجی‌ها را پیش‌بینی می‌کنی؟</p><p lang="en">Two requests with URIs <code>/a</code> and <code>/b</code> reach <code>return 200 "$uri";</code>. What responses do you predict?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">به‌ترتیب مقدارهای متناظر با URI جاری، یعنی <code>/a</code> و <code>/b</code>. متغیر در پردازش هر درخواست ارزیابی می‌شود؛ مقدار ثابتِ زمان parse نیست. این پیش‌بینی را با دو <code>curl</code> روی config آزمایشی ثابت می‌کنم.</p><p lang="en">They return the corresponding current URI values, <code>/a</code> and <code>/b</code>. The variable is evaluated while each request is processed, not fixed at parse time. Verify the prediction with two <code>curl</code> requests against the test config.</p></details></div>
+
+  <div class="ex" id="ex10"><h3><span lang="fa">۱۰. وراثت <code>root</code></span><span lang="en">10. <code>root</code> inheritance</span></h3><p lang="fa">در <code>server</code> مقدار <code>root /srv/site;</code> هست. داخل <code>location /images/</code> مقدار root تعریف نشده. آیا حتماً خطای «root پیدا نشد» می‌گیری؟</p><p lang="en">The <code>server</code> sets <code>root /srv/site;</code>. The <code>location /images/</code> does not define root. Must you get a “root not found” error?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه؛ <code>root</code> از سطح بالاتر به ارث می‌رسد اگر در context فعلی تعریف نشده باشد. اما مسیر ساخته‌شده از ترکیب root و URI است؛ وجود و permission خود فایل را باید جدا بررسی کرد.</p><p lang="en">No. <code>root</code> is inherited when the current context does not define it. But the resulting file path is built from the root and URI; file existence and permissions still need separate checks.</p></details></div>
+
+  <div class="ex" id="ex11"><h3><span lang="fa">۱۱. چرا header والد ناپدید شد؟</span><span lang="en">11. Why did the parent header disappear?</span></h3><p lang="fa">در <code>http</code> یک <code>add_header X-Base yes;</code> هست. در <code>server</code> هم <code>add_header X-Site yes;</code> گذاشتی. پاسخ از server می‌آید ولی فقط <code>X-Site</code> را دارد. چرا؟</p><p lang="en">The <code>http</code> level defines <code>add_header X-Base yes;</code>. The <code>server</code> defines <code>add_header X-Site yes;</code>. The response comes from this server but has only <code>X-Site</code>. Why?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">طبق قاعدهٔ استاندارد، directiveهای <code>add_header</code> از سطح والد فقط وقتی ارث می‌رسند که در سطح فعلی هیچ <code>add_header</code> نباشد. این رفتار را با وراثت سادهٔ <code>root</code> یکی نگیر و نسخهٔ Nginx/وجود <code>add_header_inherit</code> را هم بررسی کن.</p><p lang="en">Under the standard rule, parent <code>add_header</code> directives are inherited only if the current level defines none. Do not confuse this with simple <code>root</code> inheritance, and check the Nginx version and whether <code>add_header_inherit</code> is configured.</p></details></div>
+
+  <div class="ex" id="ex12"><h3><span lang="fa">۱۲. directive ناشناخته یا context غلط؟</span><span lang="en">12. Unknown directive or wrong context?</span></h3><p lang="fa">خروجی می‌گوید <code>unknown directive "worker_conections"</code>. در مقابل، خروجی دیگر می‌گوید <code>"worker_connections" directive is not allowed here</code>. این‌ها چه تشخیص‌های متفاوتی‌اند؟</p><p lang="en">One message says <code>unknown directive "worker_conections"</code>; another says <code>"worker_connections" directive is not allowed here</code>. What different diagnoses do these suggest?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">اولی به غلط املایی، build یا module مربوط مشکوک است؛ دومی نام درست را شناخته ولی جایگاهش را رد کرده. متن کامل و محل گزارش را بخوان؛ صرف دیدن کلمهٔ “directive” کافی نیست.</p><p lang="en">The first suggests a typo or a build/module issue; the second recognizes the correct name but rejects its placement. Read the full message and location; spotting the word “directive” is not enough.</p></details></div>
+
+  <div class="ex" id="ex13"><h3><span lang="fa">۱۳. parse موفق یعنی چه؟</span><span lang="en">13. What does a successful parse prove?</span></h3><p lang="fa"><code>nginx -t</code> موفق است، ولی درخواست <code>curl</code> پاسخ مورد انتظار را ندارد. کدام ادعا را نباید مطرح کنی؟</p><p lang="en"><code>nginx -t</code> succeeds, but <code>curl</code> does not return the expected response. Which claim must you avoid?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نباید بگویم «پس سایت درست تنظیم شده». آزمون، syntax و دسترسی فایل‌های ارجاع‌شده را می‌سنجد، نه نتیجهٔ زمان اجرای هر درخواست را. بعد باید درخواست واقعی، کد وضعیت، بدنهٔ پاسخ و context مؤثر را بررسی کنم.</p><p lang="en">Do not claim that the site is correctly configured just because syntax passes. The test checks parsing and referenced files, not the runtime result of each request. Inspect the actual request, status, body, and effective context.</p></details></div>
+
+  <div class="ex" id="ex14"><h3><span lang="fa">۱۴. include چند فایل</span><span lang="en">14. Include multiple files</span></h3><p lang="fa">در config خط <code>include /etc/nginx/conf.d/*.conf;</code> آمده. آیا هر فایلی در آن پوشه، در هر context قابل استفاده است؟</p><p lang="en">The config contains <code>include /etc/nginx/conf.d/*.conf;</code>. Is every file in that directory valid in any context?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه. glob تعیین می‌کند چه فایل‌هایی match شوند، نه اینکه context آن‌ها آزاد باشد. همهٔ fragmentها باید در نقطهٔ include قانونی باشند؛ خروجی <code>nginx -T</code> و <code>nginx -t</code> را برای مسیر و خط بررسی کن.</p><p lang="en">No. The glob selects matching files; it does not make their context unrestricted. Each fragment must be valid at the include point. Use <code>nginx -T</code> and <code>nginx -t</code> to inspect paths and errors.</p></details></div>
+
+  <div class="ex" id="ex15"><h3><span lang="fa">۱۵. انتخاب روش بازاستفاده</span><span lang="en">15. Choose a reuse mechanism</span></h3><p lang="fa">می‌خواهی یک خط ثابت را در چند config تکرار نکنی. از متغیرهایی مثل <code>$shared_text</code> استفاده می‌کنی یا include؟ چرا؟</p><p lang="en">You want to avoid repeating a static line across configs. Would you use a variable such as <code>$shared_text</code> or an include? Why?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">برای متن ثابت، include یا ابزار تولید config مناسب‌تر است. متغیرهای Nginx معمولاً هنگام پردازش درخواست ارزیابی می‌شوند و macro جایگزین متن نیستند؛ ضمن اینکه فقط directiveهای مشخص از متغیر پشتیبانی می‌کنند.</p><p lang="en">For static text, an include or external config generator is more suitable. Nginx variables are generally evaluated during request processing and are not text macros; also, only certain directives support variables.</p></details></div>
+
+  <div class="ex" id="ex16"><h3><span lang="fa">۱۶. آکولاد زودبسته</span><span lang="en">16. An early closing brace</span></h3><p lang="fa">فایل خطای syntax می‌دهد و directiveای را نشان می‌دهد که به نظرت در context مجاز خودش است. یک آکولاد قبل‌تر از آن بسته شده. مسیر تشخیصت چیست؟</p><p lang="en">The file has a syntax error at a directive you believe is in a valid context. An earlier brace may have closed a block too soon. How do you diagnose it?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">از خط گزارش‌شده به عقب می‌روم و باز و بسته‌شدن بلوک‌ها را می‌شمارم؛ فایل‌های includeشده را هم با <code>nginx -T</code> وارد بررسی می‌کنم. یک diff کوچک یا تورفتگی کمک دیداری است، اما تورفتگی خودش محدوده نمی‌سازد؛ آکولادها می‌سازند.</p><p lang="en">Work backward from the reported line and match opening and closing braces, including included files shown by <code>nginx -T</code>. A small diff or indentation can help visually, but indentation does not create scope—the braces do.</p></details></div>
+
+  <div class="ex" id="ex17"><h3><span lang="fa">۱۷. دو درخواست، دو مقدار</span><span lang="en">17. Two requests, two values</span></h3><p lang="fa">پس از reload configای که در پاسخ <code>$uri</code> را چاپ می‌کند، برای مسیرهای <code>/one</code> و <code>/two</code> یک متن پاسخ می‌بینی. اول کدام دو فرض را بررسی می‌کنی؟</p><p lang="en">After reloading a config that returns <code>$uri</code>, you see one response text for both <code>/one</code> and <code>/two</code>. Which two assumptions do you check first?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">آیا config تازه واقعاً reload شده و آیا هر دو درخواست به همان listener و server می‌رسند؟ بعد بدنهٔ پاسخ و مسیر فرستاده‌شده را جداگانه ثبت می‌کنم. متغیر برای هر درخواست محاسبه می‌شود؛ اگر مقدار ثابت است، شاید اصلاً نسخهٔ config یا endpoint موردنظر را نمی‌آزمایم.</p><p lang="en">Did the new config actually reload, and do both requests reach the same listener and server? Record the response body and requested path separately. The variable is per request; a repeated value may mean you are not testing the intended config or endpoint.</p></details></div>
+
+  <div class="ex" id="ex18"><h3><span lang="fa">۱۸. یک config را مرور کن</span><span lang="en">18. Review a configuration</span></h3><p lang="fa">همکارت configای فرستاده که <code>include</code> دارد، چند context تو‌در‌تو و چند مقدار <code>add_header</code>. سه پرسش مشخصی بنویس که قبل از تأیید از او می‌پرسی.</p><p lang="en">A teammate sends a config with an <code>include</code>, nested contexts, and several <code>add_header</code> values. Write three concrete questions you would ask before approving it.</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">۱) هر directive در context مجازش هست؟ ۲) فایل include دقیقاً در چه نقطه‌ای وارد می‌شود و fragment در همان context معتبر است؟ ۳) اگر <code>add_header</code> در سطح پایین‌تر آمده، آیا header والد طبق قاعدهٔ نسخهٔ مورد استفاده باقی می‌ماند یا کنار می‌رود؟ بعد <code>nginx -t</code>/<code>-T</code> و یک درخواست واقعی را به‌عنوان مدرک می‌خواهم.</p><p lang="en">1) Is each directive in an allowed context? 2) Exactly where is the include inserted, and is its fragment valid there? 3) If a lower level defines <code>add_header</code>, do parent headers remain or disappear under the rule for this Nginx version? Then I would ask for <code>nginx -t</code>/<code>-T</code> and a real request as evidence.</p></details></div>
+</section>
+
+<section id="quick-reference">
+  <h2><span lang="fa">مرجع سریع فصل</span><span lang="en">Quick reference</span></h2>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">اگر این را دیدی…</span><span lang="en">If you see…</span></th><th><span lang="fa">این را بپرس</span><span lang="en">Ask this</span></th><th><span lang="fa">مدرک بعدی</span><span lang="en">Next evidence</span></th></tr></thead><tbody>
+    <tr><td><code>directive is not allowed here</code></td><td><span lang="fa">کدام context باز است؟</span><span lang="en">Which context is currently open?</span></td><td><code>nginx -t</code> و درخت آکولادها</td></tr>
+    <tr><td><span lang="fa">فایل هست، ولی اثر ندارد</span><span lang="en">The file exists but has no effect</span></td><td><span lang="fa">آیا از درخت include بار می‌شود؟</span><span lang="en">Is it loaded through an include?</span></td><td><code>nginx -T</code></td></tr>
+    <tr><td><span lang="fa">مقدار والد ناپدید شد</span><span lang="en">A parent value disappeared</span></td><td><span lang="fa">قاعدهٔ همین directive چیست؟</span><span lang="en">What is this directive’s inheritance rule?</span></td><td><span lang="fa">مستندات همان directive و نسخه</span><span lang="en">That directive’s docs and version</span></td></tr>
+    <tr><td><span lang="fa">متغیر مقدار دیگری دارد</span><span lang="en">A variable has another value</span></td><td><span lang="fa">در زمان parse است یا برای هر درخواست؟</span><span lang="en">Is it parse-time or per-request?</span></td><td><span lang="fa">یک درخواست کنترل‌شده و body پاسخ</span><span lang="en">One controlled request and its response body</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa">برای مرجع رسمی: <a href="https://nginx.org/en/docs/beginners_guide.html#conf_structure">ساختار فایل Nginx</a>، <a href="https://nginx.org/en/docs/ngx_core_module.html#include">directiveِ include</a>، رفتار <a href="https://nginx.org/en/docs/http/ngx_http_core_module.html#root">root</a>، وراثت <a href="https://nginx.org/en/docs/http/ngx_http_headers_module.html#add_header">add_header</a> و <a href="https://nginx.org/en/docs/faq/variables_in_config.html">پرسش رسمی دربارهٔ متغیرها</a>. نسخهٔ نصب‌شده و متن پیکربندی خودت را مبنا بگیر.</p>
+  <p lang="en">Official references: Nginx <a href="https://nginx.org/en/docs/beginners_guide.html#conf_structure">configuration structure</a>, the <a href="https://nginx.org/en/docs/ngx_core_module.html#include">include directive</a>, <a href="https://nginx.org/en/docs/http/ngx_http_core_module.html#root">root</a> behavior, <a href="https://nginx.org/en/docs/http/ngx_http_headers_module.html#add_header">add_header</a> inheritance, and the official <a href="https://nginx.org/en/docs/faq/variables_in_config.html">FAQ about variables</a>. Use your installed version and actual configuration as the source of truth.</p>
+</section>
+
+<section id="next">
+  <h2><span lang="fa">حالا چند server روی یک Nginx؟</span><span lang="en">Now, multiple servers on one Nginx?</span></h2>
+  <p class="lede" lang="fa">حالا می‌توانی یک فایل را بخوانی، مرز blockها را پیدا کنی و بفهمی دستور در کدام context معنا دارد. قدم بعدی این است: اگر چند <code>server</code> روی یک IP و یک پورت باشند، Nginx چطور تصمیم می‌گیرد درخواست به کدام یکی برسد؟ فصل بعد با virtual host و <code>server_name</code> همین سؤال را دنبال می‌کند؛ هنوز قرار نیست جوابش را از روی ترتیب فایل‌ها حدس بزنیم.</p>
+  <p class="lede" lang="en">You can now read a file, find block boundaries, and identify the context in which a directive makes sense. Next: if several <code>server</code> blocks share one IP and port, how does Nginx decide which one receives a request? The next chapter follows that question through virtual hosts and <code>server_name</code>; we will not guess from file order.</p>
+</section>

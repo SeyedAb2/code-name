@@ -482,7 +482,7 @@ export const TRACKS: Track[] = [
       {
         "n": "01",
         "file": "01-install.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 65,
         "fa": {
@@ -499,7 +499,7 @@ export const TRACKS: Track[] = [
       {
         "n": "02",
         "file": "02-syntax.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 70,
         "fa": {
@@ -757,7 +757,7 @@ export const TRACKS: Track[] = [
       "exercises": 255,
       "minutes": 1245,
       "capstones": 3,
-      "ready": 0
+      "ready": 2
     }
   },
   {

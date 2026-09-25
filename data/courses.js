@@ -55,8 +55,8 @@ C.push({
   en:{name:"Nginx", desc:"From serving one static file to a full gateway: location matching, reverse proxy, TLS, caching and rate limiting.",
       intro:"Nginx looks simple until your first location block does not match. This track opens up the real configuration logic: what matches what, in which order, and where that 502 comes from."},
   ch:[
-["01","01-install.html",0,18,65,"نصب و ساختار فایل‌ها","کجا نصب می‌شود و کدام فایل را باید دست بزنی.","Installation and file layout","Where it installs and which file you are meant to edit.","nginx install conf.d sites-available"],
-["02","02-syntax.html",0,18,70,"دستور زبان کانفیگ و context‌ها","directive، block، و وراثت بین context‌ها.","Config syntax and contexts","Directives, blocks, and inheritance between contexts.","directive context http server location inheritance"],
+["01","01-install.html",1,18,65,"نصب و ساختار فایل‌ها","کجا نصب می‌شود و کدام فایل را باید دست بزنی.","Installation and file layout","Where it installs and which file you are meant to edit.","nginx install conf.d sites-available"],
+["02","02-syntax.html",1,18,70,"دستور زبان کانفیگ و context‌ها","directive، block، و وراثت بین context‌ها.","Config syntax and contexts","Directives, blocks, and inheritance between contexts.","directive context http server location inheritance"],
 ["03","03-server-block.html",0,18,70,"server block و virtual host","چند سایت روی یک IP و یک پورت.","Server blocks and virtual hosts","Many sites on one IP and one port.","server_name virtual host default_server sni"],
 ["04","04-location.html",0,18,80,"منطق location و اولویت‌ها","پیچیده‌ترین بخش Nginx، با جدول تصمیم.","Location matching and priority","The trickiest part of Nginx, with a decision table.","location regex prefix priority try_files"],
 ["05","05-static.html",0,18,70,"فایل استاتیک، کش مرورگر، فشرده‌سازی","gzip، brotli و هدرهای کش.","Static files, browser cache, compression","gzip, brotli and cache headers.","gzip brotli expires cache-control root alias"],
