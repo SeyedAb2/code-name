@@ -1,0 +1,525 @@
+<!--meta
+title: امنیت: non-root، read-only، محدودیت منابع
+desc: بعد از اینکه برنامه اجرا شد، دسترسی و دامنهٔ اثر خرابی را با کاربر محدود، فایل‌سیستم فقط‌خواندنی و سقف منابع کوچک‌تر کن.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">Docker · فصل ۱۳</span><span lang="en">Docker · Chapter 13</span></span>
+<h1 lang="fa">امنیت: non-root، read-only، محدودیت منابع</h1>
+<h1 lang="en">Container security: non-root, read-only filesystems, and resource limits</h1>
+<p class="sub" lang="fa">برنامه درست کار می‌کند. حالا سؤال عوض می‌شود: اگر روزی خود برنامه یا یکی از وابستگی‌هایش از کنترل خارج شد، چقدر دسترسی دارد و تا کجا می‌تواند اثر بگذارد؟</p>
+<p class="sub" lang="en">The application works. Now the question changes: if the application or one of its dependencies is compromised, what can it access, and how far can the damage spread?</p>
+<div class="facts">
+<div class="fact"><b>۴</b><span lang="fa">لایهٔ کاهش دامنهٔ خطر</span><span lang="en">blast-radius controls</span></div>
+<div class="fact"><b>۴</b><span lang="fa">نمودار</span><span lang="en">diagrams</span></div>
+<div class="fact"><b>۱۸</b><span lang="fa">تمرین پاسخ‌دار</span><span lang="en">solved exercises</span></div>
+</div>
+</div>
+<section id="story">
+<h2><span lang="fa">برنامه سالم است؛ اما اگر یک روز کد داخلش دست مهاجم افتاد چه؟</span><span lang="en">The app is healthy—but what if it isn't tomorrow?</span></h2>
+<p class="lede" lang="fa">تا اینجا بیشتر سؤال‌هایمان این بود که «آیا برنامه اجرا می‌شود؟». حالا فرض کن همان برنامه سالم بالا آمده، healthcheck هم سبز است، اما یک کتابخانهٔ آسیب‌پذیر اجازه می‌دهد کسی داخل فرایند برنامه کد اجرا کند. از این لحظه سؤال مهم عوض می‌شود: <strong>این فرایند واقعاً تا کجا اجازهٔ اثرگذاری دارد؟</strong></p>
+<p class="lede" lang="en">Yesterday our web service started, answered requests, and passed its healthcheck. Today a vulnerable library let an attacker execute code inside the application process. The question is no longer “does the container run?” It is: <strong>“What access does this application actually need?”</strong></p>
+<p lang="fa">هدف hardening این نیست که با چند گزینه container را «امن» اعلام کنیم. می‌خواهیم اگر چیزی خراب شد، دامنهٔ اثرش کوچک‌تر باشد. پس مرحله‌به‌مرحله دسترسی را کم می‌کنیم: کاربر کم‌اختیارتر، فایل‌سیستم محدودتر و منابع کنترل‌شده‌تر. بعد از هر تغییر هم ثابت می‌کنیم برنامه هنوز کار مورد انتظارش را انجام می‌دهد.</p>
+<p lang="en">Chapters 3 and 12 taught us to separate process liveness, application health, and failure causes. The next step is to keep the application's authority and resource reach small if something goes wrong. This does not replace patching vulnerabilities or secure design; it limits the possible blast radius.</p>
+<p lang="fa">یک container هم‌ارز ماشین مجازی یا مرز امنیتی کامل نیست. containerها از سازوکارهای جداسازی هستهٔ میزبان استفاده می‌کنند. پیکربندی مناسب می‌تواند کمک بزرگی باشد، ولی هیچ گزینه‌ای به‌تنهایی container را «امن» نمی‌کند. پس به‌جای وعدهٔ امنیت مطلق، چند لایهٔ قابل‌اندازه‌گیری می‌سازیم.</p>
+<p lang="en">A container is not equivalent to a virtual machine or a complete security boundary. Containers use isolation mechanisms provided by the host kernel. Good configuration helps, but no single option makes a container “secure.” Instead of promising absolute security, we will add several measurable layers.</p>
+<p lang="fa">فرمان‌های ترمینال چندخطی در این فصل از ادامه‌خط Bash (`\`) استفاده می‌کنند؛ در PowerShell آن‌ها را یک‌خطی اجرا کن یا `\` پایانی را با backtickِ PowerShell جایگزین کن. ادامه‌خط‌های داخل Dockerfile syntax خود Dockerfile هستند و نباید تغییر کنند.</p>
+<p lang="en">Multiline terminal commands in this chapter use Bash line continuation (`\`). In PowerShell, run them on one line or replace the trailing `\` with PowerShell's backtick. Continuations inside a Dockerfile are Dockerfile syntax and should not be changed.</p>
+<figure class="diagram">
+<svg aria-labelledby="d13-auth-title" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 1000 300">
+<title id="d13-auth-title">Broad authority gives a compromised process more ways to affect the container; least privilege narrows those paths.</title>
+<defs>
+<marker id="d13a1" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-w" d="M0 0L0 6L9 3z"></path></marker>
+<marker id="d13b1" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker>
+</defs>
+<rect class="dg-fill-w" height="200" rx="18" width="450" x="25" y="35"></rect>
+<text class="dg-t" text-anchor="middle" x="250" y="70">Broad authority</text>
+<rect class="dg-fill" height="70" rx="12" width="150" x="65" y="105"></rect>
+<text class="dg-ts" text-anchor="middle" x="140" y="135">Compromised app</text>
+<text class="dg-ts" text-anchor="middle" x="140" y="158">runs as root</text>
+<path class="dg-stroke-w" d="M215 140H315" marker-end="url(#d13a1)" stroke-width="3"></path>
+<rect class="dg-fill-w" height="90" rx="12" width="125" x="315" y="95"></rect>
+<text class="dg-ts" text-anchor="middle" x="377" y="125">more writable</text>
+<text class="dg-ts" text-anchor="middle" x="377" y="149">paths + power</text>
+<text class="dg-ts" text-anchor="middle" x="250" y="212">More authority → larger possible impact</text>
+<rect class="dg-fill-g" height="200" rx="18" width="450" x="525" y="35"></rect>
+<text class="dg-t" text-anchor="middle" x="750" y="70">Least privilege</text>
+<rect class="dg-fill" height="70" rx="12" width="150" x="565" y="105"></rect>
+<text class="dg-ts" text-anchor="middle" x="640" y="135">Compromised app</text>
+<text class="dg-ts" text-anchor="middle" x="640" y="158">non-root</text>
+<path class="dg-stroke-b" d="M715 140H815" marker-end="url(#d13b1)" stroke-width="3"></path>
+<rect class="dg-fill-g" height="90" rx="12" width="125" x="815" y="95"></rect>
+<text class="dg-ts" text-anchor="middle" x="877" y="125">scoped writes</text>
+<text class="dg-ts" text-anchor="middle" x="877" y="149">fewer powers</text>
+<text class="dg-ts" text-anchor="middle" x="750" y="212">Smaller authority → smaller blast radius</text>
+<text class="dg-ts" text-anchor="middle" x="500" y="275">Least privilege reduces possible impact; it does not prove the application is safe.</text>
+</svg>
+<figcaption lang="fa">هر دو طرف ممکن است برنامهٔ آلوده داشته باشند؛ تفاوت در اختیار و مسیرهای تغییرِ باقی‌مانده است.</figcaption>
+<figcaption lang="en">Both sides may run a compromised application; the difference is the remaining authority and writable paths.</figcaption>
+</figure>
+<div class="note safe"><div class="note-t"><span lang="fa">چهار پرسش همیشگی</span><span lang="en">Four recurring questions</span></div>
+<p lang="fa">این برنامه واقعاً به چه دسترسی‌ای نیاز دارد؟ چند پوشه باید بتواند تغییر دهد؟ چه‌قدر CPU و حافظه لازم دارد؟ چه اختیارهایی یا سطحی از دسترسی میزبان اصلاً لازم نیست به آن بدهیم؟ پاسخ‌ها را از رفتار واقعی برنامه بگیر، نه از حدس.</p>
+<p lang="en">What access does this application actually need? Which directories must it change? How much CPU and memory does it need? Which privileges or host access does it not need? Base the answers on observed application behavior, not guesses.</p>
+</div>
+</section>
+<section id="nonroot">
+<h2><span lang="fa">گام اول: اگر root لازم نیست، به برنامه root نده</span><span lang="en">Layer one: the app does not need to own everything</span></h2>
+<p lang="fa">اول وضعیت پایه را ببین. داخل image یک shell کوتاه اجرا کن و با <code>id</code> یا <code>whoami</code> بپرس فرایند با چه هویتی بالا می‌آید. خیلی از imageها اگر خودت چیزی مشخص نکنی با root شروع می‌شوند. سؤال بعدی ساده است: «برنامهٔ ما برای پاسخ‌دادن به HTTP واقعاً به root نیاز دارد؟»</p>
+<p lang="en">To see the starting point, run a short shell from an image and ask who it is. Many general-purpose images produce output like this:</p>
+<div class="term"><div class="term-bar"><span class="term-label">check the default identity</span><button class="copy">کپی</button></div><pre dir="ltr">docker run --rm python:3.12-alpine sh -c 'whoami; id'
+root
+uid=0(root) gid=0(root) groups=0(root)</pre></div>
+<p lang="fa">در Dockerfile یک کاربر مشخص می‌سازیم و با <code>USER</code> اجرای نهایی را به همان کاربر می‌سپاریم. اگر برنامه باید جایی بنویسد، مالکیت همان مسیر را هم آگاهانه تنظیم می‌کنیم. <code>COPY --chown</code> و permission درست بهتر از این است که آخر کار با <code>chmod 777</code> همه‌چیز را برای همه باز کنیم.</p>
+<p lang="en">This example shows that the chosen image defaults to UID zero; not every image does, so inspect the identity instead of assuming. A UID is a numeric user identifier and a GID is a numeric group identifier. Filesystem permissions are evaluated mainly against these numbers, not a readable name such as <code>app</code>.</p>
+<p lang="fa">حالا سؤال تکراری‌مان: «این برنامه واقعاً به چه دسترسی‌ای نیاز دارد؟» یک سرویس وب معمولی معمولاً فایل اجرایی و تنظیماتش را می‌خواند و روی یک پورت گوش می‌دهد؛ نوشتن روی تمام فایل‌سیستم یا تغییر مالکیت فایل‌ها جزو نیازهای عادی‌اش نیست. Dockerfile می‌تواند کاربر پیش‌فرض runtime را با <code>USER</code> تعیین کند.</p>
+<p lang="en">Now our recurring question: “What access does this application actually need?” A typical web service reads its executable and configuration and listens on a port; writing across the filesystem or changing file ownership is not normally part of its job. A Dockerfile can set the default runtime identity with <code>USER</code>.</p>
+<div class="code"><div class="code-bar"><span class="code-path">Dockerfile · deliberately root-owned data directory</span><button class="copy">کپی</button></div><pre dir="ltr">FROM python:3.12-alpine
+RUN addgroup -S -g 10001 app \
+ &amp;&amp; adduser -S -D -H -u 10001 -G app app \
+ &amp;&amp; mkdir -p /app /var/lib/app \
+ &amp;&amp; chown root:root /app /var/lib/app
+WORKDIR /app
+COPY server.py /app/server.py
+ENV STATE_DIR=/var/lib/app
+EXPOSE 8080
+USER app:app
+CMD ["python", "/app/server.py"]</pre></div>
+<p lang="fa">این image یک کاربر واقعی می‌سازد؛ <code>USER app:app</code> کاربر و گروه پیش‌فرض را برای فرمان زمان اجرا عوض می‌کند. مالکیت <code>/var/lib/app</code> را عمداً root گذاشتیم تا خطای نزدیک را ببینیم. فایل کپی‌شده هم بدون <code>--chown</code> معمولاً مالک root می‌شود؛ اگر برنامه فقط باید آن را بخواند اشکالی ندارد، اما پوشهٔ داده باید متناسب با کاربر runtime تنظیم شود.</p>
+<p lang="en">This image creates a real user; <code>USER app:app</code> changes the default user and group for runtime commands. We deliberately leave <code>/var/lib/app</code> owned by root so we can see a realistic failure. A copied file is normally root-owned without <code>--chown</code>; that is fine if the app only reads it, but a data directory must be prepared for the runtime user.</p>
+<div class="code"><div class="code-bar"><span class="code-path">Dockerfile · explicit ownership and a readable app directory</span><button class="copy">کپی</button></div><pre dir="ltr">RUN addgroup -S -g 10001 app \
+ &amp;&amp; adduser -S -D -H -u 10001 -G app app \
+ &amp;&amp; mkdir -p /app /var/lib/app \
+ &amp;&amp; chown app:app /var/lib/app \
+ &amp;&amp; chown root:root /app
+WORKDIR /app
+COPY --chown=root:root server.py /app/server.py
+USER app:app</pre></div>
+<p lang="fa">فایل برنامه برای کاربر قابل‌خواندن است ولی قابل‌تغییر نیست؛ پوشهٔ داده را فقط به همان کاربر می‌دهیم. <code>WORKDIR</code> اگر مسیرش وجود نداشته باشد آن را می‌سازد، اما نباید فرض کنی مالکیتش خودبه‌خود با کاربر runtime جور است. مالک و مجوز پوشه را پیش از <code>USER</code> آگاهانه تنظیم کن. در buildهای مرحله‌ای بهتر است <code>USER</code> فقط در مرحلهٔ نهایی runtime بیاید تا نصب بسته‌ها به مشکل نخورد.</p>
+<p lang="en">The app file is readable but not mutable by the runtime user; only the data directory is writable by that user. <code>WORKDIR</code> creates a missing path, but do not assume its ownership will automatically match the runtime identity. Set directory ownership and permissions deliberately before <code>USER</code>. In multi-stage builds, place the runtime <code>USER</code> in the final stage so package installation is not accidentally run without required privileges.</p>
+<div class="term"><div class="term-bar"><span class="term-label">deliberate permission failure</span><button class="copy">کپی</button></div><pre dir="ltr">$ docker run --rm -p 8080:8080 my-web
+$ curl -i http://localhost:8080/
+HTTP/1.0 500 Internal Server Error
+PermissionError: [Errno 13] Permission denied: '/var/lib/app/visits.txt'</pre></div>
+<p lang="fa">فرایند بالا آمده و با non-root اجرا می‌شود؛ خطا فقط هنگام نوشتن رخ می‌دهد. به‌جای بالا بردن اختیار برنامه یا زدن <code>chmod 777</code>، مالک واقعی و نیاز نوشتن را پیدا کن. مجوز ۷۷۷ به هر کاربری اجازهٔ تغییر می‌دهد و مشکل مالکیت را پنهان می‌کند؛ راه درست، دادن مجوز لازم به کاربر مشخص است.</p>
+<p lang="en">The process started as non-root; the failure occurs only when it tries to write. Rather than restoring broad privilege or using <code>chmod 777</code>, identify the owner and the actual write requirement. Mode 777 lets every user change the path and hides the ownership mistake; the better fix grants the required access to the intended user.</p>
+<div class="term"><div class="term-bar"><span class="term-label">verify identity and directory owner</span><button class="copy">کپی</button></div><pre dir="ltr">docker exec my-web sh -c 'whoami; id; ls -ld /var/lib/app'
+app
+uid=10001(app) gid=10001(app) groups=10001(app)
+drwxr-xr-x    2 root     root          4096 ... /var/lib/app</pre></div>
+<p lang="fa">شواهد دقیق‌اند: UID برنامه ۱۰۰۰۱ است، ولی پوشه متعلق به UID صفر و برای گروه هم قابل‌نوشتن نیست. اصلاح را در image ثبت می‌کنیم؛ مثلاً <code>RUN chown app:app /var/lib/app</code> یا پوشه را با همان مالکیت می‌سازیم. بعد image را rebuild می‌کنیم و همان درخواست را دوباره می‌فرستیم. permission را به <code>777</code> تبدیل نمی‌کنیم.</p>
+<p lang="en">The evidence is specific: the app runs as UID 10001, but the directory belongs to UID zero and is not group-writable. Record the fix in the image—for example, <code>RUN chown app:app /var/lib/app</code> or create the directory with that ownership. Rebuild, then repeat the same request. Do not widen the mode to <code>777</code>.</p>
+<div class="table-wrap"><table class="doc-table">
+<thead><tr><th>مقایسه / Comparison</th><th>root runtime</th><th>non-root runtime</th><th>پرسش بررسی / Check</th></tr></thead>
+<tbody>
+<tr><td>شناسه / Identity</td><td>معمولاً UID صفر در namespace کانتینر / Often UID 0 in the container namespace</td><td>UID/GID مشخص برنامه / Explicit app UID/GID</td><td><code>id</code> واقعاً چه می‌گوید؟ / What does <code>id</code> report?</td></tr>
+<tr><td>فایل‌ها / Files</td><td>خطای مالکیت ممکن است پنهان شود / Ownership bugs may be masked</td><td>فقط مسیرهای آماده‌شده کار می‌کنند / Only prepared paths work</td><td>کدام مسیر باید writable باشد؟ / Which path must be writable?</td></tr>
+<tr><td>اگر برنامه رخنه کند / If compromised</td><td>اختیار بیشتر درون namespace / More authority inside its namespace</td><td>اختیار فرایند محدودتر / Less process authority</td><td>چه مرزهایی همچنان وجود دارند؟ / Which boundaries still apply?</td></tr>
+</tbody>
+</table></div>
+<div class="note warn"><div class="note-t"><span lang="fa">دقت در مورد root</span><span lang="en">A careful note about root</span></div>
+<p lang="fa">گفتن «root داخل container همان root میزبان است» نادرست است: namespaceها و قابلیت‌های محدودشده معمولاً تفاوت مهمی می‌سازند. اما «root داخل container بی‌خطر است» هم نادرست است؛ اختیار بیشتر، mount میزبان، آسیب‌پذیری هسته یا دسترسی به Docker API می‌تواند خطر را بالا ببرد. حساب non-root یکی از لایه‌هاست، نه مرز جادویی.</p>
+<p lang="en">“Container root is the same as host root” is inaccurate: namespaces and restricted capabilities usually create important differences. But “container root is harmless” is also wrong; greater authority, host mounts, kernel vulnerabilities, or Docker API access can increase risk. A non-root account is one layer, not a magical boundary.</p>
+</div>
+</section>
+<section id="readonly">
+<h2><span lang="fa">گام دوم: برنامه لازم نیست فایل‌سیستم خودش را هرجا خواست تغییر بدهد</span><span lang="en">Layer two: what should change on the image filesystem?</span></h2>
+<p lang="fa">وقتی برنامه بسته‌بندی شده، بخش بزرگی از filesystem فقط برای خواندن است: کد، کتابخانه‌ها و فایل‌های ثابت. اگر سرویس برای کار عادی لازم نیست آن‌ها را تغییر دهد، <code>--read-only</code> یک مرز مفید می‌سازد. بعد مسیرهایی را که واقعاً نوشتن لازم دارند جدا و صریح تعریف می‌کنیم.</p>
+<p lang="en">The application is packaged, but it may write caches, temporary files, or debug output to arbitrary locations. Ask again: “What access does this application actually need?” If normal operation does not require changing the container's main filesystem, make that filesystem read-only and mount only the specific paths that need writes.</p>
+<div class="term"><div class="term-bar"><span class="term-label">run an otherwise working app with a read-only root filesystem</span><button class="copy">کپی</button></div><pre dir="ltr">docker run --rm --read-only --user 10001:10001 my-web
+PermissionError: [Errno 30] Read-only file system: '/var/lib/app/visits.txt'</pre></div>
+<p lang="fa">برای فایل موقت می‌توانیم <code>tmpfs</code> بدهیم؛ دادهٔ ماندگار می‌تواند روی volume بنشیند. نکته همین «استثنای صریح» است. read-only شدن root filesystem به‌معنی read-only شدن mountهای جدا نیست. اگر برنامه روی <code>/data</code> volume نوشتنی دارد، همان مسیر همچنان قابل نوشتن است.</p>
+<p lang="en">Separate two failure types: a path may reject writes because ownership or permissions are wrong, or because the root filesystem itself is read-only. “Read-only file system” and “Permission denied” are not the same. <code>--read-only</code> locks the container's root filesystem; a separately mounted volume or path that is writable remains writable.</p>
+<figure class="diagram">
+<svg aria-labelledby="d13-ro-title" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 1000 300">
+<title id="d13-ro-title">A read-only root filesystem can still have explicit writable tmpfs and volume mounts.</title>
+<rect class="dg-fill-b" height="205" rx="18" width="930" x="35" y="35"></rect>
+<text class="dg-t" text-anchor="middle" x="500" y="70">Container root filesystem · read-only</text>
+<g text-anchor="middle">
+<rect class="dg-fill" height="90" rx="14" width="250" x="80" y="110"></rect>
+<text class="dg-t" x="205" y="142">Application + libraries</text>
+<text class="dg-ts" x="205" y="170">normal writes are blocked</text>
+<rect class="dg-fill-g" height="90" rx="14" width="250" x="375" y="110"></rect>
+<text class="dg-t" x="500" y="142">/tmp · tmpfs</text>
+<text class="dg-ts" x="500" y="170">writable · temporary</text>
+<rect class="dg-fill-v" height="90" rx="14" width="250" x="670" y="110"></rect>
+<text class="dg-t" x="795" y="142">/data · volume</text>
+<text class="dg-ts" x="795" y="170">writable · persistent</text>
+</g>
+<text class="dg-ts" text-anchor="middle" x="500" y="275">Writable mounts are explicit exceptions; --read-only does not make those mounts read-only.</text>
+</svg>
+<figcaption lang="fa">سطح خاکستری بسته است؛ فقط mountهایی که جداگانه تعریف کرده‌ایم راه نوشتن می‌دهند.</figcaption>
+<figcaption lang="en">The gray surface is locked; only separately configured mounts provide write paths.</figcaption>
+</figure>
+<p lang="fa">برای دادهٔ موقت که پس از توقف container لازم نیست، <code>tmpfs</code> انتخاب مناسبی است. داده‌اش روی فایل‌سیستم حافظه‌ای است و با حذف container باقی نمی‌ماند؛ ضمن اینکه مصرفش جزو حافظهٔ container حساب می‌شود. داده‌ای که باید پس از تعویض container بماند، متعلق به volume یا ذخیره‌سازی بیرونی است. volume را فقط وقتی اضافه کن که واقعاً به ماندگاری نیاز داری و مالکیت داخل mount را هم بررسی کن.</p>
+<p lang="en">For temporary data that need not survive container removal, <code>tmpfs</code> is a suitable choice. It lives in memory-backed filesystem and does not persist after container removal; its use also counts toward container memory. Data that must survive replacement belongs in a volume or external storage. Add a volume only when persistence is genuinely required, and check ownership inside the mount.</p>
+<div class="term"><div class="term-bar"><span class="term-label">rootfs read-only · /tmp writable · scoped memory-backed mount</span><button class="copy">کپی</button></div><pre dir="ltr">docker run --rm --read-only --user 10001:10001 \
+  --tmpfs /tmp:rw,noexec,nosuid,size=16m,uid=10001,gid=10001 \
+  -e STATE_DIR=/tmp my-web</pre></div>
+<p lang="fa">این فرمان به برنامه اجازهٔ نوشتن روی root filesystem نمی‌دهد؛ فقط <code>/tmp</code> را با سقف کوچک و مالکیت UID/GID برنامه writable می‌کند. <code>noexec</code> اجرای مستقیم فایل از آن mount را منع می‌کند و <code>nosuid</code> اثر بیت‌های set-user-ID را می‌بندد؛ این گزینه‌ها جایگزین بررسی رفتار برنامه نیستند. اگر برنامه در مسیر دیگری بنویسد، خطا سرنخِ نیاز واقعی یا تنظیم نادرست است، نه دلیلی برای بازکردن کل rootfs.</p>
+<p lang="en">This command blocks writes to the root filesystem and makes only <code>/tmp</code> writable, with a small cap and the app's UID/GID as owner. <code>noexec</code> prevents direct execution from that mount; <code>nosuid</code> neutralizes set-user-ID bits there. These options do not replace checking application behavior. If the app writes elsewhere, the failure is evidence of a real requirement or bad configuration—not a reason to reopen the whole root filesystem.</p>
+<div class="table-wrap"><table class="doc-table">
+<thead><tr><th>مسیر / Path</th><th>مدل / Model</th><th>ماندگاری / Persistence</th><th>پرسش / Question</th></tr></thead>
+<tbody>
+<tr><td>فایل‌های برنامه / App files</td><td>root filesystem با <code>--read-only</code> / root filesystem with <code>--read-only</code></td><td>داخل image / In image</td><td>آیا runtime باید این‌ها را عوض کند؟ / Must runtime change these?</td></tr>
+<tr><td><code>/tmp</code></td><td>tmpfs محدود / bounded tmpfs</td><td>نه؛ با توقف container از بین می‌رود / No; lost on container stop/removal</td><td>آیا داده موقت است و سقف دارد؟ / Is it temporary and bounded?</td></tr>
+<tr><td><code>/data</code></td><td>volume یا ذخیره‌سازی بیرونی / volume or external storage</td><td>بله، طبق چرخهٔ عمر داده / Yes, according to data lifecycle</td><td>چه کسی مالک داده و backup است؟ / Who owns and backs it up?</td></tr>
+</tbody>
+</table></div>
+</section>
+<section id="limits">
+<h2><span lang="fa">گام سوم: حتی یک فرایند سالم هم نباید بی‌نهایت منبع بگیرد</span><span lang="en">Layer three: constrain the resource blast radius</span></h2>
+<p lang="fa">فصل قبل دیدیم وقتی حافظه تمام می‌شود چه نشانه‌هایی می‌بینیم. اینجا دیگر فقط آزمایش OOM نمی‌کنیم؛ می‌خواهیم برای یک سرویس واقعی مرز معقول بگذاریم. اگر یک bug حافظه را می‌بلعد، CPU را می‌چرخاند یا فرایندهای زیادی می‌سازد، بهتر است دامنهٔ فشار از اول محدود باشد.</p>
+<p lang="en">Chapter 12 used a small memory cap to reproduce OOM in a controlled way. Here we move from the experiment to what each boundary means for a running service. With no ceiling, a memory leak, compute loop, or excessive process creation can pressure other services on the same host. A limit does not repair bad behavior; it constrains its resource footprint.</p>
+<figure class="diagram">
+<svg aria-labelledby="d13-limit-title" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 1000 300">
+<title id="d13-limit-title">A container workload is bounded independently by memory, CPU, and PID limits.</title>
+<rect class="dg-fill" height="205" rx="18" width="930" x="35" y="35"></rect>
+<text class="dg-t" text-anchor="middle" x="500" y="70">Container resource boundary</text>
+<rect class="dg-fill-v" height="85" rx="14" width="190" x="75" y="115"></rect>
+<text class="dg-t" text-anchor="middle" x="170" y="147">Application</text>
+<text class="dg-ts" text-anchor="middle" x="170" y="174">requests · child processes</text>
+<g class="dg-stroke-b" stroke-width="2"><path d="M285 105V210"></path><path d="M515 105V210"></path><path d="M745 105V210"></path></g>
+<g text-anchor="middle">
+<rect class="dg-fill-b" height="85" rx="14" width="180" x="315" y="115"></rect>
+<text class="dg-t" x="405" y="147">Memory</text>
+<text class="dg-ts" x="405" y="174">--memory</text>
+<rect class="dg-fill-g" height="85" rx="14" width="180" x="545" y="115"></rect>
+<text class="dg-t" x="635" y="147">CPU</text>
+<text class="dg-ts" x="635" y="174">--cpus</text>
+<rect class="dg-fill-w" height="85" rx="14" width="150" x="775" y="115"></rect>
+<text class="dg-t" x="850" y="147">Processes</text>
+<text class="dg-ts" x="850" y="174">--pids-limit</text>
+</g>
+<text class="dg-ts" text-anchor="middle" x="500" y="275">Limits bound consumption; they do not diagnose or fix application bugs.</text>
+</svg>
+<figcaption lang="fa">هر مرز پیامد جدا دارد: memory ممکن است OOM شود، CPU کند می‌شود و سقف PID ساخت فرایند/وظیفهٔ بیشتر را محدود می‌کند.</figcaption>
+<figcaption lang="en">Each boundary behaves differently: memory may trigger OOM, CPU is throttled, and a PID ceiling restricts additional processes or tasks.</figcaption>
+</figure>
+<div class="table-wrap"><table class="doc-table">
+<thead><tr><th>مرز / Limit</th><th>نمونه / Example</th><th>چه می‌کند / What it does</th><th>چه نمی‌کند / What it does not do</th></tr></thead>
+<tbody>
+<tr><td>Memory</td><td><code>--memory=128m</code></td><td>مصرف حافظهٔ cgroup را سقف می‌گذارد؛ عبور می‌تواند allocation failure یا OOM termination بسازد / Caps cgroup memory; exceeding it may cause allocation failures or OOM termination</td><td>حافظهٔ درستِ برنامه را پیدا یا نشت را تعمیر نمی‌کند / Does not find a correct app budget or fix a leak</td></tr>
+<tr><td>CPU</td><td><code>--cpus=0.50</code></td><td>زمان پردازنده را محدود می‌کند؛ برنامه ممکن است throttle و کند شود / Limits CPU time; the app may be throttled and slow down</td><td>نیم‌هستهٔ اختصاصی یا زمان پاسخ تضمین‌شده نیست / Does not reserve half a core or guarantee latency</td></tr>
+<tr><td>Processes / PIDs</td><td><code>--pids-limit=64</code></td><td>تعداد taskهای تحت محدودیت را سقف می‌گذارد / Caps tasks under the limit</td><td>نشتی thread/process را پیدا نمی‌کند؛ سقف کم می‌تواند کار معتبر را هم بشکند / Does not diagnose leaks; a low cap can break valid work</td></tr>
+</tbody>
+</table></div>
+<p lang="fa"><code>--memory</code> سقف حافظه را محدود می‌کند، <code>--cpus</code> سهم CPU را و <code>--pids-limit</code> تعداد فرایندها را. این‌ها تضمین نمی‌کنند برنامه درست رفتار کند؛ فقط می‌گویند یک برنامهٔ بدرفتار تا کجا می‌تواند منابع میزبان را مصرف کند. بعد از اعمال limit باید هم خود تنظیمات را inspect کنیم و هم رفتار واقعی سرویس را.</p>
+<p lang="en">With direct Docker execution, these options make the boundaries explicit:</p>
+<div class="term"><div class="term-bar"><span class="term-label">bounded runtime configuration</span><button class="copy">کپی</button></div><pre dir="ltr">docker run -d --name web \
+  --memory=128m --cpus=0.50 --pids-limit=64 \
+  my-web</pre></div>
+<p lang="fa">خروجی موفق <code>docker run</code> به‌تنهایی ثابت نمی‌کند Engine محدودیت دلخواه را واقعاً اعمال کرده. پیکربندی ثبت‌شدهٔ container را inspect کن:</p>
+<p lang="en">A successful <code>docker run</code> alone does not prove that the Engine applied the intended limits. Inspect the container's recorded configuration:</p>
+<div class="term"><div class="term-bar"><span class="term-label">verify configured bounds</span><button class="copy">کپی</button></div><pre dir="ltr">docker inspect web --format 'memory={{.HostConfig.Memory}} nanoCPUs={{.HostConfig.NanoCpus}} pids={{.HostConfig.PidsLimit}}'
+memory=134217728 nanoCPUs=500000000 pids=64</pre></div>
+<p lang="fa">اینجا memory بر حسب بایت و CPU بر حسب nanoCPU ثبت شده‌اند؛ عددها را به‌جای متن نمایشی با واحد قابل‌فهم ترجمه کن. این‌ها شواهد پیکربندی‌اند، نه مصرف لحظه‌ای. برای مصرف جاری <code>docker stats web</code> را کنارشان ببین. روی Docker Desktop، Engine داخل محیط مدیریت‌شده اجرا می‌شود؛ منابع ماشین مجازی آن هم سقف بیرونی دارد.</p>
+<p lang="en">Memory is recorded in bytes and CPU in nanoCPUs; translate the numbers into readable units instead of treating them as labels. These are configuration evidence, not live usage. Pair them with <code>docker stats web</code> for current consumption. On Docker Desktop the Engine runs in a managed environment, which has its own outer resource ceiling.</p>
+<p lang="fa">محدودیت memory می‌تواند باعث شود allocation شکست بخورد یا فرایند با OOM متوقف شود؛ سقف CPU کار را کند می‌کند؛ سقف PIDs می‌تواند ساخت thread یا فرایند تازه را رد کند. هر سه به انتخاب عدد، اندازه‌گیری بار و رفتار برنامه نیاز دارند. مقدار کوچکِ آموزشی توصیهٔ production نیست. فصل ۱۲ روش تشخیص OOM را دارد؛ اینجا از همان تشخیص برای انتخاب مرز مناسب استفاده می‌کنیم.</p>
+<p lang="en">A memory limit can cause allocations to fail or a process to be stopped by OOM; a CPU cap slows work; a PID ceiling can reject new threads or processes. All three require sizing from measured workload and application behavior. A small teaching value is not a production recommendation. Chapter 12 explains OOM diagnosis; here we use that evidence to choose an appropriate boundary.</p>
+</section>
+<section id="compose">
+<h2><span lang="fa">همان مرزها باید داخل تعریف Compose هم دیده شوند</span><span lang="en">The same boundaries in Compose</span></h2>
+<p lang="fa">اگر سرویس را با Compose بالا می‌آوریم، hardening نباید به چند flag فراموش‌شدنی در history ترمینال محدود شود. تنظیماتی مثل user، read-only بودن، tmpfs و limitهای منابع را کنار همان service می‌نویسیم تا نفر بعد هم همان مرزها را بگیرد.</p>
+<p lang="en">When you launch a service with Compose, keep its boundaries in the service definition so they remain reproducible. The current Compose service reference defines direct keys for <code>user</code>, <code>read_only</code>, <code>tmpfs</code>, <code>mem_limit</code>, <code>cpus</code>, and <code>pids_limit</code>. This example targets ordinary local Compose and does not depend on a scheduler or Swarm.</p>
+<div class="code"><div class="code-bar"><span class="code-path">compose.yaml · local service controls</span><button class="copy">کپی</button></div><pre dir="ltr">services:
+  web:
+    build: .
+    ports:
+      - "8080:8080"
+    user: "10001:10001"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m,uid=10001,gid=10001
+    environment:
+      STATE_DIR: /tmp
+      BREAK_HEALTH: "0"
+    mem_limit: 128m
+    cpus: 0.50
+    pids_limit: 64
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=1)"]
+      interval: 10s
+      timeout: 2s
+      retries: 3
+      start_period: 5s</pre></div>
+<p lang="fa">این فصل فقط syntax مناسب اجرای معمول Compose را استفاده می‌کند. هر چیزی که مخصوص orchestrator یا Swarm است را بی‌دلیل وارد نمونه نمی‌کنیم. هدف این است که فایل Compose همان چیزی را توصیف کند که واقعاً روی محیط فعلی اجرا می‌شود.</p>
+<p lang="en">Before starting, inspect <code>docker compose config</code> to see whether Compose parses and resolves the final settings; this does not prove application behavior or daemon support for every feature. Inspect the created container too. In the current reference, <code>mem_limit</code>, <code>cpus</code>, and <code>pids_limit</code> are direct service settings; if you also define matching <code>deploy.resources.limits</code>, the values must be consistent and deploy support is platform-dependent. For this local example we keep the direct keys rather than mislabeling scheduler-oriented syntax as a universal rule.</p>
+<div class="term"><div class="term-bar"><span class="term-label">parse first, then start and verify</span><button class="copy">کپی</button></div><pre dir="ltr">docker compose config
+docker compose up -d --build
+docker compose ps
+docker inspect "$(docker compose ps -q web)" --format '{{.Config.User}} {{.HostConfig.ReadonlyRootfs}} {{.HostConfig.Memory}} {{.HostConfig.NanoCpus}} {{.HostConfig.PidsLimit}}'</pre></div>
+<p lang="fa">در PowerShell می‌توانی به‌جای substitution مخصوص Bash، شناسه را جدا بگیری: <code>$cid = docker compose ps -q web</code> و بعد <code>docker inspect $cid --format ...</code>. در هر shell دستور متناسب خودش را به‌کار ببر؛ syntax دو محیط را در یک فرمان مخلوط نکن.</p>
+<p lang="en">In PowerShell, get the ID separately instead of using Bash substitution: <code>$cid = docker compose ps -q web</code>, then run <code>docker inspect $cid --format ...</code>. Use syntax appropriate to your shell; do not mix shell conventions in one command.</p>
+</section>
+<section id="layers">
+<h2><span lang="fa">مرزهای اضافه را فقط وقتی لازم‌اند اضافه کن</span><span lang="en">Optional layers: trim privileges too</span></h2>
+<p lang="fa">بعد از non-root، read-only و limitهای منابع، هنوز می‌شود بعضی اختیارهای Linux را هم محدودتر کرد. <code>cap-drop</code> یا <code>no-new-privileges</code> می‌توانند مفید باشند، اما اینجا قرار نیست capabilityهای Linux را حفظ کنیم. روش درست همان قبلی است: از نیاز واقعی برنامه شروع کن، یک مرز را کم کن و بعد رفتار را دوباره آزمایش کن.</p>
+<p lang="en">Docker restricts a set of Linux capabilities by default. If a service does not need a particular capability, you can remove it with <code>--cap-drop</code>; blindly dropping everything can still break legitimate behavior. Start from actual requirements and test the change. <code>no-new-privileges</code> prevents a process from gaining additional privileges through mechanisms such as setuid; it complements other controls rather than compensating for root or host access.</p>
+<div class="term"><div class="term-bar"><span class="term-label">optional runtime hardening; test compatibility</span><button class="copy">کپی</button></div><pre dir="ltr">docker run --security-opt=no-new-privileges \
+  --cap-drop=NET_RAW \
+  my-web</pre></div>
+<p lang="fa">دو میان‌بر را هم به‌عنوان علامت خطر نگه دار: <code>--privileged</code> و mount کردن <code>/var/run/docker.sock</code>. هر دو می‌توانند اختیار بسیار زیادی به container بدهند. اگر برنامهٔ معمولی وب به آن‌ها «نیاز» پیدا کرده، قبل از قبول‌کردن این نیاز باید معماری را دوباره بررسی کنی.</p>
+<p lang="en">If you think you need more permission, first identify the exact operation and whether there is a narrower alternative. <code>--privileged</code> is not a harmless shortcut: it grants broad authority, host-device access, and changes default restrictions. Mounting <code>/var/run/docker.sock</code> is not ordinary file access; control of the Docker daemon can often create powerful containers and mounts. Chapter 2 explained why that socket is a critical boundary. Do not give either to an ordinary web app.</p>
+<div class="table-wrap"><table class="doc-table">
+<thead><tr><th>لایه / Control</th><th>کاهش می‌دهد / Reduces</th><th>حل نمی‌کند / Does not solve</th></tr></thead>
+<tbody>
+<tr><td>non-root user</td><td>اختیارهای فرایند و اشتباه‌های مالکیت / Process authority and ownership mistakes</td><td>کد آسیب‌پذیر، secret بدمدیریت‌شده یا mount پرقدرت / Vulnerable code, poor secret handling, or powerful mounts</td></tr>
+<tr><td>read-only rootfs</td><td>تغییر فایل‌های داخل لایهٔ اصلی / Changes to the root filesystem layer</td><td>نوشتن در volume writable یا سوءاستفاده از API / Writes to writable volumes or API abuse</td></tr>
+<tr><td>memory/CPU/PID limits</td><td>دامنهٔ مصرف این منابع / Resource footprint in these dimensions</td><td>نشت، پاسخ کند، خطای منطقی یا مصرف دیسک / Leaks, latency, logic bugs, or disk usage</td></tr>
+<tr><td>no-new-privileges / cap-drop</td><td>راه‌های کسب اختیار اضافه یا capabilityهای مشخص / Privilege gain or selected capabilities</td><td>نیازسنجی، وصله‌کردن و همهٔ مرزهای میزبان / Threat modeling, patching, or every host boundary</td></tr>
+<tr><td>privileged / Docker socket</td><td>هیچ‌کدام؛ این‌ها اختیار را بالا می‌برند / Nothing; they increase authority</td><td>امنیت برنامه؛ برعکس، دامنهٔ اثر را بزرگ می‌کنند / App security; they expand the blast radius</td></tr>
+</tbody>
+</table></div>
+<p lang="fa">لایه‌های بعدی مثل SELinux، AppArmor، seccomp و rootless Docker ارزش دارند، اما هرکدام مدل و محدودیت خودش را دارد و این فصل وارد جزئیاتشان نمی‌شود. آن‌ها را مرحلهٔ بعدی ببین؛ نه چیزی که با اضافه‌کردن یک خط، بقیهٔ کنترل‌ها را بی‌نیاز کند.</p>
+<p lang="en">Further layers such as SELinux, AppArmor, seccomp, and rootless Docker are valuable, but each has its own model and tradeoffs and is outside this chapter's depth. Treat them as another step—not a line that makes every other control unnecessary.</p>
+</section>
+<section id="story-hardening">
+<h2><span lang="fa">یک سرویس را یک‌باره «هاردن» نکن؛ مرزها را یکی‌یکی ببند</span><span lang="en">One service, from broad access to only what it needs</span></h2>
+<p lang="fa">از نسخه‌ای شروع می‌کنیم که کار می‌کند و بعد فقط یک چیز را تغییر می‌دهیم: اول user، بعد مسیرهای نوشتنی، بعد read-only و در آخر limitها. بعد از هر گام healthcheck و یک درخواست واقعی را اجرا می‌کنیم. این ترتیب باعث می‌شود اگر چیزی شکست، بدانیم کدام تغییر مسئول بوده است.</p>
+<p lang="en">Instead of dropping five options into Compose and hoping for the best, we change one thing at a time and check observable behavior after each step. The recurring question stays the same: “What access does this application actually need?”</p>
+<figure class="diagram">
+<svg aria-labelledby="d13-layers-title" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 1000 340">
+<title id="d13-layers-title">Hardening layers progressively reduce privilege, writable surface, resource blast radius, and exposed control.</title>
+<g text-anchor="middle">
+<rect class="dg-fill-b" height="55" rx="14" width="340" x="330" y="25"></rect>
+<text class="dg-t" x="500" y="59">Application workload</text>
+<rect class="dg-fill-g" height="55" rx="14" width="480" x="260" y="100"></rect>
+<text class="dg-ts" x="500" y="133">1 · non-root + only required privileges</text>
+<rect class="dg-fill-b" height="55" rx="14" width="620" x="190" y="175"></rect>
+<text class="dg-ts" x="500" y="208">2 · read-only root + explicit writable mounts</text>
+<rect class="dg-fill-v" height="55" rx="14" width="760" x="120" y="250"></rect>
+<text class="dg-ts" x="500" y="283">3 · memory · CPU · PID boundaries + avoid privileged host-control paths</text>
+</g>
+<text class="dg-tm" text-anchor="middle" x="500" y="330">Each layer narrows authority or blast radius; none is a complete security guarantee.</text>
+</svg>
+<figcaption lang="fa">این لایه‌ها دور برنامه را محدودتر می‌کنند؛ هیچ‌کدام به‌تنهایی همهٔ خطرها را حذف نمی‌کند.</figcaption>
+<figcaption lang="en">These layers constrain the application; none removes every risk on its own.</figcaption>
+</figure>
+<ol class="ranked">
+<li><b>۱ · baseline</b><p lang="fa">پرسش ثابت کل مسیر همین است: «این برنامه واقعاً به چه دسترسی‌ای نیاز دارد؟» اگر جواب «نوشتن فقط روی /data» است، لازم نیست کل root filesystem نوشتنی بماند. اگر جواب «یک فرایند وب» است، لازم نیست root یا اختیارهای میزبان را به آن بدهیم.</p><p lang="en">Version A runs with its default user, writable root filesystem, and no resource caps. Record the `/` response and `whoami; id`; this is our baseline, not the recommended pattern.</p></li>
+<li><b>۲ · non-root</b><p lang="fa">کاربر UID/GID ۱۰۰۰۱ را اجرا می‌کنیم. دوباره هویت را می‌خوانیم؛ سپس درخواست نوشتن را عمداً می‌فرستیم و ممکن است ۵۰۰ بگیریم. این شکست مفید است: معلوم شد سرویس به مسیر داده نیاز دارد.</p><p lang="en">Run as UID/GID 10001. Verify identity again, then deliberately make the write request; it may return 500. This useful failure reveals that the service needs a data path.</p></li>
+<li><b>۳ · ownership</b><p lang="fa">مالکیت پوشهٔ لازم را در Dockerfile به همان UID می‌دهیم. همان درخواست باید موفق شود، بدون اینکه فایل برنامه writable شده باشد یا مجوز ۷۷۷ بدهیم.</p><p lang="en">Give the required directory to that UID in the Dockerfile. The same request should now succeed without making application code writable or using mode 777.</p></li>
+<li><b>۴ · read-only + explicit writes</b><p lang="fa">rootfs را read-only می‌کنیم؛ نوشتن به `/var/lib/app` دوباره شکست می‌خورد، چون تغییر image filesystem قرار نیست راه‌حل باشد. دادهٔ این سرویس آزمایشی موقت است، پس آن را به tmpfs محدود `/tmp` هدایت می‌کنیم. volume را فقط اگر واقعاً ماندگاری خواستیم اضافه می‌کنیم.</p><p lang="en">Make the root filesystem read-only; writing to `/var/lib/app` fails again because mutating the image filesystem is not the intended design. This sample's data is temporary, so redirect it to a bounded `/tmp` tmpfs. Add a volume only if persistence is actually required.</p></li>
+<li><b>۵ · resource boundaries + health</b><p lang="fa">memory، CPU و PID را محدود می‌کنیم؛ container را inspect می‌کنیم، درخواست واقعی می‌فرستیم و healthcheck را می‌سنجیم. محدودیت‌ها فقط با همان پاسخ موفق و شواهد تنظیمات معنی دارند.</p><p lang="en">Set memory, CPU, and PID limits; inspect the container, send a real request, and check its health status. Limits matter only alongside a successful request and evidence that the configuration was applied.</p></li>
+</ol>
+</section>
+<section id="traps">
+<h2><span lang="fa">اگر hardening برنامه را شکست، مرز را دقیق پیدا کن؛ همه‌چیز را باز نکن</span><span lang="en">When hardening breaks the service</span></h2>
+<div class="pitfalls">
+<div class="pit"><code class="pit-e">PermissionError: [Errno 13] Permission denied</code><dl><dt lang="fa">نشانه</dt><dd lang="fa">فرایند non-root است، مسیر متعلق به root است.</dd><dt lang="en">Meaning</dt><dd lang="en">The process is non-root and the target is root-owned.</dd><dt lang="fa">قدم بعد</dt><dd lang="fa">با <code>id</code> و <code>ls -ld</code> مالکیت و نیاز واقعی نوشتن را ببین؛ owner/group را هدفمند درست کن.</dd><dt lang="en">Next</dt><dd lang="en">Check identity and directory ownership; grant only the required write access.</dd></dl></div>
+<div class="pit"><code class="pit-e">Read-only file system</code><dl><dt lang="fa">نشانه</dt><dd lang="fa">mount یا rootfs فقط‌خواندنی است.</dd><dt lang="en">Meaning</dt><dd lang="en">The root filesystem or a mount is read-only.</dd><dt lang="fa">قدم بعد</dt><dd lang="fa">مسیر نوشتن را پیدا کن؛ آن را به tmpfs موقت یا volume لازم هدایت کن.</dd><dt lang="en">Next</dt><dd lang="en">Find the write path and direct it to required tmpfs or volume.</dd></dl></div>
+<div class="pit"><code class="pit-e">Healthcheck failed after adding read_only</code><dl><dt lang="fa">نشانه</dt><dd lang="fa">healthcheck شاید در مسیر ناخواسته بنویسد یا binary لازم در image نیست.</dd><dt lang="en">Meaning</dt><dd lang="en">The check may write to an unexpected path or its binary may be absent.</dd><dt lang="fa">قدم بعد</dt><dd lang="fa">خروجی healthcheck را inspect کن و check را cheap، واقعی و بدون تغییر داده نگه دار.</dd><dt lang="en">Next</dt><dd lang="en">Inspect health output and keep the test real, cheap, and read-only.</dd></dl></div>
+<div class="pit"><code class="pit-e">OOMKilled / slow response / fork failed</code><dl><dt lang="fa">نشانه</dt><dd lang="fa">ممکن است memory، CPU یا PIDs بیش از نیاز واقعی محدود شده باشد.</dd><dt lang="en">Meaning</dt><dd lang="en">Memory, CPU, or PID limits may be below measured needs.</dd><dt lang="fa">قدم بعد</dt><dd lang="fa">به فصل ۱۲ برگرد، state و شواهد مصرف را بخوان، بعد یک مقدار را با بار واقعی تغییر بده.</dd><dt lang="en">Next</dt><dd lang="en">Return to Chapter 12, inspect state and usage evidence, and adjust one value against real workload.</dd></dl></div>
+</div>
+<p lang="fa">بعد از تغییر user ممکن است <code>permission denied</code> ببینی؛ بعد از read-only ممکن است <code>Read-only file system</code> بگیری. این دو یک مشکل نیستند و راه‌حل یکسان ندارند. هویت فرایند، مالکیت مسیر و نوع mount را جدا ببین.</p>
+<p lang="en">A failure after hardening is not a reason to immediately restore root, a writable filesystem, and unlimited resources. Distinguish permission denial from a read-only filesystem, inspect identity and mounts, and make the smallest necessary adjustment. Changing several boundaries at once makes diagnosis harder.</p>
+</section>
+<section id="exercises">
+<h2><span lang="fa">۱۸ تمرین؛ هر بار بپرس «کمترین دسترسی لازم چیست؟»</span><span lang="en">18 exercises: from file permissions to host boundaries</span></h2>
+<p lang="fa">در هر تمرین اول مشخص کن برنامه چه کاری باید انجام دهد و کدام دسترسی واقعاً برای همان کار لازم است. بعد پاسخ را باز کن. هدف حفظ‌کردن flagهای امنیتی نیست؛ باید بتوانی توضیح بدهی هر مرز چه چیزی را کم می‌کند و چه چیزی را اصلاً حل نمی‌کند.</p>
+<p lang="en">Before opening a solution, say which evidence you want and what is not yet proven. Several questions ask you to distinguish “it started” from “it did the right work.”</p>
+<div class="ex" id="ex-13-1"><h3><span lang="fa">۱. UID صفر در خروجی چه می‌گوید؟</span><span lang="en">1. What does UID zero tell you?</span></h3><p lang="fa">در container فرمان <code>id</code> خروجی <code>uid=0(root)</code> می‌دهد. چه چیزی می‌دانی و چه چیزی را نباید از همین خط نتیجه بگیری؟</p><p lang="en">Inside a container, <code>id</code> reports <code>uid=0(root)</code>. What do you know, and what should you not infer from that line alone?</p><details class="ex-sol"><summary>شناسه را با مرز میزبان یکی نکن · Don't equate identity with the host boundary</summary><p lang="fa">می‌دانی فرایند در namespace کانتینر UID صفر دارد. هنوز نمی‌دانی namespaceها، capabilityها، mountها و تنظیم daemon چه محدودیتی می‌سازند؛ پس نه «قطعاً root میزبان است» درست است و نه «بی‌خطر است». برای برنامهٔ وب همچنان UID غیرصفر را انتخاب کن.</p><p lang="en">You know the process has UID zero in the container namespace. You do not yet know the combined effect of namespaces, capabilities, mounts, and daemon configuration; neither “definitely host root” nor “harmless” follows. For a web app, choose a nonzero UID.</p></details></div>
+<div class="ex" id="ex-13-2"><h3><span lang="fa">۲. after USER: چرا نوشتن شکست خورد؟</span><span lang="en">2. Why did writing fail after USER?</span></h3><p lang="fa"><code>id</code> نشان می‌دهد UID ۱۰۰۰۱ هستی؛ <code>ls -ld /data</code> مالک <code>root root</code> و مجوز <code>755</code> را نشان می‌دهد. برنامه برای ساخت فایل باید چه تغییری کند؟</p><p lang="en"><code>id</code> shows UID 10001; <code>ls -ld /data</code> shows owner <code>root root</code> and mode <code>755</code>. What should change so the app can create a file?</p><details class="ex-sol"><summary>به‌جای تغییر هویت، مالکیت مسیر لازم را درست کن · Fix the required path's ownership</summary><p lang="fa">کاربر دیگری نمی‌تواند در پوشهٔ root-owned با ۷۵۵ فایل بسازد. فقط اگر نوشتن در `/data` واقعاً لازم است، آن را پیش از USER به کاربر app بده یا mount را با مالکیت/مجوز مناسب آماده کن. بقیهٔ فایل‌ها را writable نکن و اول مطمئن شو این مسیر دادهٔ درست است.</p><p lang="en">A different user cannot create a file in a root-owned 755 directory. Only if `/data` genuinely needs writes, assign it to the app before USER or prepare the mount with correct ownership and permissions. Do not make other files writable, and verify that this is the right data path.</p></details></div>
+<div class="ex" id="ex-13-3"><h3><span lang="fa">۳. چرا <code>chmod 777</code> اصلاح خوبی نیست؟</span><span lang="en">3. Why isn't <code>chmod 777</code> a good fix?</span></h3><p lang="fa">تیم برای خلاص‌شدن از permission error، کل پوشهٔ داده را ۷۷۷ می‌کند. چه ایرادی دارد و چه بررسی‌ای جایگزینش می‌کنی؟</p><p lang="en">The team sets the whole data directory to 777 to get past a permission error. What is wrong with that, and what checks should replace it?</p><details class="ex-sol"><summary>دسترسی را به نیاز و هویت وصل کن · Tie access to identity and need</summary><p lang="fa">هر user داخل container می‌تواند در آن مسیر بنویسد و شاید فایل‌های حساس را جایگزین کند؛ علاوه بر آن، عیب مالکیت پنهان می‌ماند. با <code>id</code> هویت فرایند، با <code>stat</code>/<code>ls -ld</code> owner و mode را بخوان؛ مالکیت را به UID/GID برنامه بده و فقط مجوز حداقلی لازم را باز کن.</p><p lang="en">Every container user can write there and may replace sensitive files; the ownership bug also remains hidden. Check process identity and path owner/mode, assign the directory to the app UID/GID, and grant only the required permission.</p></details></div>
+<div class="ex" id="ex-13-4"><h3><span lang="fa">۴. <code>COPY</code> فایل را به چه کسی می‌دهد؟</span><span lang="en">4. Who owns a copied file by default?</span></h3><p lang="fa">Dockerfile یک اسکریپت را کپی می‌کند و بعد <code>USER app</code> می‌گذارد. اسکریپت لازم نیست writable باشد؛ چه شکلی روشن می‌کند؟</p><p lang="en">A Dockerfile copies a script and then sets <code>USER app</code>. The script need not be writable; which form makes that clear?</p><details class="ex-sol"><summary>خواندنی برای app، مالکیت ثابت برای image · Readable to app, fixed in the image</summary><p lang="fa"><code>COPY --chown=root:root server.py /app/server.py</code> مالکیت را صریح می‌کند. اطمینان پیدا کن mode خواندن/اجرا کافی است؛ اگر مسیر داده جداست، فقط همان را با <code>RUN chown app:app /var/lib/app</code> آماده کن. اگر <code>--chown</code> را حذف کنی، فایل‌های COPY معمولاً مالک root می‌شوند.</p><p lang="en">Use <code>COPY --chown=root:root server.py /app/server.py</code> to make ownership explicit. Ensure its mode allows reading/execution; prepare only the separate data path with <code>RUN chown app:app /var/lib/app</code>. Without <code>--chown</code>, copied files are normally root-owned.</p></details></div>
+<div class="ex" id="ex-13-5"><h3><span lang="fa">۵. WORKDIR ساخت، پس مالک هم درست است؟</span><span lang="en">5. Does WORKDIR set the right ownership?</span></h3><p lang="fa">Dockerfile می‌گوید <code>WORKDIR /app</code> و بعد <code>USER app</code>. برنامه می‌خواهد فایل source را در `/app` بازنویسی کند؛ چه فرضی باید بررسی کنی؟</p><p lang="en">The Dockerfile says <code>WORKDIR /app</code> and then <code>USER app</code>. The app wants to rewrite source files in `/app`; what assumption should you check?</p><details class="ex-sol"><summary>وجود پوشه به معنی مالکیت writable نیست · Existence does not imply write access</summary><p lang="fa">WORKDIR پوشهٔ غایب را می‌سازد، اما به‌تنهایی تضمین نمی‌کند مالکیت آن با app سازگار باشد. با <code>stat</code>/<code>ls -ld</code> بررسی کن؛ با توجه به نیاز، یا آنچه در `/app` می‌نویسی را به مسیر داده منتقل کن یا مالکیت فقط همان مسیر لازم را قبل از USER تنظیم کن.</p><p lang="en">WORKDIR creates a missing directory, but does not by itself guarantee app-compatible ownership. Inspect it. Depending on the requirement, move runtime data out of `/app` or set ownership only on the path that must be writable before USER.</p></details></div>
+<div class="ex" id="ex-13-6"><h3><span lang="fa">۶. root داخل container؛ دو گزارهٔ غلط</span><span lang="en">6. Container root: two false claims</span></h3><p lang="fa">کسی می‌گوید «container root دقیقاً root میزبان است»؛ دیگری می‌گوید «چون container است، root خطری ندارد». با کدام مدل پاسخ می‌دهی؟</p><p lang="en">One person says “container root is exactly host root”; another says “root is harmless because it is in a container.” What model answers both?</p><details class="ex-sol"><summary>namespace مهم است؛ اختیار اضافه هم مهم است · Namespaces matter; added authority matters too</summary><p lang="fa">UID صفر در namespace کانتینر به‌طور خودکار معادل root میزبان نیست؛ اما فرایند همچنان اختیارهای بیشتری داخل محیطش دارد. میزبان mounts، Docker socket، privileged و آسیب‌پذیری هسته می‌توانند مرزها را ضعیف کنند. پس دسترسی را کم کن و محیط واقعی را بررسی کن، نه اینکه یکی از دو شعار را بپذیری.</p><p lang="en">UID zero in a container namespace is not automatically host root, but the process still has more authority inside its environment. Host mounts, the Docker socket, privileged mode, and kernel vulnerabilities can weaken boundaries. Reduce access and inspect the actual setup rather than accepting either slogan.</p></details></div>
+<div class="ex" id="ex-13-7"><h3><span lang="fa">۷. read-only و مسیر نوشتن</span><span lang="en">7. Read-only and the write path</span></h3><p lang="fa">برنامه پس از افزودن <code>--read-only</code> هنگام نوشتن cache در `/tmp` خطا می‌دهد. cache لازم نیست باقی بماند. چه تغییری با نیازش جور است؟</p><p lang="en">After adding <code>--read-only</code>, the app fails while writing a cache under `/tmp`. The cache need not persist. What change fits the requirement?</p><details class="ex-sol"><summary>فقط همان مسیر موقت را باز کن · Open only that temporary path</summary><p lang="fa">`/tmp` را به tmpfs محدود mount کن و مالکیت UID/GID برنامه را درست بده. root filesystem را writable نکن. بعد ثابت کن cache واقعاً بعد از توقف لازم نیست و سقف tmpfs با حافظهٔ سرویس سازگار است.</p><p lang="en">Mount only `/tmp` as a bounded tmpfs and give it the app UID/GID. Do not make the root filesystem writable. Verify the cache need not survive shutdown and that tmpfs sizing fits the service memory budget.</p></details></div>
+<div class="ex" id="ex-13-8"><h3><span lang="fa">۸. کدام data باید volume شود؟</span><span lang="en">8. Which data belongs in a volume?</span></h3><p lang="fa">یک برنامه هم thumbnail موقت می‌سازد و هم فایل‌های آپلودشدهٔ کاربر را نگه می‌دارد. برای هرکدام چه نوع mountی محتمل‌تر است؟</p><p lang="en">An app creates temporary thumbnails and stores user uploads. Which mount type is more appropriate for each?</p><details class="ex-sol"><summary>چرخهٔ عمر داده انتخاب را تعیین می‌کند · Data lifecycle decides</summary><p lang="fa">thumbnail قابل‌بازسازی و موقت می‌تواند در tmpfs محدود باشد، اگر اندازه‌اش کنترل شود. upload کاربر باید در volume یا ذخیره‌سازی بیرونیِ پشتیبان‌گیری‌شده بماند. حجم را صرفاً چون برنامه نوشتن می‌کند انتخاب نکن؛ مالک داده، پشتیبان و نیاز ماندگاری را روشن کن.</p><p lang="en">Recreatable temporary thumbnails may use a bounded tmpfs if their size is controlled. User uploads belong in a backed-up volume or external storage. Do not choose a volume merely because the app writes; establish data ownership, backups, and persistence requirements.</p></details></div>
+<div class="ex" id="ex-13-9"><h3><span lang="fa">۹. writable volume، با rootfs فقط‌خواندنی</span><span lang="en">9. Writable volume with a read-only root</span></h3><p lang="fa">container با <code>--read-only</code> است ولی برنامه هنوز در volume متصل‌شده می‌نویسد. تناقض است؟</p><p lang="en">The container uses <code>--read-only</code>, yet the app can still write to a mounted volume. Is that contradictory?</p><details class="ex-sol"><summary>نه؛ هر mount مرز مستقلی دارد · No; each mount has its own setting</summary><p lang="fa">نه. <code>--read-only</code> فایل‌سیستم اصلی را فقط‌خواندنی می‌کند؛ volume جداگانه با حالت writable استثناست. inspect کن mount کدام مسیر را پوشانده و آیا واقعاً لازم است؛ در صورت نیاز volume را جداگانه read-only تعریف کن.</p><p lang="en">No. <code>--read-only</code> makes the root filesystem read-only; a separately mounted volume can remain writable. Inspect which path is mounted and whether writes are required; make the volume itself read-only if they are not.</p></details></div>
+<div class="ex" id="ex-13-10"><h3><span lang="fa">۱۰. <code>--cpus=0.5</code> تضمین می‌کند چه چیزی؟</span><span lang="en">10. What does <code>--cpus=0.5</code> guarantee?</span></h3><p lang="fa">سرویس از ۵۰٪ CPU استفاده می‌کند و کند می‌شود. آیا یک نیم‌هستهٔ رزروشده دارد؟</p><p lang="en">The service is limited to 50% CPU and gets slower. Does it have half a core reserved?</p><details class="ex-sol"><summary>سقف مصرف با رزرو فرق دارد · A cap is not a reservation</summary><p lang="fa">نه؛ این محدودیت سقف زمان پردازنده است، نه رزرو ثابت یا تضمین latency. فشار را با <code>docker stats</code> ببین و اثرش را روی latency و صف اندازه بگیر. CPU را برای پاسخ‌گویی سرویس به‌تنهایی درست نکن.</p><p lang="en">No. It caps CPU time; it does not reserve a core or guarantee latency. Check usage with <code>docker stats</code> and measure latency and queueing. A CPU cap alone does not make the service responsive.</p></details></div>
+<div class="ex" id="ex-13-11"><h3><span lang="fa">۱۱. PIDs limit خطای ساخت worker می‌دهد</span><span lang="en">11. A PID limit blocks worker creation</span></h3><p lang="fa">بعد از تنظیم <code>--pids-limit=16</code> برنامه نمی‌تواند همهٔ workerهایش را بسازد. کدام تشخیص از «Docker bug است» بهتر است؟</p><p lang="en">After setting <code>--pids-limit=16</code>, the app cannot create all its workers. What diagnosis is better than “Docker is broken”?</p><details class="ex-sol"><summary>سقف را با تعداد واقعی taskها مقایسه کن · Compare the cap with real task needs</summary><p lang="fa">عدد ۱۶ ممکن است کمتر از workerها، child processها و taskهای لازم باشد. state و log را بخوان، تعداد taskها و نیاز اوج را در بار نماینده بسنج، سپس سقف را به‌اندازهٔ نیاز به‌اضافهٔ حاشیهٔ حساب‌شده تغییر بده. به unlimited برنگرد مگر دلیل روشن داشته باشی.</p><p lang="en">Sixteen may be below the required workers, child processes, and tasks. Read state and logs, measure task count and peak needs under representative load, then size the cap with an explicit margin. Do not revert to unlimited without evidence.</p></details></div>
+<div class="ex" id="ex-13-12"><h3><span lang="fa">۱۲. memory cap از ۱۲۸ مگابایت گذشت</span><span lang="en">12. A memory cap of 128 MB was reached</span></h3><p lang="fa">در فصل ۱۲ دیدی <code>OOMKilled=true</code> پس از allocation رخ داد. چه دو چیزی را قبل از بالا بردن limit ثبت می‌کنی؟</p><p lang="en">In Chapter 12 you saw <code>OOMKilled=true</code> after an allocation. What two things should you record before raising the limit?</p><details class="ex-sol"><summary>شواهد مصرف و اندازهٔ کار واقعی · Usage evidence and real workload size</summary><p lang="fa">حد مصرف جاری/اوج، `docker stats` و limit ثبت‌شده در inspect را کنار زمان و درخواست شکست‌خورده بگذار؛ سپس بررسی کن آیا رشد حافظه نشت است یا اندازهٔ دادهٔ معتبر. allocation را با همان بار تکرار و نتیجه را بسنج. صرفاً از روی ۱۳۷ یا یک بار OOM عدد production انتخاب نکن.</p><p lang="en">Correlate current/peak usage, <code>docker stats</code>, and the inspected limit with timing and the failed request; then determine whether growth is a leak or valid workload size. Repeat with representative input and verify. Do not choose a production value from 137 or one OOM alone.</p></details></div>
+<div class="ex" id="ex-13-13"><h3><span lang="fa">۱۳. پس از افزودن cap، چه شد؟</span><span lang="en">13. What changed after adding a cap?</span></h3><p lang="fa"><code>docker inspect</code> مقدار <code>HostConfig.NanoCpus=500000000</code> و <code>Memory=134217728</code> می‌دهد. این دو عدد را به زبان ساده بخوان.</p><p lang="en"><code>docker inspect</code> reports <code>HostConfig.NanoCpus=500000000</code> and <code>Memory=134217728</code>. Interpret the two values.</p><details class="ex-sol"><summary>پیکربندی با واحد خام ذخیره شده · Configuration is recorded in raw units</summary><p lang="fa">NanoCPU یک‌میلیاردم CPU است؛ ۵۰۰ میلیون یعنی نیم CPU سقف. حافظه بر حسب بایت است و ۱۳۴۲۱۷۷۲۸ بایت برابر ۱۲۸ MiB است. این‌ها پیکربندی‌اند نه مصرف زنده؛ برای مصرف جاری `docker stats` را ببین.</p><p lang="en">NanoCPU is one-billionth of a CPU, so 500 million is a half-CPU cap. Memory is in bytes; 134,217,728 bytes is 128 MiB. These values describe configuration, not live usage; use <code>docker stats</code> for current consumption.</p></details></div>
+<div class="ex" id="ex-13-14"><h3><span lang="fa">۱۴. چرا Docker socket خطر را عوض می‌کند؟</span><span lang="en">14. Why does the Docker socket change the risk?</span></h3><p lang="fa">یک web service به <code>/var/run/docker.sock</code> bind mount شده و کاربرش non-root است. آیا non-root بودن خطر این mount را از بین می‌برد؟</p><p lang="en">A web service has <code>/var/run/docker.sock</code> bind-mounted and runs as non-root. Does non-root remove the risk of that mount?</p><details class="ex-sol"><summary>daemon اختیار جداگانه و بزرگی است · The daemon is a separate, powerful authority</summary><p lang="fa">خیر؛ کاربر دارای دسترسی به API socket می‌تواند اختیار daemon را به‌کار بگیرد، از جمله ساخت container با mountهای میزبان، بسته به daemon و مجوز سوکت. UID پایین داخل برنامه دسترسی API را خنثی نمی‌کند. socket را بردار و اگر automation لازم است یک واسط بسیار محدود و بررسی‌شده طراحی کن.</p><p lang="en">No. A process able to use the API socket can exercise daemon authority, including creating containers with host mounts depending on daemon and socket access. A low UID does not neutralize API access. Remove the socket; if automation is required, design a narrowly scoped, reviewed intermediary.</p></details></div>
+<div class="ex" id="ex-13-15"><h3><span lang="fa">۱۵. «برای حلش privileged کنیم»</span><span lang="en">15. “Let's use privileged to fix it”</span></h3><p lang="fa">برنامه روی پورت ۸۰ bind نمی‌شود. همکارت <code>--privileged</code> پیشنهاد می‌دهد. قبل از تغییر چه می‌گویی؟</p><p lang="en">The app cannot bind port 80. A teammate suggests <code>--privileged</code>. What do you say before changing anything?</p><details class="ex-sol"><summary>نیاز دقیق را جدا کن؛ اختیار گسترده جواب پیش‌فرض نیست · Isolate the need; broad authority is not the default</summary><p lang="fa">بپرس آیا می‌توان برنامه را روی پورت بالاتر مثل ۸۰۸۰ اجرا و از میزبان port نگاشت کرد. privileged اختیارها و deviceهای زیادی را می‌گشاید و ارتباطی با یک bind port خاص ندارد. اگر نیاز واقعی به capabilityی هست، فقط همان اختیار مشخص را ارزیابی کن و آزمون را تکرار کن.</p><p lang="en">Ask whether the app can listen on a higher port such as 8080 and use host port mapping. Privileged opens broad capabilities and devices; it is not a targeted fix for one port. If a capability is genuinely required, evaluate only that one and repeat the test.</p></details></div>
+<div class="ex" id="ex-13-16"><h3><span lang="fa">۱۶. کدام resource key در Compose محلی؟</span><span lang="en">16. Which resource keys for local Compose?</span></h3><p lang="fa">فایل فقط قرار است با <code>docker compose up</code> روی یک Docker Engine محلی اجرا شود. برای سقف معمول CPU، حافظه و PID از چه کلیدهایی شروع می‌کنی و چه چیزی را بررسی می‌کنی؟</p><p lang="en">The file will run only with <code>docker compose up</code> against a local Docker Engine. Which keys start the CPU, memory, and PID caps, and what do you verify?</p><details class="ex-sol"><summary>کلیدهای سرویس فعلی و بعد inspect · Current service keys, then inspect</summary><p lang="fa">از <code>cpus</code>، <code>mem_limit</code> و <code>pids_limit</code> در service شروع کن؛ <code>deploy.resources</code> را بدون فهم پلتفرم universal فرض نکن. ابتدا <code>docker compose config</code> و بعد HostConfig همان container را inspect کن تا parse و مقدار اعمال‌شده را از هم جدا کنی.</p><p lang="en">Start with service-level <code>cpus</code>, <code>mem_limit</code>, and <code>pids_limit</code>; do not assume <code>deploy.resources</code> is universally implemented without checking the platform. Run <code>docker compose config</code>, then inspect the container's HostConfig to distinguish parsing from the applied values.</p></details></div>
+<div class="ex" id="ex-13-17"><h3><span lang="fa">۱۷. سرویس چند writes دارد؛ harden را طرح کن</span><span lang="en">17. Design hardening for a service with several write paths</span></h3><p lang="fa">سرویس فایل برنامه را می‌خواند، session موقت می‌سازد، فایل گزارش کاربر را نگه می‌دارد و health مسیر سرویس دارد. مسیرها را چه‌طور دسته‌بندی می‌کنی؟</p><p lang="en">The service reads app files, creates temporary sessions, retains user report files, and has a health endpoint. How do you classify its paths?</p><details class="ex-sol"><summary>read-only کجا، tmpfs کجا، volume کجا؟ · Rootfs, tmpfs, or volume?</summary><p lang="fa">فایل برنامه فقط‌خواندنی باشد؛ session موقت در tmpfs محدود با owner درست؛ گزارش کاربر در volume یا ذخیره‌سازی بیرونی با پشتیبان و چرخهٔ عمر مشخص. healthcheck باید مسیر سرویس واقعی را بدون نوشتن داده بسنجد. بعد از هر mount، مالکیت و writable بودن همان مسیر را با درخواست واقعی تأیید کن.</p><p lang="en">Keep app files read-only; place temporary sessions in a bounded tmpfs with correct ownership; store user reports in a backed-up volume or external store with a defined lifecycle. The healthcheck should probe the real endpoint without writing data. Verify ownership and write behavior at each mount with a real request.</p></details></div>
+<div class="ex" id="ex-13-18"><h3><span lang="fa">۱۸. پنج تغییر با هم و healthcheck قرمز</span><span lang="en">18. Five changes at once and a failing healthcheck</span></h3><p lang="fa">non-root، read-only، tmpfs، memory cap و PID cap را یک‌باره اضافه کردی. حالا سرویس unhealthy است. چه‌طور از حدس‌زدن فاصله می‌گیری؟</p><p lang="en">You added non-root, read-only, tmpfs, a memory cap, and a PID cap all at once. Now the service is unhealthy. How do you stop guessing?</p><details class="ex-sol"><summary>شواهد را بخوان و تغییر را مرحله‌ای برگردان · Read evidence and isolate one change</summary><p lang="fa">وضعیت health و خروجی check، log برنامه، identity و owner مسیرها، mountهای واقعی و limitهای inspect را جمع کن. اگر stdout/health log می‌گوید permission denied، owner یا mount را بررسی کن؛ اگر OOMKilled است memory مدرک را دنبال کن. یک تغییر را در هر نوبت اصلاح کن و پس از هر قدم همان مسیر سرویس را دوباره بسنج.</p><p lang="en">Collect health status and check output, app logs, identity and path ownership, actual mounts, and inspected limits. If output says permission denied, inspect ownership or mounts; if OOMKilled is true, follow memory evidence. Change one thing at a time and retest the same endpoint after every step.</p></details></div>
+</section>
+<section id="lab">
+<h2><span lang="fa">آزمایشگاه: یک سرویس سالم را محدود کن، بدون اینکه کورکورانه خرابش کنی</span><span lang="en">Lab: harden one web service, one step at a time</span></h2>
+<p lang="fa">یک web service کوچک داریم که healthcheck دارد و روی مسیر داده یک شمارنده می‌نویسد. اول وضعیت پایه را ثبت می‌کنیم، بعد non-root، ownership درست، read-only، مسیر نوشتنی و limitهای منابع را یکی‌یکی اضافه می‌کنیم. دو خطا را هم عمداً می‌سازیم تا permission و read-only را با هم اشتباه نگیریم.</p>
+<p lang="en">We will build a small HTTP server that answers `/health` and writes a counter into a data directory on `/` requests. That behavior lets us distinguish permission errors from read-only errors. The app uses no real secrets, and we will not drive memory or CPU with unbounded load.</p>
+<p lang="fa">در هر مرحله دو شاهد لازم داریم: تنظیم واقعاً اعمال شده و برنامه هنوز کار اصلی‌اش را انجام می‌دهد. فقط سبزشدن healthcheck کافی نیست اگر درخواست واقعی که باید داده بنویسد شکست بخورد.</p>
+<p lang="en">This lab targets Linux containers; Docker Desktop on Windows runs them in a managed Linux environment. Before starting, check <code>docker ps -a</code> for the names `sec13-base`, `sec13-user`, `sec13-ro`, and `sec13-hardened`. If any name already exists, choose a fresh name consistently throughout the lab; do not delete an existing container just to free a name. In PowerShell, use <code>curl.exe</code> so the command is not confused with a possible <code>curl</code> alias.</p>
+<div class="note warn"><div class="note-t"><span lang="fa">آزمایش بار ممنوع؛ فقط سقف محدود</span><span lang="en">No stress tests; use bounded limits only</span></div>
+<p lang="fa">در این فصل fork bomb، فشار حافظهٔ میزبان یا حلقهٔ CPU نامحدود نمی‌سازیم. هر بار که بار آزمایشی لازم شد، آن را فقط داخل container با سقف صریح اجرا کن و راه توقفش را از قبل بدان. تمرین فعلی هم عمداً بار سنگین تولید نمی‌کند.</p>
+<p lang="en">We will not create fork bombs, host-wide memory pressure, or unbounded CPU loops. If a workload experiment is needed, constrain it inside the container and know how to stop it beforehand. This lab deliberately generates no heavy load.</p>
+</div>
+<div class="ex-goal"><span lang="fa">خروجی نهایی: مقایسهٔ وضعیت پایه با نسخهٔ harden‌شده؛ ثبت identity، پاسخ HTTP، health، rootfs/mountها و سه حد منبع با مدرک.</span><span lang="en">Deliverable: compare the baseline with the hardened version and record identity, HTTP response, health, rootfs/mounts, and three resource caps as evidence.</span></div>
+<h3><span lang="fa">۱. ساخت پوشه و برنامه</span><span lang="en">1. Create the project directory and app</span></h3>
+<p lang="fa">در پوشه‌ای تازه، فایل <code>server.py</code> زیر را بساز. server رویدادها را روی stdout می‌نویسد؛ فایل شمارنده فقط برای تمرین مسیر نوشتن است. مسیر state از متغیر محیطی می‌آید تا بتوانیم آن را بین rootfs و tmpfs جابه‌جا کنیم.</p>
+<p lang="en">In a fresh directory, create <code>server.py</code> below. The server writes operational events to stdout; the counter file exists only to exercise a write path. The state path comes from an environment variable so we can move it between rootfs and tmpfs.</p>
+<div class="code"><div class="code-bar"><span class="code-path">server.py</span><button class="copy">کپی</button></div><pre dir="ltr">from http.server import BaseHTTPRequestHandler, HTTPServer
+import os
+from pathlib import Path
+
+STATE_DIR = Path(os.environ.get("STATE_DIR", "/var/lib/app"))
+BREAK_HEALTH = os.environ.get("BREAK_HEALTH", "0") == "1"
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == "/health":
+            code = 500 if BREAK_HEALTH else 200
+            body = b"not ready\n" if BREAK_HEALTH else b"healthy\n"
+            self.send_response(code)
+            self.end_headers()
+            self.wfile.write(body)
+            print(f"health status={code}", flush=True)
+            return
+        try:
+            STATE_DIR.mkdir(parents=True, exist_ok=True)
+            visits = STATE_DIR / "visits.txt"
+            count = int(visits.read_text()) if visits.exists() else 0
+            visits.write_text(str(count + 1))
+            self.send_response(200)
+            body = f"visit {count + 1}\n".encode()
+        except OSError as exc:
+            self.send_response(500)
+            body = f"write failed: {exc}\n".encode()
+            print(f"write_error path={STATE_DIR} error={exc}", flush=True)
+        self.end_headers()
+        self.wfile.write(body)
+        print(f"request path={self.path} method={self.command}", flush=True)
+
+HTTPServer(("0.0.0.0", 8080), Handler).serve_forever()</pre></div>
+<p lang="fa">پیام آخر عمداً `self.دستور` را نشان می‌دهد، نه status HTTP؛ در مرور log این تفاوت را ببین. status واقعی در پاسخ و خط health یا write_error هست. حالا Dockerfile اولیه را با پوشهٔ دادهٔ root-owned بساز:</p>
+<p lang="en">The last log line deliberately shows `self.command`, not the HTTP status; notice that distinction when reading logs. The actual status is in the response and the health or write_error message. Now create the initial Dockerfile with a root-owned data directory:</p>
+<div class="code"><div class="code-bar"><span class="code-path">Dockerfile · initial image with a deliberate ownership mismatch</span><button class="copy">کپی</button></div><pre dir="ltr">FROM python:3.12-alpine
+RUN addgroup -S -g 10001 app \
+ &amp;&amp; adduser -S -D -H -u 10001 -G app app \
+ &amp;&amp; mkdir -p /app /var/lib/app \
+ &amp;&amp; chown root:root /app /var/lib/app
+WORKDIR /app
+COPY server.py /app/server.py
+ENV STATE_DIR=/var/lib/app
+EXPOSE 8080
+USER app:app
+CMD ["python", "/app/server.py"]</pre></div>
+<h3><span lang="fa">۲. Version A: وضعیت پایه قابل‌مشاهده</span><span lang="en">2. Version A: observable baseline</span></h3>
+<p lang="fa">می‌سازیم و عمداً کاربر را به root برمی‌گردانیم تا وضعیت پایه با درخواست موفق داشته باشیم. این override فقط برای مقایسهٔ آزمایشگاهی است و الگوی استقرار نیست.</p>
+<p lang="en">Build and deliberately override the user to root so we have a successful baseline request. This override is for the lab comparison only; it is not a deployment pattern.</p>
+<div class="term"><div class="term-bar"><span class="term-label">baseline · root, writable rootfs, no resource caps</span><button class="copy">کپی</button></div><pre dir="ltr">docker build -t sec13-web .
+docker run -d --name sec13-base --user 0:0 -p 8088:8080 sec13-web
+docker exec sec13-base sh -c 'whoami; id'
+curl -i http://localhost:8088/
+docker inspect sec13-base --format '{{.Config.User}} readOnly={{.HostConfig.ReadonlyRootfs}} memory={{.HostConfig.Memory}} pids={{.HostConfig.PidsLimit}}'</pre></div>
+<p lang="fa">در image، <code>USER app</code> وجود دارد ولی اجرای وضعیت پایه با <code>--user 0:0</code> آن را override می‌کند. انتظار داریم root، پاسخ ۲۰۰ و rootfs نوشتنی ببینیم؛ مقدارهای صفر برای memory/PID در inspect یعنی این فرمان سقف مشخصی نداده است، نه اینکه سرویس هیچ منبعی مصرف نمی‌کند.</p>
+<p lang="en">The image defines <code>USER app</code>, but the baseline overrides it with <code>--user 0:0</code>. Expect root, an HTTP 200, and a writable root filesystem. Zero memory/PID values in this inspection mean this command set no explicit cap—not that the service consumes no resources.</p>
+<h3><span lang="fa">۳. non-root را فعال کن؛ شکست مجوز را بخوان</span><span lang="en">3. Enable non-root and read the permission failure</span></h3>
+<p lang="fa">container وضعیت پایه را فقط پس از ثبت خروجی متوقف و حذف کن. حالا همان image را با کاربر پیش‌فرض اجرا کن؛ فایل‌های برنامه دست‌نخورده‌اند، اما مسیر داده root-owned مانده است.</p>
+<p lang="en">After recording the baseline, stop and remove only that lab container. Now run the same image as its default user: app files are unchanged, but the data directory is still root-owned.</p>
+<div class="term"><div class="term-bar"><span class="term-label">isolate step 1 · non-root only</span><button class="copy">کپی</button></div><pre dir="ltr">docker rm -f sec13-base
+docker run -d --name sec13-user --user 10001:10001 -p 8088:8080 sec13-web
+docker exec sec13-user sh -c 'whoami; id; ls -ld /var/lib/app'
+curl -i http://localhost:8088/
+docker logs sec13-user</pre></div>
+<p lang="fa">درخواست health ممکن است سالم باشد، ولی `/` برای نوشتن ۵۰۰ می‌دهد؛ فرایند زنده است و اشکال دقیقاً در مجوز مسیر داده است. پوشه را می‌توانیم در build به user بدهیم. برای پاک‌سازی همین نمونه، container را حذف کرده‌ایم؛ هیچ دادهٔ مهمی نگه ندار.</p>
+<p lang="en">The health request may succeed while `/` returns 500 on its write; the process is alive and the data-path permission is the specific failure. We can assign the directory to the user at build time. This sample is disposable, so no important data should be stored here.</p>
+<div class="code"><div class="code-bar"><span class="code-path">Dockerfile · repair ownership, keep code non-writable</span><button class="copy">کپی</button></div><pre dir="ltr">RUN addgroup -S -g 10001 app \
+ &amp;&amp; adduser -S -D -H -u 10001 -G app app \
+ &amp;&amp; mkdir -p /app /var/lib/app \
+ &amp;&amp; chown app:app /var/lib/app \
+ &amp;&amp; chown root:root /app
+WORKDIR /app
+COPY --chown=root:root server.py /app/server.py
+ENV STATE_DIR=/var/lib/app
+USER app:app</pre></div>
+<div class="term"><div class="term-bar"><span class="term-label">rebuild and repeat the same request</span><button class="copy">کپی</button></div><pre dir="ltr">docker rm -f sec13-user
+docker build -t sec13-web .
+docker run -d --name sec13-user --user 10001:10001 -p 8088:8080 sec13-web
+curl -i http://localhost:8088/</pre></div>
+<p lang="fa">بعد از ثبت خطای مالکیت، container قبلی را حذف و این نسخه را rebuild می‌کنیم. پاسخ همان درخواست باید ۲۰۰ شود. مالکیت app فقط روی مسیر داده است؛ فایل برنامه root-owned و خواندنی مانده. حالا non-root را با مدرک هویت و رفتار نوشتن سنجیده‌ایم.</p>
+<p lang="en">After rebuilding, repeat the same user and request and expect HTTP 200. Only the data path belongs to app; the application file stays root-owned and readable. We have verified non-root using identity and actual write behavior.</p>
+<h3><span lang="fa">۴. rootfs را ببند؛ خطای دوم را جدا تشخیص بده</span><span lang="en">4. Lock rootfs and diagnose the second failure separately</span></h3>
+<p lang="fa">حالا `--read-only` را اضافه کن ولی `STATE_DIR` را تغییر نده. درخواست `/` دوباره شکست می‌خورد؛ این بار پوشه owner درست است، اما لایهٔ اصلی فقط‌خواندنی است. این همان شکستی نیست که در قدم قبل داشتیم.</p>
+<p lang="en">Now add `--read-only` but leave `STATE_DIR` unchanged. `/` fails again; this time directory ownership is correct, but the root layer is read-only. This is not the same failure as the previous step.</p>
+<div class="term"><div class="term-bar"><span class="term-label">read-only rootfs · deliberately no writable mount</span><button class="copy">کپی</button></div><pre dir="ltr">docker rm -f sec13-user
+docker run -d --name sec13-ro --read-only \
+  --user 10001:10001 -p 8088:8080 sec13-web
+curl -i http://localhost:8088/
+docker logs sec13-ro
+docker inspect sec13-ro --format 'readonly={{.HostConfig.ReadonlyRootfs}}'</pre></div>
+<p lang="fa">لاگ یا response باید «Read-only file system» را نشان دهد و inspect مقدار <code>true</code> را. تغییر مالکیت دوباره راه‌حل نیست؛ دادهٔ این نمونه لازم نیست پایدار بماند. پس `STATE_DIR=/tmp` می‌گذاریم و فقط `/tmp` را tmpfs می‌کنیم.</p>
+<p lang="en">The log or response should show “Read-only file system,” and inspect should report <code>true</code>. Changing ownership again is not the fix; this sample's data need not persist. Set <code>STATE_DIR=/tmp</code> and mount only `/tmp` as tmpfs.</p>
+<h3><span lang="fa">۵. فایل‌سیستم نوشتنیِ کوچک و سقف منابع</span><span lang="en">5. Add one small write mount and resource ceilings</span></h3>
+<p lang="fa">قبل از اجرای نهایی، container شکست‌خورده را پس از ثبت شواهد حذف کن. این بار یک rootfs فقط‌خواندنی، tmpfs شانزده مگابایتی با مالکیت درست، سقف ۱۲۸ مگابایت memory، نیم CPU و ۶۴ PID می‌دهیم. این عددها برای آزمایش‌اند، نه نسخهٔ آمادهٔ production.</p>
+<p lang="en">After recording evidence, remove the failed container. This time use a read-only rootfs, a 16 MB tmpfs with correct ownership, a 128 MB memory ceiling, half a CPU, and 64 PIDs. These are lab values, not production recommendations.</p>
+<div class="term"><div class="term-bar"><span class="term-label">bounded hardened run · no persistent volume is needed</span><button class="copy">کپی</button></div><pre dir="ltr">docker rm -f sec13-ro
+docker run -d --name sec13-hardened -p 8088:8080 \
+  --user 10001:10001 --read-only \
+  --tmpfs /tmp:rw,noexec,nosuid,size=16m,uid=10001,gid=10001 \
+  --memory=128m --cpus=0.50 --pids-limit=64 \
+  -e STATE_DIR=/tmp sec13-web</pre></div>
+<p lang="fa">هیچ volumeای اضافه نکردیم، چون شمارندهٔ آموزشی موقتی است. اگر محصول واقعی باید آن داده را پس از جایگزینی container نگه دارد، پیش از افزودن volume مالکیت mount، پشتیبان و چرخهٔ حذفش را تعیین کن. فقط کلمهٔ «داده» به‌تنهایی دلیل ماندگاری نیست.</p>
+<p lang="en">We did not add a volume because this teaching counter is temporary. If a real product must retain that data after container replacement, define mount ownership, backups, and deletion lifecycle before adding a volume. Calling something “data” alone does not make it persistent.</p>
+<h3><span lang="fa">۶. درخواست، healthcheck و حدود واقعاً اعمال‌شده</span><span lang="en">6. Verify the request, healthcheck, and applied limits</span></h3>
+<p lang="fa">Healthcheck را بیرون از برنامه نگه می‌داریم تا آزمایش همچنان از shell/python موجود در image استفاده کند. `docker run` سلامت را با <code>--health-cmd</code> هم می‌تواند بگیرد؛ برای این تمرین بهتر است Compose فایل نهایی را ثبت کند. معادل Compose زیر از همان تنظیم‌ها استفاده می‌کند:</p>
+<p lang="en">Keep the healthcheck outside the app so it uses the shell/Python already present in the image. Docker can also set it through <code>--health-cmd</code>, but for this exercise Compose records the final definition. The Compose equivalent uses the same controls:</p>
+<div class="code"><div class="code-bar"><span class="code-path">compose.yaml · final local configuration</span><button class="copy">کپی</button></div><pre dir="ltr">services:
+  web:
+    build: .
+    ports: ["8088:8080"]
+    user: "10001:10001"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m,uid=10001,gid=10001
+    environment:
+      STATE_DIR: /tmp
+      BREAK_HEALTH: "0"
+    mem_limit: 128m
+    cpus: 0.50
+    pids_limit: 64
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=1)"]
+      interval: 10s
+      timeout: 2s
+      retries: 3
+      start_period: 5s</pre></div>
+<p lang="fa">فایل را با نام <code>compose.yaml</code> کنار Dockerfile بگذار. برای اجرای نسخهٔ Compose، container اجرای مستقیم را پس از ثبت نتیجه حذف کن تا پورت آزاد شود. بعد فرمان‌های زیر را اجرا کن. در PowerShell برای curl از <code>curl.exe</code> استفاده کن؛ <code>curl</code> ممکن است alias متفاوتی باشد. در PowerShell شناسه را جدا در متغیر بگذار، چون نمونهٔ گرفتن container ID پایین Bash است.</p>
+<p lang="en">Save the file as <code>compose.yaml</code> beside the Dockerfile. After recording the direct-run result, remove that lab container to free the port, then run the commands below. In PowerShell use <code>curl.exe</code>; <code>curl</code> may be a different alias. Store the container ID separately in PowerShell because the ID command below uses Bash syntax.</p>
+<div class="term"><div class="term-bar"><span class="term-label">start the Compose version only after removing the direct run</span><button class="copy">کپی</button></div><pre dir="ltr">docker rm -f sec13-hardened
+docker compose config
+docker compose up -d --build
+docker compose ps
+curl -i http://localhost:8088/</pre></div>
+<p lang="fa">در پایان، در Compose مقدار <code>BREAK_HEALTH</code> را از <code>"0"</code> به <code>"1"</code> تغییر بده و با <code>docker compose up -d --force-recreate web</code> سرویس را بازسازی کن. انتظار: برنامه همچنان پاسخ `/` را می‌دهد ولی healthcheck پس از چند نوبت unhealthy می‌شود. این آزمایش ثابت می‌کند health، فرایند state و فایل‌سیستم read-only مفاهیم جدا هستند. بعد مقدار را به <code>"0"</code> برگردان، دوباره recreate کن و بازگشت health به healthy را تأیید کن.</p>
+<p lang="en">Finally, change <code>BREAK_HEALTH</code> in Compose from <code>"0"</code> to <code>"1"</code> and recreate the service with <code>docker compose up -d --force-recreate web</code>. The app should still answer `/` while the healthcheck becomes unhealthy after retries. This demonstrates that health, process state, and a read-only filesystem are distinct concepts. Restore <code>"0"</code>, recreate, and verify health returns to healthy.</p>
+<div class="term"><div class="term-bar"><span class="term-label">record the applied Compose policy and runtime evidence</span><button class="copy">کپی</button></div><pre dir="ltr">cid=$(docker compose ps -q web)
+docker inspect "$cid" --format 'user={{.Config.User}} ro={{.HostConfig.ReadonlyRootfs}} mem={{.HostConfig.Memory}} nanoCPU={{.HostConfig.NanoCpus}} pids={{.HostConfig.PidsLimit}} health={{.State.Health.Status}}'
+docker inspect "$cid" --format '{{json .Mounts}}'
+curl -i http://localhost:8088/
+docker compose logs --tail 20 web
+docker stats --no-stream "$cid"</pre></div>
+<p lang="fa">برای مقایسه وضعیت پایه و hardened، `whoami/id`، پاسخ همان `/`، نتیجهٔ health، تنظیمات inspect، مصرف `docker stats` و خطاهایی که در دو خطا دیدی کنار هم بگذار. healthcheck ممکن است به پورت میزبان نیاز نداشته باشد چون از داخل container به loopback آن می‌زند. هیچ secret واقعی در آزمایش وارد نکن.</p>
+<p lang="en">Compare baseline and hardened using identity, the same `/` response, health result, inspected configuration, `docker stats`, and the two deliberate failure messages. The healthcheck does not need a published host port because it calls the container's loopback. Do not use real secrets in this lab.</p>
+<p lang="fa">پس از ذخیرهٔ شواهد، فقط containerهای مخصوص این تمرین را متوقف و حذف کن. اگر از Compose استفاده کردی، volumeای تعریف نشده؛ <code>docker compose down</code> برای همان پروژه کافی است. اگر اجرای مستقیم داشتی، فقط نام‌های lab خودت را حذف کن. فرمان کلی prune لازم نیست و چیزی از سیستم پاک نمی‌کنیم.</p>
+<p lang="en">After saving evidence, stop and remove only containers created for this lab. If you used Compose, no volume was defined; <code>docker compose down</code> for this project is sufficient. For direct runs, remove only your lab containers by name. No global prune is needed and we will not delete unrelated data.</p>
+</section>
+<section id="handoff">
+<h2><span lang="fa">امنیت یک کلید روشن/خاموش نیست؛ چند مرز کوچک و قابل‌سنجش است</span><span lang="en">Security is not one option; it is a set of deliberate boundaries</span></h2>
+<p lang="fa">از root به non-root رفتیم، نوشتن را به مسیرهای لازم محدود کردیم و مصرف منابع را سقف گذاشتیم. هیچ‌کدام به‌تنهایی «امنیت کامل» نیستند؛ کنار هم فقط اختیار و دامنهٔ اثر یک خطا را کمتر می‌کنند.</p>
+<p lang="en">We started with a baseline and answered one question at a time: which UID runs the app? Where must it write? How much memory, CPU, and how many PIDs does it need? Each answer created a boundary, and the healthcheck plus real request told us whether the app still worked afterward. When something failed, we diagnosed it instead of disabling every control at once.</p>
+<p lang="fa">این فصل را با همان پرسش تمام کن که از اول داشتیم: «اگر این فرایند فردا خراب شد، چه چیزهایی هنوز اجازه دارد تغییر بدهد؟» هرچه پاسخ دقیق‌تر و محدودتر باشد، معماری قابل‌اعتمادتر است.</p>
+<p lang="en">Remember: non-root reduces process authority; read-only reduces writable paths; resource caps constrain resource pressure. None fixes app bugs and none is a complete sandbox alone. The recurring final question remains: “What access does this application actually need?”</p>
+<div class="note safe"><div class="note-t"><span lang="fa">بعد از این فصل</span><span lang="en">Beyond this chapter</span></div>
+<p lang="fa">در کار واقعی، این لایه‌ها را کنار به‌روزرسانی image، بررسی وابستگی‌ها، مدیریت secret و سیاست‌های میزبان می‌گذاریم. SELinux، AppArmor، seccomp و rootless Docker مرحله‌های بعدی‌اند. برای امروز، کافی است اختیار، مسیر نوشتن و مصرف را با شواهد تعریف کرده باشی.</p>
+<p lang="en">In real deployments, combine these layers with image updates, dependency review, secret management, and host policy. SELinux, AppArmor, seccomp, and rootless Docker are later steps. For now, define authority, writable paths, and resource use from evidence.</p>
+</div>
+</section>
+<section id="quick">
+<h2><span lang="fa">مرجع سریع: درخواست در کنار شواهد</span><span lang="en">Quick reference: pair a request with evidence</span></h2>
+<div class="cheat">
+<div class="cheat-row"><code>whoami; id</code><span lang="fa">هویت واقعی فرایند را بپرس</span><span lang="en">Check the process identity</span></div>
+<div class="cheat-row"><code>USER app:app</code><span lang="fa">کاربر پیش‌فرض runtime در image</span><span lang="en">Set the image's default runtime user</span></div>
+<div class="cheat-row"><code>COPY --chown=user:group</code><span lang="fa">مالکیت فایل کپی‌شده را صریح کن</span><span lang="en">Set copied-file ownership explicitly</span></div>
+<div class="cheat-row"><code>--read-only</code><span lang="fa">root filesystem را ببند؛ mountها را جدا بررسی کن</span><span lang="en">Lock rootfs; inspect mounts separately</span></div>
+<div class="cheat-row"><code>--tmpfs /tmp:...,size=16m</code><span lang="fa">نوشتن موقت و محدود</span><span lang="en">Bounded temporary writes</span></div>
+<div class="cheat-row"><code>--memory --cpus --pids-limit</code><span lang="fa">حد مصرف را بده و inspect کن</span><span lang="en">Set and inspect resource ceilings</span></div>
+<div class="cheat-row"><code>docker stats --no-stream</code><span lang="fa">مصرف جاری را با limit اشتباه نگیر</span><span lang="en">Compare current use with configured limits</span></div>
+<div class="cheat-row"><code>no-new-privileges / cap-drop</code><span lang="fa">لایهٔ اختیاری؛ پس از سنجش سازگاری</span><span lang="en">Optional layers; test compatibility</span></div>
+<div class="cheat-row"><code>--privileged / docker.sock</code><span lang="fa">اختیار گسترده؛ راه‌حل پیش‌فرض نیست</span><span lang="en">Broad authority; never a default fix</span></div>
+</div>
+<p lang="fa">برای syntax فعلی، مستند رسمی Docker را دربارهٔ <a href="https://docs.docker.com/reference/dockerfile/"><code>USER</code> و <code>COPY --chown</code></a>، <a href="https://docs.docker.com/reference/cli/docker/container/run/"><code>docker run</code>، read-only و resource flags</a>، <a href="https://docs.docker.com/engine/storage/tmpfs/">tmpfs</a> و <a href="https://docs.docker.com/engine/security/">مدل امنیت Engine</a> ببین. مرجع جاری <a href="https://docs.docker.com/reference/compose-file/services/">Compose service attributes</a> تنظیم محلی و <a href="https://docs.docker.com/reference/compose-file/deploy/">deploy specification</a> رفتار وابسته به پلتفرم را توضیح می‌دهند. برای privileged و no-new-privileges، <a href="https://docs.docker.com/reference/cli/docker/container/run/#security-configuration">امنیت اجرای container</a> را بخوان.</p>
+<p lang="en">For current syntax, see the official Docker references for <a href="https://docs.docker.com/reference/dockerfile/"><code>USER</code> and <code>COPY --chown</code></a>, <a href="https://docs.docker.com/reference/cli/docker/container/run/"><code>docker run</code>, read-only, and resource flags</a>, <a href="https://docs.docker.com/engine/storage/tmpfs/">tmpfs</a>, and the <a href="https://docs.docker.com/engine/security/">Engine security model</a>. The current <a href="https://docs.docker.com/reference/compose-file/services/">Compose service attributes</a> reference describes local service settings; the <a href="https://docs.docker.com/reference/compose-file/deploy/">deploy specification</a> describes platform-dependent behavior. For privileged and no-new-privileges, consult <a href="https://docs.docker.com/reference/cli/docker/container/run/#security-configuration">container security configuration</a>.</p>
+</section>

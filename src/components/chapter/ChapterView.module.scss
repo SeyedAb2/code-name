@@ -23,7 +23,7 @@
   }
 }
 
-.main { min-width: 0; }
+.main { min-width: 0; overflow-x: clip; }
 
 /* ── ستون کناری ─────────────────────────────────────────────────────────── */
 .rail { position: relative; }

@@ -1,0 +1,244 @@
+<!--meta
+title: پروژهٔ ۱ — یک سرویس، یک ایمیج
+desc: یک API کوچک را از اجرای محلی تا image چندمرحله‌ای، non-root، healthcheck، محدودیت منابع و pull از registry خودت بساز و با شاهد بررسی کن.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">Docker · پروژهٔ ۱</span><span lang="en">Docker · Project 1</span></span>
+<h1 lang="fa">پروژهٔ ۱ — یک سرویس، یک ایمیج</h1><h1 lang="en">Project 1 — One service, one image</h1>
+<p class="sub" lang="fa">این بار Dockerfile آماده تحویل نمی‌گیری. یک سرویس کوچک را می‌شناسی، خودت بسته‌بندی‌اش می‌کنی و با مدرک نشان می‌دهی که همکار دیگری می‌تواند image را از registry بگیرد و اجرا کند.</p>
+<p class="sub" lang="en">This time you will not be handed a finished Dockerfile. You will inspect a small service, package it yourself, and prove that another developer can pull and run its image from a registry.</p>
+<div class="facts"><div class="fact"><b>1</b><span lang="fa">سرویس</span><span lang="en">service</span></div><div class="fact"><b>14</b><span lang="fa">نقطهٔ پیشرفت</span><span lang="en">milestones</span></div><div class="fact"><b>≈ 3h</b><span lang="fa">زمان پیشنهادی</span><span lang="en">suggested time</span></div></div>
+</div>
+<section id="scenario">
+<h2><span lang="fa">مأموریت اول: یک برنامهٔ محلی را تبدیل کن به imageای که واقعاً قابل‌تحویل باشد</span><span lang="en">From “it works on my laptop” to a portable image</span></h2>
+<p class="lede" lang="fa">به تیمی اضافه شده‌ای که یک برنامهٔ وب کوچک دارد. روی لپ‌تاپ با <code>npm start</code> بالا می‌آید، اما هنوز کسی آن را containerize نکرده. هم‌تیمی‌ات فقط یک خواسته دارد: «image را بده تا روی ماشین خودم pull کنم، روی هر میزبان port آزادی بالا بیاورم و همان پاسخ را بگیرم.»</p>
+<p class="lede" lang="en">You have joined a team with a small web application. It runs with <code>npm start</code>, but nobody has containerized it yet. A teammate says: “I want to pull the image, run it on any free host port, and get the same response.”</p>
+<div class="diagram"><svg aria-labelledby="p1-path-title" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 900 180"><title id="p1-path-title">Source becomes a versioned image, is pushed to a registry, then pulled and run on a chosen host port</title><defs><marker id="p1-arrow" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs><g class="dg-stroke-b" marker-end="url(#p1-arrow)" stroke-width="2"><path d="M205 90h55M425 90h55M645 90h55"></path></g><g text-anchor="middle"><rect class="dg-fill" height="96" rx="14" width="185" x="20" y="42"></rect><text class="dg-t" x="112" y="80">source</text><text class="dg-ts" x="112" y="108">build · test</text><rect class="dg-fill-v" height="96" rx="14" width="165" x="260" y="42"></rect><text class="dg-t" x="342" y="80">image</text><text class="dg-ts" x="342" y="108">1.0.0</text><rect class="dg-fill-w" height="96" rx="14" width="165" x="480" y="42"></rect><text class="dg-t" x="562" y="80">registry</text><text class="dg-ts" x="562" y="108">push · pull</text><rect class="dg-fill" height="96" rx="14" width="180" x="700" y="42"></rect><text class="dg-t" x="790" y="80">container</text><text class="dg-ts" x="790" y="108">host port ? → 3000</text></g></svg><p class="diagram-cap" lang="fa">این پروژه قرار نیست فصل تازه‌ای دربارهٔ Dockerfile باشد. همهٔ قطعات را قبلاً دیده‌ای. اینجا باید آن‌ها را کنار هم بگذاری و ثابت کنی خروجی کارت واقعاً قابل‌حمل است: build تکرارپذیر، runtime تمیز، کاربر non-root، healthcheck، تنظیمات زمان اجرا، لاگ، limit و در پایان registry.</p><p class="diagram-cap" lang="en">Each arrow is a verifiable hand-off: source is built, the image gets a version tag, the registry stores it, and a pulled copy serves a response.</p></div>
+<p lang="fa">محدوده عمداً کوچک است: یک Node HTTP API، یک image برنامه و یک container. Compose، پایگاه‌داده و reverse proxy وارد این پروژه نمی‌شوند. این محدودیت کمک می‌کند بفهمیم خود image چه چیزی را تضمین می‌کند و چه چیزی را باید هنگام اجرا تنظیم کنیم.</p>
+<p lang="en">The scope is deliberately small: one Node HTTP API, one application image, and one container. Compose, a database, and a reverse proxy are out of scope. That boundary helps us see what belongs in the image and what must be configured at run time.</p>
+</section>
+<section id="deliverable">
+<h2><span lang="fa">تحویل نهایی باید برای نفر بعد قابل‌استفاده باشد، نه فقط برای خودت</span><span lang="en">What should you have at the end?</span></h2>
+<p lang="fa">در پایان یک پوشهٔ پروژه داری با source، lockfile، <code>.dockerignore</code> و Dockerfile. image با tag نسخه‌دار ساخته می‌شود، روی میزبان port دلخواه اجرا می‌شود، health و user و limitهایش قابل‌بررسی‌اند و لاگ‌ها از بیرون دیده می‌شوند. بعد همان image را push می‌کنی، نسخهٔ محلی را حذف می‌کنی و دوباره از registry برمی‌گردانی.</p>
+<p lang="en">Deliver a project directory with source, <code>package-lock.json</code>, <code>.dockerignore</code>, and a Dockerfile. Build a version-tagged image; run it with a chosen name and port; inspect health, user, configuration, logs, and limits; then push it, remove the local copy, and pull and run it again from the registry.</p>
+<div class="note safe"><div class="note-t"><span lang="fa">اول خود برنامه را بفهم</span><span lang="en">Understand the app before packaging it</span></div><p lang="fa">معیار موفقیت این نیست که «روی سیستم من کار کرد». نفر دیگری باید بدون source بتواند image را pull و run کند. اگر برای اجرا مجبور شدی چیزی را دستی داخل container اصلاح کنی، هنوز خروجی ساخته‌شده قابل‌تحویل نداری.</p><p lang="en">The starter has a real build step: TypeScript becomes JavaScript in <code>dist/</code>. A multi-stage build is therefore useful here, not ceremonial: build tools stay in the first stage and runtime receives only what it needs. For an app with no build step, do not add a second stage just to have two <code>FROM</code> lines.</p></div>
+</section>
+<section id="starter">
+<h2><span lang="fa">اول برنامه را بفهم؛ بعد Dockerfile بنویس</span><span lang="en">Take the starter; do not write the Dockerfile yet</span></h2>
+<p lang="fa">قبل از اینکه حتی یک خط Dockerfile اضافه کنی، برنامهٔ starter را مستقیم اجرا کن. ببین از کدام port می‌خواند، چه فایلی build می‌شود، کجا log می‌دهد و آیا در زمان اجرا چیزی روی دیسک می‌نویسد. اگر رفتار وضعیت پایه را ندانی، بعداً نمی‌فهمی خطا از برنامه است یا containerization.</p>
+<p lang="en">These are the app’s three small source files. First build a mental model: which file is source, which command produces JavaScript for runtime, and which path receives run-time writes?</p>
+<div class="term"><div class="term-bar"><span class="term-label">package.json</span></div><pre dir="ltr">{
+  "name": "one-service-one-image",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "typescript": "^5.8.3"
+  }
+}</pre></div>
+<div class="term"><div class="term-bar"><span class="term-label">tsconfig.json</span></div><pre dir="ltr">{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rootDir": "src",
+    "outDir": "dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts"]
+}</pre></div>
+<div class="term"><div class="term-bar"><span class="term-label">src/server.ts</span></div><pre dir="ltr">import { appendFileSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { createServer } from 'node:http';
+
+const port = Number(process.env.PORT || 3000);
+const mode = process.env.APP_MODE || 'development';
+const dataDir = process.env.DATA_DIR || './runtime';
+
+mkdirSync(dataDir, { recursive: true });
+
+const server = createServer((request, response) =&gt; {
+  const path = (request.url || '/').split('?')[0];
+  console.log(`${new Date().toISOString()} ${request.method} ${path}`);
+
+  if (path === '/health') {
+    response.writeHead(200, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({ status: 'ok' }));
+    return;
+  }
+
+  if (path === '/write') {
+    try {
+      appendFileSync(join(dataDir, 'events.log'), 'write probe\n');
+      response.writeHead(201);
+      response.end('write succeeded\n');
+    } catch (error) {
+      console.error('runtime write failed:', error);
+      response.writeHead(500);
+      response.end('runtime write failed\n');
+    }
+    return;
+  }
+
+  response.writeHead(200, { 'content-type': 'application/json' });
+  response.end(JSON.stringify({ app: 'one-service', mode, version: '1.0.0' }));
+});
+
+server.listen(port, '0.0.0.0', () =&gt; {
+  console.log(`listening on ${port}; mode=${mode}; dataDir=${dataDir}`);
+});</pre></div>
+<p lang="fa">این مرحله کوتاه است ولی ارزش دارد. قرار نیست Docker مشکل برنامه‌ای را که از اول اجرا نمی‌شود پنهان کند. خروجی مستقیم برنامه را نگه دار تا بعداً با رفتار داخل container مقایسه‌اش کنی.</p>
+<p lang="en">In the code, <code>/health</code> reports app readiness; <code>/write</code> exists for a failure drill; ordinary requests produce a stdout log. Write errors go to stderr. <code>PORT</code> and <code>APP_MODE</code> are read at run time, so changing them should not require a rebuild.</p>
+<p lang="fa">فایل‌ها را در پوشه‌ای تازه با این چیدمان بساز. پس از <code>npm install</code>، فایل lock را نگه دار و commit کن؛ Dockerfile باید بتواند dependency دقیق‌شده را با <code>npm ci</code> نصب کند.</p>
+<p lang="en">Create the files in a fresh directory with this layout. After <code>npm install</code>, keep and commit the lockfile; the Docker build should be able to install the pinned dependency tree with <code>npm ci</code>.</p>
+<div class="term"><div class="term-bar"><span class="term-label">ساختار آغازین · Initial layout</span></div><pre dir="ltr">one-service/
+├── package.json
+├── tsconfig.json
+└── src/
+    └── server.ts</pre></div>
+<div class="term"><div class="term-bar"><span class="term-label">اجرای محلی · Run outside Docker first</span><button class="copy">کپی</button></div><pre dir="ltr">npm install
+npm run build
+npm start</pre></div>
+<p lang="fa">در یک terminal دیگر، <code>curl http://localhost:3000/</code> و <code>curl http://localhost:3000/health</code> را بزن. یک بار هم <code>curl -i http://localhost:3000/write</code> را امتحان کن. اگر برنامه محلی کار نمی‌کند، هنوز وقت سرزنش Docker نیست؛ اول build یا اجرای Node را درست کن.</p>
+<p lang="en">In another terminal, try <code>curl http://localhost:3000/</code> and <code>curl http://localhost:3000/health</code>. Also try <code>curl -i http://localhost:3000/write</code>. If the local app does not work, Docker is not yet a suspect; fix the build or Node process first.</p>
+</section>
+<section id="milestones">
+<h2><span lang="fa">چهارده گام؛ هر گام فقط وقتی تمام است که شاهدش را داشته باشی</span><span lang="en">Fourteen milestones; one piece of evidence at each</span></h2>
+<p lang="fa">پروژه را یک‌باره با Dockerfile نهایی شروع نکن. اول image ساده‌ای بساز که کار می‌کند، بعد build context را تمیز کن، multi-stage را اضافه کن، user را محدود کن، healthcheck و تنظیمات runtime را بسنج و در آخر سراغ registry برو. این ترتیب عمداً از «کار می‌کند» به «قابل‌تحویل است» حرکت می‌کند.</p>
+<p lang="en">Move on when you can show evidence for the previous milestone. The goal is not a Dockerfile packed with instructions; it is an artifact another person can pull and run independently.</p>
+<h3><span lang="fa">۱. starter را بخوان</span><span lang="en">1. Read the starter</span></h3><p lang="fa">بعد از هر گام یک خروجی کوتاه نگه دار: image ساخته شد؟ container با چه userی اجرا شد؟ health چه گفت؟ limit واقعاً اعمال شد؟ اگر چیزی شکست، همان مرحله را اصلاح کن و بعد جلو برو. جمع‌کردن چند تغییر با هم فقط تشخیص را سخت می‌کند.</p><p lang="en">Trace the request path, health endpoint, run-time variables, and write to <code>DATA_DIR</code>. Identify which files belong in the image and which are needed only to build.</p>
+<details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">TypeScript source در <code>src/</code> است و script build در <code>package.json</code> آن را به <code>dist/</code> می‌برد. Node در مرحلهٔ اجرا <code>dist/server.js</code> را می‌خواند.</p><p lang="en">TypeScript source is in <code>src/</code>; the build script in <code>package.json</code> writes JavaScript to <code>dist/</code>. Node reads <code>dist/server.js</code> at run time.</p></details>
+<h3><span lang="fa">۲. بدون Docker اجرا کن</span><span lang="en">2. Run it without Docker</span></h3><p lang="fa">با <code>npm install</code>، <code>npm run build</code> و <code>npm start</code> اجرا کن؛ سپس root، health و write probe را آزمایش کن. این وضعیت پایه بعداً مرجع مقایسه است.</p><p lang="en">Run <code>npm install</code>, <code>npm run build</code>, and <code>npm start</code>; then test root, health, and the write probe. This baseline is your comparison point later.</p>
+<details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">در پاسخ root باید <code>mode</code> و <code>version</code> را ببینی. برای اجرای <code>/write</code> یک‌بار <code>DATA_DIR=./runtime</code> تنظیم کن یا مقدار پیش‌فرض را نگه دار؛ برنامه پوشه را می‌سازد.</p><p lang="en">The root response should show <code>mode</code> and <code>version</code>. For <code>/write</code>, set <code>DATA_DIR=./runtime</code> once or keep the default; the app creates the directory.</p></details>
+<h3><span lang="fa">۳. build context و <code>.dockerignore</code> را طراحی کن</span><span lang="en">3. Design the build context and <code>.dockerignore</code></span></h3><p lang="fa">ریشهٔ پروژه باید context باشد؛ نه پوشهٔ والد و نه کل repository. فایل‌های میزبان، خروجی محلی، اسرار و دادهٔ runtime را وارد context نکن؛ اما source و lockfile را ناخواسته حذف نکن.</p><p lang="en">Use the project root as the context—not its parent and not the whole repository. Keep host files, local output, secrets, and run-time data out, but do not accidentally exclude source or the lockfile.</p>
+<details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">حداقل دربارهٔ <code>node_modules</code>، <code>dist</code>، <code>runtime</code>، logهای npm، پوشهٔ Git و فایل‌های محیطی فکر کن. بعداً بررسی کن Docker واقعاً source و <code>package-lock.json</code> را می‌بیند.</p><p lang="en">Consider <code>node_modules</code>, <code>dist</code>, <code>runtime</code>, npm logs, Git metadata, and environment files. Later, verify that Docker can still see source and <code>package-lock.json</code>.</p></details>
+<h3><span lang="fa">۴. نخستین Dockerfile کارا را بساز</span><span lang="en">4. Build your first working Dockerfile</span></h3><p lang="fa">فعلاً هدف کمینه‌سازی نیست: image بساز و یک container بالا بیاور. انتخاب context، کپی‌کردن lockfile و اجرای scriptهای build و start را خودت به هم وصل کن.</p><p lang="en">Do not optimize yet: build an image and start a container. Work out the context, lockfile copy, and how the build and start scripts fit together.</p>
+<details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">با build stage واحد شروع کن: پایهٔ Node، <code>WORKDIR</code>، کپی manifestها، <code>npm ci</code>، کپی source، <code>npm run build</code> و فرمان foreground برای server. پورت را در این مرحله هم در app و هم هنگام <code>docker run -p</code> درست در نظر بگیر.</p><p lang="en">Start with one build stage: Node base, <code>WORKDIR</code>, copy manifests, <code>npm ci</code>, copy source, <code>npm run build</code>, and a foreground server command. Keep the app port and <code>docker run -p</code> mapping straight.</p></details>
+<h3><span lang="fa">۵. image را مشاهده کن</span><span lang="en">5. Observe the image</span></h3><p lang="fa">با <code>docker image ls</code> اندازه را ببین؛ با <code>docker image inspect</code> تنظیمات را؛ و با <code>docker history</code> بفهم چه مرحله‌هایی در image تک‌مرحله‌ای مانده‌اند.</p><p lang="en">Check size with <code>docker image ls</code>, configuration with <code>docker image inspect</code>, and retained build steps with <code>docker history</code>.</p>
+<details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">اگر ابزار TypeScript، source یا <code>node_modules</code> توسعه در image نهایی مانده، بپرس آیا برای اجرای <code>dist/server.js</code> واقعاً لازم‌اند.</p><p lang="en">If TypeScript, source, or development <code>node_modules</code> remain in the final image, ask whether they are actually needed to run <code>dist/server.js</code>.</p></details>
+<h3><span lang="fa">۶. build را از runtime جدا کن</span><span lang="en">6. Separate build from runtime</span></h3><p lang="fa">TypeScript مرحلهٔ build است؛ runtime به Node و خروجی JavaScript نیاز دارد، نه compiler. Dockerfile را multi-stage کن و فقط خروجی ساخته‌شده لازم و فایل آغاز برنامه را به stage نهایی ببر. اندازه را دوباره اندازه بگیر.</p><p lang="en">TypeScript is a build-time tool; runtime needs Node and compiled JavaScript, not the compiler. Make the Dockerfile multi-stage and copy only the required artifact and start metadata into the final stage. Measure again.</p>
+<details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">stageها را با نقششان نام‌گذاری کن، مثلاً <code>build</code> و <code>runtime</code>. <code>COPY --from=build</code> باید از مسیر واقعی خروجی compiler کپی کند؛ وجود آن را با build log یا اجرای target build ثابت کن.</p><p lang="en">Name stages by role, such as <code>build</code> and <code>runtime</code>. <code>COPY --from=build</code> must use the compiler’s real output path; prove it from build output or by building that target.</p></details>
+<h3><span lang="fa">۷. با کاربر non-root اجرا کن</span><span lang="en">7. Run as a non-root user</span></h3><p lang="fa">در image نهایی یک کاربر غیرریشه داشته باش و مالکیت فایل‌های موردنیازش را درست تنظیم کن. <code>docker top</code> و <code>docker inspect</code> را مدرک قرار بده؛ فقط به نیت Dockerfile اکتفا نکن.</p><p lang="en">Create a non-root user in the final image and assign ownership deliberately. Use <code>docker top</code> and <code>docker inspect</code> as evidence; do not rely on Dockerfile intent alone.</p>
+<details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">کاربر app به خواندن <code>/app/dist</code> و نوشتن در <code>/app/runtime</code> نیاز دارد. کل image را writable نکن؛ فقط مسیر لازم را مالک همان user کن.</p><p lang="en">The app user needs to read <code>/app/dist</code> and write to <code>/app/runtime</code>. Do not make the whole image writable; assign only the required path to that user.</p></details>
+<h3><span lang="fa">۸. healthcheck واقعی اضافه کن</span><span lang="en">8. Add a meaningful healthcheck</span></h3><p lang="fa">healthcheck باید مسیر سرویس سلامت را بسنجد، نه اینکه صرفاً وجود فرایند را ثابت کند. مسیر درست را انتخاب کن و بررسی کن probe از binary موجود در image استفاده می‌کند.</p><p lang="en">The healthcheck should test the health endpoint, not merely prove that a process exists. Choose the real path and verify that the probe uses a binary present in the image.</p>
+<details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">چون Node در runtime هست و <code>curl</code> تضمین‌شده نیست، یک probe کوتاه با Node و HTTP مناسب است. کد خروج صفر یعنی موفق؛ برای مشاهده، چند ثانیه صبر کن و Health را با <code>docker inspect</code> بخوان.</p><p lang="en">Node is present at run time while <code>curl</code> is not guaranteed, so a short Node HTTP probe is a good fit. Exit code zero means success; wait briefly and inspect Health.</p></details>
+<h3><span lang="fa">۹. تنظیمات را بدون rebuild عوض کن</span><span lang="en">9. Change run-time configuration without rebuilding</span></h3><p lang="fa"><code>PORT</code> و <code>APP_MODE</code> را در زمان اجرای container تنظیم کن. پاسخ مسیر سرویس باید تغییر mode را نشان دهد. میزبان port در سمت چپ <code>-p</code> است و port داخل container در سمت راست.</p><p lang="en">Set <code>PORT</code> and <code>APP_MODE</code> when starting the container. The endpoint should reflect the changed mode. In <code>-p</code>, the host port is on the left and the container port is on the right.</p>
+<details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">اگر برنامه در container روی 3000 است، نگاشت مثلاً <code>8087:3000</code> است. عوض‌کردن فقط میزبان port، برنامه را جابه‌جا نمی‌کند؛ عوض‌کردن <code>PORT</code> داخل container نیازمند هماهنگ‌کردن سمت راست mapping و healthcheck است.</p><p lang="en">If the app listens on 3000 in the container, a mapping could be <code>8087:3000</code>. Changing only the host port does not move the app; changing its in-container <code>PORT</code> requires updating the right side of the mapping and the healthcheck.</p></details>
+<h3><span lang="fa">۱۰. لاگ‌ها را از مسیر درست ببین</span><span lang="en">10. Read logs through the right channel</span></h3><p lang="fa">چند درخواست بفرست و <code>docker logs</code> را بخوان. رویداد معمول باید در stdout و خطای نوشتن در stderr ظاهر شود؛ container را برای دیدن log به shell تعاملی وابسته نکن.</p><p lang="en">Send a few requests and read <code>docker logs</code>. Normal events should appear on stdout and write errors on stderr; do not depend on an interactive shell to see logs.</p>
+<details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">گزینه‌های <code>-f</code> و <code>--tail 20</code> برای دنبال‌کردن و محدودکردن خروجی‌اند. Docker لاگ‌ها رفتار یکسانی برای همهٔ logging driverها تضمین نمی‌کند؛ برای این آزمایش از تنظیم معمول محلی Docker استفاده کن.</p><p lang="en">Use <code>-f</code> to follow and <code>--tail 20</code> to limit output. Docker logs is not identical across every logging driver; use the normal local Docker logging setup for this experiment.</p></details>
+<h3><span lang="fa">۱۱. هنگام اجرا حد بگذار</span><span lang="en">11. Set run-time limits</span></h3><p lang="fa">این workload کوچک است؛ حدهای محافظه‌کارانه انتخاب کن و تنظیمات ساخته‌شده را inspect کن. محدودیت CPU، memory و PID در <code>docker run</code> است، نه چیزی که با تغییر کد نیاز به rebuild داشته باشد.</p><p lang="en">This is a small workload; choose conservative limits and inspect the resulting configuration. CPU, memory, and PID limits belong to <code>docker run</code>, not to a code change that requires a rebuild.</p>
+<details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">برای نمونهٔ آموزشی، 128 MiB، نیم CPU و 64 PID سقف‌های کوچک و محدودند؛ اگر محیط تو برای Node کافی نیست، حد را با دلیل کمی بالا ببر. limit مدرک مصرف واقعی یا تضمین نبودن فشار منابع نیست.</p><p lang="en">For this exercise, 128 MiB, half a CPU, and 64 PIDs are small bounded ceilings; if your environment needs more for Node, raise a limit with a reason. A limit is not evidence of actual use or a guarantee against resource pressure.</p></details>
+<h3><span lang="fa">۱۲. tag نسخه‌دار را به registry بفرست</span><span lang="en">12. Push a versioned tag to a registry</span></h3><p lang="fa">یک registry در دسترس انتخاب کن، image را با نام namespace خودت و tagی مثل <code>1.0.0</code> برچسب بزن، وارد registry شو و push کن. secret ورود را داخل Dockerfile یا دستور ذخیره‌شده ننویس.</p><p lang="en">Choose an available registry, tag the image under your own namespace with a version such as <code>1.0.0</code>, authenticate, and push. Do not put registry credentials in a Dockerfile or saved command.</p>
+<details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">نام کامل image معمولاً شکل <code>registry/namespace/name:version</code> دارد. Docker Hub می‌تواند <code>USERNAME/one-service:1.0.0</code> باشد؛ برای GHCR از namespace حساب خودت استفاده کن. مطمئن شو tag محلی دقیقاً همان است که push می‌کنی.</p><p lang="en">A full image name usually looks like <code>registry/namespace/name:version</code>. Docker Hub could use <code>USERNAME/one-service:1.0.0</code>; for GHCR, use your account namespace. Confirm the local tag is exactly the one you push.</p></details>
+<h3><span lang="fa">۱۳. نسخهٔ محلی را بردار</span><span lang="en">13. Remove the local copy</span></h3><p lang="fa">پس از ثبت شواهد و اطمینان از push، containerهای آزمایشی خودت را حذف کن و سپس tagهای همین image را از cache محلی پاک کن. از prune کلی استفاده نکن؛ هدف پاک‌کردن خروجی ساخته‌شده پروژه است، نه فایل‌های دیگر کاربر.</p><p lang="en">After capturing evidence and confirming the push, remove your own test container and then the local tags for this image. Do not use a broad prune; the target is this project’s artifact, not other user data.</p>
+<details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">Docker تا وقتی container از image استفاده می‌کند ممکن است اجازهٔ حذف ندهد. نام دقیق container و image خودت را با <code>docker ps -a</code> و <code>docker image ls</code> پیدا کن؛ پیش از حذف، شواهد لازم را ذخیره کن.</p><p lang="en">Docker may refuse to remove an image that a container still uses. Find your exact container and image names with <code>docker ps -a</code> and <code>docker image ls</code>; save your evidence before removal.</p></details>
+<h3><span lang="fa">۱۴. pull کن و دوباره ثابت کن</span><span lang="en">14. Pull and prove it again</span></h3><p lang="fa">image را از registry pull کن و با نام container تازه، میزبان port انتخابی و تنظیمات زمان اجرا اجرا کن. پاسخ، health، user، log و limit را دوباره بررسی کن. این مرحله مهم‌ترین تفاوت «روی لپ‌تاپ build شد» با «قابل‌توزیع است» را ثابت می‌کند.</p><p lang="en">Pull the image from the registry and run it under a new container name with a chosen host port and run-time configuration. Recheck response, health, user, logs, and limits. This is the key proof that “built on my laptop” has become “distributable.”</p>
+<details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">قبل از pull با <code>docker image ls</code> و پس از حذف محلی مطمئن شو tag واقعاً رفته است. اگر registry عمومی نیست، همین جا معلوم می‌شود احراز هویت pull روی ماشین تازه هم لازم است.</p><p lang="en">Use <code>docker image ls</code> to confirm the tag is gone before pulling. If the registry is private, this is where you discover that a fresh machine also needs pull credentials.</p></details>
+</section>
+<section id="failure-drills">
+<h2><span lang="fa">سه خرابی عمدی؛ پروژه وقتی جدی می‌شود که بتوانی خودت جمعش کنی</span><span lang="en">Three deliberate failures; evidence before repair</span></h2>
+<p lang="fa">سه خطا را جداگانه ایجاد می‌کنیم: میزبان port اشتباه، healthcheck با مسیر غلط و permission مشکل‌دار برای مسیر runtime. در هر مورد قبل از اصلاح، یک شاهد ثبت کن. قرار نیست با تغییر تصادفی چند گزینه به نتیجه برسی؛ باید بدانی کدام مرز خراب است.</p>
+<p lang="en">Run each drill separately and restore a known-good image between them. For each, record the symptom, which layer it implicates, and what evidence you need before changing anything.</p>
+<details><summary><span lang="fa">خرابی ۱ — میزبان port اشتباه</span><span lang="en">Failure 1 — wrong host port</span></summary><p lang="fa">بعد از repair همان درخواست یا healthcheck قبلی را دوباره اجرا کن. «دیگر خطایی ندیدم» معیار کافی نیست. پروژه باید به همان وضعیت قابل‌انتظار قبل از خرابی برگردد.</p><p lang="en">Run the container with an intentionally wrong mapping such as <code>-p 8087:3001</code> while the app listens on 3000. <code>docker ps</code> may show it Up, but a host request fails. Compare <code>docker port</code>, the PORTS column, and the “listening on 3000” log. Which side of the mapping is wrong?</p></details>
+<details><summary><span lang="fa">خرابی ۲ — healthcheck مسیر اشتباه می‌زند</span><span lang="en">Failure 2 — healthcheck probes the wrong path</span></summary><p lang="fa">مسیر probe را از <code>/health</code> به <code>/ready</code> تغییر بده و image تازه بساز. فرایند و root ممکن است پاسخ بدهند، اما health پس از چند probe ناموفق unhealthy می‌شود. <code>.State.Health.Log</code> را بخوان؛ آن را با status واقعی <code>curl /health</code> مقایسه کن و بعد مسیر را تعمیر و container را از image تازه بساز.</p><p lang="en">Change the probe path from <code>/health</code> to <code>/ready</code> and build a new image. The process and root endpoint may still respond, while health becomes unhealthy after failed probes. Read <code>.State.Health.Log</code>, compare it with <code>curl /health</code>, then repair the path and recreate from the new image.</p></details>
+<details><summary><span lang="fa">خرابی ۳ — runtime پوشه قابل‌نوشتن نیست</span><span lang="en">Failure 3 — runtime directory is not writable</span></summary><p lang="fa">در یک نسخهٔ موقت، دایرکتوری <code>/app/runtime</code> را root-owned با مجوز <code>755</code> بساز و container را با user غیرریشه اجرا کن. <code>/</code> و <code>/health</code> هنوز پاسخ می‌دهند؛ <code>curl -i /write</code> باید 500 بدهد و <code>docker logs</code> خطای permission را نشان دهد. user و مالکیت مسیر را بررسی کن؛ با <code>chmod 777</code> دور نزن.</p><p lang="en">In a temporary image, make <code>/app/runtime</code> root-owned with mode <code>755</code>, then run as the non-root user. <code>/</code> and <code>/health</code> should still respond; <code>curl -i /write</code> should return 500 and <code>docker logs</code> should show a permission error. Inspect the user and directory ownership; do not escape with <code>chmod 777</code>.</p></details>
+<details><summary><span lang="fa">راهنمایی برای تعمیر</span><span lang="en">Repair hint</span></summary><p lang="fa">در زمان build فقط مسیر نوشتنی را به user برنامه واگذار کن، یا با <code>COPY --chown</code> مالکیت خروجی ساخته‌شده را تنظیم کن. بعد image جدید بساز و هر سه شاهد HTTP، log و مالکیت را دوباره بگیر.</p><p lang="en">During the build, assign only the writable directory to the app user, or use <code>COPY --chown</code> for artifact ownership. Rebuild, then recheck HTTP, logs, and ownership.</p></details>
+</section>
+<section id="acceptance">
+<h2><span lang="fa">قبولی پروژه با چند سؤال روشن سنجیده می‌شود</span><span lang="en">Acceptance: prove it with commands and output</span></h2>
+<p lang="fa">در این بخش چیزی برای حدس‌زدن نداریم. reviewer باید بتواند با چند دستور ساده ثابت کند سرویس پاسخ می‌دهد، health سبز می‌شود، فرایند root نیست، تنظیمات بدون rebuild عوض می‌شوند، لاگ بیرون می‌آید و limitها واقعاً وجود دارند.</p>
+<p lang="en">In these commands, <code>one-service:1.0.0</code> is the example local image and <code>8087</code> is only an example free host port; choose your own. Before running, stop and remove an older container with the same name only if it belongs to this project.</p>
+<div class="term"><div class="term-bar"><span class="term-label">build و inspect · Build and inspect</span><button class="copy">کپی</button></div><pre dir="ltr">docker build -t one-service:1.0.0 .
+docker image inspect one-service:1.0.0 --format 'user={{.Config.User}} exposed={{json .Config.ExposedPorts}} size={{.Size}}'
+docker image history one-service:1.0.0</pre></div>
+<p lang="fa">پورت میزبان یا نام image در نمونه‌ها پیشنهادی‌اند؛ اصل رفتار مهم است. اگر به‌خاطر پورت اشغال‌شده عدد دیگری انتخاب کردی، فقط آن را مستند کن تا نفر بعد بداند کجا باید درخواست بفرستد.</p><p lang="en">In inspect, <code>user</code> should not be empty or <code>0</code>. History helps show what the multi-stage build kept out of the final image; size alone is not a security or performance test.</p>
+<div class="term"><div class="term-bar"><span class="term-label">اجرا با پورت و سقف‌های محدود · Run with a port and bounded limits</span><button class="copy">کپی</button></div><pre dir="ltr">docker run -d --name one-service-check -p 8087:3000 -e PORT=3000 -e APP_MODE=acceptance --memory=128m --cpus=0.50 --pids-limit=64 one-service:1.0.0
+curl -i http://localhost:8087/
+curl -i http://localhost:8087/health
+docker ps --filter name=one-service-check</pre></div>
+<p lang="fa">در JSON پاسخ، <code>mode</code> باید <code>acceptance</code> باشد. برای health ممکن است چند ثانیه زمان لازم باشد؛ فقط بعد از دیدن <code>healthy</code> موفقیت را ثبت کن. container Up بودن به‌تنهایی ثابت نمی‌کند healthcheck موفق است.</p><p lang="en">The JSON response should show <code>mode</code> as <code>acceptance</code>. Health may take a few seconds; record success only after it says <code>healthy</code>. Up alone does not prove that the healthcheck passed.</p>
+<div class="term"><div class="term-bar"><span class="term-label">شاهدهای runtime · Runtime evidence</span><button class="copy">کپی</button></div><pre dir="ltr">docker inspect one-service-check --format 'state={{.State.Status}} health={{.State.Health.Status}} user={{.Config.User}} memory={{.HostConfig.Memory}} nanoCPUs={{.HostConfig.NanoCpus}} pids={{.HostConfig.PidsLimit}}'
+docker inspect one-service-check --format '{{.Config.User}}'
+docker top one-service-check
+curl -i http://localhost:8087/write
+docker logs --tail 20 one-service-check</pre></div>
+<p lang="fa">سطر inspect باید نشان بدهد که فرایند زنده است، health سالم شده، user غیرریشه است و مقادیر memory/CPU/PID صفر یا نامحدود نیستند. <code>docker top</code> فرایند را نشان می‌دهد؛ <code>docker logs</code> درخواست‌ها و نتیجهٔ write probe را. اگر write موفق بود، پاسخ 201 و اگر عمدی permission را خراب کرده‌ای، 500 و خطای stderr را ثبت کن.</p><p lang="en">The inspect line should show a live process, healthy status, a non-root user, and non-zero memory/CPU/PID limits. <code>docker top</code> shows the process; <code>docker logs</code> shows requests and the write probe. A successful write returns 201; an intentionally broken permission returns 500 with a stderr error.</p>
+<p lang="fa">حالا همان image را با <code>APP_MODE=staging</code> اجرا کن؛ پاسخ باید عوض شود بی‌آنکه build تازه‌ای انجام شود. این شاهد جدایی تنظیمات از خروجی ساخته‌شده است. ID را قبل و بعد مقایسه کن:</p><p lang="en">Now run the same image with <code>APP_MODE=staging</code>; the response should change without a new build. That proves configuration is separate from the artifact. Compare its ID before and after:</p>
+<div class="term"><div class="term-bar"><span class="term-label">تغییر config، بدون build تازه · Change config without rebuilding</span><button class="copy">کپی</button></div><pre dir="ltr">docker image inspect one-service:1.0.0 --format '{{.Id}}'
+docker rm -f one-service-check
+docker run -d --name one-service-staging -p 8087:3000 -e PORT=3000 -e APP_MODE=staging --memory=128m --cpus=0.50 --pids-limit=64 one-service:1.0.0
+curl -i http://localhost:8087/
+docker inspect one-service-staging --format 'image={{.Image}} mode={{.Config.Env}}'</pre></div>
+<p lang="fa">شناسهٔ image در دو inspect باید یکی باشد؛ پاسخ HTTP باید mode جدید را داشته باشد. به این ترتیب تغییر از run تنظیمات آمده، نه build.</p><p lang="en">The image ID from both inspections should match, while the HTTP response shows the new mode. That proves the change came from run configuration, not a rebuild.</p>
+</section>
+<section id="registry">
+<h2><span lang="fa">آخرین آزمون: source را کنار بگذار و فقط خروجی ساخته‌شده را تحویل بده</span><span lang="en">Distribution test: push, remove locally, pull</span></h2>
+<p lang="fa">تا اینجا هنوز image روی همان ماشین build وجود دارد. برای اثبات توزیع، آن را با tag نسخه‌دار push کن، container را جمع کن و نسخهٔ محلی را حذف کن. بعد همان image را از registry pull و اجرا کن. این لحظه فرق «containerization محلی» با «خروجی ساخته‌شده قابل‌تحویل» را نشان می‌دهد.</p><p lang="en">Choose an explicit version instead of the mutable <code>latest</code> tag. Replace <code>REGISTRY_IMAGE</code> below with your full image name; on Docker Hub, for example, use <code>USERNAME/one-service:1.0.0</code>.</p>
+<div class="term"><div class="term-bar"><span class="term-label">نام‌گذاری و انتشار · Tag and publish</span><button class="copy">کپی</button></div><pre dir="ltr">docker tag one-service:1.0.0 REGISTRY_IMAGE
+docker login REGISTRY_HOST
+docker push REGISTRY_IMAGE</pre></div>
+<p lang="fa">برای این پروژه از <code>latest</code> به‌عنوان تنها مرجع استفاده نکن. یک نسخهٔ روشن مثل <code>1.0.0</code> انتخاب کن تا نفر بعد بداند دقیقاً چه چیزی را pull کرده است.</p><p lang="en">If you chose Docker Hub, use the complete image name and usually run <code>docker login</code> without a host. For a private registry, use a scoped credential or token; do not put it in shell history or source.</p>
+<div class="term"><div class="term-bar"><span class="term-label">حذف محدود و pull مجدد · Targeted removal and fresh pull</span><button class="copy">کپی</button></div><pre dir="ltr">docker rm -f one-service-check
+docker image rm one-service:1.0.0 REGISTRY_IMAGE
+docker image ls
+docker pull REGISTRY_IMAGE
+docker run -d --name one-service-pulled -p 8087:3000 -e PORT=3000 -e APP_MODE=pulled --memory=128m --cpus=0.50 --pids-limit=64 REGISTRY_IMAGE
+curl -i http://localhost:8087/
+docker ps --filter name=one-service-pulled
+docker inspect one-service-pulled --format 'health={{.State.Health.Status}} user={{.Config.User}}'</pre></div>
+<p lang="fa">دستور حذف را فقط برای دو tagی اجرا کن که خودت به این پروژه اختصاص داده‌ای؛ اگر container دیگری از آن‌ها استفاده می‌کند، اول مالکیتش را بررسی کن. پس از pull، پاسخ باید <code>mode=pulled</code> باشد و health به <code>healthy</code> برسد. حالا image را بدون فایل‌های build محلی اجرا کرده‌ای.</p><p lang="en">Remove only the two tags you assigned to this project; if another container uses them, check ownership first. After the pull, the response should show <code>mode=pulled</code> and health should become <code>healthy</code>. You have now run the image without relying on local build files.</p>
+</section>
+<section id="reference">
+<h2><span lang="fa">راه‌حل مرجع را بعد از ساخت خودت باز کن</span><span lang="en">Reference solution; now compare it with your decisions</span></h2>
+<p lang="fa">این بخش پاسخ تقلبی پروژه نیست؛ یک پیاده‌سازی مرجع برای مقایسه است. قبل از دیدنش نسخهٔ خودت را تا حد ممکن تمام کن. بعد خط‌به‌خط بررسی کن هر تصمیم مرجع به کدام معیار پذیرش جواب می‌دهد و آیا در راه‌حل تو همان نیاز با روش دیگری تأمین شده یا نه.</p><p lang="en">If you built your own version, pause before reading. This is not the only valid Dockerfile, but each line answers a project requirement: reproducible build, final artifact separated from development tools, non-root user, explicit writable path, and a working probe.</p>
+<div class="term"><div class="term-bar"><span class="term-label">.dockerignore · reference</span></div><pre dir="ltr">node_modules
+dist
+runtime
+.git
+.env
+.env.*
+npm-debug.log*</pre></div>
+<div class="term"><div class="term-bar"><span class="term-label">Dockerfile · reference</span><button class="copy">کپی</button></div><pre dir="ltr">FROM node:22-alpine AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY tsconfig.json ./
+COPY src ./src
+RUN npm run build
+
+FROM node:22-alpine AS runtime
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV APP_MODE=production
+ENV DATA_DIR=/app/runtime
+WORKDIR /app
+RUN addgroup -S app &amp;&amp; adduser -S -G app app \
+    &amp;&amp; mkdir -p /app/runtime \
+    &amp;&amp; chown app:app /app/runtime
+COPY --from=build --chown=app:app /app/dist ./dist
+USER app
+EXPOSE 3000
+HEALTHCHECK --interval=10s --timeout=2s --start-period=5s --retries=3 \
+  CMD ["node", "-e", "fetch('http://127.0.0.1:'+process.env.PORT+'/health').then(r =&gt; process.exit(r.ok ? 0 : 1)).catch(() =&gt; process.exit(1))"]
+CMD ["node", "dist/server.js"]</pre></div>
+<p lang="fa">ممکن است Dockerfile تو دقیقاً شبیه مرجع نباشد و همچنان درست باشد. چیزی که باید یکسان بماند رفتار قابل‌سنجش است: build تمیز، runtime کوچک‌تر، user غیرریشه، مسیر نوشتنی روشن، health سالم و image قابل‌pull.</p><p lang="en">The runtime stage copies only compiled JavaScript; the manifest, compiler, and source are not needed. We run Node directly so the app stays in the foreground without an extra wrapper. The app writes only under <code>/app/runtime</code>, which belongs to the app user. The healthcheck uses Node rather than relying on <code>curl</code> being installed. <code>EXPOSE</code> documents a port; the run command performs publishing.</p>
+<div class="note warn"><div class="note-t"><span lang="fa">version tag با نسخهٔ پایه یکی نیست</span><span lang="en">The app tag and base-image tag are different</span></div><p lang="fa"><code>one-service:1.0.0</code> نسخهٔ خروجی ساخته‌شده توست. <code>node:22-alpine</code> فقط پایهٔ نمونه است و tag آن می‌تواند در طول زمان جابه‌جا شود. برای release تکرارپذیرتر، نسخهٔ پایه را طبق سیاست تیم pin کن؛ برای verify آموزشی، اصل مهم این است که همان image tag خودت را push و pull کنی.</p><p lang="en"><code>one-service:1.0.0</code> versions your artifact. <code>node:22-alpine</code> is only the example base and its tag can move over time. For more reproducible releases, pin the base according to team policy; for this exercise, the essential proof is that you push and pull your own versioned image.</p></div>
+<h3><span lang="fa">چک‌لیست مرور نهایی</span><span lang="en">Final review checklist</span></h3>
+<ul lang="fa"><li>آیا build context همان پوشهٔ برنامه است و <code>.dockerignore</code> فایل‌های حساس و محلی را کنار می‌گذارد؟</li><li>آیا lockfile در image build استفاده می‌شود و TypeScript در runtime نهایی باقی نمانده؟</li><li>آیا برنامه با user غیرریشه اجرا می‌شود و فقط مسیر لازم writable است؟</li><li>آیا <code>PORT</code> و <code>APP_MODE</code> بدون rebuild تغییر می‌کنند؟</li><li>آیا healthcheck مسیر سرویس واقعی را می‌سنجد و health به healthy می‌رسد؟</li><li>آیا درخواست و خطا در stdout/stderr دیده می‌شوند؟</li><li>آیا inspect مقدار limitهای memory، CPU و PID را نشان می‌دهد؟</li><li>آیا image نسخه‌دار را push کردی، tag محلی را هدفمند برداشتی، و pull-and-run را ثابت کردی؟</li><li>آیا failureهای port، health مسیر و permission را با شواهد تشخیص دادی؟</li></ul>
+<ul lang="en"><li>Is the build context the app directory, with local and sensitive files excluded by <code>.dockerignore</code>?</li><li>Does the build use the lockfile, and is TypeScript absent from the final runtime stage?</li><li>Does the app run as non-root, with only the required path writable?</li><li>Can <code>PORT</code> and <code>APP_MODE</code> change without rebuilding?</li><li>Does the healthcheck probe the real endpoint and eventually become healthy?</li><li>Are requests and errors visible on stdout/stderr?</li><li>Does inspect show memory, CPU, and PID limits?</li><li>Did you push a versioned image, remove its local tag deliberately, and prove pull-and-run?</li><li>Did you diagnose the port, health-path, and permission failures from evidence?</li></ul>
+</section>
+<section id="bonus">
+<h2><span lang="fa">افزودهٔ اختیاری: حالا که پروژه قبول شده، یک لایه محدودترش کن</span><span lang="en">Optional extension: read-only and digest</span></h2>
+<p lang="fa">بعد از قبولی اصلی می‌توانی root filesystem را read-only کنی و فقط مسیرهای لازم را به‌صورت volume یا tmpfs نوشتنی بدهی. این بخش bonus است چون هدف پروژه اول، تحویل یک image سالم و قابل‌انتقال است؛ نه اینکه همهٔ hardeningهای ممکن را یک‌جا تحمیل کنیم.</p><p lang="en">The core project is complete; now try one extra layer. Use <code>--read-only</code> for the root filesystem and grant write access only to explicit temporary or data paths. This app’s <code>/app/runtime</code> write needs an explicit volume or mount, and <code>/tmp</code> can use tmpfs. Test it—do not assume read-only also locks every mount.</p>
+<p lang="fa">پس از push، digest ثبت‌شده را از registry پیدا کن و به‌جای tag، image را با <code>name@sha256:…</code> اجرا کن. tag خواناست و digest محتوای دقیق را pin می‌کند؛ پیش از تحویل، پاسخ و health را دوباره بسنج.</p><p lang="en">After pushing, retrieve the registry digest and run <code>name@sha256:…</code> instead of a tag. A tag is readable; a digest pins exact content. Recheck the response and health before calling the extension complete.</p>
+</section>
+<section id="handoff">
+<h2><span lang="fa">تحویل خوب یعنی هم‌تیمی بدون تو هم بتواند آن را اجرا کند</span><span lang="en">Project hand-off</span></h2>
+<p lang="fa">در README کوتاهت فقط چیزهایی را بگذار که نفر بعد لازم دارد: نام کامل image و نسخه، فرمان pull/run، port مورد انتظار، health مسیر سرویس و فرمان دیدن logها. secret یا dump بلند خروجی لازم نیست.</p><p lang="en">Hand your teammate only the full image name and version, a pull/run command with the chosen host port, the expected health result, and the command for viewing logs. No secret or large output is needed. If they can pull and run the image on a machine without your source, the project has moved beyond “it works on my laptop.”</p>
+</section>

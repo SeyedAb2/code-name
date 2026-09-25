@@ -29,6 +29,8 @@ Let the learner feel the problem before naming its abstraction. Do not open with
 
 Do not let the chapter become translated documentation, an RFC, engineering notes, or a checklist with Persian words. One paragraph should normally carry one main idea. When a paragraph introduces several new terms, split it and build the model gradually; preserve depth by sequencing, not by compressing concepts.
 
+Hold this narrative and teaching quality through the final exercise, lab, project, and handoff—not only the opening sections. Treat the opening as a quality floor for the entire learning item. Start with the learner's problem and the question it raises; introduce a tool or term only when it helps investigate that problem.
+
 Use conversational transitions naturally—such as “حالا یک سؤال مهم پیش می‌آید”، “بیایید خرابش کنیم و ببینیم چه می‌شود”، and “این خروجی دقیقاً چه چیزی به ما می‌گوید؟”—but vary them and never turn them into a repeated template.
 
 ## Start with project evidence
@@ -52,6 +54,8 @@ Before authoring:
 
 Keep genuine technical terms when they carry useful meaning: Docker, Dockerfile, image, container, volume, bind mount, network, bridge, DNS, cache, layer, runtime, build, stage, Compose, healthcheck, secret, environment variable, PID, CLI, and daemon. Ordinary explanation should remain Persian. Prefer Persian equivalents for ordinary words such as دستور, خروجی, خطا, مدرک/نشانه, بررسی, روند, گزارش, پوشه, مرورگر, برنامه, مشکل, and فرض. Do not mechanically translate technical terms, but also do not make ordinary prose 30–40% English.
 
+Apply the same language discipline to every course: use simple, conversational, technically accurate Persian; keep established technical terms when they are clearer than an awkward translation, but do not let ordinary English words flood Persian prose. The English version must carry the same instructional depth, evidence, nuance, and caveats as the Persian version—not merely summarize it.
+
 ## Teaching method and structure
 
 Teach important concepts as a sequence:
@@ -65,6 +69,8 @@ Each command must answer a question and act as evidence for a concept, not becom
 Representative output is part of the lesson, not decoration. Mark input versus output clearly, keep values plausibly variable where appropriate, explain which lines are evidence, and state what a failed or absent line would mean. Prefer an experiment that changes one condition at a time over an abstract claim about command behavior.
 
 For important commands, use the teaching loop **why → command → representative output → read the important line → update the mental model**. If output varies by platform, version, address, or timing, label it representative and explain what the learner should actually look for.
+
+For commands used as experiments, make the full reasoning visible: explain why this check is useful, show the command, provide representative output, interpret the evidence, and state what that evidence does not establish. Do not imply that one successful command proves a broader property than it actually tests.
 
 ## Failure-driven teaching
 
@@ -97,6 +103,19 @@ Use a `term` block with a `term-bar`, label, copy button, and LTR `pre`. Keep te
 - Use `currentColor` only when its inherited color is known safe. Avoid RTL-sensitive spatial ambiguity; label direction and ownership clearly.
 - When a rendering failure is found, add the narrow reusable safeguard to shared styling and record it in this skill.
 
+### Diagram layout and overflow contract
+
+- Treat every SVG node as a measured layout, not a sketch: keep each label inside its own shape with visible padding, check the rendered text width against the shape width, and leave enough vertical room for every line. SVG `<text>` does not wrap automatically; split long labels into intentional `<tspan>` lines or shorten them rather than letting text escape its box.
+- Make diagrams technically accurate and explanatory, never decorative. For every SVG, verify that the `viewBox` contains the complete composition with real outer padding; text remains inside its boxes; arrows and their labels use clear whitespace; boxes, labels, arrows, and boundaries do not overlap. If the layout does not fit, reflow or redesign it—do not solve the problem by shrinking text until it is hard to read.
+- Put edge/arrow labels in a dedicated callout or a gap that is demonstrably wide enough. Never let a label overlap a node, arrowhead, network boundary, or neighboring label. End arrows at the target shape's edge, not at its center or beyond it.
+- Draw ownership boundaries honestly. A volume, host, public endpoint, or external actor must not appear accidentally inside a container/network boundary. When boundaries overlap by design, use distinct outlines and labels so the shared membership is clear.
+- Use correctly cased SVG attributes (`viewBox`, `markerWidth`, `markerHeight`, `refX`, `refY`) and give each marker a unique ID within the chapter. Check that every `marker-end` reference resolves and the arrow tip is visible at the intended endpoint.
+- Do not let SVG labels inherit the page's RTL direction by accident. Technical labels should explicitly render LTR (for example, `direction:ltr; unicode-bidi:isolate` on SVG text); mark a genuinely Persian label RTL deliberately. Recheck start-anchored text against its x-coordinate after this change, since direction changes which side of the anchor the glyphs occupy.
+- Keep the complete diagram and its bilingual captions inside the same responsive frame. Captions must wrap (`max-width: 100%`, safe word breaking), and diagrams must not enlarge the page or clip at the viewport edge. At narrow widths, either redesign for a readable stacked layout or contain a readable minimum-width SVG in a horizontal-scroll frame; do not shrink labels until they become illegible.
+- Give lesson diagrams a dedicated, namespaced `.diagram` wrapper and apply its frame and SVG theme rules independently of the prose/content wrapper. Hand-authored HTML fragments can be repaired or nested differently by the browser; wrapper-scoped selectors alone can silently leave SVG text and fills at browser-default black. Keep page-level overflow contained while preserving scrolling inside the diagram frame.
+- Before handoff, render representative diagrams from the beginning, middle, and end of the chapter at desktop and mobile widths, in light and dark themes, with RTL prose. Inspect the actual screenshot for text/shape overlap, escaped boxes, cut borders, misplaced arrows, unreadable captions, and page-level horizontal overflow. A successful build alone is not diagram QA.
+- Keep SVG source legible and maintainable: format complex diagrams across lines, use descriptive titles, and add a concise bilingual caption that explains the visual grammar and what each arrow/boundary means.
+
 For visual QA, check both dark and light themes and both RTL prose/LTR code contexts. Confirm that text, arrowheads, borders, hover states, and horizontal overflow remain legible; a source-level diagram that only looks plausible is not enough.
 
 ## Exercises and labs
@@ -105,15 +124,34 @@ Substantial Docker chapters normally contain exactly 18 exercises unless the cou
 
 Exercises mix prediction, execution, output reading, explanation, debugging, command selection, and realistic scenarios. Keep the metadata count exactly aligned with actual `<div class="ex" id=...` blocks.
 
+Across a course, vary exercise forms and increase their reasoning demand progressively: move from interpreting a model or output toward diagnosing multi-signal incidents and choosing a safe next action. Avoid repetitive answer templates and prompts that differ only in names or values.
+
 Solutions are mini-lessons, not answer keys: they should explain the answer and reasoning, use a command or output when useful, and surface a nearby misunderstanding when it helps. Vary the prose; do not mechanically label every solution “Answer / Evidence / Trap / Conclusion.”
 
 When a chapter has a fixed exercise count, preserve it exactly while deepening each solution. Do not create the appearance of rigor by adding extra empty prompts or by leaving older one-line solutions beside newer detailed ones.
 
 Labs should feel like a small engineering story rather than a setup checklist. Normally include **initial goal → working baseline → observation → deliberate failure → diagnosis → repair → verification → cleanup/result check**, and explain why each checkpoint exists. Require commands and observable output, but do not frame the lab as trivia.
 
+## Project page contract
+
+A project/capstone page is a build brief, not another lecture or an oversized lab. Give the learner a believable scenario, explicit scope and deliverables, a runnable starter, staged milestones, observable acceptance criteria, a few purposeful failure drills, debugging hints, and a final review. Do not impose the chapter exercise-count convention on a project unless its brief explicitly requests exercises.
+
+Frame mini-projects as scenarios in which the learner must produce and show evidence that requirements are met. Frame capstones as mission-based work with constraints, operational decisions, verification, and handoff—not as a lecture that repeats every earlier chapter. Reuse prior concepts by reference and application instead of pointlessly reteaching them.
+
+- Keep the starter small enough that the engineering task is packaging and verification, not learning an unrelated application framework. Have the learner establish a working non-containerized baseline before writing deployment artifacts.
+- Preserve the brief's boundaries. Distinguish required outcomes from optional extensions; do not quietly add services or infrastructure that change the project.
+- Each milestone should produce evidence or a concrete decision. Use collapsible hints for progressive help, and keep the complete reference implementation after the learner's build path rather than revealing it up front.
+- Acceptance criteria must be reproducible and observable: give exact commands where useful, state what result matters, and avoid treating a successful build or running process as proof of application readiness or portability.
+- Design failure drills to isolate different boundaries. Ask the learner to collect discriminating evidence before repair, then repeat the same verification after the fix. Keep cleanup targeted to resources created by the project.
+- For projects with local secrets or persistent state, make clone/setup prerequisites explicit, keep credentials and generated data out of version control, and define the destructive-cleanup boundary. A backup checkpoint should verify that the artifact is readable or restorable, not merely that a file exists.
+- For deployment capstones, distinguish logical service roles from temporary replicas or blue/green slots. Gate traffic changes on candidate health, retain a known-good rollback target, exercise the public request path during cutover, and prove backup usability by restoring known data in an isolated target. State what the cutover test demonstrates and what it cannot guarantee.
+- Put the reference solution, explain why its important choices satisfy the requirements, and finish with a review/handoff checklist. The scaffold should remain a useful starting point rather than becoming a disguised answer key.
+
 ## Continuity and scope
 
 Every Docker chapter should know what the previous chapter taught, what new problem naturally appears now, and what belongs later. Open with continuity when useful and end with a natural reason the next chapter exists. Do not teach future chapters early merely to make the current chapter look complete.
+
+Apply this continuity across all course tracks and their projects: make the next item arise naturally from an unresolved learner problem, carry forward established models and vocabulary, and teach only the new reasoning needed here. Avoid both unexplained jumps and redundant full re-teaching.
 
 Before completion, ask: “Would a beginner understand why this works?”, “Could they diagnose the most likely failures?”, “Does the second half feel as carefully written as the first?”, “Does the Persian sound like a human teacher?”, and “If the commands disappeared, would a real lesson remain?” If any answer is no, continue editing.
 
@@ -132,6 +170,7 @@ Before handoff, audit:
 - semantic `<table class="doc-table">` elements inside `table-wrap`, with legible header, cell, and hover states in both themes;
 - diagram text/shape readability in both themes;
 - arrow semantics, ownership boundaries, and diagram captions;
+- verify SVG text bounding boxes stay inside the viewBox; center connector labels in clear gaps so they do not collide with other labels, arrows, or node cards. Check RTL pages with LTR technical labels explicitly;
 - cross-chapter terminology and removal of superseded claims;
 - representative output, including an explanation of the evidence it supplies;
 - RTL prose and LTR commands/output at mobile-width overflow boundaries;
@@ -139,3 +178,5 @@ Before handoff, audit:
 - readiness metadata and generated outputs where applicable.
 
 Run the relevant manifest/build checks. If a new authoring or rendering problem is discovered—such as fake tables, shallow prose, weak solution reasoning, missing bilingual parity, unsafe SVG defaults, or dark-mode breakage—update this living skill with a precise reusable rule before finishing.
+
+For destructive experiments in any source-control or data-management lesson, isolate the work in a disposable copy/repository or establish and verify an explicit safety reference/backup before changing state. Explain the boundary of what the system actually recorded: never promise recovery for data that was never stored, and do not imply recovery is assured until there is evidence of a recoverable copy.

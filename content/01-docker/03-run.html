@@ -51,9 +51,9 @@ a1b2c3d4e5f6   hello-world   Exited (0) 4 seconds ago    lucid_morse</pre>
 <p lang="fa">وقتی docker run IMAGE می‌زنی، از بیرون فقط یک دستور می‌بینی. اما Docker چند کار را پشت سر هم انجام می‌دهد: image را پیدا می‌کند، اگر لازم باشد می‌گیرد، یک container از روی آن می‌سازد و بعد پردازش اصلی را راه می‌اندازد. فهم همین چند مرحله بعداً خیلی از خطاها را قابل‌فهم می‌کند.</p>
 <p lang="en"><code>docker run IMAGE</code> is one command from the user’s perspective. Conceptually, the Engine resolves the image, pulls if policy requires and the image is absent, creates container identity/configuration, starts the main process, and in foreground mode attaches its streams to the CLI.</p>
 <div class="diagram">
-<svg aria-labelledby="d3-run-flow" role="img" viewbox="0 0 900 285">
+<svg aria-labelledby="d3-run-flow" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 900 285">
 <title id="d3-run-flow">Conceptual docker run flow</title>
-<defs><marker id="d3-run-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<defs><marker id="d3-run-arrow" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
 <g class="dg-stroke-b" marker-end="url(#d3-run-arrow)" stroke-width="2">
 <path d="M150 140h50"></path><path d="M340 140h50"></path><path d="M530 140h50"></path><path d="M720 140h50"></path>
 </g>
@@ -86,9 +86,9 @@ docker rm created-demo</pre>
 <section id="lifecycle">
 <h2><span lang="fa">توقف container با حذف‌شدنش یکی نیست</span><span lang="en">Read lifecycle from state, not guesswork</span></h2><p class="lede" lang="fa">یک container را مثل برنامه‌ای تصور کن که پرونده‌ای برای خودش دارد. ممکن است برنامه تمام شود، اما پروندهٔ container هنوز باقی بماند؛ برای همین بعد از توقف هم می‌توانی وضعیت، کد خروج و لاگ‌هایش را ببینی.</p>
 <div class="diagram">
-<svg aria-labelledby="d3-state-flow" role="img" viewbox="0 0 900 300">
+<svg aria-labelledby="d3-state-flow" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 900 300">
 <title id="d3-state-flow">Container lifecycle</title>
-<defs><marker id="d3-state-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<defs><marker id="d3-state-arrow" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
 <g class="dg-stroke-b" marker-end="url(#d3-state-arrow)" stroke-width="2">
 <path d="M165 145h65"></path><path d="M390 145h65"></path><path d="M615 145h65"></path>
 </g>
@@ -298,9 +298,9 @@ docker rm web</pre>
 <p class="lede" lang="fa">Running بودن فقط می‌گوید پردازش اصلی هنوز زنده است. هنوز معلوم نیست راهی از سیستم تو تا سرویس داخل container ساخته شده باشد. اینجا باید دو پورت را از هم جدا کنیم: پورتی که روی سیستم خودت باز می‌کنی و پورتی که برنامه داخل container روی آن گوش می‌دهد.</p>
 <p class="lede" lang="en">Running only tells you the primary process is alive. It proves nothing yet about the network path from host to application. For that path, separate two numbers: the <strong>host port</strong> and the <strong>container port</strong>.</p>
 <div class="diagram">
-<svg aria-labelledby="d3-port-flow" role="img" viewbox="0 0 920 300">
+<svg aria-labelledby="d3-port-flow" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 920 300">
 <title id="d3-port-flow">Host to container port publishing</title>
-<defs><marker id="d3-port-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<defs><marker id="d3-port-arrow" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
 <g class="dg-stroke-b" marker-end="url(#d3-port-arrow)" stroke-width="2">
 <path d="M220 150h110"></path><path d="M590 150h110"></path>
 </g>
@@ -377,9 +377,9 @@ docker inspect web --format \
 <p class="lede" lang="fa">فرض کن فقط می‌دانیم «سایت باز نمی‌شود». اگر مستقیم port، image و Dockerfile را با هم دست‌کاری کنیم، هر بار چند چیز عوض می‌شود و فهمیدن علت سخت‌تر می‌شود. بهتر است از ساده‌ترین سؤال شروع کنیم و هر مرحله فقط یک چیز را روشن کند.</p>
 <p class="lede" lang="en">When someone says “the container does not work,” do not jump to the end of the chain. Do not memorize this as a ritual; understand the logic: each question establishes a prerequisite for the next.</p>
 <div class="diagram">
-<svg aria-labelledby="d3-debug-flow" role="img" viewbox="0 0 960 430">
+<svg aria-labelledby="d3-debug-flow" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 960 430">
 <title id="d3-debug-flow">Container troubleshooting sequence</title>
-<defs><marker id="d3-debug-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<defs><marker id="d3-debug-arrow" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
 <g class="dg-stroke-b" marker-end="url(#d3-debug-arrow)" stroke-width="2">
 <path d="M480 60v35"></path><path d="M480 135v35"></path><path d="M480 210v35"></path><path d="M480 285v35"></path>
 </g>
@@ -501,7 +501,7 @@ docker top web</pre>
 </section>
 <section id="inspect-case">
 <h2><span lang="fa">به‌جای غرق‌شدن در JSON، از inspect سؤال مشخص بپرس</span><span lang="en">Turn inspect into questions instead of dumping thousands of JSON lines</span></h2>
-<p lang="fa">خروجی کامل docker inspect می‌تواند خیلی طولانی باشد. اگر از قبل ندانی دنبال چه هستی، بین ده‌ها فیلد گم می‌شوی. بهتر است قبل از دستور، سؤال را بنویسی: «وضعیت چیست؟ command چیست؟ پورت‌ها چطور map شده‌اند؟» بعد فقط همان فیلد را بگیری.</p>
+<p lang="fa">خروجی کامل docker inspect می‌تواند خیلی طولانی باشد. اگر از قبل ندانی دنبال چه هستی، بین ده‌ها فیلد گم می‌شوی. بهتر است قبل از دستور، سؤال را بنویسی: «وضعیت چیست؟ دستور چیست؟ پورت‌ها چطور map شده‌اند؟» بعد فقط همان فیلد را بگیری.</p>
 <p lang="en">When a container misbehaves, raw <code>docker inspect NAME</code> can return so much data that the useful fact disappears. Write the question before the command.</p>
 <div class="table-wrap">
 <table class="doc-table">

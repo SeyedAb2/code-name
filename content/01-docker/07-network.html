@@ -49,9 +49,9 @@ $ docker run --rm --network demo-net curlimages/curl:latest \
 <p lang="fa">فعلاً لازم نیست وارد جزئیات kernel شویم. هر container را مثل یک اتاق کوچک شبکه تصور کن؛ loopback، interface و دید خودش را دارد. Docker می‌تواند بین این اتاق‌ها راه بسازد، اما <code>localhost</code> همیشه داخل همان اتاق می‌ماند. همین تصویر ساده بعداً خیلی از خطاهای شبکه را توضیح می‌دهد.</p>
 <p lang="en">You do not need kernel details at the start. For this chapter, think of a network namespace as a network room: each container has its own loopback, interface, routes, and DNS view. Docker can connect those rooms with interfaces and a bridge, but <code>localhost</code> does not cross a room's wall.</p>
 <div class="diagram">
-<svg aria-labelledby="c7-scope-title" role="img" viewbox="0 0 980 330">
+<svg aria-labelledby="c7-scope-title" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 980 330">
 <title id="c7-scope-title">The host, web container, and client container each have a separate localhost scope</title>
-<defs><marker id="c7-scope-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<defs><marker id="c7-scope-arrow" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
 <g class="dg-stroke-b" marker-end="url(#c7-scope-arrow)" stroke-width="2">
 <path d="M490 116H370"></path><path d="M490 116H610"></path>
 </g>
@@ -65,7 +65,7 @@ $ docker run --rm --network demo-net curlimages/curl:latest \
 <rect class="dg-fill-g" height="130" rx="12" width="220" x="685" y="108"></rect>
 <text class="dg-t" x="795" y="146">client container</text><text class="dg-ts" x="795" y="177">its own localhost</text><text class="dg-ts" x="795" y="207">curl runs here</text>
 </g>
-<text class="dg-ts" x="430" y="101">published path only when configured</text><text class="dg-ts" x="550" y="101">network path is explicit</text>
+<text class="dg-ts" text-anchor="middle" x="430" y="101">host → web</text><text class="dg-ts" text-anchor="middle" x="550" y="101">client → web</text>
 </svg>
 <p class="diagram-cap" lang="fa">کادرها سه محدوده مستقل را نشان می‌دهند، نه سه اسم برای یک آدرس. فلش host به web فقط مسیر publish شده را معنا می‌کند؛ فلش client به web مسیر شبکه داخلی را نشان می‌دهد. هیچ‌کدام <code>localhost</code> را به اتاق دیگری منتقل نمی‌کنند.</p>
 <p class="diagram-cap" lang="en">The boxes show three independent scopes, not three names for one address. The host-to-web arrow means a published path; the client-to-web arrow means an internal network path. Neither changes what <code>localhost</code> means inside another room.</p>
@@ -120,9 +120,9 @@ $ docker run --rm --network demo-net curlimages/curl:latest   -fsS -v http://web
 <p lang="fa">در خروجی <code>curl -v</code> خطی شبیه <code>Connected to web</code> را پیدا کن. نکته همین است: ما IP را ننوشته‌ایم. client نام <code>web</code> را در همان شبکه پیدا کرده و بعد درخواست HTTP را به آدرس فعلی آن فرستاده است.</p>
 <p lang="en">In PowerShell, <code>Select-String</code> only shortens the displayed output; on Linux or macOS use <code>grep -E 'Connected|HTTP/'</code>. The useful line is <code>Connected to web</code>: client resolved web to an IP without us memorizing that IP.</p>
 <div class="diagram">
-<svg aria-labelledby="c7-dns-title" role="img" viewbox="0 0 950 280">
+<svg aria-labelledby="c7-dns-title" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 950 280">
 <title id="c7-dns-title">A client resolves the name web through the user-defined network's internal DNS and requests web port 80</title>
-<defs><marker id="c7-dns-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<defs><marker id="c7-dns-arrow" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
 <g class="dg-stroke-b" marker-end="url(#c7-dns-arrow)" stroke-width="2">
 <path d="M235 140h110"></path><path d="M585 140h110"></path>
 </g>
@@ -134,7 +134,7 @@ $ docker run --rm --network demo-net curlimages/curl:latest   -fsS -v http://web
 <rect class="dg-fill" height="114" rx="12" width="230" x="695" y="83"></rect>
 <text class="dg-t" x="810" y="121">web container</text><text class="dg-ts" x="810" y="153">nginx :80</text><text class="dg-ts" x="810" y="180">destination</text>
 </g>
-<text class="dg-ts" x="290" y="130">name lookup</text><text class="dg-ts" x="640" y="130">HTTP request</text>
+<text class="dg-ts" text-anchor="middle" x="290" y="130">name lookup</text><text class="dg-ts" text-anchor="middle" x="640" y="130">HTTP request</text>
 </svg>
 <p class="diagram-cap" lang="fa">در نمودار دو اتفاق جدا داریم. اول نام <code>web</code> به آدرس داخلی فعلی‌اش پیدا می‌شود؛ بعد درخواست HTTP به port 80 آن آدرس می‌رود. جدا دیدن این دو مرحله مهم است، چون «نام پیدا نشد» با «نام پیدا شد ولی اتصال رد شد» دو مشکل متفاوت‌اند.</p>
 <p class="diagram-cap" lang="en">The first arrow is only name resolution: <code>web</code> becomes an internal address within <code>demo-net</code>. The second arrow is the actual HTTP request to web's port 80; keep the two steps distinct.</p>
@@ -197,9 +197,9 @@ on endpoint web-copy (...): Bind for 127.0.0.1:8080 failed: port is already allo
 <p lang="fa">این خطا دربارهٔ port داخلی nginx نیست؛ host port ۸۰۸۰ قبلاً مالک دارد. اول <code>docker ps</code> و نگاشت را پیدا کن، بعد host port را عوض کن یا اگر caller داخلی است اصلاً publish را حذف کن.</p>
 <p lang="en">This failure is not about nginx's internal port; host port 8080 is already owned. Find the existing mapping with <code>docker ps</code>, then change the host port or remove publishing if the caller is internal.</p>
 <div class="diagram">
-<svg aria-labelledby="c7-publish-title" role="img" viewbox="0 0 960 280">
+<svg aria-labelledby="c7-publish-title" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 960 280">
 <title id="c7-publish-title">A host browser reaches web through a published host port, while the container still listens on port 80</title>
-<defs><marker id="c7-publish-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<defs><marker id="c7-publish-arrow" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
 <g class="dg-stroke-b" marker-end="url(#c7-publish-arrow)" stroke-width="2">
 <path d="M245 140h90"></path><path d="M575 140h105"></path>
 </g>
@@ -211,7 +211,7 @@ on endpoint web-copy (...): Bind for 127.0.0.1:8080 failed: port is already allo
 <rect class="dg-fill" height="110" rx="12" width="250" x="680" y="85"></rect>
 <text class="dg-t" x="805" y="123">web container</text><text class="dg-ts" x="805" y="156">nginx:80</text><text class="dg-ts" x="805" y="181">destination</text>
 </g>
-<text class="dg-ts" x="290" y="130">host request</text><text class="dg-ts" x="627" y="130">forward to</text>
+<text class="dg-ts" text-anchor="middle" x="290" y="130">host request</text><text class="dg-ts" text-anchor="middle" x="627" y="130">forward to</text>
 </svg>
 <p class="diagram-cap" lang="fa">هر فلش درخواست مسیر را نشان می‌دهد. publish یک درِ host می‌سازد؛ port داخلی عوض نمی‌شود و nginx هنوز روی ۸۰ است. مسیر داخلی client به web از این نگاشت عبور نمی‌کند.</p>
 <p class="diagram-cap" lang="en">Each arrow is a request path. Publishing creates a host-side door; the internal port does not change and nginx still listens on 80. The internal client-to-web path does not need to cross this mapping.</p>
@@ -305,9 +305,9 @@ $ docker network inspect side-net
 <p lang="fa">یک برنامهٔ واقعی همیشه یک شبکه ندارد. شاید web روی شبکهٔ جلویی باشد، پایگاه‌داده روی شبکهٔ پشتی و یک gateway لازم باشد هر دو طرف را ببیند. قرار نیست برای راحتی همه را به همه‌جا وصل کنیم؛ هر container فقط شبکه‌هایی را می‌گیرد که واقعاً لازم دارد.</p>
 <p lang="en">A more realistic setup has web on <code>front-net</code>, database on <code>back-net</code>, and a gateway or worker that needs both. That dual attachment should not make every container see everything.</p>
 <div class="diagram">
-<svg aria-labelledby="c7-multi-title" role="img" viewbox="0 0 980 330">
+<svg aria-labelledby="c7-multi-title" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 980 330">
 <title id="c7-multi-title">A gateway is attached to two isolated bridge networks while web and database stay on their own side</title>
-<defs><marker id="c7-multi-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<defs><marker id="c7-multi-arrow" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
 <g class="dg-stroke-b" marker-end="url(#c7-multi-arrow)" stroke-width="2">
 <path d="M205 135h115"></path><path d="M660 135h115"></path><path d="M490 205v64"></path>
 </g>
@@ -323,7 +323,7 @@ $ docker network inspect side-net
 <rect class="dg-fill" height="76" rx="10" width="150" x="775" y="148"></rect>
 <text class="dg-t" x="850" y="180">db</text><text class="dg-ts" x="850" y="207">back only</text>
 </g>
-<text class="dg-ts" x="260" y="126">request path</text><text class="dg-ts" x="715" y="126">request path</text><text class="dg-ts" x="530" y="264">attachment boundary</text>
+<text class="dg-ts" text-anchor="middle" x="262" y="127">web → gateway</text><text class="dg-ts" text-anchor="middle" x="718" y="127">gateway → db</text><text class="dg-ts" x="530" y="264">attachment boundary</text>
 </svg>
 <p class="diagram-cap" lang="fa">فلش‌های افقی درخواست را نشان می‌دهند و فلش عمودی attachment را: gateway در هر دو شبکه عضو است، اما web و db فقط در محدوده خودشان هستند. همین عضویت تعیین می‌کند کدام نام قابل پیدا و کدام مسیر قابل استفاده باشد.</p>
 <p class="diagram-cap" lang="en">The horizontal arrows are request paths and the vertical arrow is an attachment. The gateway belongs to both networks, while web and db stay in their own scopes. Membership determines which names resolve and which paths exist.</p>

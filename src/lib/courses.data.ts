@@ -335,129 +335,129 @@ export const TRACKS: Track[] = [
       {
         "n": "11",
         "file": "11-registry.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 70,
+        "mins": 130,
         "fa": {
           "t": "registry و push",
-          "d": "تگ‌گذاری معنادار، push به Docker Hub و registry خصوصی."
+          "d": "از image محلی تا انتشار در registry؛ نام‌گذاری repository، tag و digest، ورود امن، push، pull و اثبات اجرای image بازیابی‌شده."
         },
         "en": {
-          "t": "Registries and pushing",
-          "d": "Meaningful tagging, pushing to Docker Hub and to a private registry."
+          "t": "Registries, repositories, tags, and push",
+          "d": "Publish a local image, read registry names and digests, authenticate safely, push and pull, then prove the retrieved image runs."
         },
-        "kw": "registry push pull tag login digest",
+        "kw": "registry repository namespace tag digest docker hub ghcr login password-stdin push pull layers RepoDigests latest image distribution",
         "cap": 0
       },
       {
         "n": "12",
         "file": "12-debug.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 80,
+        "mins": 160,
         "fa": {
           "t": "عیب‌یابی: exit code، OOM، پر شدن دیسک",
-          "d": "کانتینر مُرد. حالا چه؟ روش سیستماتیک خواندن نشانه‌ها."
+          "d": "از Exited 137 و خطای no space left تا مدرک، علت و اصلاح؛ بدون حدس یا پاک‌سازی پرخطر."
         },
         "en": {
-          "t": "Troubleshooting: exit codes, OOM, disk",
-          "d": "The container died. Now what? A systematic way to read the symptoms."
+          "t": "Troubleshooting: exit codes, OOM, and disk exhaustion",
+          "d": "Trace exit status, OOM, and storage failures from evidence to a verified repair without destructive guesswork."
         },
-        "kw": "exit code 137 oom prune disk inspect events",
+        "kw": "exit code 126 127 137 143 oom oomkilled memory disk full enospc df inode docker system df prune log driver",
         "cap": 0
       },
       {
         "n": "13",
         "file": "13-security.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 75,
+        "mins": 170,
         "fa": {
           "t": "امنیت: non-root، read-only، محدودیت منابع",
-          "d": "کانتینر ماشین مجازی نیست. مرزها را خودت باید بکشی."
+          "d": "از کاربر غیرریشه و فایل‌سیستم فقط‌خواندنی تا سقف حافظه، CPU و پردازه؛ هر تغییر با آزمون و مدرک."
         },
         "en": {
-          "t": "Security: non-root, read-only, resource limits",
-          "d": "A container is not a VM. You draw the boundaries yourself."
+          "t": "Container security: non-root, read-only filesystems, and resource limits",
+          "d": "Reduce container authority, writable paths, and resource blast radius; verify each control with a working service."
         },
-        "kw": "non-root user cap-drop read-only seccomp memory cpu limit",
+        "kw": "security non-root user uid gid chown read-only readonly rootfs tmpfs volume memory mem_limit cpu cpus pids_limit docker.sock privileged capability Compose",
         "cap": 0
       },
       {
         "n": "14",
         "file": "14-deploy.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 85,
+        "mins": 180,
         "fa": {
           "t": "استقرار روی VPS",
-          "d": "از لپ‌تاپ تا سرور واقعی: انتقال ایمیج، reverse proxy، به‌روزرسانی بدون قطعی."
+          "d": "از انتشار image نسخه‌دار تا reverse proxy، بررسی سلامت و rollback؛ با توضیح صادقانهٔ وقفهٔ ممکن."
         },
         "en": {
-          "t": "Deploying to a VPS",
-          "d": "Laptop to real server: shipping the image, reverse proxy, zero-downtime updates."
+          "t": "Deploying Docker applications to a VPS",
+          "d": "Ship versioned images, route through a reverse proxy, verify health, and roll back; understand single-container downtime."
         },
-        "kw": "vps deploy ssh proxy nginx tls update rollback",
+        "kw": "vps deploy ssh registry caddy tls compose update rollback firewall",
         "cap": 0
       },
       {
         "n": "15",
         "file": "15-cap1.html",
-        "ready": false,
-        "ex": 5,
-        "mins": 60,
+        "ready": true,
+        "ex": 0,
+        "mins": 180,
         "fa": {
           "t": "پروژهٔ ۱ — یک سرویس، یک ایمیج",
-          "d": "یک اپ ساده را خودت بسته‌بندی کن و روی پورت دلخواه بالا بیاور."
+          "d": "یک API کوچک را خودت به image نسخه‌دار تبدیل کن، به registry بفرست و از نو pull و اجرا کن."
         },
         "en": {
-          "t": "Project 1 — one service, one image",
-          "d": "Package a simple app yourself and bring it up on a port of your choosing."
+          "t": "Project 1 — One service, one image",
+          "d": "Build a versioned image for a small API, push it to a registry, then pull and run it from scratch."
         },
-        "kw": "capstone project simple",
+        "kw": "project capstone node typescript dockerfile dockerignore multistage non-root healthcheck registry push pull limits",
         "cap": 1
       },
       {
         "n": "16",
         "file": "16-cap2.html",
-        "ready": false,
-        "ex": 7,
-        "mins": 90,
+        "ready": true,
+        "ex": 0,
+        "mins": 240,
         "fa": {
           "t": "پروژهٔ ۲ — اپ + پایگاه‌داده با Compose",
-          "d": "دو سرویس، یک شبکهٔ داخلی، والیوم ماندگار و پیکربندی از بیرون."
+          "d": "دو سرویس، یک شبکهٔ داخلی، والیوم ماندگار، secret فایل‌محور و مدرک ماندگاری داده."
         },
         "en": {
-          "t": "Project 2 — app + database with Compose",
-          "d": "Two services, an internal network, a persistent volume and external configuration."
+          "t": "Project 2 — Web application + database with Docker Compose",
+          "d": "Two services, an internal network, a persistent volume, a file-backed secret, and proof of data persistence."
         },
-        "kw": "capstone compose postgres volume",
+        "kw": "capstone compose postgres volume secret healthcheck backup",
         "cap": 2
       },
       {
         "n": "17",
         "file": "17-cap3.html",
-        "ready": false,
-        "ex": 9,
-        "mins": 150,
+        "ready": true,
+        "ex": 0,
+        "mins": 480,
         "fa": {
           "t": "پروژهٔ ۳ — استقرار سه‌سرویسه روی سرور واقعی",
-          "d": "اپ، پایگاه‌داده و پروکسی با healthcheck، پشتیبان‌گیری شبانه و به‌روزرسانی بدون قطعی."
+          "d": "Caddy، برنامه و PostgreSQL روی VPS؛ backup شبانه، آزمون restore، انتشار blue/green و rollback با شواهد."
         },
         "en": {
-          "t": "Project 3 — three-service deployment on a real server",
-          "d": "App, database and proxy with healthchecks, nightly backups and zero-downtime updates."
+          "t": "Project 3 — Deploy a three-service application to a real server",
+          "d": "Deploy Caddy, an application, and PostgreSQL to a VPS; prove nightly backup, restore, blue/green release, and rollback."
         },
-        "kw": "capstone production backup proxy healthcheck",
+        "kw": "capstone production vps caddy postgres registry blue green zero downtime backup restore rollback",
         "cap": 3
       }
     ],
     "stats": {
       "chapters": 17,
-      "exercises": 263,
-      "minutes": 1815,
+      "exercises": 242,
+      "minutes": 2745,
       "capstones": 3,
-      "ready": 10
+      "ready": 17
     }
   },
   {
@@ -11240,7 +11240,7 @@ export const TRACKS: Track[] = [
       {
         "n": "02",
         "file": "02-model.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
@@ -11549,7 +11549,7 @@ export const TRACKS: Track[] = [
       "exercises": 303,
       "minutes": 1570,
       "capstones": 3,
-      "ready": 1
+      "ready": 2
     }
   },
   {

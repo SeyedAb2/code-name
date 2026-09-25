@@ -50,11 +50,15 @@
   height: 58px;
   flex: none;
   border-radius: 16px;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
   color: var(--acc, var(--blue));
   background: color-mix(in srgb, var(--acc, var(--blue)) 13%, transparent);
   border: 1px solid var(--line);
+
+  svg { display: block; flex: none; }
 }
 
 .titles {
@@ -144,7 +148,7 @@
     color: var(--ink-soft);
   }
 
-  > span {
+  > span:not(.factIcon) {
     display: block;
     margin-top: 3px;
     font-size: .735rem;
@@ -156,11 +160,15 @@
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
   margin-bottom: 9px;
   color: var(--fc, var(--blue));
   background: color-mix(in srgb, var(--fc, var(--blue)) 14%, transparent);
+
+  svg { display: block; flex: none; }
 }
 
 .fact:nth-child(1) { --fc: var(--blue); }

@@ -22,9 +22,9 @@ desc: چرا image سالم می‌تواند بزرگ باشد؛ جداسازی
 <p lang="fa">قرار نیست مستقیم سراغ راه‌حل برویم. اول یک image تک‌مرحله‌ای می‌سازیم که کاملاً کار می‌کند، ولی عمداً وسایل کارگاه را هم با محصول نهایی داخل یک جعبه می‌گذارد. بعد اندازه‌اش می‌گیریم و می‌بینیم دقیقاً چه چیزهایی بی‌دلیل همراه برنامه مانده‌اند. وقتی مشکل را با چشم دیدیم، <em>multi-stage build</em> دیگر یک دستور حفظی نیست؛ جواب یک سؤال واقعی است.</p>
 <p lang="en">To answer, we will first build a single-stage image. It intentionally keeps everything: source files, <code>node_modules</code>, TypeScript, and the build output. That is not wrong as a starting point. The problem begins when we assume the build environment and the runtime environment must be identical.</p>
 <div class="diagram">
-<svg aria-labelledby="c5-flow-one" role="img" viewbox="0 0 900 260">
+<svg aria-labelledby="c5-flow-one" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 900 260">
 <title id="c5-flow-one">Source becomes an artifact through build tools, then the runtime executes the artifact</title>
-<defs><marker id="c5-arrow-one" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<defs><marker id="c5-arrow-one" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
 <g class="dg-stroke-b" marker-end="url(#c5-arrow-one)" stroke-width="2">
 <path d="M185 130h72"></path><path d="M395 130h72"></path><path d="M605 130h72"></path>
 </g>
@@ -38,7 +38,7 @@ desc: چرا image سالم می‌تواند بزرگ باشد؛ جداسازی
 <rect class="dg-fill-b" height="88" rx="10" width="200" x="677" y="86"></rect>
 <text class="dg-t" x="777" y="119">runtime</text><text class="dg-ts" x="777" y="145">node executes JS</text>
 </g>
-<text class="dg-ts" x="221" y="116">compile</text><text class="dg-ts" x="431" y="116">produce</text><text class="dg-ts" x="641" y="116">run</text>
+<text class="dg-ts" text-anchor="middle" x="222" y="72">compile</text><text class="dg-ts" text-anchor="middle" x="435" y="72">produce</text><text class="dg-ts" text-anchor="middle" x="641" y="72">run</text>
 </svg>
 <p class="diagram-cap" lang="fa">پیکان‌ها فقط مسیر کار را نشان می‌دهند: کد منبع با ابزارهای build تبدیل به فایل قابل‌اجرا می‌شود و بخش زمان اجرا همان فایل را اجرا می‌کند. سؤال سادهٔ فصل این است: اگر اره و پیچ‌گوشتی برای ساخت محصول لازم بوده‌اند، چرا باید داخل جعبهٔ محصولی باشند که به مشتری می‌دهیم؟</p>
 <p class="diagram-cap" lang="en">Arrows show transformations: build tools turn source into an artifact, and the runtime executes that artifact. This chapter asks why the build tools should remain in the final image.</p>
@@ -102,9 +102,9 @@ IMAGE       CREATED        CREATED BY                         SIZE
 <p class="lede" lang="fa">اولین فکری که ممکن است به ذهن برسد این است: «آخر build فایل‌های اضافه را پاک می‌کنم.» می‌شود، اما راه تمیزتری داریم. در Dockerfile چند <code>FROM</code> می‌نویسیم و برای هر مرحله یک محیط جدا می‌سازیم. محیط اول کار ساخت را انجام می‌دهد؛ محیط آخر از یک image پایهٔ تازه شروع می‌شود و فقط چیزهایی را می‌گیرد که صریحاً به آن منتقل کنیم.</p>
 <p class="lede" lang="en">The solution is not manually deleting files from the same stage. We use multiple <code>FROM</code> instructions. Each <code>FROM</code> starts a new stage with its own base and filesystem; only what you explicitly bring to the final stage gets there.</p>
 <div class="diagram">
-<svg aria-labelledby="c5-compare" role="img" viewbox="0 0 960 330">
+<svg aria-labelledby="c5-compare" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 960 330">
 <title id="c5-compare">Single-stage baggage compared with a builder and clean runtime stage</title>
-<defs><marker id="c5-arrow-compare" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<defs><marker id="c5-arrow-compare" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
 <g class="dg-stroke-b" marker-end="url(#c5-arrow-compare)" stroke-width="2">
 <path d="M180 95h85"></path><path d="M180 235h85"></path><path d="M445 235h95"></path><path d="M700 235h85"></path>
 </g>
@@ -116,7 +116,7 @@ IMAGE       CREATED        CREATED BY                         SIZE
 <rect class="dg-fill-b" height="80" rx="10" width="160" x="540" y="195"></rect><text class="dg-t" x="620" y="228">runtime stage</text><text class="dg-ts" x="620" y="253">clean base</text>
 <rect class="dg-fill" height="80" rx="10" width="155" x="785" y="195"></rect><text class="dg-t" x="862" y="228">final image</text><text class="dg-ts" x="862" y="253">only what runs</text>
 </g>
-<text class="dg-ts" x="220" y="84">keeps baggage</text><text class="dg-ts" x="217" y="224">builds</text><text class="dg-ts" x="490" y="224">COPY --from</text><text class="dg-ts" x="742" y="224">becomes</text>
+<text class="dg-ts" text-anchor="middle" x="222" y="45">keeps baggage</text><text class="dg-ts" text-anchor="middle" x="222" y="187">builds</text><text class="dg-ts" text-anchor="middle" x="492" y="187">COPY --from</text><text class="dg-ts" text-anchor="middle" x="742" y="187">becomes</text>
 </svg>
 <p class="diagram-cap" lang="fa">در مسیر تک‌مرحله‌ای، یک فایل‌سیستم همه‌چیز را نگه می‌دارد. در مسیر چندمرحله‌ای، پیکان‌ها build و سپس انتقال صریح خروجی build را نشان می‌دهند؛ کامپایلر خودبه‌خود به image نهایی نمی‌رود.</p>
 <p class="diagram-cap" lang="en">In the single-stage path, one filesystem keeps everything. In the multi-stage path, arrows show the build and the explicit artifact transfer; the compiler does not appear in the final image automatically.</p>
@@ -265,9 +265,9 @@ CMD ["node", "dist/server.js"]</pre>
 <p lang="fa">این دستور را مثل یک آدرس سه‌قسمتی بخوان: <code>builder</code> می‌گوید از کدام مرحله بخوان؛ <code>/app/dist</code> می‌گوید فایل در آن مرحله کجاست؛ و <code>./dist</code> می‌گوید در مرحلهٔ فعلی کجا قرارش بده. اگر یکی از این سه را اشتباه بگیری، build همان‌جا می‌ایستد و هنوز اصلاً به اجرای container نرسیده‌ای.</p>
 <p lang="en">The three names in this instruction have different roles: <code>builder</code> is a stage name; <code>/app/dist</code> is an absolute path inside the builder filesystem; <code>./dist</code> is a destination in the runtime filesystem. If you confuse any of them with a laptop path, the build fails before runtime begins.</p>
 <div class="diagram">
-<svg aria-labelledby="c5-copy" role="img" viewbox="0 0 920 270">
+<svg aria-labelledby="c5-copy" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 920 270">
 <title id="c5-copy">COPY from builder stage to runtime stage</title>
-<defs><marker id="c5-arrow-copy" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<defs><marker id="c5-arrow-copy" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
 <g class="dg-stroke-b" marker-end="url(#c5-arrow-copy)" stroke-width="2">
 <path d="M220 130h95"></path><path d="M535 130h95"></path>
 </g>
@@ -276,7 +276,7 @@ CMD ["node", "dist/server.js"]</pre>
 <rect class="dg-fill-g" height="90" rx="10" width="220" x="315" y="85"></rect><text class="dg-t" x="425" y="119">COPY --from</text><text class="dg-ts" x="425" y="146">explicit transfer</text>
 <rect class="dg-fill-b" height="90" rx="10" width="270" x="630" y="85"></rect><text class="dg-t" x="765" y="119">runtime filesystem</text><text class="dg-ts" x="765" y="146">/app/dist/server.js</text>
 </g>
-<text class="dg-ts" x="267" y="117">reads from stage</text><text class="dg-ts" x="582" y="117">writes to final</text>
+<text class="dg-ts" text-anchor="middle" x="267" y="117">reads from stage</text><text class="dg-ts" text-anchor="middle" x="582" y="117">writes to final</text>
 </svg>
 <p class="diagram-cap" lang="fa">پیکان اول خواندن خروجی build از stage builder و پیکان دوم نوشتن آن در runtime را نشان می‌دهد؛ این مسیر درخواست شبکه یا copy از host نیست.</p>
 <p class="diagram-cap" lang="en">The first arrow reads the artifact from the builder and the second writes it into runtime; this is not a network request or a copy from the host.</p>
@@ -326,9 +326,9 @@ a82c...     seconds ago   CMD ["node","dist/server.js"]       0B
 <p class="lede" lang="fa">اینجا دو موضوع خیلی راحت با هم قاطی می‌شوند. یکی این است که «چه چیزی داخل image نهایی می‌رود؟» و دیگری اینکه «در build بعدی کدام مرحله دوباره اجرا می‌شود؟» اولی دربارهٔ محتوای image نهایی است؛ دومی دربارهٔ cache و سرعت build. ممکن است مرحلهٔ builder کاملاً از cache استفاده شود، ولی هیچ‌کدام از فایل‌های اضافی آن وارد image نهایی نشوند.</p>
 <p class="lede" lang="en">Multi-stage has two separate questions: what enters the final image, and which steps rerun on the next build? The cache may speed up the builder even though builder files never enter the final image.</p>
 <div class="diagram">
-<svg aria-labelledby="c5-cache" role="img" viewbox="0 0 900 270">
+<svg aria-labelledby="c5-cache" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 900 270">
 <title id="c5-cache">Cache behavior for dependency files and source files across a builder stage</title>
-<defs><marker id="c5-arrow-cache" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<defs><marker id="c5-arrow-cache" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
 <g class="dg-stroke-b" marker-end="url(#c5-arrow-cache)" stroke-width="2">
 <path d="M180 85h80"></path><path d="M180 190h80"></path><path d="M475 85h105"></path><path d="M475 190h105"></path>
 </g>
@@ -463,7 +463,7 @@ repository does not exist or may require authorization</pre>
 <li><b lang="fa">multi-stage</b><b lang="en">Multi-stage</b><p lang="fa"><code>Dockerfile.multi</code> را مرحله‌به‌مرحله بنویس؛ قبل از build پیش‌بینی کن کدام فایل‌ها نهایی را ترک می‌کنند.</p><p lang="en">Write <code>Dockerfile.multi</code> step by step; predict which files leave the final image before building.</p></li>
 <li><b lang="fa">مقایسه</b><b lang="en">Compare</b><p lang="fa">اندازه، تاریخچه، دستور و مسیر خروجی build را در یک جدول کوتاه مقایسه کن. اعداد را نمونه‌ای یا واقعی برچسب بزن.</p><p lang="en">Compare size, history, command, and artifact path in a short table. Label values as representative or measured.</p></li>
 <li><b lang="fa">cache</b><b lang="en">Cache</b><p lang="fa">فقط کد منبع را تغییر بده و دوباره build کن؛ سپس lockfile را تغییر بده و تفاوت stepهای cached را یادداشت کن.</p><p lang="en">Change only source and rebuild; then change the lockfile and record which cached steps differ.</p></li>
-<li><b lang="fa">شکست</b><b lang="en">Break</b><p lang="fa">نام stage یا مسیر <code>COPY --from</code> را عمداً غلط کن. متن خطا، مرز خراب و fix را بنویس.</p><p lang="en">Deliberately break the stage name or <code>COPY --from</code> path. Record the error, broken boundary, and fix.</p></li>
+<li><b lang="fa">شکست</b><b lang="en">Break</b><p lang="fa">نام stage یا مسیر <code>COPY --from</code> را عمداً غلط کن. متن خطا، مرز خراب و اصلاح را بنویس.</p><p lang="en">Deliberately break the stage name or <code>COPY --from</code> path. Record the error, broken boundary, and fix.</p></li>
 <li><b lang="fa">تحویل</b><b lang="en">Handoff</b><p lang="fa">tagهای آزمایشی و containerها را حذف کن و یک گزارش کوتاه با شواهد، محدودیت‌ها و نتیجه بنویس.</p><p lang="en">Remove test tags and containers and write a short report with evidence, limitations, and the result.</p></li>
 </ol>
 <details class="ex-sol">

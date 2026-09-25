@@ -1,0 +1,434 @@
+<!--meta
+title: عیب‌یابی: exit code، OOM، پر شدن دیسک
+desc: از Exited (137) و خطای no space left تا مدرک، علت، اصلاح و تکرار همان آزمون؛ بدون حدس و پاک‌سازی پرخطر.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">Docker · فصل ۱۲</span><span lang="en">Docker · Chapter 12</span></span>
+<h1 lang="fa">عیب‌یابی: exit code، OOM، پر شدن دیسک</h1>
+<h1 lang="en">Troubleshooting: exit codes, OOM, and disk exhaustion</h1>
+<p class="sub" lang="fa">دیروز کانتینر سالم بود. امروز در <code>docker ps</code> نیست و یکی می‌گوید «Docker خراب شده». قبل از قبول این تشخیص، وضعیت واقعی، کد خروج، log و منابع را کنار هم می‌خوانیم؛ بعد فقط علتِ ثابت‌شده را اصلاح می‌کنیم.</p>
+<p class="sub" lang="en">Yesterday the container was healthy. Today it is missing from <code>docker ps</code>, and someone says, “Docker crashed.” Before accepting that diagnosis, we read state, exit information, logs, and resource evidence together—then repair only what the evidence supports.</p>
+<div class="facts">
+<div class="fact"><b>۱۶۰</b><span lang="fa">دقیقهٔ مطالعه و آزمایش</span><span lang="en">minutes</span></div>
+<div class="fact"><b>۱۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></div>
+<div class="fact"><b>۴</b><span lang="fa">نمودار تشخیصی</span><span lang="en">diagnostic diagrams</span></div>
+<div class="fact"><b>۳</b><span lang="fa">خرابی کنترل‌شده در آزمایشگاه</span><span lang="en">controlled incidents</span></div>
+</div>
+</div>
+<section id="story">
+<h2><span lang="fa">«Docker کرش کرده» هنوز فقط یک حدس است</span><span lang="en">“Docker crashed” is only a guess so far</span></h2>
+<p lang="fa">دیروز سرویس جواب می‌داد. امروز <code>docker ps</code> هیچ سطری برایش نشان نمی‌دهد و اولین واکنش همکار این است: «Docker کرش کرده.» فعلاً نه. تنها چیزی که می‌دانیم این است که container در فهرستِ درحال‌اجرا نیست. قبل از هر restart یا پاک‌سازی باید بفهمیم واقعاً چه اتفاقی افتاده است.</p>
+<p lang="en">Yesterday the web service answered requests. Today your teammate runs the familiar command and sees no row for that container:</p>
+<div class="term"><div class="term-bar"><span class="term-label">first observation · running containers only</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker ps
+
+CONTAINER ID   IMAGE   COMMAND   CREATED   STATUS   PORTS   NAMES</pre></div>
+<p lang="fa">اول <code>docker ps -a</code> را می‌زنیم و می‌بینیم container هنوز وجود دارد و با <code>Exited (137)</code> تمام شده. این عدد یک سرنخ تازه به ما داده، اما هنوز علت نیست. همین تفاوت قرار است ستون فقرات این فصل باشد: <strong>نشانه را از تشخیص جدا نگه دار.</strong></p>
+<p lang="en"><code>docker ps</code> lists running containers. An empty result says only that nothing is currently listed as running. To see stopped containers, widen the query:</p>
+<div class="term"><div class="term-bar"><span class="term-label">include stopped containers</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker ps -a
+
+CONTAINER ID   IMAGE          COMMAND          STATUS                      NAMES
+8c31...        codenames-web  "python app.py"  Exited (137) 2 hours ago     web</pre></div>
+<p lang="fa">حالا یک واقعیت داریم: کانتینر از اجرا خارج شده و وضعیت ثبت‌شده‌اش <code>Exited (137)</code> است. اما آیا ۱۳۷ ثابت می‌کند حافظه تمام شده؟ نه. آیا ثابت می‌کند Docker daemon کرش کرده؟ باز هم نه. این عدد سرنخ است، نه گزارش کامل حادثه.</p>
+<p lang="en">Now we have a fact: the container exited, and Docker recorded <code>Exited (137)</code>. Does 137 prove memory exhaustion? No. Does it prove the Docker daemon crashed? Also no. It is a clue, not a complete incident report.</p>
+<div class="note safe"><div class="note-t"><span lang="fa">قبل از تعمیر، مدرک را نگه دار</span><span lang="en">Preserve evidence before repair</span></div>
+<p lang="fa">تا وقتی وضعیت، زمان پایان و log را ثبت نکرده‌ای، کانتینر را حذف یا دوباره راه‌اندازی نکن. پاک‌کردن زودهنگام ممکن است همان مدرکی را از بین ببرد که علت را از حدس جدا می‌کند.</p>
+<p lang="en">Until you record state, finish time, and logs, do not remove or restart the container. Premature cleanup can erase the evidence that separates a diagnosis from a guess.</p>
+</div>
+</section>
+<section id="method">
+<h2><span lang="fa">از نشانه تا علت، یک زنجیرهٔ کوتاه بساز</span><span lang="en">From symptom to verification: one chain, not scattered guesses</span></h2>
+<p lang="fa">در فصل ۳ با وضعیت، کد خروج و لاگ آشنا شدی؛ فصل ۱۰ هم فرق Running و healthy را جدا کرد. حالا همان ابزارها را مثل قطعات یک گزارش حادثه کنار هم می‌گذاریم: اول نشانه، بعد وضعیت، بعد لاگ و منابع، بعد علت محتمل، و در آخر همان آزمونی که ثابت کند اصلاح جواب داده است.</p>
+<p lang="en">Chapter 3 introduced <code>ps</code>, logs, and the container lifecycle; Chapter 10 separated process liveness from application health. Now we order that evidence like an incident report. Each step chooses the next question; none alone authorizes cleanup or a larger resource limit.</p>
+<figure class="diagram">
+<svg aria-labelledby="d12-flow-title" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 1000 250">
+<title id="d12-flow-title">Troubleshooting flows from symptom to state, evidence, cause, repair, and verification.</title>
+<defs><marker id="d12a1" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<g class="dg-stroke-b" marker-end="url(#d12a1)" stroke-width="2">
+<path d="M170 120H220"></path><path d="M370 120H420"></path><path d="M570 120H620"></path><path d="M770 120H820"></path>
+</g>
+<g text-anchor="middle">
+<rect class="dg-fill-w" height="90" rx="14" width="150" x="20" y="75"></rect><text class="dg-t" x="95" y="108">1 · Symptom</text><text class="dg-ts" x="95" y="136">what we saw</text>
+<rect class="dg-fill" height="90" rx="14" width="150" x="220" y="75"></rect><text class="dg-t" x="295" y="108">2 · State</text><text class="dg-ts" x="295" y="136">ps · inspect</text>
+<rect class="dg-fill-v" height="90" rx="14" width="150" x="420" y="75"></rect><text class="dg-t" x="495" y="108">3 · Evidence</text><text class="dg-ts" x="495" y="136">logs · resources</text>
+<rect class="dg-fill-g" height="90" rx="14" width="150" x="620" y="75"></rect><text class="dg-t" x="695" y="108">4 · Cause</text><text class="dg-ts" x="695" y="136">bounded diagnosis</text>
+<rect class="dg-fill-b" height="90" rx="14" width="160" x="820" y="75"></rect><text class="dg-t" x="900" y="108">5 · Repair</text><text class="dg-ts" x="900" y="136">verify same path</text>
+</g>
+<text class="dg-ts" text-anchor="middle" x="500" y="215">Each arrow means “use the previous evidence to choose the next check” — not “guess and restart”.</text>
+</svg>
+<figcaption><span lang="fa">مسیر خواندن مدرک؛ پیکان‌ها ترتیب پرس‌وجو را نشان می‌دهند، نه رابطهٔ علت‌ومعلولی قطعی.</span><span lang="en">An evidence-reading path; arrows show diagnostic order, not a guaranteed causal link.</span></figcaption>
+</figure>
+<p lang="fa">این ترتیب عمداً محافظه‌کارانه است. اگر قبل از جمع‌کردن مدرک container را حذف کنی، ممکن است دقیقاً همان state و logی را که برای تشخیص لازم داشتی از بین ببری. اگر هم بدون تشخیص حافظه را زیاد کنی یا prune بزنی، شاید فقط علامت را موقتاً پنهان کرده باشی.</p>
+<p lang="en">For every incident, keep two questions together: “What did we observe?” and “What does this evidence not prove?” <code>Exited</code> proves the process stopped; it does not explain why. This boundary prevents random cleanup, repeated restarts, and changing several settings at once.</p>
+</section>
+<section id="state-first">
+<h2><span lang="fa">اول وضعیت را بخوان؛ بعد سراغ معنی عدد برو</span><span lang="en">Read state first, then interpret the number</span></h2>
+<p lang="fa"><code>docker ps -a</code> به ما می‌گوید container هنوز هست یا نه و آخرین وضعیت ثبت‌شده چه بوده. بعد با <code>docker inspect</code> فقط همان سؤال‌هایی را می‌پرسیم که نیاز داریم: کد خروج چه بوده؟ <code>OOMKilled</code> چه می‌گوید؟ خطای Engine ثبت شده؟ چه زمانی تمام شده؟ چند بار restart شده؟</p>
+<p lang="en"><code>docker ps -a</code> tells us whether the container still exists and its recorded status. Use <code>inspect</code> to ask specific questions about that object, not to stare at a large JSON document without a purpose.</p>
+<div class="term"><div class="term-bar"><span class="term-label">one focused inspect query</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker inspect web --format 'status={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} error={{.State.Error}} finished={{.State.FinishedAt}} restarts={{.RestartCount}}'</pre></div>
+<div class="term"><div class="term-bar"><span class="term-label">representative output · values depend on the incident</span></div><pre dir="ltr">status=exited exit=137 oom=false error= finished=2026-09-24T08:41:12Z restarts=0</pre></div>
+<p lang="fa">هدف این نیست که در JSON بزرگ inspect غرق شویم. هر فیلد باید یک فرض را محدود کند. اگر کد ۱۳۷ داریم ولی <code>OOMKilled=false</code> است، هنوز حق نداریم بگوییم «حافظه کم آمده». باید سراغ شواهد بعدی برویم.</p>
+<p lang="en">This says the current state is <code>exited</code>, the last recorded code is 137, Docker recorded <code>OOMKilled=false</code> for this container, and no restarts were counted. An empty <code>Error</code> is not proof that nothing failed; this field simply provides no error text. Next, inspect logs and nearby events.</p>
+<div class="table-wrap"><table class="doc-table">
+<thead><tr><th>مدرک / Evidence</th><th>چه می‌گوید؟ / What it tells you</th><th>چه چیزی را ثابت نمی‌کند؟ / What it does not prove</th></tr></thead>
+<tbody>
+<tr><td><code>State.Status</code></td><td>running، exited یا restarting بودن کانتینر / Current lifecycle state</td><td>سلامت endpoint یا علت توقف / Endpoint health or stop cause</td></tr>
+<tr><td><code>State.ExitCode</code></td><td>عددی که فرایند اصلی برای پایان گزارش کرد / The main process' reported result</td><td>معنای اختصاصی برنامه یا علت سیستم‌عامل / Application meaning or OS cause</td></tr>
+<tr><td><code>State.OOMKilled</code></td><td>آیا Docker این پایان را OOM گزارش کرده؟ / Did Docker report an OOM kill?</td><td>تمام فشار حافظهٔ میزبان در گذشته / Every kind of host memory pressure</td></tr>
+<tr><td><code>State.Error</code> و <code>FinishedAt</code></td><td>پیام ثبت‌شده و زمان پایان / Recorded error and finish time</td><td>اینکه log کامل است یا علت ریشه‌ای چیست / Complete logs or root cause</td></tr>
+<tr><td><code>RestartCount</code></td><td>تعداد تلاش‌های restart این container / Restart attempts for this container</td><td>اینکه تلاش آخر موفق یا سالم شده است / Whether the last attempt recovered</td></tr>
+</tbody>
+</table></div>
+<p lang="fa">وقتی چند container در چرخه‌اند، خط زمان را با log بساز: <code>docker logs --timestamps --since 30m web</code>. اگر زمان رویداد مهم است و log کافی نیست، رویدادهای Docker را هم برای همان container محدود کن. نام دقیق شیء مهم است؛ خروجی سرویس دیگری را با حادثه قاطی نکن.</p>
+<p lang="en">Build a timeline with <code>docker logs --timestamps --since 30m web</code>. If event timing matters and logs are insufficient, narrow Docker events to that container. The exact object name matters; do not mix another service's output into this incident.</p>
+<div class="term"><div class="term-bar"><span class="term-label">optional event timeline · bounded query</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker events --since 30m --filter container=web</pre></div>
+</section>
+<section id="exit-codes">
+<h2><span lang="fa">کد خروج سرنخ است، نه فرهنگ لغت علت‌ها</span><span lang="en">Exit codes: numeric clues, not a dictionary of causes</span></h2>
+<p lang="fa">فرایند اصلی وقتی تمام می‌شود یک کد خروج باقی می‌گذارد. صفر معمولاً یعنی پایان موفق؛ مقدار غیرصفر یعنی برنامه یا محیط اجرا چیزی غیرعادی گزارش کرده. اما معنای دقیق بعضی کدها به shell، signal یا خود برنامه بستگی دارد. عدد را همیشه کنار دستور اجرا و لاگ همان نوبت بخوان.</p>
+<p lang="en">When the container's main process ends, it leaves an exit code. Conventionally, zero means success and a non-zero value means the application or its runtime reported an unsuccessful result. Applications may define their own meanings, so read the number with that run's command and logs.</p>
+<div class="table-wrap"><table class="doc-table">
+<thead><tr><th>کد / Code</th><th>برداشت رایج / Common reading</th><th>مدرک بعدی / Next evidence</th></tr></thead>
+<tbody>
+<tr><td><code>0</code></td><td>پایان موفق طبق قرارداد برنامه / Successful completion by convention</td><td>آیا خروجی مطلوب واقعاً ساخته شد؟ / Did the expected output exist?</td></tr>
+<tr><td><code>1</code></td><td>خطای عمومی در بسیاری از برنامه‌ها؛ معنای دقیق وابسته به برنامه / Generic failure in many programs; app-defined</td><td>متن خطا، ورودی و آخرین مرحلهٔ موفق / Error text, input, last successful step</td></tr>
+<tr><td><code>126</code></td><td>در shell رایج: فرمان پیدا شد اما اجراشدنی نبود / Common shell convention: found, but not executable</td><td>مجوز، نوع فایل و interpreter / Permissions, file type, interpreter</td></tr>
+<tr><td><code>127</code></td><td>در shell رایج: فرمان پیدا نشد / Common shell convention: command not found</td><td>نام binary و اینکه اصلاً در image هست / Binary name and image contents</td></tr>
+<tr><td><code>137</code></td><td><code>128 + 9</code> در قرارداد رایج؛ با <code>SIGKILL</code> سازگار است / Commonly corresponds to SIGKILL</td><td><code>OOMKilled</code>، رویدادها و logهای میزبان / OOM flag, events, host logs</td></tr>
+<tr><td><code>143</code></td><td><code>128 + 15</code>؛ اغلب با <code>SIGTERM</code> سازگار است / Commonly corresponds to SIGTERM</td><td>چه کسی stop کرد و آیا برنامه فرصت پایان داشت؟ / Who stopped it, and did it shut down cleanly?</td></tr>
+</tbody>
+</table></div>
+<p lang="fa">مثلاً ۱۲۷ اغلب با «دستور پیدا نشد» دیده می‌شود و ۱۲۶ معمولاً یعنی فایل پیدا شده ولی قابل اجرا نیست. ۱۳۷ اغلب با SIGKILL هم‌خوانی دارد و ۱۴۳ با SIGTERM؛ اما حتی این‌ها هم تشخیص کامل نیستند. سؤال بعدی همیشه این است: «چه چیزی باعث این پایان شد؟»</p>
+<p lang="en">The <code>128 + signal</code> rule is a common Unix/shell convention for representing signal termination, not a universal promise about every program's codes. 137 often aligns with <code>SIGKILL</code>, but an application can return that number or another tool can kill the process. 143 alone does not tell us whether shutdown was expected or why the process received <code>SIGTERM</code>.</p>
+<div class="note warn"><div class="note-t"><span lang="fa">دو پایان شبیه، دو علت متفاوت</span><span lang="en">Same-looking exit, different causes</span></div>
+<p lang="fa"><code>docker kill</code>، پایان ناشی از OOM و بعضی رخدادهای میزبان می‌توانند به وضعیت ۱۳۷ برسند. تا وقتی مدرک OOM یا رویداد مشخص نداری، عبارت «۱۳۷ یعنی کمبود RAM» را در گزارش ننویس.</p>
+<p lang="en"><code>docker kill</code>, an OOM termination, and some host events can all lead to status 137. Without OOM evidence or a specific event, do not write “137 means out of RAM” in the incident report.</p>
+</div>
+<p lang="fa">دو کد shell را می‌توان با آزمایشی کوچک دید؛ این خروجی معنای عمومیِ برنامهٔ خودت را تعیین نمی‌کند، فقط رفتار همین shell را نشان می‌دهد:</p>
+<p lang="en">A tiny experiment shows two common shell cases. This does not define your application's meanings; it demonstrates this shell's behavior:</p>
+<div class="term"><div class="term-bar"><span class="term-label">a command that cannot be found</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker run --name ch12-missing alpine:3.21 sh -c 'not-a-real-command'
+docker inspect ch12-missing --format 'exit={{.State.ExitCode}}'</pre></div>
+<div class="term"><div class="term-bar"><span class="term-label">representative shell result</span></div><pre dir="ltr">sh: not-a-real-command: not found
+exit=127</pre></div>
+<p lang="fa">اگر همین shell فرمان را شناخت ولی اجازهٔ اجرا نداشت، معمولاً ۱۲۶ می‌بینی. در یک image واقعی، اول Dockerfile و دستور را با <code>docker inspect</code> بخوان، بعد بررسی کن executable و interpreter واقعاً در image موجودند و مجوز اجرا دارند؛ rebuild تصادفی چیزی را ثابت نمی‌کند.</p>
+<p lang="en">If the same shell recognizes a command but cannot execute it, 126 is common. In a real image, inspect the configured command first, then verify that the executable and interpreter exist and have execute permission. A random rebuild proves nothing.</p>
+</section>
+<section id="oom">
+<h2><span lang="fa">۱۳۷ دیدی؟ حالا ثابت کن OOM بوده یا نه</span><span lang="en">Saw 137? Separate signal, OOM, and a memory limit</span></h2>
+<p lang="fa">سه چیز را یکی نکن: SIGKILL یعنی فرایند بی‌فرصت متوقف شده؛ OOM یعنی سازوکار کمبود حافظه فرایندی را برای آزادکردن حافظه قربانی کرده؛ و <code>--memory</code> سقفی است که برای container تعیین کرده‌ایم. کد ۱۳۷ می‌تواند با SIGKILL دیده شود، اما از روی همان عدد نمی‌فهمیم چه کسی و چرا آن signal را فرستاده است.</p>
+<p lang="en">Keep three ideas separate: <code>SIGKILL</code> terminates a process without a graceful timeout; OOM is a memory-pressure mechanism choosing a process to kill; and <code>--memory</code> is a cap configured for a container. An OOM inside the container's cap is not the same as memory pressure across the host.</p>
+<figure class="diagram">
+<svg aria-labelledby="d12-oom-title" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 1000 270">
+<title id="d12-oom-title">A bounded memory limit is exceeded; the process may be OOM-killed and Docker inspect records evidence.</title>
+<defs><marker id="d12a2" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<g class="dg-stroke-b" marker-end="url(#d12a2)" stroke-width="2">
+<path d="M220 125H280"></path><path d="M470 125H530"></path><path d="M720 125H780"></path>
+</g>
+<g text-anchor="middle">
+<rect class="dg-fill-b" height="110" rx="14" width="190" x="30" y="70"></rect><text class="dg-t" x="125" y="105">Memory boundary</text><text class="dg-ts" x="125" y="135">--memory=64m</text><text class="dg-ts" x="125" y="158">safe lab limit</text>
+<rect class="dg-fill" height="110" rx="14" width="190" x="280" y="70"></rect><text class="dg-t" x="375" y="105">Allocations grow</text><text class="dg-ts" x="375" y="135">process asks for more</text><text class="dg-ts" x="375" y="158">than the limit</text>
+<rect class="dg-fill-w" height="110" rx="14" width="190" x="530" y="70"></rect><text class="dg-t" x="625" y="105">Kernel action</text><text class="dg-ts" x="625" y="135">OOM kill may stop</text><text class="dg-ts" x="625" y="158">the process</text>
+<rect class="dg-fill-g" height="110" rx="14" width="190" x="780" y="70"></rect><text class="dg-t" x="875" y="105">Docker evidence</text><text class="dg-ts" x="875" y="135">ExitCode +</text><text class="dg-ts" x="875" y="158">OOMKilled</text>
+</g>
+<text class="dg-ts" text-anchor="middle" x="500" y="225">Exit 137 alone is not the diagnosis; combine it with OOMKilled and logs.</text>
+</svg>
+<figcaption><span lang="fa">در آزمایش سقف حافظه را محدود می‌کنیم تا فشار روی میزبان کنترل‌شده بماند؛ سپس نتیجه را از state می‌خوانیم.</span><span lang="en">The experiment caps memory to bound host impact, then checks the recorded container state.</span></figcaption>
+</figure>
+<p lang="fa">برای آزمایش امن، container را عمداً با سقف حافظهٔ کوچک اجرا می‌کنیم و برنامه‌ای می‌گذاریم که از همان سقف عبور کند. بعد به‌جای حدس، <code>ExitCode</code> و <code>OOMKilled</code> را با هم می‌خوانیم. این آزمایش به میزبان فشار نامحدود وارد نمی‌کند؛ مرز از اول داخل همان container بسته شده است.</p>
+<p lang="en">For a bounded reproduction, cap the container at 64 MiB and run a process that repeatedly allocates 8 MiB. Setting <code>--memory-swap=64m</code> equal to the cap avoids extra swap for this experiment. This is only a diagnostic reproduction; Chapter 13 covers production resource limits.</p>
+<div class="term"><div class="term-bar"><span class="term-label">bounded OOM reproduction · Linux container engine</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker run --name ch12-oom --memory=64m --memory-swap=64m python:3.12-alpine python -c 'blocks=[]; exec("while True:\n blocks.append(bytearray(8*1024*1024))\n print(len(blocks)*8, flush=True)")'
+
+docker inspect ch12-oom --format 'status={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} finished={{.State.FinishedAt}}'</pre></div>
+<div class="term"><div class="term-bar"><span class="term-label">representative result · exact last allocation varies</span></div><pre dir="ltr">8
+16
+24
+...
+status=exited exit=137 oom=true finished=2026-09-24T09:10:14Z</pre></div>
+<p lang="fa">در این آزمایش، ترکیب <code>exit=137</code> و <code>oom=true</code> با کشته‌شدن فرایند به‌خاطر عبور از سقف container سازگار است. خط آخر تخصیص بین Engineها و سربار image فرق می‌کند. اگر اجرای <code>docker run</code> بگوید محدودیت حافظه پشتیبانی نمی‌شود، آزمایش را بدون سقف تکرار نکن؛ تنظیمات میزبان/Engine را بررسی کن و همان‌جا متوقف شو.</p>
+<p lang="en">Here, <code>exit=137</code> together with <code>oom=true</code> is consistent with a process killed after exceeding its container cap. The last printed allocation varies with Engine and image overhead. If <code>docker run</code> says memory limits are unsupported, do not retry without the cap; inspect Engine/host support and stop there.</p>
+<p lang="fa">حالا حالت دشوارتر: <code>exit=137</code> اما <code>OOMKilled=false</code>. این مدرک اجازه نمی‌دهد OOM خود container را اعلام کنیم. احتمال‌هایی مثل <code>docker kill</code>، توقف اجباری یا فشار حافظه در سطح میزبان را با زمان پایان، logها، رویدادها و logهای kernel/سیستم میزبان بررسی کن. اگر میزبان Docker Desktop است، مدرک را در VM مدیریت‌شده و وضعیت منابع خود Desktop هم دنبال کن.</p>
+<p lang="en">Now consider the harder case: <code>exit=137</code> but <code>OOMKilled=false</code>. That does not support declaring a container-level OOM. Check possibilities such as <code>docker kill</code>, forced termination, or host-level memory pressure against the finish time, logs, events, and host/kernel logs. With Docker Desktop, also inspect the managed VM and Desktop resource state.</p>
+<div class="term"><div class="term-bar"><span class="term-label">Linux host evidence · only if you have access</span><button class="copy">کپی</button></div>
+<pre dir="ltr">journalctl -k --since '30 minutes ago' | grep -Ei 'out of memory|killed process'</pre></div>
+<p lang="fa">این فرمان مخصوص Linux است و دسترسی دیدن kernel log ممکن است محدود باشد. در Windows یا Docker Desktop، نبودن همین فرمان به معنی نبودن مدرک نیست؛ از ابزار سیستم‌عامل میزبان و پنل منابع Desktop استفاده کن. برعکس، <code>OOMKilled=true</code> مدرک قوی برای OOM ثبت‌شدهٔ container است، اما علت طراحیِ پرمصرف برنامه را به‌تنهایی توضیح نمی‌دهد.</p>
+<p lang="en">That command is Linux-specific, and access to kernel logs may be restricted. On Windows or Docker Desktop, the command's absence does not mean evidence is unavailable; use host OS tools and Desktop resource settings. Conversely, <code>OOMKilled=true</code> is strong evidence of a container OOM, but it does not by itself explain why the application used so much memory.</p>
+</section>
+<section id="disk-story">
+<h2><span lang="fa">«no space left on device» می‌گوید جایی پر شده؛ نه اینکه کجا</span><span lang="en">“No space left on device”—which filesystem, exactly?</span></h2>
+<p lang="fa">یک build وسط نوشتن می‌ایستد یا pull با <code>no space left on device</code> تمام می‌شود. متن خطا واقعی است، ولی نام filesystem را به تو نمی‌دهد. ممکن است بلوک‌های پارتیشن میزبان پر شده باشند، inode تمام شده باشد، فضای مدیریت‌شدهٔ Docker پر باشد یا فقط mount کوچکی داخل container جا نداشته باشد.</p>
+<p lang="en">A build stops while writing a layer, or an image pull fails with <code>no space left on device</code>. The error is real, but it does not name the exhausted filesystem. It could be the host partition, Docker's data storage, a temporary container mount, or even the inode pool.</p>
+<figure class="diagram">
+<svg aria-labelledby="d12-space-title" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 1000 330">
+<title id="d12-space-title">No space left on device can refer to different exhausted filesystems or inode capacity.</title>
+<defs><marker id="d12a3" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<rect class="dg-fill-w" height="70" rx="14" width="340" x="330" y="25"></rect>
+<text class="dg-t" text-anchor="middle" x="500" y="55">“No space left on device”</text>
+<text class="dg-ts" text-anchor="middle" x="500" y="79">the message does not name the exhausted target</text>
+<g class="dg-stroke-b" marker-end="url(#d12a3)" stroke-width="2">
+<path d="M430 95L150 155"></path><path d="M475 95L385 155"></path><path d="M525 95L615 155"></path><path d="M570 95L850 155"></path>
+</g>
+<g text-anchor="middle">
+<rect class="dg-fill" height="105" rx="14" width="230" x="35" y="155"></rect><text class="dg-t" x="150" y="188">Host blocks</text><text class="dg-ts" x="150" y="217">df -h</text><text class="dg-ts" x="150" y="240">filesystem capacity</text>
+<rect class="dg-fill-v" height="105" rx="14" width="200" x="285" y="155"></rect><text class="dg-t" x="385" y="188">Inodes</text><text class="dg-ts" x="385" y="217">df -i</text><text class="dg-ts" x="385" y="240">too many files</text>
+<rect class="dg-fill-b" height="105" rx="14" width="200" x="515" y="155"></rect><text class="dg-t" x="615" y="188">Docker storage</text><text class="dg-ts" x="615" y="217">system df</text><text class="dg-ts" x="615" y="240">images · cache · data</text>
+<rect class="dg-fill-g" height="105" rx="14" width="230" x="735" y="155"></rect><text class="dg-t" x="850" y="188">Target mount</text><text class="dg-ts" x="850" y="217">df -h /target</text><text class="dg-ts" x="850" y="240">volume · tmpfs</text>
+</g>
+<text class="dg-ts" text-anchor="middle" x="500" y="305">Find the actual write target before deleting anything.</text>
+</svg>
+<figcaption><span lang="fa">اول مقصد نوشتن را پیدا کن، بعد همان filesystem را اندازه بگیر.</span><span lang="en">Find the write target first; then measure that filesystem.</span></figcaption>
+</figure>
+<p lang="fa">پس اولین واکنش نباید پاک‌کردن imageها باشد. اول باید محل واقعی نوشتن را پیدا کنیم. <code>df -h</code> ظرفیت بلوکی را نشان می‌دهد، <code>df -i</code> inode را، و <code>docker system df</code> فقط سهم منابع Docker را در فضای خودش دسته‌بندی می‌کند. هرکدام جواب سؤال متفاوتی هستند.</p>
+<p lang="en">On Linux, <code>df -h</code> reports filesystem block capacity, while <code>df -i</code> reports inode availability. If bytes remain but inode usage is at 100%, huge numbers of tiny files can prevent creating another file. Pass the exact path to identify its filesystem.</p>
+<div class="term"><div class="term-bar"><span class="term-label">inspect the actual host paths · Linux example</span><button class="copy">کپی</button></div>
+<pre dir="ltr">df -h / /var/lib/docker
+df -i / /var/lib/docker</pre></div>
+<p lang="fa">اسم <code>/var/lib/docker</code> فقط مثال رایج Linux است؛ آن را حدس نزن. از daemon بپرس داده‌اش کجاست:</p>
+<p lang="en"><code>/var/lib/docker</code> is only a common Linux example; do not assume it. Ask the daemon where its data root is:</p>
+<div class="term"><div class="term-bar"><span class="term-label">daemon-side storage location</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker info --format '{{.DockerRootDir}}'
+docker info --format '{{.Driver}}'</pre></div>
+<p lang="fa">این مسیر از دید daemon است. در Docker Engine روی Linux معمولاً مسیری روی میزبان می‌بینی؛ در Docker Desktop، imageها و containerهای Linux در محیط ذخیره‌سازی مدیریت‌شده قرار دارند و مسیر داخل VM الزاماً مسیر مستقیم Windows یا macOS نیست. برای Desktop، <code>docker system df</code> را با تنظیمات Resources و مقدار Disk usage / Disk image location مقایسه کن؛ <code>df</code> روی لپ‌تاپ ممکن است filesystem دیگری را نشان دهد.</p>
+<p lang="en">This path is from the daemon's point of view. With Docker Engine on Linux it is usually a host path; with Docker Desktop, Linux images and containers live in managed storage, and a VM path is not necessarily a direct Windows or macOS path. Compare <code>docker system df</code> with Desktop Resources settings and disk-image usage; host <code>df</code> may describe a different filesystem.</p>
+</section>
+<section id="bounded-enospc">
+<h2><span lang="fa">کمبود فضا را در یک فضای کوچک و بی‌خطر بازسازی کن</span><span lang="en">See ENOSPC without filling a real disk</span></h2>
+<p lang="fa">برای اینکه مفهوم را ببینیم لازم نیست دیسک لپ‌تاپ را پر کنیم. یک tmpfs کوچک داخل container می‌سازیم و بیشتر از ظرفیتش روی همان mount می‌نویسیم. خطا ظاهر می‌شود، درحالی‌که دیسک اصلی میزبان هنوز فضای آزاد دارد. همین آزمایش ثابت می‌کند عبارت «no space left» به‌تنهایی مقصد پرشده را مشخص نمی‌کند.</p>
+<p lang="en">To reproduce the error, give a Linux container a temporary 1 MiB filesystem and try to write 2 MiB. The cap is on the temporary mount—not the host partition or Docker data root. This experiment requires a Linux container engine with tmpfs support; if you are using Windows containers or an environment without tmpfs, skip it. Never redirect the same write to a real disk.</p>
+<div class="term"><div class="term-bar"><span class="term-label">bounded to a 1 MiB tmpfs mount</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker run --name ch12-enospc --mount type=tmpfs,dst=/scratch,tmpfs-size=1048576 alpine:3.21 sh -c 'dd if=/dev/zero of=/scratch/fill.bin bs=64K count=32'</pre></div>
+<div class="term"><div class="term-bar"><span class="term-label">representative output · exact wording varies by BusyBox</span></div><pre dir="ltr">dd: error writing '/scratch/fill.bin': No space left on device</pre></div>
+<p lang="fa">بعد از خطا، داخل همان container ظرفیت mount را می‌بینیم و بیرون container هم فضای میزبان را مقایسه می‌کنیم. دو تصویر متفاوت داریم و همین تفاوت نقطهٔ آموزشی آزمایش است: همیشه بپرس «دقیقاً کجا داشتیم می‌نوشتیم؟»</p>
+<p lang="en">This means the filesystem containing <code>/scratch/fill.bin</code> ran out of room; it does not say the host disk is full. After the container exits, inspect state and mount before removing it:</p>
+<div class="term"><div class="term-bar"><span class="term-label">identify the failing mount and process result</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker inspect ch12-enospc --format 'exit={{.State.ExitCode}} oom={{.State.OOMKilled}} mounts={{json .Mounts}}'
+docker logs ch12-enospc</pre></div>
+<p lang="fa">در خروجی inspect باید <code>Type=tmpfs</code> و مقصد <code>/scratch</code> دیده شود؛ خروجی <code>dd</code> هم می‌گوید نوشتن کجا شکست. این بار بایت‌های نوشته‌شده وارد Docker writable layer یا volume نشده‌اند. tmpfs از حافظه استفاده می‌کند، پس سقف آن را کوچک نگه دار و بعد از ثبت مدرک container را حذف کن تا mount آزاد شود.</p>
+<p lang="en">Inspect should show <code>Type=tmpfs</code> mounted at <code>/scratch</code>; <code>dd</code>'s output identifies the failed write. Those bytes did not go into the Docker writable layer or a volume. tmpfs consumes memory, so keep its cap small and remove the container after collecting evidence to release the mount.</p>
+</section>
+<section id="space-accounting">
+<h2><span lang="fa">وقتی مقصد درست را پیدا کردی، ببین چه چیزی فضا را مصرف کرده</span><span lang="en">Find the consumer; “Docker uses space” is still too broad</span></h2>
+<p lang="fa">اگر مشکل واقعاً در فضای Docker است، <code>docker system df</code> کمک می‌کند مصرف imageها، containerها، volumeها و build cache را از هم جدا ببینی. گزینهٔ <code>-v</code> جزئیات بیشتری می‌دهد، اما حتی عدد بزرگ هم مجوز حذف نیست. یک volume بزرگ ممکن است همان دادهٔ مهم پروژه باشد.</p>
+<p lang="en"><code>docker system df</code> summarizes image, container, local-volume, and build-cache usage after you identify the right filesystem. <code>-v</code> adds detail such as image-unique space versus shared layers. Do not equate these numbers with host free space: one totals Docker objects; the other measures the backing filesystem's capacity.</p>
+<div class="term"><div class="term-bar"><span class="term-label">start broad, then inspect categories</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker system df
+docker system df -v</pre></div>
+<figure class="diagram">
+<svg aria-labelledby="d12-use-title" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 1000 300">
+<title id="d12-use-title">Several Docker resources can consume storage; each needs a separate ownership and cleanup decision.</title>
+<defs><marker id="d12a4" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<rect class="dg-fill-b" height="70" rx="14" width="300" x="350" y="25"></rect>
+<text class="dg-t" text-anchor="middle" x="500" y="55">Docker / backing storage</text>
+<text class="dg-ts" text-anchor="middle" x="500" y="80">first identify the consumer</text>
+<g class="dg-stroke-b" marker-end="url(#d12a4)" stroke-width="2">
+<path d="M420 95L110 155"></path><path d="M455 95L300 155"></path><path d="M500 95V155"></path><path d="M545 95L700 155"></path><path d="M580 95L890 155"></path>
+</g>
+<g text-anchor="middle">
+<rect class="dg-fill" height="95" rx="13" width="180" x="20" y="155"></rect><text class="dg-t" x="110" y="188">Images</text><text class="dg-ts" x="110" y="216">layers</text>
+<rect class="dg-fill" height="95" rx="13" width="180" x="210" y="155"></rect><text class="dg-t" x="300" y="188">Containers</text><text class="dg-ts" x="300" y="216">writable layers</text>
+<rect class="dg-fill-v" height="95" rx="13" width="190" x="405" y="155"></rect><text class="dg-t" x="500" y="188">Volumes</text><text class="dg-ts" x="500" y="216">persistent data</text>
+<rect class="dg-fill-b" height="95" rx="13" width="180" x="610" y="155"></rect><text class="dg-t" x="700" y="188">Build cache</text><text class="dg-ts" x="700" y="216">builder data</text>
+<rect class="dg-fill-w" height="95" rx="13" width="180" x="800" y="155"></rect><text class="dg-t" x="890" y="188">Logs</text><text class="dg-ts" x="890" y="216">driver-dependent</text>
+</g>
+<text class="dg-ts" text-anchor="middle" x="500" y="285">Large does not mean disposable — inspect ownership before prune.</text>
+</svg>
+<figcaption><span lang="fa">مصرف‌های متفاوت را جدا ببین: log ممکن است با تنظیم driver رشد کند، حتی اگر مشکل از image نباشد.</span><span lang="en">Separate the consumers: logs may grow according to driver configuration even when images are not the problem.</span></figcaption>
+</figure>
+<div class="table-wrap"><table class="doc-table">
+<thead><tr><th>دسته / Category</th><th>چه چیزی جا می‌گیرد؟ / What occupies space?</th><th>پیش از حذف بپرس / Before removal, ask</th></tr></thead>
+<tbody>
+<tr><td>Images</td><td>لایه‌های مشترک و یکتای image / Shared and unique layers</td><td>آیا tag یا container دیگری به آن نیاز دارد؟ / Does a tag or container still need it?</td></tr>
+<tr><td>Containers</td><td>لایهٔ نوشتنی containerهای متوقف‌شده / Writable layers of stopped containers</td><td>آیا log یا فایل خروجی داخلش مدرک لازم است؟ / Does it contain evidence or needed output?</td></tr>
+<tr><td>Volumes</td><td>دادهٔ ماندگار برنامه، از جمله پایگاه‌داده / Persistent application data, including databases</td><td>چه چیزی این داده را مصرف می‌کند و backup کجاست؟ / Who consumes it, and where is its backup?</td></tr>
+<tr><td>Build cache</td><td>لایه‌ها و cacheهای BuildKit برای buildهای بعدی / BuildKit records for future builds</td><td>آیا زمان build بعدی یا cache mount مهم است؟ / Is the next build's speed or cache mount important?</td></tr>
+<tr><td>Logs</td><td>بسته به logging driver و مقصد تنظیم‌شده / Depends on logging driver and destination</td><td>driver کجاست، rotation دارد، و retention چقدر است؟ / Where does the driver store logs, and what is its retention?</td></tr>
+</tbody>
+</table></div>
+<p lang="fa">لاگ‌ها هم بسته به logging driver و تنظیمات میزبان می‌توانند مصرف فضا داشته باشند. پس «Docker فضا گرفته» هنوز جملهٔ خیلی کلی‌ای است. باید بدانیم کدام دسته، کدام مسیر و کدام داده واقعاً مسئول رشد بوده است.</p>
+<p lang="en">If Docker's summary does not explain the usage, inspect the daemon and container drivers separately. <code>docker logs</code> does not behave identically for every driver; some do not support local reading. An unrotated <code>json-file</code> setup can grow, while <code>local</code> has its own rotation behavior. Here we identify the driver and location, not perform full log tuning.</p>
+<p lang="fa">خلاصهٔ <code>docker system df</code> هم تضمین نمی‌کند فایل‌های log را در ردیفی مستقل نشان دهد. اگر جمع مصرف با دیسکِ پر جور درنمی‌آید، driver و مسیر ذخیرهٔ log را بررسی کن؛ ندیدن ردیف جداگانه، مدرک کوچک‌بودن log نیست.</p>
+<p lang="en">The <code>docker system df</code> summary does not guarantee a separate row for log files. If the summary does not explain a full disk, inspect the logging driver and its storage path; no separate row is not proof that logs are small.</p>
+<div class="term"><div class="term-bar"><span class="term-label">daemon default vs one container</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker info --format 'default={{.LoggingDriver}}'
+docker inspect web --format 'driver={{.HostConfig.LogConfig.Type}} path={{.LogPath}}'</pre></div>
+<p lang="fa">اگر data به volume مربوط بود، درس فصل ۶ را به خاطر بیاور: حذف container دادهٔ volume را حذف نمی‌کند؛ و حذف volume می‌تواند دادهٔ مهم را از بین ببرد. اگر build cache بزرگ است، با مصرف آن در buildهای بعدی معامله می‌کنی. اگر logها بزرگ‌اند، اول retention و مقصد را بفهم؛ حذف container فقط صورت مسئله را پنهان می‌کند.</p>
+<p lang="en">If the data is in a volume, recall Chapter 6: removing a container does not remove its volume, while removing a volume can destroy important data. If build cache is large, consider the rebuild cost. If logs are large, understand destination and retention first; deleting a container only hides the symptom.</p>
+</section>
+<section id="prune">
+<h2><span lang="fa">Prune آخر کار است، نه اولین واکنش</span><span lang="en">Prune is not a substitute for diagnosis</span></h2>
+<p lang="fa">بعد از تشخیص شاید واقعاً پاک‌سازی لازم باشد. اما <code>image prune</code>، <code>container prune</code>، <code>builder prune</code> و <code>volume prune</code> چیزهای یکسانی را حذف نمی‌کنند. مخصوصاً volume را فقط وقتی لمس کن که دقیقاً می‌دانی داده‌اش چیست و جای دیگری نسخهٔ لازم را داری.</p>
+<p lang="en">Once you identify the actual consumer, cleanup may be appropriate—but prune commands remove different things. Before running one, ask: “Where is this data stored? Who uses it? What would I lose if it disappeared?” A volume may hold the only copy of a database you care about.</p>
+<div class="table-wrap"><table class="doc-table">
+<thead><tr><th>فرمان / Command</th><th>دامنهٔ معمول / Usual scope</th><th>ریسک و بررسی / Risk and check</th></tr></thead>
+<tbody>
+<tr><td><code>docker system prune</code></td><td>containerهای متوقف، network بلااستفاده، imageهای dangling و build cache بلااستفاده / Stopped containers, unused networks, dangling images, unused build cache</td><td>container متوقف‌شده شاید log یا filesystem مدرک داشته باشد / A stopped container may retain evidence</td></tr>
+<tr><td><code>docker system prune -a</code></td><td>به‌علاوهٔ imageهای بدون container وابسته، نه فقط dangling / Also unused images, not only dangling ones</td><td>ممکن است pull یا build دوباره لازم شود / May require a fresh pull or build</td></tr>
+<tr><td><code>docker container prune</code></td><td>همهٔ containerهای متوقف / Stopped containers</td><td>اول <code>docker ps -a</code> و logهای لازم را ثبت کن / Inspect state and preserve needed logs first</td></tr>
+<tr><td><code>docker image prune</code> / <code>-a</code></td><td>پیش‌فرض imageهای dangling؛ با <code>-a</code> همهٔ imageهای بی‌مصرف / Dangling by default; all unused images with <code>-a</code></td><td>tag محلی به‌تنهایی backup یا انتشار نیست / A local tag is not a backup or publication</td></tr>
+<tr><td><code>docker builder prune</code></td><td>build cache / Build cache</td><td>ساخت بعدی می‌تواند کندتر و پرمصرف‌تر شود / Later builds may be slower and use more bandwidth</td></tr>
+<tr><td><code>docker volume prune</code></td><td>volumeهای محلی بلااستفاده؛ دامنهٔ دقیق را با نسخهٔ CLI بخوان / Unused local volumes; check the installed CLI's exact scope</td><td>داده را با نام volume و backup بررسی کن / Check volume names and backups</td></tr>
+</tbody>
+</table></div>
+<p lang="fa">فرمان بزرگی مثل <code>docker system prune -a --volumes</code> درمان عمومی «Docker فضا گرفته» نیست. چنین کاری ممکن است هم مدرک عیب‌یابی را پاک کند و هم داده‌ای را که هنوز لازم است. تشخیص باید قبل از پاک‌سازی بیاید، نه بعد از آن.</p>
+<p lang="en">In current Docker documentation, <code>docker system prune</code> leaves volumes alone by default; its <code>--volumes</code> option also includes unused anonymous volumes. Removing all unused local volumes, including named ones, is a separate <code>docker volume prune --all</code> behavior. Because deletion is irreversible and version details matter, read the installed command's warning and never trust the word “unused” blindly.</p>
+<div class="note warn"><div class="note-t"><span lang="fa">فرمان پیش‌فرض این فصل: هیچ pruneای اجرا نکن</span><span lang="en">This chapter's default: run no prune command</span></div>
+<p lang="fa">برای عیب‌یابی، اول <code>docker system df -v</code>، containerها، logها و volumeها را بررسی کن. اگر پاک‌سازی واقعاً لازم شد، یک دستهٔ مشخص را انتخاب کن، محدوده را ببین، داده را پشتیبان بگیر و فرمان همان دسته را اجرا کن. <code>docker system prune -a --volumes</code> راه‌حل عمومی این درس نیست.</p>
+<p lang="en">For diagnosis, inspect <code>docker system df -v</code>, containers, logs, and volumes first. If cleanup is genuinely needed, select one category, review its scope, back up data, and run that category's command. <code>docker system prune -a --volumes</code> is not this lesson's general fix.</p>
+</div>
+</section>
+<section id="failures">
+<h2><span lang="fa">هر نشانه فقط یک سؤال بعدی می‌سازد</span><span lang="en">Map symptoms to hypotheses; test one boundary at a time</span></h2>
+<p lang="fa">اگر اولین فرضت با مدرک جور نیست، کل سیستم را دست‌کاری نکن؛ فقط یک مرز عقب برو. آیا فرایند اصلاً شروع شده؟ لاگ چه می‌گوید؟ محدودیت حافظه درگیر است؟ filesystem مقصد ظرفیت دارد؟ هر بررسی باید یا یک احتمال را رد کند یا آن را قوی‌تر کند.</p>
+<p lang="en">When your first interpretation does not match the evidence, step back one boundary: did the intended process start? Did the application log its reason? Did the container limit or target filesystem run out? This table does not give final diagnoses; it suggests the next discriminating check.</p>
+<div class="table-wrap"><table class="doc-table">
+<thead><tr><th>مشاهده / Observation</th><th>فرضیهٔ ممکن / Possible hypothesis</th><th>بررسی متمرکز / Focused check</th></tr></thead>
+<tbody>
+<tr><td><code>Exited (1)</code></td><td>برنامه خطای عمومی داده / Application reported generic failure</td><td>فرمان، ورودی و <code>docker logs</code> / Command, input, logs</td></tr>
+<tr><td><code>Exited (127)</code></td><td>shell نتوانسته فرمان را پیدا کند / Shell could not find the command</td><td>نام binary و image واقعی / Binary name and actual image</td></tr>
+<tr><td><code>Exited (126)</code></td><td>فرمان پیدا شده اما اجراشدنی نیست / Found but not executable</td><td>mode، shebang، interpreter و mount مجوزها / Mode, shebang, interpreter, mount permissions</td></tr>
+<tr><td><code>137</code> + <code>OOMKilled=false</code></td><td>OOM container ثابت نشده؛ شاید kill اجباری یا رخداد میزبان / Container OOM unproven; forced or host event possible</td><td>زمان، event و مدرک kernel/میزبان / Timeline, events, host/kernel evidence</td></tr>
+<tr><td><code>OOMKilled=true</code></td><td>فرایند container قربانی OOM ثبت‌شده شده / Docker recorded an OOM kill</td><td>limit، مصرف، و الگوی تخصیص برنامه / Limit, usage, application allocation pattern</td></tr>
+<tr><td>log تکراری و restart count رو به افزایش</td><td>restart loop علت را تکرار می‌کند، نه اصلاح / Restart loop repeats the failure</td><td>دستور شروع، کد آخر و اولین خطای هر تلاش / Start command, exit code, first error per attempt</td></tr>
+<tr><td>فقط یک مسیر <code>tmpfs</code> پر است</td><td>filesystem mountشده کوچک است / Mounted filesystem is bounded</td><td><code>df -h /path</code> داخل همان mount / Measure inside the target mount</td></tr>
+<tr><td><code>df -h</code> جا دارد؛ <code>df -i</code> پر است</td><td>inodeها تمام شده‌اند / Inodes are exhausted</td><td>تعداد فایل‌ها و filesystem همان مسیر / File count on the target filesystem</td></tr>
+<tr><td>build cache یا image بزرگ</td><td>مصرف Docker بالاست، ولی هنوز دلیل حذف نیست / High usage, not yet a deletion reason</td><td><code>docker system df -v</code> و وابستگی‌های مصرف‌کننده / Detailed usage and consumers</td></tr>
+<tr><td>volume بزرگ یا log گم‌شده</td><td>ممکن است دادهٔ مهم باشد یا driver جای دیگری بنویسد / May be important data or a different log destination</td><td>mountها، backup و logging driver / Mounts, backup, logging driver</td></tr>
+</tbody>
+</table></div>
+<p lang="fa">این روش شاید از restart تصادفی کندتر به نظر برسد، اما وقتی مشکل واقعی باشد سریع‌تر به علت می‌رسد و مهم‌تر از آن، می‌توانی برای نفر بعد توضیح بدهی چرا به این نتیجه رسیدی.</p>
+<p lang="en">If <code>df -h</code> shows the host filesystem near capacity while <code>docker system df</code> accounts for less, investigate consumers outside Docker's object summary too, such as ordinary files, caches, or host logs. If <code>DockerRootDir</code> is on another filesystem, measure that path separately.</p>
+<p lang="fa">restart policy می‌تواند همان فرایند خراب را بارها دوباره آغاز کند. اگر <code>RestartCount</code> بالا می‌رود، container بین <code>Restarting</code> و <code>Up</code> می‌چرخد یا logها یک خطا را تکرار می‌کنند، به‌جای زیادکردن restart یا حذف سریع، یک تلاش را ثبت کن و علت مشترک را پیدا کن.</p>
+<p lang="en">A restart policy can launch the same broken process repeatedly. If <code>RestartCount</code> rises, the container cycles between <code>Restarting</code> and <code>Up</code>, or logs repeat one error, record one attempt and find the shared cause instead of increasing restarts or deleting evidence.</p>
+</section>
+<section id="exercises">
+<h2><span lang="fa">۱۸ تمرین؛ از عدد به علت نپر</span><span lang="en">18 exercises: from a number to an incident report</span></h2>
+<p lang="fa">قبل از بازکردن پاسخ هر تمرین سه چیز بنویس: الان چه چیزی را واقعاً می‌دانیم، چه چیزی هنوز نامعلوم است و کم‌هزینه‌ترین بررسی بعدی چیست. در تمرین‌های آخر عمداً موقعیت‌هایی می‌بینی که یک اقدام عجولانه مثل prune یا حذف container می‌تواند مدرک یا داده را از بین ببرد.</p>
+<p lang="en">Before opening each solution, predict what the current evidence says, what remains unknown, and which low-cost check should come next. In the later incidents, any repair that destroys data or evidence creates a new risk.</p>
+<div class="ex" id="ex-12-1"><h3><span lang="fa">۱. Docker واقعاً crash کرده؟</span><span lang="en">1. Did Docker actually crash?</span></h3><p lang="fa"><code>docker ps</code> سطری نشان نمی‌دهد. اولین دستور بعدی چیست و چرا هنوز نباید دربارهٔ daemon نتیجه بگیری؟</p><p lang="en"><code>docker ps</code> shows no row. What is the next command, and why is it too early to conclude the daemon failed?</p><details class="ex-sol"><summary>سرنخ، نه تشخیص نهایی · Clue, not verdict</summary><p lang="fa"><code>docker ps -a</code> را بزن. دستور اول containerهای متوقف را پنهان می‌کند؛ خالی‌بودنش فقط فهرست running را توصیف می‌کند. بعد نام و state را پیدا کن و برای همان container سراغ inspect و لاگ‌ها برو.</p><p lang="en">Run <code>docker ps -a</code>. The first command hides stopped containers; its empty result describes only the running list. Find the matching name and state, then inspect that container and its logs.</p></details></div>
+<div class="ex" id="ex-12-2"><h3><span lang="fa">۲. خروج صفر، پس همه‌چیز درست است؟</span><span lang="en">2. Exit zero, so everything is correct?</span></h3><p lang="fa">یک کار کد <code>0</code> دارد، اما فایل گزارش مورد انتظار ساخته نشده. چه نتیجه‌ای می‌گیری؟</p><p lang="en">A job exited with <code>0</code>, but the expected report file is missing. What do you conclude?</p><details class="ex-sol"><summary>موفقیت فرایند با موفقیت هدف یکی نیست · Process success is not goal success</summary><p lang="fa">صفر طبق قرارداد معمول یعنی فرایند موفقیت گزارش کرده؛ ثابت نمی‌کند خروجی ساخته‌شده درست یا حتی تولید شده. مسیر خروجی، mount، گزارش پایانی و فرمان را بررسی کن و موفقیت را با همان فایل مورد انتظار بسنج.</p><p lang="en">Zero conventionally means the process reported success; it does not prove the artifact is correct or even exists. Check output path, mount, final logs, and command, then verify the actual expected file.</p></details></div>
+<div class="ex" id="ex-12-3"><h3><span lang="fa">۳. چرا کد ۱۲۷ گرفتیم؟</span><span lang="en">3. Why did this return 127?</span></h3><p lang="fa">container می‌گوید <code>sh: migrate: not found</code>. محتمل‌ترین مرز خراب کجاست؟</p><p lang="en">The container prints <code>sh: migrate: not found</code>. Which boundary most likely failed?</p><details class="ex-sol"><summary>ابزار پیش از اجرا پیدا نشد · The executable was not found</summary><p lang="fa">در قرارداد رایج shell، ۱۲۷ یعنی فرمان پیدا نشد. دستور واقعی و مرحلهٔ Dockerfile را بخوان؛ ممکن است binary نصب نشده، مسیرش در <code>PATH</code> نیست یا نام executable فرق دارد. OOM و port مسئلهٔ این مدرک نیستند.</p><p lang="en">By common shell convention, 127 means the command was not found. Read the actual command and Dockerfile stage: the binary may be missing, absent from <code>PATH</code>, or named differently. OOM and ports are not implicated by this evidence.</p></details></div>
+<div class="ex" id="ex-12-4"><h3><span lang="fa">۴. کد ۱۲۶ چه تفاوتی دارد؟</span><span lang="en">4. How is 126 different?</span></h3><p lang="fa">فرمان پیدا می‌شود، ولی shell می‌گوید <code>Permission denied</code>. چه چیزهایی را قبل از rebuild می‌سنجی؟</p><p lang="en">The command is found, but the shell says <code>Permission denied</code>. What do you check before rebuilding?</p><details class="ex-sol"><summary>اول قابل‌اجرا بودن را ثابت کن · Prove executability first</summary><p lang="fa">مجوز execute، مالکیت، mount با گزینهٔ <code>noexec</code> و shebang/interpreter را بررسی کن؛ نیز مطمئن شو فایل برای همان معماری و محیط است. ۱۲۶ در قرارداد shell یعنی اجرا نشد، نه اینکه برنامه شروع شد و منطقش شکست خورد.</p><p lang="en">Check execute permission, ownership, a possible <code>noexec</code> mount, and the shebang/interpreter; also confirm the file suits the target environment. Shell convention 126 means execution failed before the program's logic ran.</p></details></div>
+<div class="ex" id="ex-12-5"><h3><span lang="fa">۵. ۱۳۷ و OOMKilled=false</span><span lang="en">5. Exit 137 with OOMKilled=false</span></h3><p lang="fa">آیا می‌توانی در گزارش بنویسی «container به‌خاطر کمبود RAM کشته شد»؟</p><p lang="en">Can your report say “the container was killed because it ran out of RAM”?</p><details class="ex-sol"><summary>نه؛ مدرک هنوز کافی نیست · No—the evidence is insufficient</summary><p lang="fa">۱۳۷ با <code>SIGKILL</code> سازگار است، اما false بودن <code>OOMKilled</code>، OOM ثبت‌شدهٔ container را تأیید نمی‌کند. <code>docker kill</code>، پایان اجباری یا رخداد میزبان را با زمان، event و log میزبان بررسی کن؛ تا آن موقع علت را نامشخص بنویس.</p><p lang="en">137 is consistent with <code>SIGKILL</code>, but <code>OOMKilled=false</code> does not support a recorded container OOM. Check <code>docker kill</code>, forced termination, or host events against timestamps and host logs; until then, report the cause as unknown.</p></details></div>
+<div class="ex" id="ex-12-6"><h3><span lang="fa">۶. این بار OOMKilled=true است</span><span lang="en">6. This time OOMKilled is true</span></h3><p lang="fa">کد ۱۳۷ و <code>OOMKilled=true</code> ثبت شده‌اند. کدام تشخیص موجه‌تر است و چه چیزی هنوز لازم است؟</p><p lang="en">The record shows exit 137 and <code>OOMKilled=true</code>. Which diagnosis is justified, and what is still missing?</p><details class="ex-sol"><summary>نوع پایان روشن‌تر است، علت مصرف نه · The termination is clearer than the usage cause</summary><p lang="fa">می‌توان گفت Docker این پایان را OOM گزارش کرده. برای ریشه‌یابی، limit ثبت‌شده، زمان و مصرف حافظه، ورودی درخواست و الگوی تخصیص برنامه را مقایسه کن. پیام OOM به‌تنهایی نمی‌گوید limit را زیاد کنیم؛ شاید رشد نامحدود یا خواندن کل فایل در حافظه باشد.</p><p lang="en">You can say Docker reported an OOM termination. For root cause, compare the configured limit, memory usage and timing, request input, and allocation pattern. The OOM flag does not mean “raise the limit”; unbounded growth or loading a whole file may be the cause.</p></details></div>
+<div class="ex" id="ex-12-7"><h3><span lang="fa">۷. ۱۴۳ همیشه stop عادی است؟</span><span lang="en">7. Does 143 always mean a normal stop?</span></h3><p lang="fa">کانتینر با <code>Exited (143)</code> تمام شده. چه چیزی را می‌توانی بگویی و چه چیزی را نه؟</p><p lang="en">A container shows <code>Exited (143)</code>. What can you say, and what can you not say?</p><details class="ex-sol"><summary>با SIGTERM سازگار است، اما روایت لازم است · Consistent with SIGTERM, but context matters</summary><p lang="fa">۱۴۳ طبق قرارداد رایج با <code>128+15</code> و <code>SIGTERM</code> جور است. برای تشخیص shutdown عادی، زمان‌بندی deploy/stop، Docker events و logهای برنامه را کنار هم بگذار. برنامه هم می‌تواند عدد ۱۴۳ را خودش برگرداند.</p><p lang="en">By common convention, 143 aligns with <code>128+15</code> and <code>SIGTERM</code>. Correlate deploy/stop timing, Docker events, and application logs before calling it a normal shutdown. An application can also return 143 itself.</p></details></div>
+<div class="ex" id="ex-12-8"><h3><span lang="fa">۸. Restart count هر دقیقه بیشتر می‌شود</span><span lang="en">8. Restart count rises every minute</span></h3><p lang="fa">گزارش در هر تلاش همان خطای تنظیمات اتصال را نشان می‌دهد. آیا <code>restart: always</code> درمان است؟</p><p lang="en">Each attempt logs the same configuration error. Is <code>restart: always</code> a repair?</p><details class="ex-sol"><summary>تکرار شکست را با بازیابی اشتباه نگیر · Repetition is not recovery</summary><p lang="fa">نه. سیاست راه‌اندازی مجدد فرایند را دوباره اجرا می‌کند و ممکن است حلقه را پنهان یا پر سروصدا کند. محل اتصال تنظیمات و مسیر فایل را برای یک تلاش بررسی کن، علت را اصلاح کن، سپس همان ورودی را دوباره اجرا و وضعیت و گزارش جدید را تأیید کن.</p><p lang="en">No. The policy retries the process and can hide or amplify the loop. Inspect the config mount and file path for one attempt, repair the cause, then rerun the same input and verify new state and logs.</p></details></div>
+<div class="ex" id="ex-12-9"><h3><span lang="fa">۹. بایت هست، inode نیست</span><span lang="en">9. Blocks remain; inodes do not</span></h3><p lang="fa"><code>df -h</code> فضا نشان می‌دهد، اما <code>df -i</code> مصرف inode را ۱۰۰٪ گزارش می‌کند. چرا ساخت فایل تازه شکست می‌خورد؟</p><p lang="en"><code>df -h</code> shows free space, but <code>df -i</code> reports 100% inode use. Why can creating a new file fail?</p><details class="ex-sol"><summary>هر فایل هم inode می‌خواهد · Every file needs an inode</summary><p lang="fa">filesystem برای metadata هر فایل inode می‌خواهد؛ ممکن است بایت آزاد باشد ولی inode تازه موجود نباشد. تعداد فایل‌ها و مسیرهای پر از فایل کوچک را در همان filesystem پیدا کن. بزرگ‌کردن Docker image یا حذف یک volume نامربوط این ظرفیت را برنمی‌گرداند.</p><p lang="en">A filesystem needs an inode for each file's metadata; free bytes do not help if no inode remains. Locate directories with many small files on that filesystem. Enlarging an image or deleting an unrelated volume does not restore those inodes.</p></details></div>
+<div class="ex" id="ex-12-10"><h3><span lang="fa">۱۰. tmpfs پر شد؛ میزبان هم؟</span><span lang="en">10. tmpfs filled—did the host disk?</span></h3><p lang="fa">آزمایش محدود ما هنگام نوشتن روی <code>/scratch</code> خطای ENOSPC داده؛ mount در inspect از نوع <code>tmpfs</code> است. چه چیزی را ثابت می‌کند؟</p><p lang="en">Our bounded experiment got ENOSPC writing to <code>/scratch</code>, and inspect shows a <code>tmpfs</code> mount. What does that prove?</p><details class="ex-sol"><summary>فقط همان filesystem پر شده · Only that filesystem is full</summary><p lang="fa">نوشتن از سقف tmpfs گذشته؛ این خطا دربارهٔ فضای Docker data root یا دیسک میزبان چیزی ثابت نمی‌کند. mount را داخل inspect پیدا کن و پس از ثبت خروجی container آزمایشی را حذف کن.</p><p lang="en">The write exceeded the tmpfs cap; it proves nothing about Docker's data root or host disk. Identify the mount in inspect and remove the disposable container after recording the output.</p></details></div>
+<div class="ex" id="ex-12-11"><h3><span lang="fa">۱۱. build cache از همه بزرگ‌تر است</span><span lang="en">11. Build cache is the largest category</span></h3><p lang="fa"><code>docker system df -v</code> cache زیادی نشان می‌دهد و build فردا مهم است. اولین کار چیست؟</p><p lang="en"><code>docker system df -v</code> shows substantial cache, and tomorrow's build matters. What is your first action?</p><details class="ex-sol"><summary>عدد را با کارکردش بسنج · Weigh the usage against its purpose</summary><p lang="fa">buildها و cache mountهای لازم را بررسی کن و با مصرف، زمان rebuild و پارتیشن مقصد تصمیم بگیر. عدد بزرگ به‌تنهایی فرمان <code>builder prune</code> نیست؛ حذف cache می‌تواند build بعدی را کندتر و پرهزینه‌تر کند.</p><p lang="en">Review builds and cache mounts, then weigh usage against rebuild time and the backing filesystem. A large number alone does not justify <code>builder prune</code>; removing cache can make the next build slower and more expensive.</p></details></div>
+<div class="ex" id="ex-12-12"><h3><span lang="fa">۱۲. image بزرگ و بدون container فعال</span><span lang="en">12. A large image has no active container</span></h3><p lang="fa">image قدیمی هنوز tag دارد و container زنده‌ای از آن نمی‌بینی. آیا <code>docker image prune -a</code> بی‌خطر است؟</p><p lang="en">An old tagged image has no running container. Is <code>docker image prune -a</code> automatically safe?</p><details class="ex-sol"><summary>نه؛ مصرف‌کننده فقط running نیست · No; consumers are not only running containers</summary><p lang="fa">container متوقف‌شده، pipeline یا rollback ممکن است به image نیاز داشته باشد. همهٔ containerها را با <code>docker ps -a</code> و imageها را با <code>docker system df -v</code> بسنج؛ اگر tag واقعاً لازم نیست و بازسازی/pull ممکن است، آن‌وقت دامنهٔ پاک‌سازی را انتخاب کن.</p><p lang="en">A stopped container, pipeline, or rollback may still need it. Review all containers with <code>docker ps -a</code> and image usage with <code>docker system df -v</code>. Prune only after confirming the tag is unnecessary and rebuilding/pulling it is acceptable.</p></details></div>
+<div class="ex" id="ex-12-13"><h3><span lang="fa">۱۳. volume بلااستفاده ولی پُرداده</span><span lang="en">13. An unused volume still contains data</span></h3><p lang="fa"><code>docker system df</code> یک volume بزرگ با صفر link نشان می‌دهد. حذفش می‌کنی؟</p><p lang="en"><code>docker system df</code> shows a large volume with zero links. Do you remove it?</p><details class="ex-sol"><summary>اول مشخص کن «بلااستفاده» برای چه کسی · First ask “unused by whom?”</summary><p lang="fa">صفر link می‌گوید اکنون containerی آن را متصل نکرده؛ نمی‌گوید داده بی‌ارزش است. نام، برچسب، تاریخ، مالک پروژه و پشتیبان را پیدا کن و اگر داده باید بماند آن را بازیابی/منتقل کن. volume را به امید اینکه خالی باشد prune نکن.</p><p lang="en">Zero links says no current container attaches it; it does not say the data is worthless. Identify its name, labels, project owner, age, and backup; preserve or migrate the data if needed. Do not prune it on the assumption that it is empty.</p></details></div>
+<div class="ex" id="ex-12-14"><h3><span lang="fa">۱۴. logها نیستند، اما برنامه روی stdout می‌نویسد</span><span lang="en">14. Logs are missing, though the app writes to stdout</span></h3><p lang="fa">برنامه رویداد را به stdout می‌فرستد، اما <code>docker logs web</code> چیزی نمی‌دهد. چه فرضیه‌ای را اول می‌سنجی؟</p><p lang="en">The application writes events to stdout, but <code>docker logs web</code> is empty. Which hypothesis do you test first?</p><details class="ex-sol"><summary>رفتار logging driver را بررسی کن · Inspect the logging driver</summary><p lang="fa">driver پیش‌فرض را با <code>docker info</code> و driver همان container را با <code>docker inspect</code> بخوان. driver ممکن است محلی reading را پشتیبانی نکند یا خروجی را به مقصد بیرونی بفرستد؛ بعد مقصد را بررسی کن. نبودن خروجی محلی به‌تنهایی ثابت نمی‌کند برنامه چیزی ننوشته.</p><p lang="en">Read the daemon default with <code>docker info</code> and the container's driver with <code>docker inspect</code>. The driver may not support local reading or may send output elsewhere; inspect that destination. Missing local output alone does not prove the app wrote nothing.</p></details></div>
+<div class="ex" id="ex-12-15"><h3><span lang="fa">۱۵. روی Windows آزاد است، Docker می‌گوید پر</span><span lang="en">15. Windows has space; Docker says full</span></h3><p lang="fa">در Windows چند گیگابایت آزاد می‌بینی، اما pull image روی Docker Desktop شکست می‌خورد. چرا این دو مشاهده تناقض ندارند؟</p><p lang="en">Windows shows several gigabytes free, but an image pull fails in Docker Desktop. Why can both observations be true?</p><details class="ex-sol"><summary>دو filesystem یا لایهٔ ذخیره‌سازی متفاوت · Different filesystems or storage layers</summary><p lang="fa">Docker Desktop دادهٔ Linux را در محیط مجازی/مدیریت‌شده و با سقف خودش نگه می‌دارد. با <code>docker system df</code> مصرف daemon را ببین و Resources را در تنظیمات Desktop بررسی کن؛ فضای آزاد درایو Windows الزاماً ظرفیت image دیسک Docker را نشان نمی‌دهد.</p><p lang="en">Docker Desktop stores Linux data in managed virtual storage with its own capacity. Check daemon usage with <code>docker system df</code> and inspect Desktop Resources settings; free Windows drive space does not necessarily describe the Docker image disk's capacity.</p></details></div>
+<div class="ex" id="ex-12-16"><h3><span lang="fa">۱۶. پیشنهاد «همه‌چیز را prune کن»</span><span lang="en">16. Someone proposes “prune everything”</span></h3><p lang="fa">همکارت برای حل build error این را پیشنهاد می‌کند: <code>docker system prune -a --volumes</code>. پاسخ حرفه‌ای تو چیست؟</p><p lang="en">A teammate proposes <code>docker system prune -a --volumes</code> to fix a build error. What is your professional response?</p><details class="ex-sol"><summary>دامنه و داده را قبل از حذف روشن کن · Establish scope and data before deleting</summary><p lang="fa">اول فایل‌سیستم، cache و object مصرف‌شده را با شواهد پیدا کن. این فرمان می‌تواند imageهای بدون container، cache و volumeهای بی‌مصرفِ مشخص‌شده را حذف کند؛ volume شاید داده داشته باشد. علت build را جدا تشخیص بده، volumeها را به مالکشان وصل کن و پاک‌سازی هدفمند و تأییدشده انجام بده.</p><p lang="en">First identify the filesystem, cache, and consumers with evidence. That command can remove images without containers, cache, and included unused volumes; a volume may still hold data. Diagnose the build failure separately, identify volume owners, and perform only scoped, confirmed cleanup.</p></details></div>
+<div class="ex" id="ex-12-17"><h3><span lang="fa">۱۷. اصلاح کردی؛ چه چیزی بازیابی را ثابت می‌کند؟</span><span lang="en">17. You repaired it—what proves recovery?</span></h3><p lang="fa">پس از تغییر تنظیم، container در <code>Up</code> است. برای بستن گزارش حادثه چه آزمونی کم است؟</p><p lang="en">After a config change, the container is <code>Up</code>. What test is missing before closing the incident?</p><details class="ex-sol"><summary>همان وعدهٔ اولیه را دوباره بیازما · Repeat the original verification</summary><p lang="fa">درخواست یا کاری را اجرا کن که اول شکست خورد؛ سپس نتیجهٔ مورد انتظار را بخوان، وضعیت و سلامت و گزارش همان بازه را ثبت کن. <code>Up</code> فقط زنده‌بودن فرایند را می‌گوید و تغییر تنظیم هم به‌تنهایی اثبات تعمیر نیست.</p><p lang="en">Repeat the request or job that originally failed, then verify its expected result and record state/health and logs for that interval. <code>Up</code> proves process liveness only; changing configuration is not itself proof of repair.</p></details></div>
+<div class="ex" id="ex-12-18"><h3><span lang="fa">۱۸. یک گزارش incident کوتاه بنویس</span><span lang="en">18. Write a concise incident report</span></h3><p lang="fa">فرایند با ۱۳۷ تمام شده، <code>OOMKilled=false</code> است، log می‌گوید shutdown signal دریافت شد و event در همان دقیقه <code>kill</code> را ثبت کرده. گزارش یک‌جمله‌ای تو چیست؟</p><p lang="en">The process exited 137, <code>OOMKilled=false</code>, logs say a shutdown signal arrived, and an event records <code>kill</code> in the same minute. What is your one-sentence report?</p><details class="ex-sol"><summary>واقعیت‌ها را از فرضیه جدا نگه دار · Keep facts separate from hypotheses</summary><p lang="fa">مثلاً: «کانتینر در ساعت ثبت‌شده با ۱۳۷ پایان یافت؛ Docker برای آن OOM ثبت نکرد، log دریافت signal را نشان می‌دهد و event هم‌زمان kill را ثبت کرده؛ بنابراین شواهد به توقف اجباری اشاره می‌کنند، نه OOM container.» اگر identity عامل kill معلوم نیست، همان بخش را نامشخص بگذار و برایش مدرک تازه جمع کن.</p><p lang="en">For example: “At the recorded time the container exited 137; Docker did not record a container OOM, logs show a signal, and a concurrent event records kill, so evidence points to forced termination rather than container OOM.” If the actor is unknown, say so and collect evidence before naming one.</p></details></div>
+</section>
+<section id="lab">
+<h2><span lang="fa">آزمایشگاه incident: سه خرابی، سه مسیر تشخیص</span><span lang="en">Incident lab: three failures, three evidence-based diagnoses</span></h2>
+<p lang="fa">در این آزمایشگاه سه خطا را جدا می‌سازیم: برنامه خودش با کد مشخص خارج می‌شود؛ یک container از سقف حافظهٔ کوچک خودش عبور می‌کند؛ و نوشتن روی tmpfs محدود جا نمی‌شود. هر سناریو مستقل است تا نشانه‌هایشان با هم قاطی نشود.</p>
+<p lang="en">On one lab host, reproduce three causes separately: an application returns a known code, a process exceeds a small container memory cap, and a write exceeds a 1 MiB tmpfs. None requires wiping Docker or writing to a real disk partition.</p>
+<div class="ex-goal"><span lang="fa">خروجی نهایی: برای هر incident یک گزارش کوتاه با symptom، مدرک، diagnosis، repair و بررسی بنویس. گزارش باید مشخص کند چه چیزی ثابت شد و چه چیزی هنوز نامعلوم است.</span><span lang="en">Deliverable: write a short report for each incident with symptom, evidence, diagnosis, repair, and verification. State what is proven and what remains unknown.</span></div>
+<p lang="fa">برای هر مورد یک گزارش کوتاه بنویس: نشانهٔ اولیه، مدرکی که جمع کردی، تشخیص، اصلاح و همان آزمونی که بعد از اصلاح تکرار شد. اگر مرحلهٔ آخر را نداری، incident هنوز بسته نشده است.</p>
+<p lang="en">This checks only the lab names. If one already exists, choose a new name and substitute it consistently throughout that incident; do not delete an existing container merely to free the name.</p>
+<div class="term"><div class="term-bar"><span class="term-label">preflight · preserve anything already present</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker version
+docker ps -a --filter name=lab12-</pre></div>
+<p lang="fa">اگر سرور وصل نیست یا موتور خاموش است، همین‌جا توقف کن. در بخش OOM، اگر daemon محدودیت حافظه را نمی‌پذیرد، آن را بدون <code>--memory</code> دوباره اجرا نکن. بخش tmpfs هم به موتور Linux container نیاز دارد؛ اگر backend پشتیبانی نمی‌کند، آن آزمایش را در محیط مناسب اجرا کن.</p>
+<p lang="en">If the Server is unavailable or the Engine is stopped, pause here. If the daemon rejects the memory cap in the OOM section, do not retry without <code>--memory</code>. The tmpfs incident also requires a Linux container engine; use a supported environment rather than replacing it with a real-disk write.</p>
+<h3><span lang="fa">حادثهٔ A · برنامه با کد معلوم خارج می‌شود</span><span lang="en">Incident A · the application exits with a known code</span></h3>
+<p lang="fa">می‌خواهیم فرق «برنامه شکست گزارش کرد» با «Docker خراب شد» را ثابت کنیم. برنامه عمداً ۲۳ برمی‌گرداند؛ این کد shell خاصی نیست و در مثال معنای خود برنامه را دارد.</p>
+<p lang="en">We will distinguish “the application reported failure” from “Docker failed.” The program deliberately returns 23; in this example it is application-defined, not a special shell code.</p>
+<div class="term"><div class="term-bar"><span class="term-label">A1 · create evidence; keep the stopped container</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker run --name lab12-exit python:3.12-alpine python -c "import sys; print('configuration rejected', file=sys.stderr); sys.exit(23)"</pre></div>
+<p lang="fa">فرمان non-zero برمی‌گردد؛ برای همین در بعضی shellها prompt خطا می‌بینی. این خودش دلیل پاک‌کردن container نیست. کد را با state و پیام برنامه کنار هم ثبت کن:</p>
+<p lang="en">The command returns non-zero, so some shells display an error-style prompt. That is not a reason to remove the container. Record its code alongside state and application output:</p>
+<div class="term"><div class="term-bar"><span class="term-label">A2 · state and application output</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker inspect lab12-exit --format 'status={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} finished={{.State.FinishedAt}}'
+docker logs lab12-exit</pre></div>
+<div class="term"><div class="term-bar"><span class="term-label">representative evidence</span></div><pre dir="ltr">status=exited exit=23 oom=false finished=...
+configuration rejected</pre></div>
+<p lang="fa">تشخیص محدود و موجه: برنامه با کد خروج اختصاصی ۲۳ خارج شده و پیام خودش می‌گوید تنظیمات را رد کرده است. اصلاح را به همان فرضیه محدود می‌کنیم: ورودی یا تنظیم را درست می‌کنیم و فرمان را دوباره اجرا می‌کنیم.</p>
+<p lang="en">A bounded diagnosis is justified: the application exited with its custom code 23, and its own message says it rejected configuration. Keep the repair tied to that hypothesis: correct the input/configuration and run a successful verification once.</p>
+<div class="term"><div class="term-bar"><span class="term-label">A3 · corrected configuration path</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker run --name lab12-exit-fixed python:3.12-alpine python -c "print('configuration accepted; report completed')"
+docker inspect lab12-exit-fixed --format 'status={{.State.Status}} exit={{.State.ExitCode}}'
+docker logs lab12-exit-fixed</pre></div>
+<h3><span lang="fa">حادثهٔ B · محدودیت حافظهٔ container تمام می‌شود</span><span lang="en">Incident B · the container memory cap is reached</span></h3>
+<p lang="fa">این آزمایش فقط وقتی مجاز است که Engine محدودیت را بپذیرد. هر تکرار حافظه را داخل همین container سقف‌دار می‌خواهد؛ تخصیص‌ها هشت مگابایتی‌اند. <code>--memory-swap</code> را برابر سقف می‌گذاریم تا آزمایش swap نامحدود نداشته باشد.</p>
+<p lang="en">Run this only if the Engine accepts the cap. Allocations occur inside this bounded container in 8 MiB chunks. Setting <code>--memory-swap</code> equal to the cap avoids unbounded swap for the experiment.</p>
+<div class="term"><div class="term-bar"><span class="term-label">B1 · bounded allocation, never remove the cap</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker run --name lab12-oom --memory=64m --memory-swap=64m python:3.12-alpine python -c 'blocks=[]; exec("while True:\n blocks.append(bytearray(8*1024*1024))\n print(len(blocks)*8, flush=True)")'</pre></div>
+<p lang="fa">پس از خروج، اول وضعیت را حفظ کن؛ نه <code>docker rm</code> و نه restart. انتظار داریم <code>OOMKilled=true</code> و اغلب exit ۱۳۷ ببینیم. اگر خروجی با انتظار فرق داشت، ثبت کن و بررسی کن؛ نتیجه را به زور با restart یا حذف محدودیت «درست» نکن.</p>
+<p lang="en">After it exits, preserve state—do not remove or restart it yet. We expect <code>OOMKilled=true</code> and commonly exit 137. If the result differs, record and investigate it; do not “correct” the experiment with a restart or by removing the cap.</p>
+<div class="term"><div class="term-bar"><span class="term-label">B2 · distinguish the exit number from Docker's OOM evidence</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker inspect lab12-oom --format 'status={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} restarts={{.RestartCount}} finished={{.State.FinishedAt}}'
+docker logs --tail=8 lab12-oom</pre></div>
+<p lang="fa">در اصلاح، مسئله را «حافظهٔ بی‌نهایت بده» تعریف نکن. این برنامه برای جمع‌زدن یک بازه تمام داده را نگه می‌داشت؛ نسخهٔ بعدی از جمع‌زدن جریانی استفاده می‌کند و تنها نتیجه را نگه می‌دارد:</p>
+<p lang="en">Do not define the repair as “give it unlimited memory.” The first program retained all data while summing a range; the corrected version streams the calculation and retains only the result:</p>
+<div class="term"><div class="term-bar"><span class="term-label">B3 · lower-memory verification under the same cap</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker run --name lab12-oom-fixed --memory=64m --memory-swap=64m python:3.12-alpine python -c "print(sum(range(1000000)))"
+docker inspect lab12-oom-fixed --format 'status={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}'</pre></div>
+<p lang="fa">این اصلاح آموزشی نشان می‌دهد شکل محاسبه روی اوج مصرف اثر دارد؛ در برنامهٔ واقعی باید همان درخواست شکست‌خورده را با دادهٔ واقعی و معیار درست دوباره بسنجی. سقف ۶۴ مگابایت توصیهٔ محیط عملیاتی نیست و تعیین عدد نهایی به فصل ۱۳ تعلق دارد.</p>
+<p lang="en">This teaching repair shows that computation shape affects peak usage; a real application must be retested with the same failing request and representative data. A 64 MiB cap is not a production recommendation; selecting limits belongs in Chapter 13.</p>
+<h3><span lang="fa">حادثهٔ C · مقصد موقت جا ندارد</span><span lang="en">Incident C · the temporary target has no room</span></h3>
+<p lang="fa">اینجا سقف یک‌مگابایت روی خود tmpfs است. فرمان می‌خواهد ۲ مگابایت بنویسد؛ هرگز مسیر خروجی را به bind mount یا مسیر میزبان عوض نکن.</p>
+<p lang="en">Here the 1 MiB cap is on tmpfs itself. The command attempts a 2 MiB write; never redirect its output to a bind mount or host path.</p>
+<div class="term"><div class="term-bar"><span class="term-label">C1 · bounded ENOSPC reproduction</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker run --name lab12-enospc --mount type=tmpfs,dst=/scratch,tmpfs-size=1048576 alpine:3.21 sh -c 'dd if=/dev/zero of=/scratch/fill.bin bs=64K count=32'</pre></div>
+<p lang="fa">خروجی <code>No space left on device</code> باید با inspect نشان دهد مقصد از نوع tmpfs بوده و کد خروج برنامه غیرصفر است. این مشاهده نمی‌گوید فضای Docker یا میزبان تمام است. اصلاح مناسب برای همین آزمایش این است که بار نوشتن را به ۵۱۲ کیلوبایت کاهش دهیم و همان mount را نگه داریم:</p>
+<p lang="en">The <code>No space left on device</code> output should pair with inspect showing a tmpfs destination and a non-zero program result. It does not say Docker or host storage is full. For this experiment, reduce the write to 512 KiB while keeping the same mount:</p>
+<div class="term"><div class="term-bar"><span class="term-label">C2 · verify the smaller write on the same bounded filesystem</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker inspect lab12-enospc --format 'exit={{.State.ExitCode}} mounts={{json .Mounts}}'
+docker logs lab12-enospc
+docker run --name lab12-enospc-fixed --mount type=tmpfs,dst=/scratch,tmpfs-size=1048576 alpine:3.21 sh -c 'dd if=/dev/zero of=/scratch/fill.bin bs=64K count=8'
+docker inspect lab12-enospc-fixed --format 'status={{.State.Status}} exit={{.State.ExitCode}}'</pre></div>
+<p lang="fa">گزارشت را برای هر حادثه در چهار یا پنج جمله کامل کن: نشانه چه بود؛ کدام خروجی مدرک شد؛ چه علت‌هایی رد یا تأیید شدند؛ چه اصلاح محدودی انجام شد؛ و همان آزمون اولیه چه نتیجه‌ای داد. عبارت «حل شد» بدون نتیجهٔ آزمون کافی نیست.</p>
+<p lang="en">Finish each report in four or five concise statements: symptom; evidence; causes supported or ruled out; scoped repair; and result of the original verification. “Fixed” without a verification result is incomplete.</p>
+<div class="table-wrap"><table class="doc-table">
+<thead><tr><th>Incident</th><th>مدرک کلیدی / Key evidence</th><th>Repair و verification / Repair and verification</th></tr></thead>
+<tbody>
+<tr><td>A · exit 23</td><td>کد اختصاصی + پیام رد config / App-defined code and rejected-config log</td><td>ورودی اصلاح‌شده؛ همان برنامه exit 0 / Corrected input; same job succeeds</td></tr>
+<tr><td>B · OOM</td><td><code>OOMKilled</code>، code، cap و خروجی allocation / OOM flag, code, cap, allocation output</td><td>الگوی کم‌حافظه؛ همان limit و کار قابل‌مقایسه / Lower-memory shape under the same cap</td></tr>
+<tr><td>C · ENOSPC</td><td>پیام dd + mount نوع tmpfs و سقف ۱ MiB / dd error, tmpfs mount and 1 MiB cap</td><td>نوشتن کوچک‌تر روی همان tmpfs / Smaller write on the same tmpfs</td></tr>
+</tbody>
+</table></div>
+<p lang="fa">پیش از پاک‌سازی، state و log سه container را ثبت کن. بعد فقط نام‌های مخصوص همین lab را حذف کن؛ هیچ volumeای ساخته نشده و هیچ فرمان prune عمومی لازم نیست. اگر یکی از نام‌ها پیش از آزمایش وجود داشت، فقط containerهایی را حذف کن که خودت همین‌جا ساخته‌ای.</p>
+<p lang="en">Record state and logs for all three containers before cleanup. Then remove only the names reserved for this lab; no volume was created and no global prune command is needed. If a name existed before the experiment, remove only containers you created here.</p>
+<div class="term"><div class="term-bar"><span class="term-label">scoped cleanup · after collecting evidence</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker rm lab12-exit lab12-exit-fixed lab12-oom lab12-oom-fixed lab12-enospc lab12-enospc-fixed</pre></div>
+<p lang="fa">پاک‌سازی موفق را با <code>docker ps -a</code> برای همین نام‌ها تأیید کن. نتیجه‌ای که باید با خودت ببری، فرمانی برای پاک‌کردن بیشتر نیست؛ توانایی ربط‌دادن هر خرابی به filesystem یا state مشخص و تکرار آزمون اصلی است.</p>
+<p lang="en">Verify cleanup by checking these names in <code>docker ps -a</code>. The takeaway is not a more aggressive cleanup command; it is the ability to tie each failure to a specific state or filesystem and repeat the original test.</p>
+</section>
+<section id="handoff">
+<h2><span lang="fa">حادثه وقتی تمام می‌شود که همان مسیر دوباره سالم باشد</span><span lang="en">An incident closes when the expected result returns</span></h2>
+<p lang="fa">در این فصل هیچ عددی را به‌تنهایی علت ننامیدیم. ۱۳۷ را با OOMKilled و لاگ سنجیدیم؛ کمبود فضا را به filesystem واقعی وصل کردیم؛ و فقط بعد از شناخت مصرف‌کننده سراغ پاک‌سازی رفتیم. این عادت از خود فرمان‌ها مهم‌تر است.</p>
+<p lang="en">Review the chain: the symptom chose where to look; state showed what happened to the process; exit code and logs narrowed the execution story; resource and filesystem evidence identified the relevant limit or target; then we tested the repair with the original check. We never treated 137 alone as a cause or sacrificed data for “cleanup.”</p>
+<p lang="fa">دفعهٔ بعد که کسی گفت «Docker کرش کرده»، لازم نیست مخالفت کنی؛ فقط بپرس: «چه چیزی دیدیم که این را ثابت می‌کند؟» همین سؤال مسیر عیب‌یابی را از حدس به مهندسی برمی‌گرداند.</p>
+<p lang="en">Chapter 13 turns to resources so we can design CPU and memory limits deliberately rather than raising a number blindly during an incident. This chapter used one small cap only to reproduce OOM; production diagnosis and tuning are a separate task.</p>
+<div class="note safe"><div class="note-t"><span lang="fa">قاعدهٔ آخر</span><span lang="en">The final rule</span></div>
+<p lang="fa">هر اصلاح باید به یک مدرک مشخص جواب بدهد و با تکرار همان درخواست، کار یا نوشتنِ شکست‌خورده تأیید شود. اگر هنوز نمی‌توانی بگویی کدام فایل‌سیستم پر بود یا چه چیزی فرایند را کشت، حادثه هنوز تشخیص داده نشده است.</p>
+<p lang="en">Every repair should answer a specific piece of evidence and be verified by repeating the same failing request, job, or write. If you still cannot say which filesystem filled or what terminated the process, the incident is not yet diagnosed.</p>
+</div>
+</section>
+<section id="quick">
+<h2><span lang="fa">مرجع سریع برای لحظهٔ incident</span><span lang="en">Quick reference for the incident moment</span></h2>
+<div class="cheat">
+<div class="cheat-row"><code>docker ps -a</code><span lang="fa">container متوقف را هم ببین؛ از غیبت در <code>docker ps</code> نتیجه نگیر</span><span lang="en">include stopped containers; absence from <code>docker ps</code> is not a daemon diagnosis</span></div>
+<div class="cheat-row"><code>{{.State.ExitCode}} / {{.State.OOMKilled}}</code><span lang="fa">کد خروج را از مدرک OOM جدا بخوان</span><span lang="en">separate exit code from Docker's OOM evidence</span></div>
+<div class="cheat-row"><code>{{.State.Error}} / {{.State.FinishedAt}}</code><span lang="fa">پیام و زمان پایان را کنار log بگذار</span><span lang="en">correlate recorded error and finish time with logs</span></div>
+<div class="cheat-row"><code>{{.RestartCount}}</code><span lang="fa">تکرار شکست را پیدا کن؛ restart به معنی recovery نیست</span><span lang="en">spot repeated failure; restart does not mean recovery</span></div>
+<div class="cheat-row"><code>df -h PATH</code><span lang="fa">بلوک آزاد filesystem همان مسیر را بخوان</span><span lang="en">check free blocks on the target path's filesystem</span></div>
+<div class="cheat-row"><code>df -i PATH</code><span lang="fa">inodeهای همان مقصد را هم بسنج</span><span lang="en">check inode availability at the same target</span></div>
+<div class="cheat-row"><code>docker system df -v</code><span lang="fa">مصرف image، container، volume و build cache را تفکیک کن</span><span lang="en">separate image, container, volume, and build-cache usage</span></div>
+<div class="cheat-row"><code>docker info --format '{{.DockerRootDir}}'</code><span lang="fa">محل data را از دید daemon پیدا کن</span><span lang="en">find the data root from the daemon's point of view</span></div>
+<div class="cheat-row"><code>docker inspect --format '{{.HostConfig.LogConfig.Type}}' NAME</code><span lang="fa">وقتی log محلی نیست، driver همان container را بررسی کن</span><span lang="en">inspect the container driver when local logs are missing</span></div>
+</div>
+<p lang="fa">برای رفتار فعلی، مرجع رسمی <a href="https://docs.docker.com/reference/cli/docker/inspect/"><code>docker inspect</code></a>، <a href="https://docs.docker.com/reference/cli/docker/container/ls/"><code>docker ps</code> و کدهای خروج</a> و <a href="https://docs.docker.com/engine/containers/resource_constraints/">محدودیت حافظه و OOM</a> را ببین. برای دیسک، <a href="https://docs.docker.com/reference/cli/docker/system/df/"><code>docker system df</code></a>، <a href="https://docs.docker.com/reference/cli/docker/system/info/"><code>docker info</code></a> و <a href="https://docs.docker.com/engine/storage/tmpfs/">tmpfs</a> را بخوان.</p>
+<p lang="en">For current behavior, consult the official references for <a href="https://docs.docker.com/reference/cli/docker/inspect/"><code>docker inspect</code></a>, <a href="https://docs.docker.com/reference/cli/docker/container/ls/"><code>docker ps</code> and exit codes</a>, and <a href="https://docs.docker.com/engine/containers/resource_constraints/">memory constraints and OOM</a>. For storage, read <a href="https://docs.docker.com/reference/cli/docker/system/df/"><code>docker system df</code></a>, <a href="https://docs.docker.com/reference/cli/docker/system/info/"><code>docker info</code></a>, and <a href="https://docs.docker.com/engine/storage/tmpfs/">tmpfs</a>.</p>
+<p lang="fa">برای پاک‌سازی هدفمند، اول <a href="https://docs.docker.com/engine/manage-resources/pruning/">راهنمای prune و محدودهٔ حذف</a> را بخوان؛ برای log، <a href="https://docs.docker.com/engine/logging/configure/">تنظیم logging driver</a> را ببین. در Docker Desktop، <a href="https://docs.docker.com/desktop/settings-and-maintenance/settings/">تنظیمات منابع و disk image</a> مرجع فضای مدیریت‌شده است. حجم هر driver و پشتیبانی فرمان‌ها به Engine و محیط تو وابسته است.</p>
+<p lang="en">Before targeted cleanup, read the official <a href="https://docs.docker.com/engine/manage-resources/pruning/">prune scope and deletion guide</a>; for logs, consult <a href="https://docs.docker.com/engine/logging/configure/">logging-driver configuration</a>. On Docker Desktop, <a href="https://docs.docker.com/desktop/settings-and-maintenance/settings/">resource and disk-image settings</a> describe managed storage. Driver behavior and command support depend on your Engine and environment.</p>
+</section>

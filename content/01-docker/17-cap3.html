@@ -1,0 +1,656 @@
+<!--meta
+title: پروژهٔ ۳ — استقرار سه‌سرویسه روی سرور واقعی
+desc: یک API نسخه‌دار را با Caddy و PostgreSQL روی Ubuntu مستقر کن؛ blue/green را با سلامت واقعی، backup شبانه، آزمون restore و rollback ثابت کن.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">Docker · پروژهٔ نهایی</span><span lang="en">Docker · final capstone</span></span>
+<h1 lang="fa">پروژهٔ ۳ — استقرار سه‌سرویسه روی سرور واقعی</h1>
+<h1 lang="en">Project 3 — Deploy a three-service application to a real server</h1>
+<p class="sub" lang="fa">این بار چیزی برای حفظ‌کردن نداریم؛ مأموریت این است که یک برنامهٔ کوچک را از registry به VPS ببری، جلویش reverse proxy بگذاری، داده را حفظ کنی و بتوانی از یک انتشار خراب برگردی. در پایان باید خودت با مدرک بگویی کدام نسخه زنده است، پشتیبان واقعاً قابل‌بازیابی است یا نه، و تغییر نسخه وقفه‌ای ایجاد کرده یا نه.</p>
+<p class="sub" lang="en">This is not a command to memorize. Your mission is to move a small application from a registry to a VPS, put a reverse proxy in front of it, preserve data, and recover from a bad release. At the end, use evidence to say which version is live, whether the backup is actually restorable, and whether the cutover caused an interruption.</p>
+<div class="facts"><div class="fact"><b>3</b><span lang="fa">نقش سرویس</span><span lang="en">service roles</span></div><div class="fact"><b>2+</b><span lang="fa">نسخهٔ برنامه</span><span lang="en">app versions</span></div><div class="fact"><b>1</b><span lang="fa">آزمون restore</span><span lang="en">restore test</span></div><div class="fact"><b>≈ 1 day</b><span lang="fa">زمان پیشنهادی</span><span lang="en">suggested time</span></div></div>
+</div>
+<section id="mission">
+<h2><span lang="fa">مأموریت نهایی: یک استقرار واقعی که فقط «بالا آمدن» برایش کافی نیست</span><span lang="en">Mission: your first real deployment</span></h2>
+<p class="lede" lang="fa">نسخهٔ <code>1.0.0</code> روی لپ‌تاپ سالم است و image هم در registry قرار دارد. حالا کاربر واقعی از بیرون می‌خواهد با HTTPS به برنامه برسد. پایگاه‌داده باید خصوصی بماند، داده با update از بین نرود، پشتیبان شبانه داشته باشیم و اگر نسخهٔ تازه خراب شد راه برگشت روشن باشد.</p>
+<p class="lede" lang="en">Version 1.0.0 works on your laptop and is in a registry. Now a real user needs to reach it over HTTPS. The database must stay private; notes must survive application updates; a backup must run nightly; and when a release is broken, the way back must be clear.</p>
+<p lang="fa">این پروژه جمع‌بندی کل مسیر Docker است. قرار نیست دوباره هر فرمان را آموزش بدهیم. تو باید از چیزهایی که در فصل‌های قبل ساختی یک سیستم قابل‌تحویل بسازی: proxy عمومی، app قابل‌جایگزینی، PostgreSQL ماندگار، secret جدا، healthcheck، پشتیبان، update و rollback.</p><p lang="en">We will not begin with a wall of commands. First ask: if the VPS fails now, where is the live data? If we pull the wrong tag, what evidence will tell us? If the new release is not ready, what is still answering user requests?</p>
+<div class="note safe"><div class="note-t"><span lang="fa">سه نقش منطقی، چند container فیزیکی</span><span lang="en">Three service roles, several physical containers</span></div><p lang="fa">معماری سه نقش دارد: proxy، برنامه و PostgreSQL. برای blue/green، نقش برنامه هم‌زمان دو instance سالم دارد؛ در تمرین خرابی ممکن است نسخهٔ آزمایشی سومی هم داشته باشد. پس ممکن است چهار یا پنج container ببینی، اما هنوز همان سه نقش منطقی را اجرا می‌کنی. تعداد replicaها مرز مسئولیت سرویس را عوض نمی‌کند.</p><p lang="en">The architecture has three roles: proxy, application, and PostgreSQL. Blue/green temporarily runs two healthy application instances; the failure drill may add a third candidate. You may therefore see four or five containers while still operating the same three logical roles. Replica count does not create a new responsibility boundary.</p></div>
+</section>
+<section id="architecture">
+<h2><span lang="fa">اول مسیر درخواست و مالکیت داده را روی کاغذ روشن کن</span><span lang="en">Request path and the data boundary</span></h2>
+<div class="diagram"><svg aria-labelledby="cap3-arch-title" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 1100 500">
+<title id="cap3-arch-title">Internet reaches Caddy on the edge network; blue-green app slots occupy the overlap of edge and backend networks; PostgreSQL stays backend-only and its named volume stays outside both networks.</title>
+<defs><marker id="cap3-arrow" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<rect class="dg-network-edge" height="300" rx="20" width="600" x="200" y="45"></rect>
+<rect class="dg-network-backend" height="300" rx="20" width="510" x="560" y="45"></rect>
+<text class="dg-t" x="220" y="78">edge network</text>
+<text class="dg-t" x="830" y="78">backend · private DB</text>
+<rect class="dg-fill-w" height="80" rx="14" width="130" x="20" y="170"></rect>
+<text class="dg-t" text-anchor="middle" x="85" y="203">Internet</text><text class="dg-ts" text-anchor="middle" x="85" y="228">80 / 443</text>
+<rect class="dg-fill" height="90" rx="14" width="200" x="265" y="165"></rect>
+<text class="dg-t" text-anchor="middle" x="365" y="202">Caddy · proxy</text><text class="dg-ts" text-anchor="middle" x="365" y="230">only public ports</text>
+<rect class="dg-fill-g" height="80" rx="14" width="240" x="560" y="95"></rect>
+<text class="dg-t" text-anchor="middle" x="680" y="128">app-blue · 1.0.0</text><text class="dg-ts" text-anchor="middle" x="680" y="154">active · rollback-ready</text>
+<rect class="dg-fill-b" height="80" rx="14" width="240" x="560" y="215"></rect>
+<text class="dg-t" text-anchor="middle" x="680" y="248">app-green · 1.1.0</text><text class="dg-ts" text-anchor="middle" x="680" y="274">candidate · health first</text>
+<rect class="dg-fill-w" height="100" rx="14" width="180" x="850" y="150"></rect>
+<text class="dg-t" text-anchor="middle" x="940" y="188">PostgreSQL</text><text class="dg-ts" text-anchor="middle" x="940" y="217">private · no host port</text>
+<rect class="dg-fill-g" height="65" rx="12" width="160" x="860" y="410"></rect>
+<text class="dg-ts" text-anchor="middle" x="940" y="438">pgdata</text><text class="dg-ts" text-anchor="middle" x="940" y="458">named volume</text>
+<g class="dg-stroke-b" marker-end="url(#cap3-arrow)" stroke-width="2">
+<path d="M150 210H265"></path>
+<path d="M465 185L560 135"></path>
+<path d="M800 135L850 175"></path>
+<path d="M800 255L850 225"></path>
+<path d="M940 250V410"></path>
+</g>
+<path class="dg-stroke-b" d="M465 235L560 255" marker-end="url(#cap3-arrow)" stroke-dasharray="7 6" stroke-width="2"></path>
+<text class="dg-ts" text-anchor="middle" x="510" y="145">active route</text>
+<text class="dg-ts" text-anchor="middle" x="510" y="320">candidate after health</text>
+</svg><p class="diagram-cap" lang="fa">این معماری سه <strong>نقش سرویس</strong> دارد: Caddy برای ورودی عمومی، app برای منطق برنامه و PostgreSQL برای داده. برای update بی‌وقفه‌تر، نقش app دو slot دارد: blue و green. یکی فعال است و دیگری نسخهٔ آزمایشی یا محل rollback. بیشترشدن تعداد containerها به‌معنی بیشترشدن نقش‌های معماری نیست.</p><p class="diagram-cap" lang="en">Public ports terminate only at Caddy. Caddy routes to the active app slot; both slots can join the data network, while PostgreSQL is attached only there and has no host port. The volume arrow represents data ownership, not request traffic.</p></div>
+<div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">بخش</span><span lang="en">Role</span></th><th><span lang="fa">چه چیزی به آن می‌رسد؟</span><span lang="en">Reachable from</span></th><th><span lang="fa">چه چیزی را نگه می‌دارد؟</span><span lang="en">Owns</span></th></tr></thead><tbody><tr><td>proxy</td><td><span lang="fa">اینترنت، فقط 80/443</span><span lang="en">Internet, 80/443 only</span></td><td><span lang="fa">TLS state در volumeهای Caddy</span><span lang="en">TLS state in Caddy volumes</span></td></tr><tr><td>app slots</td><td><span lang="fa">proxy و PostgreSQL از network داخلی</span><span lang="en">Proxy and PostgreSQL over Docker networks</span></td><td><span lang="fa">هیچ دادهٔ ماندگاری ندارد</span><span lang="en">No persistent user data</span></td></tr><tr><td>PostgreSQL</td><td><span lang="fa">فقط app؛ نه proxy و نه اینترنت</span><span lang="en">App only; not proxy or Internet</span></td><td><span lang="fa">named volume و backupهای جدا</span><span lang="en">Named volume and separate backups</span></td></tr></tbody></table></div>
+</section>
+<section id="constraints">
+<h2><span lang="fa">چند خط قرمز داریم که در طول پروژه نباید شکسته شوند</span><span lang="en">Constraints and non-negotiables</span></h2>
+<ul lang="fa"><li>یک Ubuntu VPS با دسترسی SSH مبتنی بر کلید؛ اگر هنوز سرور نداری، VM لینوکسی بیشتر مسیر را تمرین می‌دهد، ولی DNS عمومی و HTTPS معتبر به دامنه و سرور قابل‌دسترسی نیاز دارد.</li><li>از Docker Engine و Compose plugin رسمی روی Ubuntu استفاده کن. نصب اصلی از VPS image نمی‌سازد؛ نسخهٔ برنامه روی لپ‌تاپ یا CI build و push می‌شود.</li><li>فقط Caddy روی میزبان port منتشر می‌کند: 80 و 443/TCP؛ 443/UDP برای HTTP/3 اختیاری است. app و PostgreSQL هیچ <code>ports</code> ندارند.</li><li>PostgreSQL روی شبکهٔ داخلی backend و named volume است. فایل‌های secret و <code>.env</code> خارج از Git می‌مانند.</li><li>برنامه non-root، root filesystem آن read-only، مسیر موقت محدود، healthcheck و سقف CPU/RAM/PID دارد.</li><li>نسخهٔ app فقط با tagهای دقیق registry وارد VPS می‌شود: <code>1.0.0</code>، <code>1.1.0</code> و یک tag خرابِ آزمایشی. از <code>latest</code> برای تصمیم انتشار استفاده نکن.</li><li>پشتیبان شبانه، retention ساده و یک restore آزمایشی در پایگاه‌داده موقت اجباری است. named volume به‌تنهایی پشتیبان نیست.</li></ul>
+<ul lang="en"><li>Use an Ubuntu VPS with SSH key access. A Linux VM can reproduce most steps, but public DNS and trusted HTTPS need a domain and a reachable server.</li><li>Install the official Docker Engine and Compose plugin on Ubuntu. Do not build the primary release image on the VPS; build and push it from your workstation or CI.</li><li>Only Caddy publishes host ports: 80 and 443/TCP; 443/UDP for HTTP/3 is optional. App and PostgreSQL have no <code>ports</code>.</li><li>PostgreSQL stays on an internal backend network with a named volume. Secrets and <code>.env</code> stay out of Git.</li><li>The app runs non-root with a read-only root filesystem, bounded temporary storage, a healthcheck, and CPU/RAM/PID limits.</li><li>Deploy exact registry tags: <code>1.0.0</code>, <code>1.1.0</code>, and one deliberately broken test tag. Never use <code>latest</code> as release evidence.</li><li>A nightly backup, simple retention, and one restore into a temporary database are mandatory. A named volume alone is not a backup.</li></ul>
+<div class="note warn"><div class="note-t"><span lang="fa">بدون وقفهٔ مطلق قول نمی‌دهیم</span><span lang="en">No absolute zero-downtime promise</span></div><p lang="fa">یک app container منفرد را zero-downtime نمی‌نامیم. برای اینکه هنگام انتشار upstream سالم داشته باشیم، نسخهٔ آزمایشی را جدا بالا می‌آوریم، health آن را می‌سنجیم و فقط بعد مسیر proxy را به slot تازه می‌چرخانیم. slot قبلی تا وقتی انتشار تثبیت نشده برای rollback باقی می‌ماند.</p><p lang="en">Replacing one app container can create a gap. This project runs two app instances: start and verify the candidate before changing routes, then use Caddy’s graceful config reload to switch slots while keeping the previous one for rollback. The test can show that sampled requests did not fail during this cutover; it is not an SLA against host, network, database, or every concurrent-request failure. This is a simple REST app; Caddy closes existing WebSocket connections on config reload by default.</p></div>
+</section>
+<section id="milestones">
+<h2><span lang="fa">مسیر مأموریت: هر مرحله باید یک مدرک قابل‌تحویل بسازد</span><span lang="en">Mission path: every milestone produces evidence</span></h2>
+<h3><span lang="fa">۱. نسخه را بساز و به registry بسپار</span><span lang="en">1. Build a release and push it to the registry</span></h3>
+<p lang="fa">از image نسخه‌دار شروع کن. آن را روی ماشین build یا CI بساز، test کن و push کن. روی VPS همان خروجی ساخته‌شده را pull کن. بعد پایگاه‌داده و proxy را پایدار بالا بیاور و slot فعال app را با نسخهٔ <code>1.0.0</code> راه بینداز. تا اینجا هنوز update نکرده‌ایم؛ فقط وضعیت پایه تولید را ساخته‌ایم.</p><p lang="en">Build version 1.0.0 from source and push it under your registry namespace. Do not build it on the VPS: deploy the artifact you tested. Pull it on a second Docker host and inspect its tag.</p>
+<details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">وقتی وضعیت پایه سالم شد، نسخهٔ <code>1.1.0</code> را به slot دیگر بده. اول health و پاسخ مستقیم همان نسخهٔ آزمایشی را بررسی کن. بعد یک جریان درخواست بیرونی را باز نگه دار و مسیر را تغییر بده. اگر همه‌چیز سالم ماند، نسخهٔ قبلی را فوراً دور نریز؛ همان rollback slot توست.</p><p lang="en">Use a versioned tag and configure the registry to reject overwriting that tag; record the digest in the handoff too. Acceptance checks both the exact image reference and the version endpoint. For a private registry, give the VPS pull-only credentials and use a credential helper or your registry’s secure mechanism.</p></details>
+<h3><span lang="fa">۲. VPS را آماده کن، اما daemon را در معرض اینترنت نگذار</span><span lang="en">2. Prepare the VPS without exposing the daemon</span></h3>
+<p lang="fa">کلید SSH را نصب کن، deployment user بساز، سیستم را به‌روز کن و Docker Engine را با دستورالعمل رسمی Ubuntu نصب کن. provider firewall و میزبان firewall را جداگانه مرور کن. Docker با publish کردن port ممکن است مسیر firewall مثل UFW را دور بزند؛ پس از یک قانون سبز UFW نتیجه نگیر که portهای publish‌شده بسته‌اند. قواعد سازگار با Docker را بررسی و از یک میزبان بیرونی آزمون کن. هیچ Docker TCP API عمومی باز نکن؛ دسترسی به Docker socket تقریباً اختیار مدیریتی میزبان است.</p><p lang="en">Install your SSH key, create a deployment user, update the OS, and follow Docker’s official Ubuntu Engine instructions. Review the provider firewall separately from the host firewall. Docker-published ports may bypass UFW’s normal path, so do not infer that published ports are blocked just because a UFW rule looks correct. Review Docker-compatible rules and test from an external host. Never expose the Docker TCP API; access to the Docker socket is near-host-administrator authority.</p>
+<details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">عضویت در گروه <code>docker</code> راهی برای راحتی است، نه جداسازی امنیتی: عضو آن عملاً می‌تواند از daemon با اختیار بالا استفاده کند. کاربر deploy را مثل دسترسی privileged نگه دار؛ کلید خصوصی SSH یا registry را در repo نگذار.</p><p lang="en">Membership in the <code>docker</code> group is convenience, not a security boundary: its members can effectively exercise powerful daemon authority. Treat the deploy user accordingly; never put SSH private keys or registry credentials in the repository.</p></details>
+<h3><span lang="fa">۳. مسیر عمومی را قبل از تحویل TLS بررسی کن</span><span lang="en">3. Verify public routing before expecting TLS</span></h3>
+<p lang="fa">یک دامنهٔ واقعی به IP همین VPS اشاره بده؛ اگر IPv6/AAAA تنظیم کرده‌ای، آن مسیر هم باید همین‌جا برسد. provider firewall، میزبان firewall و سرویس‌دهندهٔ VPS باید ورودی 80 و 443 را عبور دهند. Caddy با نام دامنهٔ واقعی می‌تواند گواهی عمومی بگیرد و تمدید کند؛ روی IP یا <code>example.invalid</code> ادعای گواهی معتبر نکن.</p><p lang="en">Point a real domain at this VPS. If you publish IPv6/AAAA, that path must reach the same server too. Provider and host firewalls must allow inbound 80 and 443. With a real domain, Caddy can obtain and renew a public certificate; do not claim a trusted certificate for an IP or <code>example.invalid</code>.</p>
+<details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">مستند Caddy می‌گوید برای HTTPS عمومی، DNS باید به سرور اشاره کند، portهای بیرونی 80/443 باید باز باشند، Caddy باید به آن‌ها bind شود و data پوشه پایدار و نوشتنی باشد. اگر دامنه نداری، بخش HTTP روی VM را تمرین کن و HTTPS عمومی را «انجام‌شده» گزارش نکن.</p><p lang="en">Caddy’s public HTTPS requirements include DNS pointing to the server, externally reachable ports 80/443, Caddy binding those ports, and persistent writable data storage. Without a domain, practice the HTTP path on a VM and do not report public HTTPS as complete.</p></details>
+<h3><span lang="fa">۴. 1.0.0 را منتشر کن و مسیر درخواست را ثابت کن</span><span lang="en">4. Deploy 1.0.0 and prove the request path</span></h3>
+<p lang="fa">در پوشهٔ deployment روی VPS، secretها و <code>.env</code> محلی را آماده کن. ابتدا DB را با volume بالا بیاور، بعد <code>app-blue</code> را با image <code>1.0.0</code> اجرا کن؛ وقتی healthy شد، Caddy را با تنظیمات آبی فعال کن. از اینترنت root و health را بخوان. inspect باید نشان دهد فقط proxy پورت میزبان دارد.</p><p lang="en">On the VPS, prepare local secrets and <code>.env</code>. Start the database with its volume, then start <code>app-blue</code> using image <code>1.0.0</code>. Once healthy, activate the blue Caddy config. Request root and health externally. Inspect must show that only the proxy publishes host ports.</p>
+<details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">نام پایگاه‌داده در برنامه <code>postgres</code> نیست، اما hostname شبکه‌ای آن service name یعنی <code>postgres</code> است. اگر app از <code>localhost</code> استفاده کند، به خود container وصل می‌شود. <code>depends_on: condition: service_healthy</code> فقط شروع اولیه را مرتب می‌کند؛ اتصال در زمان اجرا همچنان باید خطایابی شود.</p><p lang="en">The database hostname is the service name <code>postgres</code>, not <code>localhost</code>. Inside app, localhost refers to that app container. <code>depends_on: condition: service_healthy</code> orders initial startup; the app still needs to handle runtime connection failures.</p></details>
+<h3><span lang="fa">۵. داده را بساز و پشتیبان شبانه را زمان‌بندی کن</span><span lang="en">5. Create data and schedule the nightly backup</span></h3>
+<p lang="fa">از API یک رکورد با متن یکتا بساز. اسکریپت پشتیبان باید از container DB خروجی PostgreSQL بگیرد، فایل timestampدار را بیرون از پوشهٔ source بنویسد، در صورت خطا exit ناموفق بدهد و پشتیبان ناقص را به‌عنوان موفق نگه ندارد. systemd timer را برای هر شب تنظیم کن؛ سپس یک بار آن را دستی اجرا و log را بررسی کن.</p><p lang="en">Create a uniquely identifiable record through the API. The backup script should dump PostgreSQL from the DB container to a timestamped file outside the source tree, exit unsuccessfully on error, and never keep a partial dump as a successful backup. Schedule it nightly with a systemd timer, then run it once manually and inspect its log.</p>
+<details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">در این تمرین فایل‌ها روی همان VPS و در <code>/var/backups/codenames-capstone</code> می‌مانند؛ retention چهارده‌روزه فقط رشد دیسک را محدود می‌کند و حفاظت در برابر خرابی/سرقت همان VPS نیست. هدف اینجا تمرین چرخهٔ پشتیبان و restore است، نه ادعای راهبرد disaster recovery کامل.</p><p lang="en">For this project, files live on the VPS under <code>/var/backups/codenames-capstone</code>; 14-day retention limits growth but does not protect against loss or theft of that VPS. This is a backup/restore workflow exercise, not a complete disaster-recovery claim.</p></details>
+<h3><span lang="fa">۶. پشتیبان را به یک محیط disposable بازیابی کن</span><span lang="en">6. Restore the backup into a disposable environment</span></h3>
+<p lang="fa">آخرین dump را به یک PostgreSQL تازه در container جدا منتقل کن؛ آن container شبکهٔ Docker ندارد، port منتشر نمی‌کند و data پوشه آن tmpfs محدود است. archive را با <code>pg_restore --list</code> ببین، سپس restore کن و متن رکورد یکتای مرحلهٔ قبل را query بگیر. فقط بعد از ثبت مدرک، container آزمایشی را حذف کن.</p><p lang="en">Restore the latest dump into a fresh PostgreSQL container with no Docker network, no published port, and a bounded tmpfs data directory. Inspect the archive using <code>pg_restore --list</code>, restore it, and query for the unique record from the previous step. Remove the disposable container only after capturing evidence.</p>
+<details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">این آزمون هیچ‌وقت روی پایگاه‌داده زنده restore نمی‌کند. مقدار <code>POSTGRES_HOST_AUTH_METHOD=trust</code> فقط برای همین container کوتاه‌عمرِ بدون network قابل‌قبول است؛ آن را به Compose اصلی یا VPS عمومی منتقل نکن.</p><p lang="en">This test never restores into the live database. <code>POSTGRES_HOST_AUTH_METHOD=trust</code> is acceptable only for this short-lived, networkless disposable container; never copy it into the main Compose deployment or a public VPS service.</p></details>
+</section>
+<section id="deployment-checklist">
+<h2><span lang="fa">قبل از تغییر مسیر، نسخهٔ آزمایشی باید خودش را ثابت کرده باشد</span><span lang="en">Deployment checklist: do not switch traffic yet</span></h2>
+<p lang="fa">هر انتشار را با همین ترتیب پیش ببر: tag موردنظر در registry وجود دارد؟ VPS همان image را pull کرده؟ نسخهٔ آزمایشی جدا بالا آمده؟ health آن سبز شده؟ پاسخ مستقیمش version درست را نشان می‌دهد؟ فقط بعد از این مراحل حق داری proxy را به آن وصل کنی.</p><p lang="en">Before each release, verify the registry tag, pull it, start the candidate separately, and wait for it to become healthy. A request from inside that exact container must report the expected version. Start a continuous external probe; only then switch the route.</p>
+<div class="term"><div class="term-bar"><span class="term-label"><span lang="fa">بررسی نسخهٔ دقیق و probe بیرونی</span><span lang="en">Verify the exact version and sample the public endpoint</span></span><button class="copy">کپی</button></div><pre dir="ltr">docker compose pull app-green
+docker compose up -d --wait --no-deps app-green
+docker compose ps
+docker compose exec app-green node -e "fetch('http://127.0.0.1:3000/').then(r=&gt;r.text()).then(console.log)"
+
+# On a second machine/terminal, keep sampling during the Caddy switch
+for n in $(seq 1 120); do
+  curl --fail --silent --show-error -o /dev/null -w '%{http_code}\n' "$BASE_URL/health" || echo "FAILED sample=$n"
+  sleep 0.25
+done | tee cutover-check.log</pre></div>
+<p lang="fa">این چک‌لیست عمداً مسیر switch را آخر می‌گذارد. وقتی ترافیک واقعی را زودتر به نسخهٔ آزمایشی می‌فرستی، عملاً verification را روی کاربر انجام داده‌ای. اول داخل محیط خودت ثابتش کن، بعد مسیر عمومی را عوض کن.</p><p lang="en">Current Compose <code>--wait</code> waits for services to be running/healthy. If candidate health fails, the command reports failure while traffic is still untouched. The curl loop records non-success responses. After switching, root should report the new <code>version</code> and every sample should succeed. This is evidence for this test, not a universal guarantee.</p>
+<p lang="fa">وقتی سبز 1.1.0 active شد، آبی دیگر درخواست عمومی نمی‌گیرد. همین لحظه را برای اثبات جدایی app و DB به‌کار ببر: slot آبی را دوباره بساز، در حالی که سبز serving می‌کند. رکوردی که از قبل ساخته‌ای باید از API عمومی باقی بماند.</p><p lang="en">Once green 1.1.0 is active, blue no longer receives public requests. Use that moment to prove app/database separation: recreate the blue slot while green keeps serving. A record created earlier must remain available through the public API.</p>
+<div class="term"><div class="term-bar"><span class="term-label"><span lang="fa">تعویض یک slot؛ بدون دست زدن به slot فعال یا volume داده</span><span lang="en">Replace one slot without touching active traffic or the data volume</span></span><button class="copy">کپی</button></div><pre dir="ltr">docker compose pull app-blue
+docker compose rm -sf app-blue
+docker compose up -d --wait --no-deps app-blue
+curl --fail --silent --show-error "$BASE_URL/notes"
+curl --fail --silent --show-error "$BASE_URL/"</pre></div>
+<p lang="fa">در خروجی نهایی، API باید همان رکورد را برگرداند و صفحهٔ اصلی همچنان نسخهٔ سبز 1.1.0 را اعلام کند. اگر سرویس آبی بالا نیامد، سبز همچنان مسیر عمومی است؛ این تمرین فقط slot برنامه را عوض می‌کند و نه volume PostgreSQL را.</p><p lang="en">The final output should include the same record, and the root endpoint should still report green 1.1.0. If blue fails to start, green remains the public route. This replaces only an app slot, never the PostgreSQL volume.</p>
+</section>
+<section id="failure-drills">
+<h2><span lang="fa">خرابی‌های تمرینی: این‌بار باید تصمیم عملیاتی بگیری</span><span lang="en">Failure drills: decide from evidence</span></h2>
+<details><summary><span lang="fa">۱. registry خصوصی pull را رد می‌کند</span><span lang="en">1. The private registry rejects a pull</span></summary><p lang="fa">یکی از releaseها را عمداً خراب می‌کنیم. ممکن است image pull نشود، health نسخهٔ آزمایشی قرمز بماند، proxy مسیر اشتباه شود یا پشتیبان شکست بخورد. در هر سناریو اول مشخص کن کدام مرز شکسته؛ بعد فقط همان بخش را بررسی کن.</p><p lang="en">Symptom: the new app image is absent and no container is created. App logs cannot explain a process that never started. Use <code>docker compose pull app-green</code> and its auth/tag error to distinguish expired credentials from a missing image. Fix login with a pull-only token; do not put it in project files.</p></details>
+<details><summary><span lang="fa">۲. دامنه باز می‌شود، ولی TLS نمی‌آید</span><span lang="en">2. The domain resolves, but TLS is not issued</span></summary><p lang="fa">مهم‌ترین تمرین rollback است: نسخهٔ خراب را وارد کن، نشانه‌ها را ثبت کن، ترافیک را به known-good برگردان و از بیرون دوباره درخواست بفرست. rollback زمانی کامل است که مسیر سرویس عمومی دوباره همان رفتار سالم قبلی را نشان دهد.</p><p lang="en">Check A and AAAA records separately, then test external TCP reachability on 80/443 and inspect proxy logs. A stale AAAA record can break validation even when IPv4 works. Do not publish the database port as a networking workaround. Check both provider and host firewall rules.</p></details>
+<details><summary><span lang="fa">۳. app unhealthy است، proxy هنوز نسخهٔ قبلی را می‌دهد</span><span lang="en">3. The candidate is unhealthy while the proxy still serves the old version</span></summary><p lang="fa">این رفتار شکست پروژه نیست؛ نشانهٔ این است که traffic هنوز جابه‌جا نشده. <code>docker compose ps</code>، inspect سلامت نسخهٔ آزمایشی و log همان app را بخوان. خطای secret/DB را از خطای مسیر جدا کن. تا وقتی health و درخواست مستقیم نسخهٔ آزمایشی موفق نشده، active Caddyfile را عوض نکن.</p><p lang="en">This is not a project failure; it shows that traffic has not switched yet. Read <code>docker compose ps</code>, candidate health inspection, and that app’s logs. Separate a secret/database failure from a proxy-route problem. Do not change the active Caddyfile until candidate health and a direct request succeed.</p></details>
+<details><summary><span lang="fa">۴. بعد از switch، proxy پاسخ 502 می‌دهد</span><span lang="en">4. The proxy returns 502 after a switch</span></summary><p lang="fa">مقدار active Caddyfile، نتیجهٔ <code>caddy validate</code> و log Caddy را کنار DNS داخل network بررسی کن. ممکن است تنظیمات به slot اشتباه اشاره کند یا اسم Docker دوباره resolve نشده باشد. چون slot آبی هنوز زنده است، active فایل را اتمی به آبی برگردان، Caddy را reload و همان URL بیرونی را دوباره امتحان کن.</p><p lang="en">Compare the active Caddyfile, <code>caddy validate</code>, Caddy logs, and DNS resolution from the Docker network. The config may target the wrong slot, or the upstream name may not resolve as expected. Since blue is still running, atomically restore the blue file, reload Caddy, and repeat the same external request.</p></details>
+<details><summary><span lang="fa">۵. timer اجرا شده اما پشتیبان تازه نداریم</span><span lang="en">5. The timer fired, but no new backup exists</span></summary><p lang="fa"><code>systemctl list-timers</code> فقط زمان اجرای بعدی را نشان می‌دهد؛ نتیجه را از <code>systemctl status</code> و <code>journalctl -u codenames-backup.service</code> بخوان. exit code، فضای <code>df -h</code> و inode با <code>df -i</code> را بررسی کن. timestamp و اندازهٔ فایل را با <code>pg_restore --list</code> تأیید کن؛ filename تازه به‌تنهایی پشتیبان سالم نیست.</p><p lang="en"><code>systemctl list-timers</code> shows the next schedule, not success. Read <code>systemctl status</code> and <code>journalctl -u codenames-backup.service</code>. Check exit status, free blocks with <code>df -h</code>, and inodes with <code>df -i</code>. Verify timestamp and archive contents using <code>pg_restore --list</code>; a recent filename alone is not a valid backup.</p></details>
+</section>
+<section id="acceptance">
+<h2><span lang="fa">معیار قبولی: از بیرون و از داخل، سیستم باید قابل‌اثبات باشد</span><span lang="en">Acceptance: the public endpoint is your witness</span></h2>
+<ul lang="fa"><li>HTTPS عمومی با دامنهٔ واقعی پاسخ معتبر می‌دهد؛ header و JSON نسخهٔ فعال را نشان می‌دهند.</li><li>فقط Caddy portهای 80/443 را publish کرده؛ در Compose برای app و DB هیچ میزبان binding نیست.</li><li>از داخل app، hostname <code>postgres</code> resolve می‌شود و <code>/health</code> query واقعی DB را موفق می‌کند.</li><li>DB و app healthy هستند؛ <code>docker inspect</code> version، user، restart count، health و resource limits را تأیید می‌کند.</li><li>یک رکورد پس از سوییچ نسخه و حذف/recreate یک app slot باقی می‌ماند؛ slot دیگر هم‌زمان درخواست‌ها را پاسخ می‌دهد.</li><li>timer هر شب زمان‌بندی شده؛ اجرای دستی در journal موفق ثبت می‌شود؛ پشتیبان خروجی ساخته‌شده با <code>pg_restore --list</code> خوانده می‌شود.</li><li>همان پشتیبان در container موقت بدون network restore می‌شود و query یک رکورد شناخته‌شده را پیدا می‌کند.</li><li>نسخهٔ 1.1.0 پس از health gate به کاربر می‌رسد؛ probe هم‌زمانِ آزمایش قطع نشده است.</li><li>نسخهٔ خراب در نسخهٔ آزمایشی unhealthy می‌شود، log آن علت را نشان می‌دهد و proxy تا تصمیم تو healthy 1.1.0 را سرو می‌کند.</li><li>rollback به 1.0.0 با مسیر switch انجام می‌شود؛ مسیر سرویس بیرونی نسخهٔ 1.0.0 را نشان می‌دهد و رکورد داده همچنان هست.</li></ul>
+<ul lang="en"><li>Public HTTPS works on a real domain; response headers and JSON identify the active version.</li><li>Only Caddy publishes 80/443; app and DB have no host bindings in Compose.</li><li>From app, hostname <code>postgres</code> resolves and <code>/health</code> succeeds only after a real database query.</li><li>DB and app are healthy; <code>docker inspect</code> verifies version, user, restart count, health, and resource limits.</li><li>A record survives a version switch and removal/recreation of one app slot while the other slot continues serving requests.</li><li>The nightly timer is scheduled; a manual run succeeds in the journal; <code>pg_restore --list</code> reads the artifact.</li><li>The same backup restores in a temporary networkless container and a query finds a known record.</li><li>Version 1.1.0 reaches users only after its health gate; the concurrent cutover probe reports no failed samples.</li><li>The broken version becomes unhealthy as a candidate, its logs explain why, and the proxy keeps serving healthy 1.1.0 until you decide.</li><li>Rollback switches routing to 1.0.0; the external endpoint reports 1.0.0 and the record remains.</li></ul>
+</section>
+<section id="handoff">
+<h2><span lang="fa">تحویل عملیاتی یعنی نفر بعدی بدون حدس بتواند شیفت را بگیرد</span><span lang="en">Operational handoff: the next person should be able to take over</span></h2>
+<p lang="fa">در README کوتاه و عملیاتی بنویس: نسخهٔ live را از کجا می‌بینیم، update چطور انجام می‌شود، rollback دقیقاً چیست، پشتیبان کجا نوشته می‌شود و restore چطور آزمایش می‌شود. رمز، token یا private key جایی در README ندارند.</p><p lang="en">Hand over a short <code>README.md</code> with start and rollback procedures, but no passwords. The next operator should be able to answer these questions without guessing:</p>
+<ol lang="fa"><li>کدام image tag و digest اکنون از اینترنت پاسخ می‌دهد؟</li><li>کدام app slot فعال و آیا health آن سبز است؟</li><li>چند بار restart شده و آخرین خطا چه زمانی بوده؟</li><li>پشتیبان بعدی کی اجرا می‌شود، آخرین run چه نتیجه‌ای داشت و فایل‌ها کجا هستند؟</li><li>restore test آخر چه رکوردی را ثابت کرد؟</li><li>فضای block و inode روی مسیر پشتیبان و Docker data root چقدر است؟</li><li>در rollback دقیقاً کدام Caddyfile و image tag را برمی‌گردانیم؟</li><li>کدام اعتبارنامه در کدام secret file است و چه کسی مجاز به خواندنش است؟</li></ol>
+<ol lang="en"><li>Which image tag and digest currently serves public traffic?</li><li>Which app slot is active, and is its health green?</li><li>How many restarts occurred, and when was the last error?</li><li>When is the next backup, what did the last run report, and where are files stored?</li><li>What record did the latest restore test verify?</li><li>How many disk blocks and inodes remain on the backup path and Docker data root?</li><li>Which Caddyfile and image tag do we restore for rollback?</li><li>Which credential is in which secret file, and who can read it?</li></ol>
+<div class="term"><div class="term-bar"><span class="term-label"><span lang="fa">مدرک روزمرهٔ سرویس و میزبان</span><span lang="en">Routine evidence from the service and host</span></span><button class="copy">کپی</button></div><pre dir="ltr">docker compose ps
+docker compose logs --since=1h --timestamps proxy app-blue app-green postgres
+docker inspect "$(docker compose ps -q app-green)" --format '{{.Config.Image}} {{.State.Health.Status}} restarts={{.RestartCount}} started={{.State.StartedAt}} user={{.Config.User}}'
+docker inspect "$(docker compose ps -q postgres)" --format '{{.State.Health.Status}} restarts={{.RestartCount}}'
+docker events --since 24h --filter type=container --filter event=restart
+docker image inspect "$(docker inspect "$(docker compose ps -q app-green)" --format '{{.Image}}')" --format '{{json .RepoDigests}}'
+systemctl list-timers --all | grep codenames-backup
+journalctl -u codenames-backup.service --since=today --no-pager
+df -h /var/backups/codenames-capstone /var/lib/docker
+df -i /var/backups/codenames-capstone /var/lib/docker
+docker system df -v</pre></div>
+<p lang="fa">نفر بعد باید بتواند جواب چند سؤال را سریع پیدا کند: کدام app slot فعال است؟ پایگاه‌داده کجا داده نگه می‌دارد؟ آخرین پشتیبان موفق چه زمانی بوده؟ اگر نسخهٔ آزمایشی unhealthy شد چطور مسیر را دست‌نخورده نگه داریم؟ اگر پاسخ این‌ها فقط در ذهن توست، پروژه هنوز تحویل نشده است.</p><p lang="en">These commands answer separate questions: <code>ps/inspect</code> for state and configuration, logs for what processes said, and <code>df</code> for host storage. <code>StartedAt</code>, restart count, and <code>docker events</code> help establish restart timing; RepoDigest identifies the artifact behind a tag. If the logging driver changes, do not assume <code>docker compose logs</code> works the same way—inspect the driver. <code>docker system df</code> does not replace identifying volume ownership.</p>
+</section>
+<section id="reference">
+<h2><span lang="fa">راه‌حل مرجع را بعد از طراحی خودت بخوان</span><span lang="en">Reference implementation; open after designing yours</span></h2>
+<p lang="fa">این بخش یک الگوی مرجع برای Ubuntu VPS با Docker Engine و سه نقش سرویس است. مسیرهایی مثل <code>/opt/codenames-capstone</code> یا نام slotها قانون جهانی نیستند. چیزی که اهمیت دارد مرزها و رفتار قابل‌سنجش‌اند: proxy عمومی، app قابل‌تعویض، پایگاه‌داده خصوصی و data ماندگار.</p><p lang="en">This reference targets an Ubuntu VPS with a rootful Docker Engine and the three service roles. <code>/opt/codenames-capstone</code> is an example, not a universal layout. Before real use, pin proxy and PostgreSQL images to tested versions or digests. Passwords, registry credentials, and SSH private keys do not belong in any of these files.</p>
+<div class="term"><div class="term-bar"><span class="term-label"><span lang="fa">چیدمان تحویلی</span><span lang="en">Handoff tree</span></span></div><pre dir="ltr">/opt/codenames-capstone/
+├── compose.yaml
+├── .env                         # server-local; ignored by Git
+├── .env.example
+├── app/
+│   ├── Dockerfile
+│   ├── .dockerignore
+│   ├── package.json
+│   ├── package-lock.json
+│   └── server.js
+├── db-init/10-create-app-role.sh
+├── proxy/
+│   ├── active.Caddyfile
+│   ├── blue.Caddyfile
+│   └── green.Caddyfile
+├── secrets/                     # local files, restrictive numeric ownership
+├── bin/backup.sh
+├── bin/restore-test.sh
+├── systemd/codenames-backup.service
+├── systemd/codenames-backup.timer
+└── README.md
+
+/var/backups/codenames-capstone/  # outside source and deployment cleanup</pre></div>
+<h3><span lang="fa">پیکربندی بی‌رمز و مرز Git</span><span lang="en">Non-secret configuration and the Git boundary</span></h3>
+<p lang="fa">قبل از استفادهٔ واقعی، tagهای proxy و PostgreSQL را به نسخهٔ آزموده‌شده یا digest مناسب pin کن و secretها، registry اعتبارنامه و SSH key را بیرون از فایل‌های commit‌شده نگه دار. راه‌حل مرجع هم باید با محیط واقعی تو بازبینی شود؛ هیچ templateای جای شناخت سرور را نمی‌گیرد.</p><p lang="en">Copy <code>.env.example</code> on your workstation; on the server set the real domain and registry. Three file-backed secrets are separate: the bootstrap password for PostgreSQL only, the app password for PostgreSQL initialization, and a second copy of that app password owned by the app UID. The official PostgreSQL image makes <code>POSTGRES_USER</code> a superuser; the app connects as the restricted <code>app_user</code>, not as bootstrap.</p>
+<div class="term"><div class="term-bar"><span class="term-label">.env.example · <span lang="fa">فقط مقدارهای غیرحساس</span><span lang="en">non-secret values only</span></span><button class="copy">کپی</button></div><pre dir="ltr">DOMAIN=notes.example.org
+REGISTRY_IMAGE=ghcr.io/your-account/codenames-notes
+APP_BLUE_IMAGE=ghcr.io/your-account/codenames-notes:1.0.0
+APP_GREEN_IMAGE=ghcr.io/your-account/codenames-notes:1.1.0
+APP_CANDIDATE_IMAGE=ghcr.io/your-account/codenames-notes:1.2.0-broken
+POSTGRES_IMAGE=postgres:17
+CADDY_IMAGE=caddy:2-alpine</pre></div>
+<div class="term"><div class="term-bar"><span class="term-label">.gitignore · <span lang="fa">رمز و داده وارد repo نشوند</span><span lang="en">keep credentials and data out</span></span></div><pre dir="ltr">/.env
+/secrets/*
+!/secrets/.gitkeep
+/backups/
+/cutover-check.log</pre></div>
+<p lang="fa">دایرکتوری <code>secrets</code> را روی Ubuntu با مجوز عبور محدود بساز و فایل‌ها را با UIDهای واقعی image مالک کن. در این reference، user برنامه <code>10001</code> و user سیستم PostgreSQL در image رسمی <code>999</code> فرض شده‌اند؛ روی همان image و معماری با <code>id</code> تأییدشان کن. برای Compose file-backed secret، <code>uid/gid/mode</code> در YAML قابل اتکای remap نیست، چون bind mount است. فایل app برای web باید فقط UID برنامه بخواند؛ نسخهٔ init و bootstrap را فقط UID مربوط به PostgreSQL بخواند. اگر rootless/userns remap داری، این نگاشت را دوباره طراحی کن، نه اینکه فایل‌ها را world-readable کنی.</p><p lang="en">On Ubuntu, create the <code>secrets</code> directory with restricted traversal and assign source files to the actual image UIDs. This reference assumes app UID <code>10001</code> and official PostgreSQL image UID <code>999</code>; verify them with <code>id</code> in the exact images and architecture. For file-backed Compose secrets, YAML <code>uid/gid/mode</code> remapping is not reliable because Compose uses bind mounts. The web copy of the app secret should be readable only by the app UID; the init and bootstrap copies only by the PostgreSQL UID. If using rootless Docker or user-namespace remapping, redesign this mapping rather than making the files world-readable.</p>
+<div class="term"><div class="term-bar"><span class="term-label"><span lang="fa">نمونهٔ مالکیت محدود روی Ubuntu؛ فایل را با رمز manager پر کن</span><span lang="en">Restrictive Ubuntu ownership example; populate files from a password manager</span></span></div><pre dir="ltr">sudo install -d -o root -g root -m 0711 secrets
+sudo install -o 999 -g 999 -m 0400 /dev/null secrets/db_bootstrap_password
+sudo install -o 999 -g 999 -m 0400 /dev/null secrets/db_app_password_db
+sudo install -o 10001 -g 10001 -m 0400 /dev/null secrets/db_app_password_web
+sudoedit secrets/db_bootstrap_password
+sudoedit secrets/db_app_password_db
+sudoedit secrets/db_app_password_web
+sudo cmp secrets/db_app_password_db secrets/db_app_password_web
+sudo install -d -o deploy -g deploy -m 0700 /var/backups/codenames-capstone</pre></div>
+<p lang="fa">در این نمونه، فایل‌های app رمز باید دقیقاً بایت‌به‌بایت یکسان باشند؛ دستور <code>sudo cmp</code> چیزی از محتوا چاپ نمی‌کند. پس از راه‌اندازی، مقدارهای <code>POSTGRES_USER</code>/<code>POSTGRES_DB</code> فقط روی data پوشه خالی اثر دارند. عوض‌کردن secret یا tag image volume موجود را دوباره initialize یا رمز را rotate نمی‌کند؛ rotation تغییر جداگانهٔ دیتابیس و هماهنگی دو فایل است.</p><p lang="en">The two app-password files must match byte-for-byte; <code>sudo cmp</code> reveals no contents. After initialization, <code>POSTGRES_USER</code>/<code>POSTGRES_DB</code> affect only an empty data directory. Changing a secret or image tag does not reinitialize an existing volume or rotate a database password; rotation is a separate database change coordinated with both files.</p>
+<h3><span lang="fa">API کوچک و image برنامه</span><span lang="en">Small API and application image</span></h3>
+<p lang="fa">برنامه همان API یادداشت سادهٔ پروژهٔ ۲ است: نسخهٔ فعال را گزارش می‌دهد، health با PostgreSQL query می‌زند و رکوردهای آزمون در DB ذخیره می‌شوند. کد عمدی کوچک است تا مأموریت روی انتشار، cutover و بازیابی بماند.</p><p lang="en">The app is the small notes API from Project 2: it reports its active version, queries PostgreSQL for health, and stores test records in the database. The code stays small so the work remains about release, cutover, and recovery.</p>
+<div class="term"><div class="term-bar"><span class="term-label">app/package.json</span></div><pre dir="ltr">{
+  "name": "codenames-capstone-api",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": { "start": "node server.js" },
+  "dependencies": { "pg": "^8.13.1" }
+}</pre></div>
+<div class="term"><div class="term-bar"><span class="term-label">app/server.js · <span lang="fa">منطق API و health واقعی</span><span lang="en">API and database-backed health</span></span><button class="copy">کپی</button></div><pre dir="ltr">const http = require('node:http');
+const fs = require('node:fs');
+const { Pool } = require('pg');
+
+const version = process.env.APP_VERSION || 'dev';
+const mode = process.env.APP_MODE || 'production';
+const port = Number(process.env.PORT || 3000);
+const dbHost = process.env.DB_HOST || 'postgres';
+const password = fs.readFileSync(process.env.DB_PASSWORD_FILE, 'utf8').trim();
+const pool = new Pool({
+  host: dbHost,
+  port: 5432,
+  database: process.env.DB_NAME || 'notes',
+  user: process.env.DB_USER || 'app_user',
+  password,
+  connectionTimeoutMillis: 2000
+});
+
+const send = (res, status, body) =&gt; {
+  res.writeHead(status, { 'content-type': 'application/json' });
+  res.end(JSON.stringify(body));
+};
+
+async function handle(req, res) {
+  const path = (req.url || '/').split('?')[0];
+  if (req.method === 'GET' &amp;&amp; path === '/') {
+    return send(res, 200, { app: 'codenames-notes', version, mode, dbHost });
+  }
+  if (req.method === 'GET' &amp;&amp; path === '/health') {
+    await pool.query('SELECT 1');
+    return send(res, 200, { status: 'ok', version });
+  }
+  if (path === '/notes' &amp;&amp; req.method === 'GET') {
+    const result = await pool.query('SELECT id, body, created_at FROM notes ORDER BY id');
+    return send(res, 200, result.rows);
+  }
+  if (path === '/notes' &amp;&amp; req.method === 'POST') {
+    let raw = '';
+    for await (const chunk of req) {
+      raw += chunk;
+      if (raw.length &gt; 16000) return send(res, 413, { error: 'body too large' });
+    }
+    const input = JSON.parse(raw || '{}');
+    if (typeof input.body !== 'string' || !input.body.trim()) {
+      return send(res, 400, { error: 'body must be non-empty' });
+    }
+    const result = await pool.query(
+      'INSERT INTO notes (body) VALUES ($1) RETURNING id, body, created_at',
+      [input.body.trim()]
+    );
+    console.log(JSON.stringify({ event: 'note.created', id: result.rows[0].id, version }));
+    return send(res, 201, result.rows[0]);
+  }
+  return send(res, 404, { error: 'not found' });
+}
+
+async function start() {
+  await pool.query('CREATE TABLE IF NOT EXISTS notes (id BIGSERIAL PRIMARY KEY, body TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())');
+  const server = http.createServer((req, res) =&gt; {
+    console.log(JSON.stringify({ event: 'request', method: req.method, path: req.url, version }));
+    handle(req, res).catch((error) =&gt; {
+      console.error(JSON.stringify({ event: 'request.failed', code: error.code || 'application_error', version }));
+      if (!res.headersSent) send(res, 503, { error: 'service unavailable' });
+      else res.end();
+    });
+  });
+  server.listen(port, '0.0.0.0', () =&gt; console.log(JSON.stringify({ event: 'listening', port, version })));
+  process.on('SIGTERM', () =&gt; server.close(() =&gt; pool.end().finally(() =&gt; process.exit(0))));
+}
+
+start().catch((error) =&gt; {
+  console.error(JSON.stringify({ event: 'startup.failed', code: error.code || error.message, version }));
+  process.exit(1);
+});</pre></div>
+<p lang="fa">پس از ساخت lock file با <code>npm install</code>، image را نسخه‌دار build و push کن. این API build مرحله‌ای جدا ندارد؛ در اینجا multi-stage بی‌دلیل اضافه نمی‌کنیم. در VPS تنها image آماده pull می‌شود.</p><p lang="en">Generate and commit the lock file with <code>npm install</code>, then build and push a versioned image. This API has no separate compile stage, so do not add multi-stage complexity without a reason. The VPS only pulls the finished image.</p>
+<div class="term"><div class="term-bar"><span class="term-label"><span lang="fa">تولید lock file و وضعیت پایه محلی</span><span lang="en">Generate the lock file and verify a local baseline</span></span><button class="copy">کپی</button></div><pre dir="ltr">cd app
+npm install
+npm start
+
+# In another terminal, while PostgreSQL is available locally
+curl --fail http://127.0.0.1:3000/health</pre></div>
+<p lang="fa">برای وضعیت پایه محلی به PostgreSQL و secretهای تمرین نیاز داری؛ اگر هنوز آن‌ها را آماده نکرده‌ای، این پروژه را روی VM یا VPS پس از ساخت network اجرا کن. lock file را commit کن، اما <code>node_modules</code> و secretها را نه.</p><p lang="en">The local baseline needs PostgreSQL and the project secrets; if those are not ready yet, run the app on the VM/VPS after the network is in place. Commit the lock file, not <code>node_modules</code> or secrets.</p>
+<div class="term"><div class="term-bar"><span class="term-label">app/Dockerfile</span><button class="copy">کپی</button></div><pre dir="ltr">FROM node:22-alpine
+ARG APP_VERSION=dev
+ENV APP_VERSION=$APP_VERSION NODE_ENV=production PORT=3000
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+COPY --chown=10001:10001 server.js ./server.js
+USER 10001:10001
+EXPOSE 3000
+CMD ["node", "server.js"]</pre></div>
+<div class="term"><div class="term-bar"><span class="term-label">app/.dockerignore · <span lang="fa">فایل‌های محلی و dependencyها وارد build نشوند</span><span lang="en">exclude local files and dependencies from the build context</span></span></div><pre dir="ltr">node_modules
+.git
+.env
+.env.*
+secrets
+npm-debug.log*</pre></div>
+<p lang="fa">برای build نسخهٔ آغازین، <code>REGISTRY_IMAGE</code> را در ترمینال محلی به namespace خودت تنظیم کن؛ login از prompt امن یا اعتبارنامه helper استفاده کند. همین دستور را برای 1.1.0 پس از تغییر برنامه تکرار کن.</p><p lang="en">On your workstation, set <code>REGISTRY_IMAGE</code> to your namespace and authenticate using a secure prompt or credential helper. Repeat the same build for 1.1.0 after making the release change.</p>
+<div class="term"><div class="term-bar"><span class="term-label"><span lang="fa">build و push از لپ‌تاپ یا CI، نه VPS</span><span lang="en">Build and push from workstation or CI, never from the VPS</span></span><button class="copy">کپی</button></div><pre dir="ltr">docker buildx build --platform linux/amd64 --build-arg APP_VERSION=1.0.0 --tag "$REGISTRY_IMAGE:1.0.0" --push ./app
+docker buildx build --platform linux/amd64 --build-arg APP_VERSION=1.1.0 --tag "$REGISTRY_IMAGE:1.1.0" --push ./app
+docker buildx imagetools inspect "$REGISTRY_IMAGE:1.1.0"</pre></div>
+<p lang="fa">اگر VPS معماری ARM دارد، به‌جای کپی‌کردن کورکورانهٔ <code>linux/amd64</code>، معماری را با <code>uname -m</code> پیدا کن و همان platform را build کن یا manifest چندمعماری بساز. در هر حالت روی server از registry pull کن، نه از سورس.</p><p lang="en">If the VPS is ARM, do not blindly copy <code>linux/amd64</code>: check with <code>uname -m</code> and build for that platform or publish a multi-platform manifest. In all cases, the server pulls from the registry, not from source.</p>
+<p lang="fa">در Dockerfile مقدار <code>APP_VERSION</code> را با <code>ARG</code> بگیر و در image قرار بده؛ این نسخه بخشی از خروجی ساخته‌شده است، نه secret. همین tag را از workstation دوم pull کن و پاسخ app را پیش از انتشار ببین.</p><p lang="en">Accept <code>APP_VERSION</code> as a Dockerfile build argument and store it in the image; the version is artifact metadata, not a secret. Pull that tag on a second workstation and inspect the app response before deploying it.</p>
+<h3><span lang="fa">ساخت app role محدود در نخستین راه‌اندازی DB</span><span lang="en">Create a least-privilege app role during first DB initialization</span></h3>
+<p lang="fa">entrypoint رسمی PostgreSQL فقط در data پوشه خالی scriptهای init را اجرا می‌کند. رمز bootstrap در اختیار PostgreSQL می‌ماند؛ script با همان نقش اولیه، <code>app_user</code> را با رمز دوم می‌سازد و فقط مجوزهای پایگاه‌داده/schema لازم را می‌دهد. این role برای ساخت جدول‌های همین API کافی است، اما superuser نیست.</p><p lang="en">The official PostgreSQL entrypoint runs initialization scripts only against an empty data directory. The bootstrap password stays with PostgreSQL; this script uses the initial role to create <code>app_user</code> with a second password and only the database/schema grants this API needs. That role can create its table but is not a superuser.</p>
+<div class="term"><div class="term-bar"><span class="term-label">db-init/10-create-app-role.sh · <span lang="fa">فقط init بار اول</span><span lang="en">first initialization only</span></span><button class="copy">کپی</button></div><pre dir="ltr">#!/bin/sh
+set -eu
+app_password="$(tr -d '\r\n' &lt; /run/secrets/db_app_password)"
+psql --set=ON_ERROR_STOP=1 \
+  --username "$POSTGRES_USER" \
+  --dbname "$POSTGRES_DB" \
+  --set=app_password="$app_password" &lt;&lt;'SQL'
+CREATE ROLE app_user LOGIN PASSWORD :'app_password';
+GRANT CONNECT ON DATABASE notes TO app_user;
+GRANT USAGE, CREATE ON SCHEMA public TO app_user;
+SQL</pre></div>
+<h3><span lang="fa">Compose: سه نقش، شبکه‌های جدا و slotهای app</span><span lang="en">Compose: three roles, segmented networks, and app slots</span></h3>
+<p lang="fa">Caddy فقط به <code>edge</code> وصل است؛ DB فقط به <code>backend</code> خصوصی؛ برنامه بین این دو مرز قرار می‌گیرد. proxy حتی DNS شبکهٔ DB را نمی‌بیند. appها از registry می‌آیند؛ روی VPS هیچ build context یا <code>build:</code> نداریم. نسخهٔ آزمایشی فقط با profile فعال می‌شود.</p><p lang="en">Caddy joins only <code>edge</code>; the DB joins only the private <code>backend</code>; app instances bridge the two boundaries. The proxy cannot even resolve the DB network. Apps are pulled from the registry—there is no VPS build context or <code>build:</code>. The candidate is enabled only with its profile.</p>
+<div class="term"><div class="term-bar"><span class="term-label"><span lang="fa">compose.yaml · شبکه، health، storage و سقف منابع</span><span lang="en">compose.yaml · networks, health, storage, and resource ceilings</span></span><button class="copy">کپی</button></div><pre dir="ltr">name: codenames-capstone
+
+x-app-base: &amp;app-base
+  init: true
+  restart: unless-stopped
+  read_only: true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=16m
+  environment:
+    PORT: "3000"
+    APP_MODE: production
+    DB_HOST: postgres
+    DB_PORT: "5432"
+    DB_NAME: notes
+    DB_USER: app_user
+    DB_PASSWORD_FILE: /run/secrets/db_app_password
+  secrets:
+    - source: db_app_password_web
+      target: db_app_password
+  depends_on:
+    postgres:
+      condition: service_healthy
+  healthcheck:
+    test:
+      - CMD
+      - node
+      - -e
+      - "fetch('http://127.0.0.1:3000/health').then(r=&gt;process.exit(r.ok?0:1)).catch(()=&gt;process.exit(1))"
+    interval: 10s
+    timeout: 3s
+    retries: 5
+    start_period: 15s
+  mem_limit: 256m
+  cpus: 0.50
+  pids_limit: 96
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  networks:
+    - edge
+    - backend
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "5"
+
+services:
+  proxy:
+    image: ${CADDY_IMAGE}
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN}
+    ports:
+      - "80:80/tcp"
+      - "443:443/tcp"
+      - "443:443/udp"
+    volumes:
+      - ./proxy:/etc/caddy:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - edge
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+
+  app-blue:
+    &lt;&lt;: *app-base
+    image: ${APP_BLUE_IMAGE}
+
+  app-green:
+    &lt;&lt;: *app-base
+    image: ${APP_GREEN_IMAGE}
+
+  app-candidate:
+    &lt;&lt;: *app-base
+    image: ${APP_CANDIDATE_IMAGE}
+    profiles: [candidate]
+
+  postgres:
+    image: ${POSTGRES_IMAGE}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: notes
+      POSTGRES_USER: bootstrap
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_bootstrap_password
+    secrets:
+      - db_bootstrap_password
+      - source: db_app_password_db
+        target: db_app_password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db-init/10-create-app-role.sh:/docker-entrypoint-initdb.d/10-create-app-role.sh:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'psql -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}" -tAc ''SELECT 1'' | grep -qx 1'
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+    mem_limit: 768m
+    cpus: 1.0
+    pids_limit: 128
+    networks:
+      - backend
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
+
+networks:
+  edge:
+  backend:
+    internal: true
+
+secrets:
+  db_bootstrap_password:
+    file: ./secrets/db_bootstrap_password
+  db_app_password_db:
+    file: ./secrets/db_app_password_db
+  db_app_password_web:
+    file: ./secrets/db_app_password_web</pre></div>
+<p lang="fa">Caddy از network edge به اسم service می‌رسد؛ PostgreSQL روی backend داخلی است و proxy اصلاً عضو آن نیست. appهای اصلی و نسخهٔ آزمایشی هر سه یک نقش دارند. healthcheck هر app مسیر <code>/health</code> را می‌زند؛ Caddy فقط پس از gate شدن نسخهٔ آزمایشی با تنظیمات reload به آن مسیر می‌شود. secretهای محلی در container فقط به سرویس‌های لازم grant شده‌اند.</p><p lang="en">Caddy reaches service names on the edge network; PostgreSQL is on the internal backend network, which the proxy does not join. Blue, green, and candidate are all instances of one app role. Each app healthcheck probes <code>/health</code>; Caddy is reconfigured only after the candidate passes its health gate. Local secrets are granted only to the containers that need them.</p>
+<h3><span lang="fa">Caddyfile آبی و سبز؛ upstream را جدا و روشن عوض کن</span><span lang="en">Blue and green Caddyfiles; switch one explicit upstream</span></h3>
+<p lang="fa">Caddy از env متغیر دامنه را می‌گیرد و فقط یکی از این فایل‌ها active است. Dynamic A هر چند ثانیه نام service را از DNS داخلی Docker تازه می‌کند تا IP قدیمی container در حافظه نماند. نسخهٔ آزمایشی را با Compose healthcheck می‌سنجیم و سپس تنظیمات را reload می‌کنیم؛ DNS پویا به‌تنهایی health برنامه را ثابت نمی‌کند.</p><p lang="en">Caddy reads the domain from its environment; exactly one of these files is active. Dynamic A refreshes the service name through Docker’s embedded DNS so a replaced container’s old IP is not retained. Compose healthchecks gate the candidate before config reload; dynamic DNS by itself does not prove app health.</p>
+<div class="term"><div class="term-bar"><span class="term-label">proxy/blue.Caddyfile · <span lang="fa">نسخهٔ rollback</span><span lang="en">rollback version</span></span><button class="copy">کپی</button></div><pre dir="ltr">{$DOMAIN} {
+  log {
+    output stdout
+    format json
+  }
+  reverse_proxy {
+    dynamic a app-blue 3000 {
+      resolvers 127.0.0.11
+      refresh 3s
+    }
+  }
+}</pre></div>
+<div class="term"><div class="term-bar"><span class="term-label">proxy/green.Caddyfile · <span lang="fa">نسخهٔ تازه</span><span lang="en">new version</span></span></div><pre dir="ltr">{$DOMAIN} {
+  log {
+    output stdout
+    format json
+  }
+  reverse_proxy {
+    dynamic a app-green 3000 {
+      resolvers 127.0.0.11
+      refresh 3s
+    }
+  }
+}</pre></div>
+<p lang="fa">برای آغاز، <code>blue.Caddyfile</code> را به <code>active.Caddyfile</code> کپی کن. Caddy فقط 80 و 443 را از میزبان می‌گیرد و <code>/data</code>/<code>/config</code> در volume می‌مانند؛ این‌ها برای certificateها و state لازم‌اند. Caddyfile با domain واقعی HTTPS و redirect از HTTP را فعال می‌کند؛ بدون domain عمومی گزارش TLS را ناقص علامت بزن.</p><p lang="en">Initially copy <code>blue.Caddyfile</code> to <code>active.Caddyfile</code>. Caddy alone publishes 80 and 443, while <code>/data</code> and <code>/config</code> persist certificate-related state. A real domain in the Caddyfile enables public HTTPS and HTTP redirects; without one, mark the TLS requirement incomplete.</p>
+<h3><span lang="fa">اجرای نسخهٔ 1.0.0 روی VPS</span><span lang="en">Deploy version 1.0.0 to the VPS</span></h3>
+<p lang="fa">سرور را از apt repository رسمی Docker نصب کن، registry را در صورت private بودن با read-only token احراز هویت کن، بعد image صریح را pull کن. هیچ فرمان build روی VPS اجرا نمی‌شود.</p><p lang="en">Install the server from Docker’s official apt repository. If the registry is private, authenticate with a read-only token, then pull explicit images. No build command runs on the VPS.</p>
+<div class="term"><div class="term-bar"><span class="term-label"><span lang="fa">اول DB و app، سپس proxy</span><span lang="en">DB and app first, then the proxy</span></span><button class="copy">کپی</button></div><pre dir="ltr"># In /opt/codenames-capstone, after local .env and secret files exist
+docker compose config --quiet
+docker compose pull postgres app-blue
+docker compose up -d --wait postgres app-blue
+docker compose exec app-blue node -e "fetch('http://127.0.0.1:3000/').then(r=&gt;r.text()).then(console.log)"
+
+cp proxy/blue.Caddyfile proxy/active.Caddyfile
+docker compose up -d --wait proxy
+
+# Run from a machine outside the VPS
+curl --fail --show-error "https://$DOMAIN/"
+curl --fail --show-error "https://$DOMAIN/health"</pre></div>
+<p lang="fa">root باید <code>version: 1.0.0</code> و <code>dbHost: postgres</code> نشان دهد؛ health باید 200 باشد. سپس یک note یکتا مثل <code>capstone-restore-proof</code> بساز. نگاشت port را از <code>docker compose ps</code> و تنظیمات بخوان: فقط proxy؛ نه app و نه DB.</p><p lang="en">Root should report <code>version: 1.0.0</code> and <code>dbHost: postgres</code>; health should be 200. Create a unique note such as <code>capstone-restore-proof</code>. Inspect <code>docker compose ps</code> and resolved config: only proxy has host bindings, never app or DB.</p>
+<h3><span lang="fa">سوییچ blue/green به 1.1.0 و آزمون rollback</span><span lang="en">Blue/green cutover to 1.1.0 and rollback</span></h3>
+<p lang="fa">image تازه را از registry pull کن، container سبز را در کنار آبی بالا بیاور و Compose را وادار کن تا healthy شدنش صبر کند. پیش از تغییر مسیر، version و health مستقیم را از همان slot بخوان. اگر هر قدم شکست خورد، هنوز Caddy آبی را سرو می‌کند.</p><p lang="en">Pull the new image, start green alongside blue, and make Compose wait for health. Check the version and health directly on that slot before changing routes. If any step fails, Caddy is still serving blue.</p>
+<div class="term"><div class="term-bar"><span class="term-label"><span lang="fa">health gate، سپس تنظیمات reload تدریجی</span><span lang="en">Health gate, then graceful config reload</span></span><button class="copy">کپی</button></div><pre dir="ltr">docker compose pull app-green
+docker compose up -d --wait --no-deps app-green
+docker compose exec app-green node -e "fetch('http://127.0.0.1:3000/health').then(async r=&gt;{console.log(r.status,await r.text());if(!r.ok)process.exit(1)})"
+docker compose exec proxy caddy validate --config /etc/caddy/green.Caddyfile --adapter caddyfile
+install -m 0644 proxy/green.Caddyfile proxy/active.Caddyfile.next
+mv -f proxy/active.Caddyfile.next proxy/active.Caddyfile
+docker compose exec proxy caddy reload --config /etc/caddy/active.Caddyfile --adapter caddyfile
+curl --fail --show-error "https://$DOMAIN/"
+curl --fail --show-error "https://$DOMAIN/notes"</pre></div>
+<p lang="fa">Caddy مستند کرده که تنظیمات reload با شروع تنظیمات تازه پیش از توقف قبلی انجام می‌شود و اگر تنظیمات تازه معتبر نباشد، قبلی فعال می‌ماند. ما قبلش app جدید را health می‌کنیم و پس از reload از بیرون probe می‌گیریم. slot آبی و image دقیق 1.0.0 را هنوز حذف نکن؛ این همان راه rollback توست.</p><p lang="en">Caddy documents config reload as starting the new configuration before stopping the old one; if the new config is invalid, the old config remains active. We health-check the new app first and probe externally after reload. Keep blue and its exact 1.0.0 image: that is the rollback path.</p>
+<p lang="fa">برای rollback، فایل آبی را ابتدا validate و سپس اتمی active کن؛ همان فرمان <code>caddy reload</code> را اجرا کن. بیرون VPS root باید 1.0.0 نشان دهد، health سبز بماند و رکورد از DB خوانده شود. این تمرین routing rollback است، نه پایگاه‌داده schema rollback؛ به همین دلیل 1.0 و 1.1 در این مأموریت schema سازگار دارند.</p><p lang="en">To roll back, validate the blue file, atomically make it active, and run the same <code>caddy reload</code>. From outside the VPS, root should report 1.0.0, health should remain green, and the record should still be present. This rolls back routing and app version, not database schema; the project deliberately keeps 1.0 and 1.1 schema-compatible.</p>
+<div class="term"><div class="term-bar"><span class="term-label"><span lang="fa">بازگشت مسیر به slot سالم قبلی</span><span lang="en">Route back to the known-good slot</span></span></div><pre dir="ltr">docker compose exec proxy caddy validate --config /etc/caddy/blue.Caddyfile --adapter caddyfile
+install -m 0644 proxy/blue.Caddyfile proxy/active.Caddyfile.next
+mv -f proxy/active.Caddyfile.next proxy/active.Caddyfile
+docker compose exec proxy caddy reload --config /etc/caddy/active.Caddyfile --adapter caddyfile
+curl --fail --show-error "https://$DOMAIN/"
+curl --fail --show-error "https://$DOMAIN/notes"</pre></div>
+<p lang="fa">دادهٔ PostgreSQL 17 در <code>/var/lib/postgresql/data</code> به volume وصل است. اگر major version را بالا می‌بری، مسیر و روش ارتقای DB را دوباره از docs رسمی همان image بررسی کن؛ تغییر tag به‌تنهایی upgrade داده نیست. محدودیت‌های Compose اینجا از کلیدهای محلی <code>mem_limit</code>، <code>cpus</code> و <code>pids_limit</code> استفاده می‌کنند.</p><p lang="en">PostgreSQL 17 data is mounted at <code>/var/lib/postgresql/data</code>. Before changing major versions, recheck the official image’s data path and upgrade procedure; changing the tag is not a database upgrade. These Compose limits use the local service fields <code>mem_limit</code>, <code>cpus</code>, and <code>pids_limit</code>.</p>
+<h3><span lang="fa">پشتیبان شبانه، گزارش روشن و retention محدود</span><span lang="en">Nightly backup, visible results, and bounded retention</span></h3>
+<p lang="fa">پشتیبان از میزبان کنترل می‌شود، اما dump در container PostgreSQL ساخته می‌شود. فایل موقت فقط پس از خروج موفق <code>pg_dump</code>، غیرخالی‌بودن و خوانده‌شدن فهرست archive به نام نهایی درمی‌آید. systemd خروجی را در journal نگه می‌دارد. مقصد روی همان VPS است؛ اگر خود VPS از دست برود، این نسخه هم ممکن است از دست برود.</p><p lang="en">The host schedules the backup, while the PostgreSQL container creates the dump. A temporary file becomes the final backup only after <code>pg_dump</code> succeeds, the file is non-empty, and PostgreSQL can list the archive. systemd captures output in the journal. The destination is on the same VPS, so loss of that VPS can also lose this copy.</p>
+<div class="term"><div class="term-bar"><span class="term-label">bin/backup.sh · <span lang="fa">فایل نهایی فقط پس از آزمون archive</span><span lang="en">publish only after archive verification</span></span><button class="copy">کپی</button></div><pre dir="ltr">#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+cd /opt/codenames-capstone
+
+backup_dir=/var/backups/codenames-capstone
+mkdir -p "$backup_dir"
+stamp=$(date -u +%Y%m%dT%H%M%SZ)
+final="$backup_dir/notes-$stamp.dump"
+tmp="$backup_dir/.notes-$stamp.partial"
+
+cleanup() {
+  rc=$?
+  rm -f "$tmp"
+  if [ "$rc" -ne 0 ]; then
+    echo "backup_failed timestamp=$stamp exit=$rc" &gt;&amp;2
+  fi
+}
+trap cleanup EXIT
+
+docker compose exec -T postgres pg_dump \
+  --username bootstrap --dbname notes --format=custom \
+  --no-owner --no-acl &gt; "$tmp"
+test -s "$tmp"
+docker compose cp "$tmp" postgres:/tmp/backup-verify.dump
+docker compose exec -T postgres pg_restore --list /tmp/backup-verify.dump &gt; /dev/null
+docker compose exec -T postgres rm -f /tmp/backup-verify.dump
+mv "$tmp" "$final"
+find "$backup_dir" -maxdepth 1 -type f -name 'notes-*.dump' -mtime +14 -delete
+echo "backup_succeeded file=$final bytes=$(stat -c %s "$final")"</pre></div>
+<p lang="fa">DB فرایند برای socket محلیِ داخل همان container از روش احراز هویت محلی خود image استفاده می‌کند؛ رمز bootstrap در فرمان یا log قرار نمی‌گیرد. پشتیبان پوشه را به deploy user با دسترسی فقط خودش بده. چون deploy user به Docker دسترسی دارد، آن را هم‌ارز دسترسی مدیریتی VPS بدان.</p><p lang="en">The DB container’s local socket uses the image’s local authentication behavior; the bootstrap password is not passed in a command or written to logs. Give the backup directory to the deploy user only. Since that user can access Docker, treat it as a VPS administrator.</p>
+<div class="term"><div class="term-bar"><span class="term-label"><span lang="fa">systemd unit و timer · هر شب ساعت محلی 02:15</span><span lang="en">systemd unit and timer · nightly at local 02:15</span></span></div><pre dir="ltr"># systemd/codenames-backup.service
+[Unit]
+Description=Backup the CodeNames capstone PostgreSQL database
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=deploy
+WorkingDirectory=/opt/codenames-capstone
+UMask=0077
+ExecStart=/opt/codenames-capstone/bin/backup.sh
+
+# systemd/codenames-backup.timer
+[Unit]
+Description=Nightly CodeNames capstone database backup
+
+[Timer]
+OnCalendar=*-*-* 02:15:00
+Persistent=true
+RandomizedDelaySec=5m
+Unit=codenames-backup.service
+
+[Install]
+WantedBy=timers.target</pre></div>
+<div class="term"><div class="term-bar"><span class="term-label"><span lang="fa">نصب timer و اثبات یک اجرای دستی</span><span lang="en">Install the timer and prove one manual run</span></span><button class="copy">کپی</button></div><pre dir="ltr">sudo install -o root -g root -m 0644 systemd/codenames-backup.service /etc/systemd/system/
+sudo install -o root -g root -m 0644 systemd/codenames-backup.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now codenames-backup.timer
+sudo systemctl start codenames-backup.service
+systemctl list-timers --all | grep codenames-backup
+journalctl -u codenames-backup.service --since=today --no-pager
+ls -lh /var/backups/codenames-capstone
+df -h /var/backups/codenames-capstone</pre></div>
+<p lang="fa">در journal باید <code>backup_succeeded</code> و در پوشه یک فایل non-zero دیده شود. retention فقط فایل‌های همنام قدیمی همین پروژه را حذف می‌کند. پیش از انتخاب یک disk برای پشتیبان، owner و فضای آن را بشناس. این تمرین نسخهٔ off-site یا سیاست نگهداری سازمانی نیست.</p><p lang="en">The journal should show <code>backup_succeeded</code>, and the directory should contain a non-empty file. Retention deletes only old files matching this project’s name. Know the owner and free space of the target disk before relying on it. This is not off-site backup or an organizational retention policy.</p>
+<h3><span lang="fa">یک restore واقعی، دور از DB زنده</span><span lang="en">One real restore, isolated from the live DB</span></h3>
+<p lang="fa">نام پشتیبان را پیدا کن و script زیر را با مسیر همان فایل اجرا کن. container موقت <code>--network none</code> دارد، public port ندارد و data آن روی tmpfs محدود است؛ trap در پایان آن را پاک می‌کند. اگر script در میانه شکست بخورد، live PostgreSQL دست‌نخورده می‌ماند.</p><p lang="en">Select a backup and pass its path to the script below. The temporary container uses <code>--network none</code>, publishes no port, and stores data on a bounded tmpfs; a trap removes it afterward. A mid-test failure leaves live PostgreSQL untouched.</p>
+<div class="term"><div class="term-bar"><span class="term-label">bin/restore-test.sh · <span lang="fa">بازیابی ایزوله و query رکورد شناخته‌شده</span><span lang="en">isolated restore and known-record query</span></span><button class="copy">کپی</button></div><pre dir="ltr">#!/usr/bin/env bash
+set -Eeuo pipefail
+backup=${1:?usage: restore-test.sh /var/backups/codenames-capstone/notes-TIMESTAMP.dump}
+container="codenames-restore-check-$$"
+created=0
+
+cleanup() { if [[ "$created" -eq 1 ]]; then docker rm -f "$container" &gt;/dev/null 2&gt;&amp;1 || true; fi; }
+trap cleanup EXIT
+
+docker run -d --name "$container" --network none \
+  --memory 384m --cpus 0.5 --pids-limit 64 \
+  --tmpfs /var/lib/postgresql/data:rw,size=256m \
+  -e POSTGRES_HOST_AUTH_METHOD=trust \
+  -e POSTGRES_USER=restore -e POSTGRES_DB=notes \
+  postgres:17 &gt; /dev/null
+created=1
+
+docker cp "$backup" "$container:/tmp/restore.dump"
+ready=0
+for n in $(seq 1 60); do
+  if docker exec "$container" pg_isready -U restore -d notes &gt;/dev/null; then
+    ready=1
+    break
+  fi
+  sleep 1
+done
+test "$ready" -eq 1
+
+docker exec "$container" pg_restore --list /tmp/restore.dump &gt; /dev/null
+docker exec "$container" pg_restore --no-owner --no-acl \
+  -U restore -d notes /tmp/restore.dump
+docker exec "$container" psql -U restore -d notes -Atc \
+  "SELECT body FROM notes WHERE body='capstone-restore-proof';"
+echo "restore_succeeded backup=$backup"</pre></div>
+<p lang="fa">خروجی query باید <code>capstone-restore-proof</code> را برگرداند. فقط ساختن container یا دیدن نام dump کافی نیست؛ restore موفق و وجود رکوردِ معلوم مدرک‌اند. <code>trust</code> فقط در این container موقت، بدون network و بدون port انتشار یافته؛ هرگز آن را در DB سرویس یا Compose اصلی کپی نکن.</p><p lang="en">The query must return <code>capstone-restore-proof</code>. Merely creating a container or seeing a dump filename is not proof; a successful restore and the known record are. <code>trust</code> is limited to this temporary container with no network and no published ports; never copy it into the service database or primary Compose file.</p>
+<h3><span lang="fa">نسخهٔ آزمایشی خراب را رد کن؛ بعد به 1.0.0 برگرد</span><span lang="en">Reject a broken candidate, then roll back to 1.0.0</span></h3>
+<p lang="fa">از کد برنامه یک نسخهٔ آزمایشی بساز که <code>/health</code> عمداً 503 بدهد؛ آن را با tag دقیق <code>1.2.0-broken</code> push کن. در همین فرمان، source مسیر همان <code>./app</code> است و build را از لپ‌تاپ/CI انجام بده؛ پس از push، source سالم را برگردان. این image را فقط برای پروفایل نسخهٔ آزمایشی بکش و اجرا کن. expected نتیجهٔ <code>up --wait</code> شکست health است، در حالی که public root همچنان نسخهٔ سبز 1.1.0 را نشان می‌دهد. لاگ و inspect را ثبت کن؛ نسخهٔ آزمایشی خراب نباید active شود.</p><p lang="en">Make a test source change that deliberately returns 503 from <code>/health</code>, then push it with exact tag <code>1.2.0-broken</code>. Build from the same <code>./app</code> context on your workstation/CI, then restore the known-good source. Pull and run the broken image only through the candidate profile. The expected result is a failed <code>up --wait</code> while the public root still reports green 1.1.0. Capture logs and inspect; do not make the broken candidate active.</p>
+<div class="term"><div class="term-bar"><span class="term-label"><span lang="fa">image خراب را جدا بالا بیاور و مرز را مشاهده کن</span><span lang="en">Run the broken image separately and observe the boundary</span></span><button class="copy">کپی</button></div><pre dir="ltr">docker buildx build --platform linux/amd64 --build-arg APP_VERSION=1.2.0-broken \
+  --tag "$REGISTRY_IMAGE:1.2.0-broken" --push ./app
+
+docker compose --profile candidate pull app-candidate
+if docker compose --profile candidate up -d --wait --no-deps app-candidate; then
+  echo "unexpected: broken candidate passed health"
+else
+  echo "expected: candidate failed its health gate"
+fi
+docker compose --profile candidate ps
+docker compose --profile candidate logs --tail=50 app-candidate
+docker inspect "$(docker compose --profile candidate ps -q app-candidate)" \
+  --format '{{.Config.Image}} {{.State.Health.Status}} restarts={{.RestartCount}}'
+curl --fail --show-error "https://$DOMAIN/"
+docker compose --profile candidate rm -sf app-candidate</pre></div>
+<p lang="fa">از بیرون باید هنوز 1.1.0 را ببینی؛ این یعنی proxy را قبل از سلامت عوض نکردی. پس از ثبت logها، نسخهٔ آزمایشی را پاک کن و برای آزمون rollback فایل آبی را فعال کن. نسخهٔ 1.0.0 باید بیرونی پاسخ دهد و رکورد <code>capstone-restore-proof</code> در DB بماند. rollback app داده را پاک نمی‌کند، ولی migration ناسازگار هم خودکار undo نمی‌شود.</p><p lang="en">From outside, you should still see 1.1.0, proving the proxy was not switched before health. After recording logs, remove the candidate and activate blue for the rollback test. Version 1.0.0 should answer externally, and <code>capstone-restore-proof</code> must remain in the DB. App rollback does not erase data, but it does not automatically undo an incompatible migration either.</p>
+<h3><span lang="fa">README و گزارش تحویل را کامل کن</span><span lang="en">Complete the README and handoff report</span></h3>
+<p lang="fa">نمودار زیر را در README پروژه نگه دار و مقدارهای نمونه را با domain، tag، مسیر پشتیبان و روش بازیابی واقعی خودت جایگزین کن. secret یا token وارد نمودار و README نکن.</p><p lang="en">Keep a diagram like this in the project README and replace the examples with your actual domain, tags, backup path, and recovery procedure. Do not put secrets or tokens in the diagram or README.</p>
+<div class="term"><div class="term-bar"><span class="term-label">README.md · <span lang="fa">نقشهٔ معماری و راه بازگشت</span><span lang="en">architecture and rollback map</span></span></div><pre dir="ltr">```mermaid
+flowchart LR
+  Internet --&gt;|80/443| Caddy
+  Caddy --&gt;|active upstream| Blue[app-blue · pinned tag]
+  Caddy -. candidate after health gate .-&gt; Green[app-green · pinned tag]
+  Blue --&gt;|backend network| PostgreSQL
+  Green --&gt;|backend network| PostgreSQL
+  PostgreSQL --&gt;|PGDATA| Volume[(named pgdata)]
+  PostgreSQL --&gt;|nightly pg_dump| Backup[/var/backups · 14 days/]
+```
+
+Active release: 1.1.0 (green)
+Rollback release: 1.0.0 (blue)
+Public ports: proxy 80/tcp, 443/tcp (+ optional 443/udp)
+Backup timer: codenames-backup.timer at 02:15 server-local time
+Last restore proof: `capstone-restore-proof` in isolated Postgres 17</pre></div>
+<h3><span lang="fa">مرور امنیت و تحویل نهایی</span><span lang="en">Security review and final handoff</span></h3>
+<p lang="fa">پیش از تحویل، یک دور از بیرون به داخل برو: در میزبان فقط proxy پورت دارد؛ secret واقعی در Git و image نیست؛ app user برابر 10001 است؛ فقط <code>/tmp</code> برای نوشتن موقت مجاز است؛ DB و Caddy data volumeها شناسایی شده‌اند؛ memory/CPU/PID limit دیده می‌شوند؛ registry token فقط pull می‌کند؛ هیچ containerای <code>/var/run/docker.sock</code> را mount نکرده؛ SSH با key است و firewall فقط ورودی لازم را می‌پذیرد. Docker access برای deploy user همچنان privilege بالا دارد؛ این را در handoff پنهان نکن.</p><p lang="en">Before handoff, review from outside inward: only the proxy publishes host ports; real secrets are absent from Git and images; app UID is 10001; only bounded <code>/tmp</code> is writable; DB and Caddy data volumes are identified; memory/CPU/PID caps are visible; the registry token is pull-only; no container mounts <code>/var/run/docker.sock</code>; SSH is key-based; and firewalls allow only necessary ingress. Docker access still gives the deploy user high authority—state that in the handoff.</p>
+<p lang="fa">برای این پروژه UI گرافیکی لازم نیست. کافی است هم‌تیمی‌ات بتواند با README نسخهٔ live را پیدا کند، پشتیبان را restore کند و در صورت خرابی، بدون دست‌زدن به DB زنده به 1.0.0 برگردد. این‌جا پایان مسیر Docker است؛ از این به بعد تمرین عملیاتی تو نگه‌داشتن همین قراردادها در تغییرهای واقعی است.</p><p lang="en">No dashboard is required. A teammate should be able to find the live version from the README, restore a backup, and return to 1.0.0 without touching the live DB. This closes the Docker track; the ongoing work is preserving these contracts through real changes.</p>
+<h3><span lang="fa">منابع رسمی برای رفتارهایی که تغییر می‌کنند</span><span lang="en">Official references for version-sensitive behavior</span></h3>
+<ul lang="fa"><li><a href="https://docs.docker.com/engine/install/ubuntu/" rel="noreferrer" target="_blank">نصب Docker Engine روی Ubuntu</a> و هشدارهای firewall/iptables آن.</li><li><a href="https://docs.docker.com/compose/how-tos/startup-order/" rel="noreferrer" target="_blank">ترتیب شروع Compose و شرط service_healthy</a>؛ و <a href="https://docs.docker.com/reference/cli/docker/compose/up/" rel="noreferrer" target="_blank"><code>docker compose up --wait</code></a>.</li><li><a href="https://docs.docker.com/compose/how-tos/use-secrets/" rel="noreferrer" target="_blank">Compose secrets</a> و <a href="https://docs.docker.com/reference/compose-file/services/" rel="noreferrer" target="_blank">service fields و محدودیت UID/GID در secret فایل‌محور</a>.</li><li><a href="https://caddyserver.com/docs/automatic-https" rel="noreferrer" target="_blank">HTTPS خودکار Caddy</a>، <a href="https://caddyserver.com/docs/getting-started" rel="noreferrer" target="_blank">reload بدون وقفهٔ تنظیمات</a> و <a href="https://caddyserver.com/docs/caddyfile/directives/reverse_proxy" rel="noreferrer" target="_blank">reverse_proxy، upstream پویا و health behavior</a>.</li><li><a href="https://github.com/docker-library/docs/blob/master/postgres/README.md" rel="noreferrer" target="_blank">مستند image رسمی PostgreSQL</a> دربارهٔ نقش superuser، secret فایل و مسیر volume.</li></ul>
+<ul lang="en"><li><a href="https://docs.docker.com/engine/install/ubuntu/" rel="noreferrer" target="_blank">Docker Engine on Ubuntu</a>, including firewall/iptables caveats.</li><li><a href="https://docs.docker.com/compose/how-tos/startup-order/" rel="noreferrer" target="_blank">Compose startup ordering and service_healthy</a>, plus <a href="https://docs.docker.com/reference/cli/docker/compose/up/" rel="noreferrer" target="_blank"><code>docker compose up --wait</code></a>.</li><li><a href="https://docs.docker.com/compose/how-tos/use-secrets/" rel="noreferrer" target="_blank">Compose secrets</a> and <a href="https://docs.docker.com/reference/compose-file/services/" rel="noreferrer" target="_blank">service fields and file-secret UID/GID limitations</a>.</li><li>Caddy <a href="https://caddyserver.com/docs/automatic-https" rel="noreferrer" target="_blank">automatic HTTPS</a>, <a href="https://caddyserver.com/docs/getting-started" rel="noreferrer" target="_blank">zero-downtime config reload</a>, and <a href="https://caddyserver.com/docs/caddyfile/directives/reverse_proxy" rel="noreferrer" target="_blank"><code>reverse_proxy</code>, dynamic upstreams, and health behavior</a>.</li><li><a href="https://github.com/docker-library/docs/blob/master/postgres/README.md" rel="noreferrer" target="_blank">Official PostgreSQL image documentation</a> on bootstrap superusers, file secrets, and volume paths.</li></ul>
+</section>

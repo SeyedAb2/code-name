@@ -1,0 +1,328 @@
+<!--meta
+title: پروژهٔ ۲ — اپ + پایگاه‌داده با Compose
+desc: یک API کوچک و PostgreSQL را با Compose کنار هم بیاور؛ secret را از config جدا کن، فقط web را publish کن و با آزمون down/up ماندگاری داده را ثابت کن.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">Docker · پروژهٔ ۲</span><span lang="en">Docker · Project 2</span></span>
+<h1 lang="fa">پروژهٔ ۲ — اپ + پایگاه‌داده با Compose</h1><h1 lang="en">Project 2 — Web application + database with Docker Compose</h1>
+<p class="sub" lang="fa">یک برنامهٔ کوچک حالا به PostgreSQL نیاز دارد. هم‌تیمی‌ها باید با یک فرمان کل محیط را بالا بیاورند، داده پس از جایگزینی container بماند و port پایگاه‌داده برای میزبان منتشر نشود. تو باید این قرارداد را بسازی و با مدرک تحویل بدهی.</p>
+<p class="sub" lang="en">A small application now needs PostgreSQL. Teammates should be able to start the whole environment with one command, data must survive container replacement, and the database port must not be published to the host. Build that contract and hand it off with evidence.</p>
+<div class="facts"><div class="fact"><b>2</b><span lang="fa">service</span><span lang="en">services</span></div><div class="fact"><b>0</b><span lang="fa">port عمومی DB</span><span lang="en">published DB ports</span></div><div class="fact"><b>≈ 4h</b><span lang="fa">زمان پیشنهادی</span><span lang="en">suggested time</span></div></div>
+</div>
+<section id="scenario">
+<h2><span lang="fa">مأموریت دوم: دو سرویس را طوری کنار هم بگذار که داده با تعویض web از بین نرود</span><span lang="en">One command, two services, one question about data</span></h2>
+<p class="lede" lang="fa">تا دیروز API را تنها اجرا می‌کردیم. حالا یادداشت‌ها باید در PostgreSQL بمانند. از این لحظه «روی لپ‌تاپ من کار می‌کند» کافی نیست: هم‌تیمی باید با یک فرمان web و پایگاه‌داده را بالا بیاورد، تعویض web نباید noteها را پاک کند و port پایگاه‌داده هم نباید برای بیرون باز باشد.</p>
+<p class="lede" lang="en">Until yesterday, the team ran its API by itself. Now notes must be stored in PostgreSQL. “It works on my laptop” is no longer enough: a teammate needs one command to start web and the database; replacing web must not erase notes; and nobody outside the app network should connect directly to the database port.</p>
+<div class="diagram"><svg aria-labelledby="p2-arch-title" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 1000 320">
+<title id="p2-arch-title">The host reaches only web; web resolves postgres on the Compose network; PostgreSQL stores data in a named volume.</title>
+<defs><marker id="p2-arrow" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<rect class="dg-fill-v" height="225" rx="20" width="700" x="250" y="35"></rect>
+<text class="dg-t" x="285" y="68">Compose network · private service communication</text>
+<g class="dg-stroke-b" marker-end="url(#p2-arrow)" stroke-width="2">
+<path d="M200 145H320"></path><path d="M540 145H680"></path><path d="M795 200V250"></path>
+</g>
+<rect class="dg-fill-w" height="90" rx="14" width="175" x="25" y="100"></rect>
+<text class="dg-t" text-anchor="middle" x="112" y="135">Host</text><text class="dg-ts" text-anchor="middle" x="112" y="162">127.0.0.1:8080</text>
+<rect class="dg-fill" height="110" rx="14" width="220" x="320" y="90"></rect>
+<text class="dg-t" text-anchor="middle" x="430" y="128">web service</text><text class="dg-ts" text-anchor="middle" x="430" y="157">DB_HOST=postgres</text><text class="dg-ts" text-anchor="middle" x="430" y="180">only published service</text>
+<rect class="dg-fill-w" height="110" rx="14" width="230" x="680" y="90"></rect>
+<text class="dg-t" text-anchor="middle" x="795" y="128">postgres service</text><text class="dg-ts" text-anchor="middle" x="795" y="157">5432 · internal only</text><text class="dg-ts" text-anchor="middle" x="795" y="180">no host port</text>
+<rect class="dg-fill-g" height="50" rx="12" width="240" x="675" y="250"></rect>
+<text class="dg-ts" text-anchor="middle" x="795" y="281">named volume · pgdata</text>
+<text class="dg-ts" text-anchor="middle" x="610" y="118">service-name DNS</text>
+</svg><p class="diagram-cap" lang="fa">این پروژه مرور فصل Compose نیست. قرار است چیزهایی که قبلاً جدا یاد گرفته‌ای کنار هم قرار بگیرند: service-name DNS، volume، secret فایل‌محور، healthcheck، startup dependency و عیب‌یابی. معیار موفقیت هم فقط بالا آمدن دو container نیست؛ باید persistence و ارتباط داخلی را با مدرک ثابت کنی.</p><p class="diagram-cap" lang="en">The host arrow reaches only web; the internal network arrow uses the service name postgres; the arrow to the volume means PostgreSQL data outlives its container.</p></div>
+<p lang="fa">این صفحه tutorial تازه‌ای دربارهٔ Compose نیست. مدل چند service، DNS داخلی، volume، secret و healthcheck را از فصل‌های قبل می‌دانی. پروژه از تو می‌خواهد این قراردادها را کنار هم قرار دهی، بعد خرابشان کنی و از روی شواهد تشخیص بدهی.</p><p lang="en">This is not another Compose tutorial. You already know multi-service models, internal DNS, volumes, secrets, and healthchecks from earlier chapters. Your job is to combine those contracts, deliberately break them, and diagnose the evidence.</p>
+</section>
+<section id="scope">
+<h2><span lang="fa">مرز پروژه را روشن نگه دار: دو service، یک Compose و داده‌ای که باید بماند</span><span lang="en">Scope and deliverables</span></h2>
+<ul lang="fa"><li>دو service با نقش روشن: <code>web</code> و PostgreSQL.</li><li>یک <code>compose.yaml</code>؛ web از Dockerfile محلی build می‌شود.</li><li>Compose-managed network؛ web مقصد DB را با service name <code>postgres</code> پیدا می‌کند.</li><li>named volume برای دادهٔ PostgreSQL؛ بدون port میزبان برای DB.</li><li>تنظیمات غیرحساس در environment؛ رمز از secret فایل‌محور فصل ۹.</li><li>healthcheck برای هر دو service؛ web فقط پس از healthy شدن DB در شروع بالا بیاید.</li><li>web با user غیرریشه، restart policy و سقف‌های معقول اجرا شود.</li><li>log هر دو service با Compose خوانده شود؛ پشتیبان محلی تولید و با ابزار PostgreSQL بازرسی شود.</li></ul>
+<ul lang="en"><li>Two clearly named service roles: <code>web</code> and PostgreSQL.</li><li>One <code>compose.yaml</code>; web is built from a local Dockerfile.</li><li>A Compose-managed network; web finds the database using the service name <code>postgres</code>.</li><li>A named volume for PostgreSQL data, with no host-published DB port.</li><li>Non-secret configuration in environment variables; the password uses Chapter 9’s file-backed secret pattern.</li><li>Healthchecks for both services; web waits for a healthy DB during initial startup.</li><li>Web runs as non-root with a restart policy and reasonable limits.</li><li>Read logs for both services through Compose; create a local backup and inspect it with PostgreSQL tooling.</li></ul>
+<div class="note safe"><div class="note-t"><span lang="fa">سه «آماده‌بودن» را قاطی نکن</span><span lang="en">Do not conflate three kinds of readiness</span></div><p lang="fa">Compose ترتیب شروع را هماهنگ می‌کند، healthcheck می‌گوید آزمون سلامت پاس شده و برنامه باید قطع‌شدن پایگاه‌داده در زمان اجرا را هم خودش مدیریت کند. <code>service_healthy</code> می‌تواند race اولیه را کمتر کند، اما monitor دائمی ارتباط یا درمان خودکار خطا نیست.</p><p lang="en">Compose orders startup; a healthcheck reports whether its probe succeeds; and the app still needs to handle database loss while running. <code>service_healthy</code> prevents an initial startup race, but it is not a permanent monitor or automatic connection repair.</p></div>
+</section>
+<section id="starter">
+<h2><span lang="fa">منطق برنامه را کوچک نگه دار تا مسئلهٔ اصلی Compose و persistence بماند</span><span lang="en">Starter: keep the application logic small</span></h2>
+<p lang="fa">API فقط چند مسیر سرویس ساده دارد: معرفی سرویس، health، ساخت note و فهرست noteها. PostgreSQL تنها منبع ماندگار داده است. عمداً cache پیچیده، queue یا فایل محلی اضافه نمی‌کنیم تا وقتی note گم شد دقیقاً بدانیم دنبال کدام مسیر باید بگردیم.</p><p lang="en">The API does only four things: identify the service, check connectivity at <code>/health</code>, create notes with <code>POST /notes</code>, and list them with <code>GET /notes</code>. PostgreSQL is the only durable data store; there is no in-memory array or writable-layer file pretending to persist.</p>
+<div class="term"><div class="term-bar"><span class="term-label">web/package.json</span></div><pre dir="ltr">{
+  "name": "compose-notes-web",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
+  }
+}</pre></div>
+<div class="term"><div class="term-bar"><span class="term-label">web/server.js · <span lang="fa">کد آغازین برنامه</span><span lang="en">starter application</span></span></div><pre dir="ltr">const http = require('node:http');
+const fs = require('node:fs');
+const { Pool } = require('pg');
+
+const port = Number(process.env.PORT || 3000);
+const mode = process.env.APP_MODE || 'development';
+const dbHost = process.env.DB_HOST || 'postgres';
+const passwordFile = process.env.DB_PASSWORD_FILE;
+const password = passwordFile ? fs.readFileSync(passwordFile, 'utf8').trim() : '';
+
+const pool = new Pool({
+  host: dbHost,
+  port: Number(process.env.DB_PORT || 5432),
+  database: process.env.DB_NAME || 'notes',
+  user: process.env.DB_USER || 'notes_app',
+  password,
+  connectionTimeoutMillis: 1500
+});
+
+const send = (response, status, value) =&gt; {
+  response.writeHead(status, { 'content-type': 'application/json' });
+  response.end(JSON.stringify(value));
+};
+
+async function handle(request, response) {
+  const path = (request.url || '/').split('?')[0];
+
+  if (request.method === 'GET' &amp;&amp; path === '/') {
+    return send(response, 200, { app: 'compose-notes', mode, dbHost });
+  }
+
+  if (request.method === 'GET' &amp;&amp; path === '/health') {
+    try {
+      await pool.query('SELECT 1');
+      return send(response, 200, { status: 'ok', database: 'reachable' });
+    } catch (error) {
+      console.error('health probe could not reach database:', error.code || 'connection error');
+      return send(response, 503, { status: 'not ready' });
+    }
+  }
+
+  if (path === '/notes' &amp;&amp; (request.method === 'GET' || request.method === 'POST')) {
+    await pool.query('CREATE TABLE IF NOT EXISTS notes (id BIGSERIAL PRIMARY KEY, body TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())');
+
+    if (request.method === 'GET') {
+      const result = await pool.query('SELECT id, body, created_at FROM notes ORDER BY id');
+      return send(response, 200, result.rows);
+    }
+
+    let raw = '';
+    for await (const chunk of request) raw += chunk;
+    const input = JSON.parse(raw || '{}');
+    if (typeof input.body !== 'string' || !input.body.trim()) {
+      return send(response, 400, { error: 'body must be a non-empty string' });
+    }
+    const result = await pool.query(
+      'INSERT INTO notes (body) VALUES ($1) RETURNING id, body, created_at',
+      [input.body.trim()]
+    );
+    console.log('created note', result.rows[0].id);
+    return send(response, 201, result.rows[0]);
+  }
+
+  return send(response, 404, { error: 'not found' });
+}
+
+const server = http.createServer((request, response) =&gt; {
+  console.log(request.method, request.url);
+  handle(request, response).catch((error) =&gt; {
+    console.error('request failed:', error.code || error.message);
+    if (!response.headersSent) send(response, 503, { error: 'database unavailable' });
+    else response.end();
+  });
+});
+
+server.listen(port, '0.0.0.0', () =&gt; {
+  console.log('web listening on ' + port + '; database host=' + dbHost + '; mode=' + mode);
+});
+
+process.on('SIGTERM', () =&gt; {
+  server.close(() =&gt; pool.end().finally(() =&gt; process.exit(0)));
+});</pre></div>
+<p lang="fa">قبل از Compose خود برنامه را سریع بخوان و قراردادهایش را پیدا کن: نام متغیرهای اتصال چیست؟ health چه چیزی را بررسی می‌کند؟ جدول چه زمانی ساخته می‌شود؟ هرچه این قراردادها روشن‌تر باشند، compose.yaml بعداً فقط آن‌ها را wiring می‌کند.</p><p lang="en">Without a local database, <code>GET /</code> should respond while <code>/health</code> returns 503. That is intentional: the process started, but its PostgreSQL-dependent capability is not ready. Under Compose, <code>DB_HOST=postgres</code> names the service. Only when the app runs directly on the host and the database is also on the host might you use <code>localhost</code>; never use it from the web container.</p>
+<div class="term"><div class="term-bar"><span class="term-label"><span lang="fa">اجرای محلی برنامه · پیش از Compose</span><span lang="en">Run the starter locally · before Compose</span></span><button class="copy">کپی</button></div><pre dir="ltr">cd web
+npm install
+npm start
+
+# in another terminal
+curl.exe -i http://127.0.0.1:3000/
+curl.exe -i http://127.0.0.1:3000/health</pre></div>
+<p lang="fa">فایل <code>package-lock.json</code> را که <code>npm install</code> می‌سازد نگه دار. اگر PostgreSQL محلی نداری، پاسخ 503 سلامت را ثبت کن و برو سراغ ساخت کل محیط؛ starter همچنان ثابت کرده web فرایند و مسیر ساده اجرا می‌شوند.</p><p lang="en">Keep the <code>package-lock.json</code> generated by <code>npm install</code>. If PostgreSQL is not installed locally, record the 503 health response and move on to building the full environment; the starter has still shown that the web process and basic route run.</p>
+</section>
+<section id="milestones">
+<h2><span lang="fa">مسیر پروژه: اول ارتباط، بعد ماندگاری، بعد سخت‌ترکردن شرایط</span><span lang="en">Project path: from two containers to durable data</span></h2>
+<p lang="fa">گام‌ها را به همین ترتیب برو: دو سرویس را بالا بیاور، اتصال با service name را ثابت کن، volume را اضافه کن، secret را از متن عادی بیرون ببر، healthcheckها را تنظیم کن و بعد down/up را روی دادهٔ واقعی آزمایش کن. اگر از اول همه‌چیز را یک‌جا بنویسی، وقتی خطا دیدی نمی‌دانی کدام تصمیم خراب بوده است.</p><p lang="en">Each step makes one bounded change and produces evidence. Do not start with <code>docker compose down --volumes</code>; you have not yet established which resource owns the data.</p>
+<h3><span lang="fa">گام ۱ — سرویس DB را تعریف کن</span><span lang="en">Step 1 — define the DB service</span></h3><p lang="fa">تا وقتی دقیقاً نمی‌دانی داده کجا نشسته، <code>docker compose down --volumes</code> نزن. در این پروژه قرار است خودت با یک note واقعی ببینی container می‌تواند برود و داده بماند. حذف volume فقط برای دادهٔ کاملاً disposable و بعد از ثبت شواهد انجام می‌شود.</p><p lang="en">Create a Compose file that starts PostgreSQL from its official image. It needs an initial user, database, and disposable password. Do not add a host port.</p><details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">برای این پروژه version را روی <code>postgres:17</code> نگه دار تا مسیر داده با فصل ۶ و image آزمایش‌شده هماهنگ باشد. فرمان <code>docker compose ps</code> ممکن است برای آن <code>5432/tcp</code> نشان بدهد؛ این به‌تنهایی publish روی میزبان نیست.</p><p lang="en">Keep this project on <code>postgres:17</code> so its data path matches Chapter 6 and the tested image. <code>docker compose ps</code> may show <code>5432/tcp</code>; that alone is not a host-published port.</p></details>
+<h3><span lang="fa">گام ۲ — web را به PostgreSQL وصل کن</span><span lang="en">Step 2 — connect web to PostgreSQL</span></h3><p lang="fa">Compose network و DNS داخلی را به کار بگیر. درخواست از web به hostname service یعنی <code>postgres</code> می‌رود، نه <code>localhost</code> و نه IPای که دستی پیدا کرده‌ای.</p><p lang="en">Use Compose networking and internal DNS. Web connects to the service hostname <code>postgres</code>, not <code>localhost</code> and not a manually discovered IP.</p><details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">برنامه از <code>DB_HOST</code> می‌خواند. برای اثبات DNS، از داخل web نام را با Node resolve کن؛ سپس یک note بساز و بخوان تا نشان دهی فقط نام resolve نشده، query واقعی هم موفق بوده است.</p><p lang="en">The app reads <code>DB_HOST</code>. Prove DNS by resolving the name from inside web with Node, then create and read a note to show that resolution was followed by a successful query.</p></details>
+<h3><span lang="fa">گام ۳ — data پوشه را به named volume وصل کن</span><span lang="en">Step 3 — mount a named volume at the data directory</span></h3><p lang="fa">پایگاه‌داده fileها باید بیرون از چرخهٔ عمر container باشند. volume را به مسیر data مخصوص همین major version وصل کن و آن را در ریشهٔ Compose تعریف کن.</p><p lang="en">Database files must outlive their container. Mount a named volume at the data path for this image major version and declare it at the Compose top level.</p><details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">برای <code>postgres:17</code> مسیر رسمی این تمرین <code>/var/lib/postgresql/data</code> است. upstream image از PostgreSQL 18 به بعد مسیر <code>PGDATA</code> و مقصد volume را تغییر داده؛ major version را بی‌برنامه عوض نکن و مسیر را با docs همان image دوباره بررسی کن.</p><p lang="en">For <code>postgres:17</code>, this project uses <code>/var/lib/postgresql/data</code>. The upstream image changed <code>PGDATA</code> and its volume target in PostgreSQL 18; do not change major versions casually—recheck that image’s documentation and plan a database upgrade.</p></details>
+<h3><span lang="fa">گام ۴ — رمز را از تنظیمات جدا کن</span><span lang="en">Step 4 — separate the password from configuration</span></h3><p lang="fa">APP_MODE، port، نام پایگاه‌داده و user در فایل <code>.env</code> یا مقدارهای غیرحساس Compose جا دارند. رمز نه. یک فایل secret محلی بساز، آن را از Git خارج نگه دار و فقط به دو service لازم grant کن.</p><p lang="en">APP_MODE, ports, and database/user names belong in non-secret configuration. The password does not. Create a local secret file, keep it out of Git, and grant it only to the two services that need it.</p><details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">همان قرارداد فصل ۹: Compose فایل را زیر <code>/run/secrets/</code> mount می‌کند؛ web مسیر را در <code>DB_PASSWORD_FILE</code> می‌گیرد و PostgreSQL رسمی مسیر را در <code>POSTGRES_PASSWORD_FILE</code>. <code>_FILE</code> قرارداد برنامه/image است، نه خاصیت جادویی هر environment variable.</p><p lang="en">Use Chapter 9’s pattern: Compose mounts the file under <code>/run/secrets/</code>; web receives its path in <code>DB_PASSWORD_FILE</code>, and the official PostgreSQL image receives its path in <code>POSTGRES_PASSWORD_FILE</code>. <code>_FILE</code> is an app/image convention, not magic behavior for every environment variable.</p></details>
+<h3><span lang="fa">گام ۵ — health و ترتیب آغاز را کامل کن</span><span lang="en">Step 5 — add healthchecks and startup gating</span></h3><p lang="fa">web health باید درخواست HTTP بدهد و DB health باید queryای را اجرا کند که user و پایگاه‌داده هدف را واقعاً پیدا کند. سپس web را به <code>service_healthy</code> وابسته کن.</p><p lang="en">The web healthcheck should make an HTTP request; the DB healthcheck should run a query that actually finds the target user and database. Then gate web startup on <code>service_healthy</code>.</p><details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa"><code>pg_isready</code> می‌سنجد server اتصال می‌پذیرد یا نه؛ مستند رسمی PostgreSQL می‌گوید برای این پاسخ لازم نیست user، رمز یا پایگاه‌داده درست باشند. برای drill تشخیص اشتباه user/پایگاه‌داده از <code>psql</code> و <code>SELECT 1</code> استفاده کن. healthcheck هم باید ارزان بماند.</p><p lang="en"><code>pg_isready</code> tests whether the server accepts connections; PostgreSQL’s official docs state that the supplied user, password, or database need not be valid for that status. For a wrong-user/database drill, use <code>psql</code> with <code>SELECT 1</code>. Keep the probe cheap.</p></details>
+<h3><span lang="fa">گام ۶ — همه‌چیز را با یک فرمان بالا بیاور</span><span lang="en">Step 6 — start the whole environment with one command</span></h3><p lang="fa">web را از Dockerfile build کن؛ user غیرریشه، restart policy و resource limitها را برای web تنظیم کن. PostgreSQL هم memory/CPU/PID ceiling معقول داشته باشد. فایل نهایی باید با <code>docker compose config</code> قابل resolve باشد.</p><p lang="en">Build web from its Dockerfile; configure a non-root user, restart policy, and resource limits for web. Give PostgreSQL reasonable memory/CPU/PID ceilings too. The finished model should resolve with <code>docker compose config</code>.</p><details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">healthcheck و سقف‌های container را در serviceهای Compose تعریف کن. برای Compose محلی از fieldهای معمول service مثل <code>mem_limit</code>، <code>cpus</code> و <code>pids_limit</code> استفاده کن؛ <code>deploy.resources</code> را بدون بررسی platform به‌عنوان راه‌حل عمومی فرض نکن.</p><p lang="en">Put healthchecks and container ceilings on the Compose services. For local Compose, use the regular service fields <code>mem_limit</code>, <code>cpus</code>, and <code>pids_limit</code>; do not assume <code>deploy.resources</code> behaves universally without checking the target platform.</p></details>
+<h3><span lang="fa">گام ۷ — note بساز؛ حالا container را عوض کن</span><span lang="en">Step 7 — create a note, then replace a container</span></h3><p lang="fa">یک note بساز و شناسه/متنش را ثبت کن. اول web را حذف و دوباره بساز؛ بعد کل stack را با <code>down</code> جمع کن و با <code>up</code> برگردان. پس از هر دو آزمایش، همان note باید خوانده شود.</p><p lang="en">Create a note and record its ID and text. First remove and recreate web; then bring the stack down with <code>down</code> and start it again with <code>up</code>. The same note must be readable after both experiments.</p><details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa"><code>down</code> به‌طور عادی named volume را حذف نمی‌کند. <code>down --volumes</code> چرخهٔ دیگری است؛ volumeای را که هنوز مالکیتش را نمی‌دانی پاک نکن.</p><p lang="en">Ordinary <code>down</code> does not remove a named volume. <code>down --volumes</code> is a different lifecycle; do not delete a volume whose ownership you have not verified.</p></details>
+<h3><span lang="fa">گام ۸ — شبکه، volume و log را بازبینی کن</span><span lang="en">Step 8 — inspect the network, volume, and logs</span></h3><p lang="fa">بعد از اجرای سالم، ببین Compose چه network و volumeای ساخته. log هر دو service را بخوان؛ اگر app note را نشان می‌دهد ولی DB restart می‌شود، سطح مشکل یکی نیست.</p><p lang="en">After a successful run, inspect the network and volume Compose created. Read logs from both services; a web response and a restarting DB are not evidence of the same thing.</p><details><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">اگر پوشهٔ پروژه را <code>project2-notes</code> نامیده‌ای، نام‌های پیش‌فرض معمولاً <code>project2-notes_app-net</code> و <code>project2-notes_pgdata</code> خواهند بود. ابتدا <code>docker compose ls</code> و <code>docker volume ls</code> را ببین؛ روی نام resource حدس نزن.</p><p lang="en">If the project directory is named <code>project2-notes</code>, default resource names are typically <code>project2-notes_app-net</code> and <code>project2-notes_pgdata</code>. Check <code>docker compose ls</code> and <code>docker volume ls</code> first; do not guess resource names.</p></details>
+</section>
+<section id="backup">
+<h2><span lang="fa">یک checkpoint پشتیبان بگیر و ثابت کن فایل فقط اسمش پشتیبان نیست</span><span lang="en">Backup checkpoint: create a file and inspect it</span></h2>
+<p lang="fa">قبل از بازی با lifecycle، از دادهٔ تمرینی dump بگیر. هدف ساختن استراتژی پشتیبان تولیدی نیست؛ می‌خواهیم فرق «داده‌ای که داخل volume زنده است» با «خروجی ساخته‌شده پشتیبانی که جدا نگه داشته‌ای» را لمس کنیم.</p><p lang="en">Before the <code>down/up</code> experiment, dump the disposable project data. This is not a production backup plan; the point is to distinguish a live volume from a backup artifact and prove PostgreSQL tooling can read the artifact.</p>
+<div class="term"><div class="term-bar"><span class="term-label"><span lang="fa">تهیهٔ پشتیبان روی میزبان و بازرسی نسخه</span><span lang="en">Back up to the project host and inspect the copy</span></span><button class="copy">کپی</button></div><pre dir="ltr">mkdir backups
+docker compose exec -T postgres pg_dump -U notes_app -d notes -Fc -f /tmp/notes.dump
+docker compose cp postgres:/tmp/notes.dump ./backups/notes.dump
+docker compose cp ./backups/notes.dump postgres:/tmp/notes-from-host.dump
+docker compose exec -T postgres pg_restore --list /tmp/notes-from-host.dump</pre></div>
+<p lang="fa">بعد از ساخت فایل، فقط به وجودش اکتفا نکن. با ابزار PostgreSQL ساختار dump را inspect کن یا آن را در محیط disposable بازخوانی کن. backupی که هیچ‌وقت خوانده نشده، هنوز چیزی را ثابت نمی‌کند.</p><p lang="en">The host file <code>backups/notes.dump</code> must exist, and the last command should list the archive TOC. This is not a full test restore, but it is stronger than creating an empty or unreadable file. The database in the volume remains the live source. Production still needs separate design for isolation, retention, encryption, and regular restore tests.</p>
+</section>
+<section id="failure-drills">
+<h2><span lang="fa">چهار خرابی عمدی؛ هر بار فقط یک فرض را بشکن</span><span lang="en">Four deliberate failures; trace each symptom to its cause</span></h2>
+<p lang="fa">سناریوها جدا هستند: <code>DB_HOST=localhost</code>، مسیر secret اشتباه، healthcheck پایگاه‌داده با user یا پایگاه‌داده غلط و حذف/recreate شدن web. قبل از تغییر، <code>compose ps</code> و log سرویس مربوط را نگه دار؛ بعد فقط همان چیزی را اصلاح کن که مدرک به آن اشاره می‌کند.</p><p lang="en">Run each drill against this disposable dataset and capture <code>compose ps</code> plus the relevant logs before changing anything. After repair, repeat the same request or probe; “I no longer see an error” is not enough without retesting the same path.</p>
+<details><summary><span lang="fa">خرابی ۱ — DB_HOST=localhost</span><span lang="en">Failure 1 — DB_HOST=localhost</span></summary><p lang="fa">بعد از repair همان درخواست یا probe را دوباره تکرار کن. اگر web دوباره بالا آمد ولی note قبلی نیست، شاید مشکل اصلی storage بوده و فقط connection را درست کرده‌ای. هر خرابی acceptance خودش را دارد.</p><p lang="en">Change only <code>DB_HOST</code> in <code>.env</code> from <code>postgres</code> to <code>localhost</code> and recreate web. The root endpoint may answer, while health and notes cannot reach the DB. Resolve the address from web, read <code>docker compose logs web</code>, and run a DNS lookup inside the service. Repair the hostname to <code>postgres</code>.</p></details>
+<details><summary><span lang="fa">خرابی ۲ — secret file مسیر غلط</span><span lang="en">Failure 2 — wrong secret-file path</span></summary><p lang="fa">در environment مربوط به web مسیر <code>DB_PASSWORD_FILE</code> را عمداً به <code>/run/secrets/missing_password</code> تغییر بده، ولی secret grant را دست‌نزن. web ممکن است با ENOENT خارج شود و restart شود؛ PostgreSQL می‌تواند healthy بماند. <code>compose ps -a</code> و log web نشان می‌دهند شکست هنگام خواندن فایل رخ داده، پیش از اتصال TCP/SQL. repair کن و web را recreate کن؛ مقدار رمز را برای debug چاپ نکن.</p><p lang="en">Change web’s <code>DB_PASSWORD_FILE</code> to <code>/run/secrets/missing_password</code> but leave the secret grant alone. Web may exit with ENOENT and restart while PostgreSQL remains healthy. <code>compose ps -a</code> and web logs show the failure happened while reading the file, before TCP or SQL. Fix the path and recreate web; never print the password to debug it.</p></details>
+<details><summary><span lang="fa">خرابی ۳ — DB healthcheck user یا پایگاه‌داده اشتباه دارد</span><span lang="en">Failure 3 — DB healthcheck targets the wrong user or database</span></summary><p lang="fa">در دستور probe مقدار user یا پایگاه‌داده را به نامی که وجود ندارد تغییر بده. اگر probe با <code>psql ... SELECT 1</code> است، DB فرایند می‌تواند Running بماند ولی health به unhealthy برسد؛ health log خطای role/پایگاه‌داده را می‌دهد. این فرق «فرایند زنده» با «آزمون دقیقاً به مقصد درست وصل شد» است. پارامترهای healthcheck را با <code>POSTGRES_USER</code> و <code>POSTGRES_DB</code> resolveشده هماهنگ کن و health را دوباره ببین.</p><p lang="en">Change the probe’s user or database to a name that does not exist. With a <code>psql ... SELECT 1</code> probe, the DB process can remain Running while health becomes unhealthy; health logs show the role/database error. That separates “process alive” from “probe reached its intended target.” Align the healthcheck parameters with the resolved <code>POSTGRES_USER</code> and <code>POSTGRES_DB</code>, then recheck health.</p></details>
+<details><summary><span lang="fa">خرابی ۴ — web را حذف و دوباره بساز</span><span lang="en">Failure 4 — remove and recreate web</span></summary><p lang="fa">یک note بساز و شناسه‌اش را یادداشت کن. سپس فقط web را حذف کن؛ بعد <code>docker compose up -d web</code> بزن و note را بخوان. اگر note نیست، حدس نزن که Docker داده را پاک کرده: ابتدا inspect کن آیا app واقعاً به DB service و named volume همین پروژه وصل است یا volume تازه‌ای ایجاد شده.</p><p lang="en">Create a note and record its ID. Remove only web, then run <code>docker compose up -d web</code> and fetch the note. If it is missing, do not immediately blame Docker for deleting data: inspect whether the app reached this project’s DB and whether it mounted the expected named volume or a new one.</p></details>
+<details><summary><span lang="fa">راهنمایی: کدام لایه شکست؟</span><span lang="en">Hint: which boundary failed?</span></summary><p lang="fa">از کم‌هزینه‌ترین شاهدها شروع کن: <code>docker compose config</code> مقدارهای resolveشده را می‌گوید؛ <code>compose ps -a</code> وضعیت serviceها را؛ <code>compose logs web postgres</code> خطای فرایند را؛ DNS lookup داخل web نام مقصد را؛ <code>docker network inspect</code> اتصال‌ها را؛ و <code>docker volume inspect</code> هویت volume را. فرمانی را انتخاب کن که بین دو علت محتمل فرق بگذارد.</p><p lang="en">Start with the cheapest discriminating evidence: <code>docker compose config</code> shows resolved values; <code>compose ps -a</code> shows service state; <code>compose logs web postgres</code> shows process errors; a DNS lookup from web tests the destination name; <code>docker network inspect</code> shows attachments; and <code>docker volume inspect</code> identifies the volume. Choose a check that distinguishes plausible causes.</p></details>
+</section>
+<section id="acceptance">
+<h2><span lang="fa">قبولی یعنی هم‌تیمی بتواند clone کند، بالا بیاورد و همان شواهد را تکرار کند</span><span lang="en">Acceptance: a teammate can clone, start, and reproduce the evidence</span></h2>
+<p lang="fa">پروژه باید از روی README قابل‌اجرا باشد: secret آزمایشی را بساز، Compose را بالا بیاور، note ثبت کن، سرویس‌ها را پایین بیاور و دوباره بالا بیاور. همان note باید برگردد. از میزبان هم پایگاه‌داده نباید port منتشرشده داشته باشد.</p><p lang="en">Prerequisites: Node and Docker Compose using Linux containers. Put the project in a directory named <code>project2-notes</code> so resource names below are predictable. Create the secret file with a disposable value and do not commit it. This exercise’s file-backed Compose secrets are for Linux containers.</p>
+<div class="term"><div class="term-bar"><span class="term-label"><span lang="fa">بررسی، build و اجرا · یک فرمان برای کل محیط</span><span lang="en">Resolve, build, and start · one command for the complete environment</span></span><button class="copy">کپی</button></div><pre dir="ltr">docker compose config --quiet
+docker compose up -d --build
+docker compose ps</pre></div>
+<p lang="fa">قبولی فقط با یک screenshot از صفحه تمام نمی‌شود. reviewer باید بتواند health دو سرویس، network، volume، user برنامه، secret path و persistence را با دستورهای مشخص بررسی کند. اگر چیزی فقط «قرار است» درست باشد ولی راه سنجش نداری، هنوز بخشی از تحویل ناقص است.</p><p lang="en">The first command should validate cleanly, the second build/start both services, and the third should show both as <code>healthy</code> after a few probes. Only web should have a host mapping such as <code>127.0.0.1:8080-&gt;3000/tcp</code>. <code>5432/tcp</code> for PostgreSQL is an internal exposed port, not a host publication.</p>
+<div class="term"><div class="term-bar"><span class="term-label"><span lang="fa">آزمودن API · نوشتن و خواندن دادهٔ ماندگار</span><span lang="en">Exercise the API · create and read persistent data</span></span><button class="copy">کپی</button></div><pre dir="ltr">curl.exe --fail http://127.0.0.1:8080/
+curl.exe --fail http://127.0.0.1:8080/health
+curl.exe --fail -X POST http://127.0.0.1:8080/notes -H "Content-Type: application/json" -d '{"body":"survives replacement"}'
+curl.exe --fail http://127.0.0.1:8080/notes</pre></div>
+<p lang="fa">در پاسخ root باید <code>dbHost</code> برابر <code>postgres</code> باشد؛ health باید 200 بدهد؛ note ساخته‌شده باید در GET بعدی دیده شود. درخواست به میزبان از port web می‌رود؛ هیچ درخواست میزبان به port 5432 لازم نیست.</p><p lang="en">The root response should show <code>dbHost</code> as <code>postgres</code>; health should return 200; and the created note should appear in the next GET. Host requests use web’s port; no host request to 5432 is needed.</p>
+<div class="term"><div class="term-bar"><span class="term-label"><span lang="fa">بازبینی هویت، network و فضای ذخیره‌سازی</span><span lang="en">Inspect identity, network, and storage</span></span><button class="copy">کپی</button></div><pre dir="ltr">docker compose exec web node -e "console.log('DB_HOST='+process.env.DB_HOST); require('node:dns').lookup(process.env.DB_HOST,(e,a)=&gt;{if(e) throw e; console.log('resolved='+a)})"
+docker compose exec web id
+docker compose logs --tail=30 web postgres
+docker network inspect project2-notes_app-net
+docker volume inspect project2-notes_pgdata
+docker compose exec web node -e "const fs=require('node:fs'); console.log('DB_PASSWORD env present:',Object.hasOwn(process.env,'DB_PASSWORD')); fs.accessSync(process.env.DB_PASSWORD_FILE); console.log('password file readable: true')"
+docker image inspect project2-notes-web:local --format '{{json .Config.Env}}'</pre></div>
+<p lang="fa">این شواهد جداگانه پاسخ می‌دهند: hostname به IP داخلی resolve می‌شود؛ <code>id</code> باید user غیرریشه را نشان دهد؛ لاگ‌ها باید درخواست و درج note را ثبت کرده باشند؛ inspectها network و named volume را نشان می‌دهند. محیط web نباید متغیر <code>DB_PASSWORD</code> داشته باشد؛ در image تنظیمات هم نباید رمز literal باشد. چاپ مسیر فایل مجاز است؛ چاپ محتوای آن نه.</p><p lang="en">These checks answer different questions: the hostname resolves to an internal address; <code>id</code> should show a non-root user; logs should show the request and inserted note; inspect identifies the network and named volume. Web’s environment must not contain <code>DB_PASSWORD</code>, and image config must not contain the password literal. Printing the file path is fine; printing its contents is not.</p>
+<p lang="fa">اکنون web را با <code>docker compose rm -sf web</code> حذف و با <code>docker compose up -d web</code> دوباره بساز. همان note را بخوان. سپس آزمون چرخهٔ عمر volume را اجرا کن:</p><p lang="en">Now remove web with <code>docker compose rm -sf web</code> and recreate it with <code>docker compose up -d web</code>. Fetch the same note. Then run the volume lifecycle test:</p>
+<div class="term"><div class="term-bar"><span class="term-label"><span lang="fa">named volume باید پس از down/up بماند</span><span lang="en">The named volume must survive down/up</span></span><button class="copy">کپی</button></div><pre dir="ltr">docker compose down
+docker compose up -d
+curl.exe --fail http://127.0.0.1:8080/notes
+docker compose ps</pre></div>
+<p lang="fa">GET باید همان note را برگرداند و health دوباره healthy شود. این اثبات می‌کند داده در named volume بوده، نه container قبلی web یا PostgreSQL. <code>down</code> شبکه و containerهای پروژه را حذف می‌کند؛ volume نام‌دار را نگه می‌دارد.</p><p lang="en">GET should return the same note and health should become healthy again. This proves the data lived in the named volume, not in the old web or PostgreSQL container. <code>down</code> removes the project’s containers and network while keeping its named volume.</p>
+</section>
+<section id="reference">
+<h2><span lang="fa">راه‌حل مرجع برای مقایسه است؛ نه نقطهٔ شروع</span><span lang="en">Reference implementation; open it after building yours</span></h2>
+<p lang="fa">اگر هنوز compose.yaml خودت را ننوشته‌ای، این بخش را باز نکن. اول نسخه‌ای بساز که بتوانی توضیح بدهی هر resource کجا ایجاد می‌شود، هر secret را کدام service می‌بیند و کدام اتصال از میزبان عبور می‌کند.</p><p lang="en">If you have not written Compose yet, do not copy this file first. Build a version where you can explain where each resource is created, which service receives each secret, and which connection crosses the host boundary. Then compare it with this implementation.</p>
+<div class="term"><div class="term-bar"><span class="term-label"><span lang="fa">.env.example · فقط تنظیمات، بدون رمز</span><span lang="en">.env.example · configuration only, no password</span></span></div><pre dir="ltr">APP_PORT=8080
+APP_MODE=development
+DB_HOST=postgres
+DB_NAME=notes
+DB_USER=notes_app</pre></div>
+<div class="term"><div class="term-bar"><span class="term-label"><span lang="fa">.gitignore · نگه‌داشتن دادهٔ محلی بیرون از Git</span><span lang="en">.gitignore · keep local material local</span></span></div><pre dir="ltr">/.env
+/secrets/db_password
+/backups/</pre></div>
+<p lang="fa">بعد راه‌حل مرجع را با معماری خودت مقایسه کن. ممکن است نام‌ها یا ترتیب بعضی کلیدها فرق داشته باشد؛ چیزی که باید یکسان بماند رفتار است: پایگاه‌داده خصوصی، دادهٔ ماندگار، health معنادار و webی که با نام سرویس به PostgreSQL می‌رسد.</p><p lang="en">For setup, copy <code>.env.example</code> to a local <code>.env</code> and create the <code>secrets</code> directory. Use an editor to create <code>secrets/db_password</code> with a disposable test password; do not put it in a command that may remain in shell history. Never commit the password file or dump. Restrict host permissions on Linux/WSL; Compose file-backed secrets do not reliably remap host file permissions on every platform.</p>
+<div class="term"><div class="term-bar"><span class="term-label"><span lang="fa">آماده‌سازی فایل‌های محلی و نادیده‌گرفته‌شده · بدون رمز در فرمان</span><span lang="en">Prepare local, ignored files · no password in the command</span></span></div><pre dir="ltr"># PowerShell
+Copy-Item .env.example .env
+New-Item -ItemType Directory -Force secrets | Out-Null
+
+# Linux / WSL
+cp .env.example .env
+mkdir -p secrets</pre></div>
+<div class="term"><div class="term-bar"><span class="term-label">web/Dockerfile</span><button class="copy">کپی</button></div><pre dir="ltr">FROM node:22-alpine
+ENV NODE_ENV=production PORT=3000
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+COPY --chown=node:node server.js ./server.js
+USER node
+EXPOSE 3000
+CMD ["node", "server.js"]</pre></div>
+<div class="term"><div class="term-bar"><span class="term-label">web/.dockerignore</span></div><pre dir="ltr">node_modules
+.git
+.env
+.env.*
+npm-debug.log*</pre></div>
+<p lang="fa">این app مرحلهٔ compile جدا ندارد؛ multi-stage صرفاً برای تکرار الگو لازم نیست. image رسمی Node کاربر <code>node</code> دارد؛ فایل برنامه با همان user خواندنی است و فرایند پس از <code>USER node</code> اجرا می‌شود. secretها در context وب نیستند و از build وارد image نمی‌شوند.</p><p lang="en">This app has no separate compile step, so a multi-stage build is not required just to repeat a pattern. The official Node image provides the <code>node</code> user; the app file is readable by that user and the process runs after <code>USER node</code>. Secrets are outside the web build context and never enter the image.</p>
+<div class="term"><div class="term-bar"><span class="term-label"><span lang="fa">compose.yaml · دو سرویس، DB خصوصی و دادهٔ ماندگار</span><span lang="en">compose.yaml · two services, private database, durable data</span></span><button class="copy">کپی</button></div><pre dir="ltr">name: project2-notes
+
+services:
+  web:
+    image: project2-notes-web:local
+    build: ./web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${APP_PORT:-8080}:3000"
+    environment:
+      PORT: "3000"
+      APP_MODE: ${APP_MODE:-development}
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-notes}
+      DB_USER: ${DB_USER:-notes_app}
+      DB_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - db_password
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:'+process.env.PORT+'/health').then(r=&gt;process.exit(r.ok?0:1)).catch(()=&gt;process.exit(1))"
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    mem_limit: 256m
+    cpus: 0.50
+    pids_limit: 100
+    networks:
+      - app-net
+
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-notes}
+      POSTGRES_USER: ${DB_USER:-notes_app}
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - db_password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - psql -U ${DB_USER:-notes_app} -d ${DB_NAME:-notes} -tAc 'SELECT 1' | grep -qx 1
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 128
+    networks:
+      - app-net
+
+volumes:
+  pgdata:
+
+networks:
+  app-net:
+    driver: bridge
+
+secrets:
+  db_password:
+    file: ./secrets/db_password</pre></div>
+<p lang="fa">هیچ <code>ports</code>ای زیر postgres وجود ندارد؛ فقط web روی loopback میزبان publish شده است. هر دو service روی network مشترک‌اند و DNS نام <code>postgres</code> را می‌دهد. secret به هر دو container mount می‌شود اما مقدارش در Compose environment، Dockerfile، image تنظیمات یا Git قرار نمی‌گیرد. healthcheck PostgreSQL queryای را با user و DB هدف اجرا می‌کند، و شرط startup تا healthy شدن آن صبر می‌کند.</p><p lang="en">There is no <code>ports</code> entry under postgres; only web is published on the host loopback. Both services share a network where DNS resolves <code>postgres</code>. The secret is mounted into both containers but its value is absent from Compose environment, Dockerfile, image config, and Git. The PostgreSQL healthcheck queries the target user and database, and the startup condition waits for it to become healthy.</p>
+<div class="note warn"><div class="note-t"><span lang="fa">این secret الگوی محلی Compose است، نه سامانهٔ مدیریت کلید تولیدی</span><span lang="en">This is a local Compose secret pattern, not a production key-management system</span></div><p lang="fa">فایل محلی نباید در Git باشد، اما همچنان روی میزبان به شکل فایل وجود دارد و دسترسی به میزبان اهمیت دارد. رمز آزمایشی واقعی نیست. تغییر secret file هم رمز roleای را که قبلاً در volume مقداردهی شده خودکار عوض نمی‌کند؛ این پروژه volume را initialize می‌کند و rotation را تمرین نمی‌دهد. مقدارهای آغازین <code>POSTGRES_USER</code> و <code>POSTGRES_DB</code> نیز فقط هنگام راه‌اندازی data پوشه خالی اعمال می‌شوند؛ volume موجود را با تغییر .env دوباره مقداردهی نمی‌کنی.</p><p lang="en">The local file must stay out of Git, but it still exists on the host, so host access matters. The sample password is disposable. Changing the secret file does not automatically rotate a role password already initialized in the volume; this project does not practice credential rotation. Initial <code>POSTGRES_USER</code> and <code>POSTGRES_DB</code> values are applied only when the data directory is empty; changing .env does not reinitialize an existing volume.</p><p lang="fa">نکتهٔ مهم دربارهٔ role: image رسمی PostgreSQL برای مقدار <code>POSTGRES_USER</code> نقش آغازین را با امتیاز superuser می‌سازد. این پروژه از همان role برای ساده‌ماندن مسیر تمرینی استفاده می‌کند؛ در سرویس واقعی، role برنامه را جدا و با حداقل مجوز لازم بساز و رمز bootstrap را به web نده.</p><p lang="en">Important role caveat: the official PostgreSQL image creates the initial <code>POSTGRES_USER</code> as a PostgreSQL superuser. This project reuses that role to keep the learning path small; for a real service, create a separate least-privilege application role and do not give web the bootstrap credential.</p></div>
+<h3><span lang="fa">پس از راه‌اندازی، این شواهد را تحویل بده</span><span lang="en">After startup, hand off this evidence</span></h3>
+<div class="term"><div class="term-bar"><span class="term-label"><span lang="fa">یک note، هر دو سرویس سالم و پاک‌سازی هدفمند</span><span lang="en">One note, both healthy services, targeted cleanup</span></span></div><pre dir="ltr">docker compose up -d --build
+docker compose ps
+curl.exe --fail -X POST http://127.0.0.1:8080/notes -H "Content-Type: application/json" -d '{"body":"project evidence"}'
+docker compose logs --tail=30 web postgres
+docker compose down
+docker compose up -d
+curl.exe --fail http://127.0.0.1:8080/notes</pre></div>
+<p lang="fa">نسخهٔ موفق پاسخ GET حاوی همان note را دارد. اگر فقط app جواب می‌دهد ولی DB unhealthy است، پروژه قبول نیست. اگر هر دو healthyاند ولی GET خالی است، persistence هنوز ثابت نشده. اگر log برای debug لازم شد، log را بخوان؛ رمز را هرگز چاپ نکن.</p><p lang="en">A successful run returns the same note from GET. If web responds but DB is unhealthy, the project has not passed. If both are healthy but GET is empty, persistence is unproven. Read logs when needed; never print the password.</p>
+<h3><span lang="fa">بازبینی نهایی</span><span lang="en">Final review</span></h3>
+<ul lang="fa"><li>آیا یک <code>docker compose up -d --build</code> هر دو service را می‌سازد و بالا می‌آورد؟</li><li>آیا تنها web port روی میزبان دارد و DB از service name قابل‌دسترسی است؟</li><li>آیا رمز فقط از فایل secret می‌آید و در image/environment/Git دیده نمی‌شود؟</li><li>آیا web با user غیرریشه، restart policy و limitهای ثبت‌شده اجرا می‌شود؟</li><li>آیا هر دو healthcheck healthy می‌شوند و web در شروع منتظر DB می‌ماند؟</li><li>آیا لاگ‌ها هر دو service با Compose خوانده می‌شوند؟</li><li>آیا note پس از حذف web و پس از down/up باقی می‌ماند؟</li><li>آیا پشتیبان file روی میزبان موجود است و <code>pg_restore --list</code> آن را می‌خواند؟</li><li>آیا دست‌کم یک خطا را از روی مدرک تشخیص دادی و همان آزمون را پس از repair تکرار کردی؟</li></ul>
+<ul lang="en"><li>Does one <code>docker compose up -d --build</code> build and start both services?</li><li>Is only web published on the host, with DB reached by service name?</li><li>Does the password arrive only through a secret file and stay out of image, environment, and Git?</li><li>Does web run non-root with a restart policy and recorded limits?</li><li>Do both healthchecks become healthy, with web initially waiting for DB?</li><li>Can Compose show logs from both services?</li><li>Does the note survive web replacement and down/up?</li><li>Does the backup exist on the host and can <code>pg_restore --list</code> read it?</li><li>Did you diagnose at least one failure from evidence and repeat the same check after repair?</li></ul>
+<p lang="fa">پاک‌سازی معمول تمرین: <code>docker compose down</code>؛ named volume و note را نگه می‌دارد. اگر واقعاً می‌خواهی دادهٔ disposable را پاک کنی، اول نام پروژه و محتوای volume را تأیید کن، dump را نگه دار و فقط آن‌وقت <code>docker compose down --volumes</code> اجرا کن. این دستور volume داده را حذف می‌کند و مسیر بازگشتش پشتیبان است، نه حدس.</p><p lang="en">Normal lab cleanup is <code>docker compose down</code>; it keeps the named volume and notes. If you truly want to erase disposable data, first verify the project name and volume contents, retain the dump, and only then run <code>docker compose down --volumes</code>. That removes the data volume; the recovery path is a backup, not a guess.</p>
+</section>

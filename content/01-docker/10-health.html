@@ -3,49 +3,111 @@ title: healthcheck، restart policy و لاگ
 desc: زنده‌بودن فرایند در برابر سلامت برنامه؛ healthcheck در Docker و Compose، آمادگی dependencyها، restart policy و خواندن لاگ برای عیب‌یابی.
 -->
 <div class="masthead">
-  <span class="eyebrow"><span class="dot"></span><span lang="fa">Docker · فصل ۱۰</span><span lang="en">Docker · Chapter 10</span></span>
-  <h1 lang="fa">healthcheck، restart policy و لاگ</h1>
-  <h1 lang="en">Healthchecks, restart policies, and logs</h1>
-  <p class="sub" lang="fa">container در فهرست نوشتهٔ <code>Up</code> دارد، اما درخواست‌ها جواب نمی‌گیرند. بعد همان برنامه از کار می‌افتد و دوباره بالا می‌آید، بی‌آنکه بفهمیم چرا. سه پرسش جدا داریم: فرایند زنده است؟ برنامه آمادهٔ کار است؟ و پیش از خرابی چه گفته؟</p>
-  <p class="sub" lang="en">A container shows <code>Up</code>, but requests fail. Later the process exits and comes back without telling us why. These are three separate questions: is the process alive, is the application ready, and what did it say before failing?</p>
-  <div class="facts">
-    <div class="fact"><b>۱۵۰</b><span lang="fa">دقیقهٔ مطالعه و اجرا</span><span lang="en">minutes</span></div>
-    <div class="fact"><b>۱۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></div>
-    <div class="fact"><b>۴</b><span lang="fa">نمودار مفهومی</span><span lang="en">diagrams</span></div>
-    <div class="fact"><b>۱</b><span lang="fa">آزمایشگاه کامل</span><span lang="en">full lab</span></div>
-  </div>
+<span class="eyebrow"><span class="dot"></span><span lang="fa">Docker · فصل ۱۰</span><span lang="en">Docker · Chapter 10</span></span>
+<h1 lang="fa">healthcheck، restart سیاست و لاگ</h1>
+<h1 lang="en">Healthchecks, restart policies, and logs</h1>
+<p class="sub" lang="fa">container در فهرست نوشتهٔ <code>Up</code> دارد، اما درخواست‌ها جواب نمی‌گیرند. بعد همان برنامه از کار می‌افتد و دوباره بالا می‌آید، بی‌آنکه بفهمیم چرا. سه پرسش جدا داریم: فرایند زنده است؟ برنامه آمادهٔ کار است؟ و پیش از خرابی چه گفته؟</p>
+<p class="sub" lang="en">A container shows <code>Up</code>, but requests fail. Later the process exits and comes back without telling us why. These are three separate questions: is the process alive, is the application ready, and what did it say before failing?</p>
+<div class="facts">
+<div class="fact"><b>۱۵۰</b><span lang="fa">دقیقهٔ مطالعه و اجرا</span><span lang="en">minutes</span></div>
+<div class="fact"><b>۱۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></div>
+<div class="fact"><b>۴</b><span lang="fa">نمودار مفهومی</span><span lang="en">diagrams</span></div>
+<div class="fact"><b>۱</b><span lang="fa">آزمایشگاه کامل</span><span lang="en">full lab</span></div>
 </div>
-
+</div>
 <section id="story">
-  <h2><span lang="fa"><code>Up</code> است؛ پس چرا صفحه باز نمی‌شود؟</span><span lang="en">It says <code>Up</code>—so why does the page fail?</span></h2>
-  <p class="lede" lang="fa">در فصل ۰۳ containerای دیدیم که وضعیتش <code>Up</code> بود اما از مرورگر دسترسی نداشتیم. آن‌جا فهمیدیم <code>Up</code> دربارهٔ وضعیت container و فرایند اصلی‌اش حرف می‌زند، نه موفقیت یک درخواست واقعی. حالا حالت دشوارتری را تصور کن: پورت درست است، فرایند هنوز زنده است، اما برنامه چند ثانیه برای آماده‌شدن لازم دارد یا دیگر نمی‌تواند جواب HTTP بدهد.</p>
-  <p class="lede" lang="en">Chapter 3 showed a container marked <code>Up</code> that was still unreachable from a browser. We learned that <code>Up</code> describes container/process state, not the success of a real request. Now consider a harder case: the port is correct and the process is alive, but the application needs time to initialize—or it has stopped serving HTTP altogether.</p>
-  <p lang="fa">اگر Docker می‌گوید container در حال اجراست، آیا یعنی برنامه سالم است؟ نه لزوماً. تا این‌جا فقط می‌دانیم فرایند اصلی خارج نشده. برای سؤال «آیا برنامه می‌تواند کار مورد انتظارش را انجام دهد؟» به آزمونی جدا نیاز داریم.</p>
-  <p lang="en">If Docker says a container is running, does that mean the application is healthy? Not necessarily. So far we only know that its main process has not exited. To answer “can this application do the work we expect?”, we need a separate test.</p>
-  <div class="diagram">
-    <svg viewBox="0 0 940 250" role="img" aria-labelledby="c10-running-title">
-      <title id="c10-running-title">Running means the main process exists; healthy means the configured application check succeeds</title>
-      <defs><marker id="c10-running-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"/></marker></defs>
-      <g class="dg-stroke-b" stroke-width="2" marker-end="url(#c10-running-arrow)"><path d="M280 125h105"/><path d="M590 125h105"/></g>
-      <g text-anchor="middle">
-        <rect class="dg-fill" x="25" y="68" width="255" height="114" rx="14"/><text class="dg-t" x="152" y="107">container state</text><text class="dg-ts" x="152" y="137">Running / Exited</text><text class="dg-ts" x="152" y="160">main process lifecycle</text>
-        <rect class="dg-fill-b" x="385" y="68" width="205" height="114" rx="14"/><text class="dg-t" x="487" y="107">healthcheck</text><text class="dg-ts" x="487" y="137">runs a test</text><text class="dg-ts" x="487" y="160">inside the container</text>
-        <rect class="dg-fill-g" x="695" y="68" width="220" height="114" rx="14"/><text class="dg-t" x="805" y="107">health status</text><text class="dg-ts" x="805" y="137">starting / healthy</text><text class="dg-ts" x="805" y="160">or unhealthy</text>
-      </g>
-    </svg>
-    <p class="diagram-cap" lang="fa">آزمون سلامت از داخل container اجرا می‌شود و نتیجه‌اش به وضعیت معمول Running اضافه می‌شود؛ جای آن را نمی‌گیرد.</p>
-    <p class="diagram-cap" lang="en">A health test runs inside the container and adds a health status alongside ordinary Running state; it does not replace it.</p>
-  </div>
-  <p lang="fa">اسم این لایه <em>health</em> است. Docker از روی پورت یا زنده‌بودن PID حدس نمی‌زند برنامه چه‌قدر سالم است؛ ما آزمونی تعریف می‌کنیم، Docker آن را در container اجرا می‌کند و نتیجه را به‌عنوان نشانه‌ای مستقل نگه می‌دارد. بعد می‌توانیم از همان نشانه برای فهم آمادگی dependency در Compose هم استفاده کنیم.</p>
-  <p lang="en">That extra layer is health. Docker cannot infer application correctness from an open port or live PID; we define a test, Docker runs it inside the container, and the result is recorded as a separate signal. Compose can then use that signal to reason about dependency readiness.</p>
+<h2><span lang="fa"><code>Up</code> است؛ اما آیا واقعاً می‌شود از برنامه استفاده کرد؟</span><span lang="en">It says <code>Up</code>—so why does the page fail?</span></h2>
+<p class="lede" lang="fa">در فصل ۳ یاد گرفتیم <code>Up</code> بودن یعنی فرایند اصلی هنوز زنده است. حالا حالت آزاردهنده‌تری را تصور کن: container بالا است، پورت هم درست منتشر شده، اما برنامه هنوز در حال آماده‌شدن است یا دیگر نمی‌تواند درخواست‌ها را جواب بدهد. اگر فقط به <code>Up</code> نگاه کنیم، هر دو حالت را سالم می‌بینیم.</p>
+<p class="lede" lang="en">Chapter 3 showed a container marked <code>Up</code> that was still unreachable from a browser. We learned that <code>Up</code> describes container/process state, not the success of a real request. Now consider a harder case: the port is correct and the process is alive, but the application needs time to initialize—or it has stopped serving HTTP altogether.</p>
+<p lang="fa">پس یک سؤال تازه داریم: «برنامه فقط زنده است یا واقعاً آمادهٔ کار هم هست؟» Docker جواب این سؤال را از روی حدس نمی‌سازد. ما باید یک آزمون تعریف کنیم و نتیجهٔ آن را جدا از وضعیت فرایند بخوانیم.</p>
+<p lang="en">If Docker says a container is running, does that mean the application is healthy? Not necessarily. So far we only know that its main process has not exited. To answer “can this application do the work we expect?”, we need a separate test.</p>
+<div class="diagram">
+<svg aria-labelledby="c10-running-title" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 940 250">
+<title id="c10-running-title">Running means the main process exists; healthy means the configured application check succeeds</title>
+<defs><marker id="c10-running-arrow" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<g class="dg-stroke-b" marker-end="url(#c10-running-arrow)" stroke-width="2"><path d="M280 125h105"></path><path d="M590 125h105"></path></g>
+<g text-anchor="middle">
+<rect class="dg-fill" height="114" rx="14" width="255" x="25" y="68"></rect><text class="dg-t" x="152" y="107">container state</text><text class="dg-ts" x="152" y="137">Running / Exited</text><text class="dg-ts" x="152" y="160">main process lifecycle</text>
+<rect class="dg-fill-b" height="114" rx="14" width="205" x="385" y="68"></rect><text class="dg-t" x="487" y="107">healthcheck</text><text class="dg-ts" x="487" y="137">runs a test</text><text class="dg-ts" x="487" y="160">inside the container</text>
+<rect class="dg-fill-g" height="114" rx="14" width="220" x="695" y="68"></rect><text class="dg-t" x="805" y="107">health status</text><text class="dg-ts" x="805" y="137">starting / healthy</text><text class="dg-ts" x="805" y="160">or unhealthy</text>
+</g>
+</svg>
+<p class="diagram-cap" lang="fa">آزمون سلامت از داخل container اجرا می‌شود و نتیجه‌اش به وضعیت معمول Running اضافه می‌شود؛ جای آن را نمی‌گیرد.</p>
+<p class="diagram-cap" lang="en">A health test runs inside the container and adds a health status alongside ordinary Running state; it does not replace it.</p>
+</div>
+<p lang="fa">اسم این لایه <em>health</em> است. Docker از روی پورت یا زنده‌بودن PID حدس نمی‌زند برنامه چه‌قدر سالم است؛ ما آزمونی تعریف می‌کنیم، Docker آن را در container اجرا می‌کند و نتیجه را به‌عنوان نشانه‌ای مستقل نگه می‌دارد. بعد می‌توانیم از همان نشانه برای فهم آمادگی dependency در Compose هم استفاده کنیم.</p>
+<p lang="en">That extra layer is health. Docker cannot infer application correctness from an open port or live PID; we define a test, Docker runs it inside the container, and the result is recorded as a separate signal. Compose can then use that signal to reason about dependency readiness.</p>
+</section><section id="signals">
+<h2><span lang="fa">سه سؤال جدا داریم: زنده است؟ سالم است؟ چه اتفاقی افتاده؟</span><span lang="en">State, health, and logs answer different questions</span></h2>
+<p lang="fa">قبل از رفتن سراغ گزینه‌ها، این سه سؤال را قاطی نکن. وضعیت container می‌گوید فرایند اصلی زنده است یا تمام شده. healthcheck نتیجهٔ آزمونی را می‌گوید که خودمان تعریف کرده‌ایم. لاگ هم حرف‌های خود برنامه را نگه می‌دارد. ممکن است یکی خوب باشد و دیگری نه؛ این تناقض نیست.</p>
+<p lang="en">State tells us what the main process is doing. A healthcheck tells us whether our chosen test passed. Logs tell us what the application wrote to its standard output or error stream. None substitutes for the other two.</p>
+<div class="table-wrap"><table class="doc-table">
+<thead><tr><th>نشانه / Signal</th><th>چه می‌پرسد؟ / Question</th><th>نمونه / Example</th><th>چه چیزی را ثابت نمی‌کند؟ / Does not prove</th></tr></thead>
+<tbody>
+<tr><td>State</td><td>فرایند اصلی زنده است؟</td><td><code>docker ps -a</code></td><td>برنامه به درخواست‌ها جواب می‌دهد</td></tr>
+<tr><td>Health</td><td>آزمون تنظیم‌شده موفق شده؟</td><td><code>docker inspect</code>، <code>docker ps</code></td><td>همهٔ مسیرهای کاربر یا dependencyها سالم‌اند</td></tr>
+<tr><td>Logs</td><td>برنامه چه رویداد یا خطایی گزارش کرده؟</td><td><code>docker logs</code></td><td>هیچ داده‌ای گم یا ثبت‌نشده نمانده</td></tr>
+</tbody>
+</table></div>
+<p lang="fa">مثلاً <code>Running + unhealthy</code> یعنی فرایند هنوز زنده است اما آزمون سلامت شکست می‌خورد. یک container می‌تواند <code>Exited</code> باشد ولی لاگ خیلی خوبی برای پیدا کردن علت باقی گذاشته باشد. و <code>Restarting</code> یعنی Docker دوباره تلاش می‌کند؛ نه اینکه علت مشکل خودبه‌خود حل شده باشد.</p>
+<p lang="en">State shows process liveness, health reports only the configured test, and logs contain the app’s own reports; none alone proves complete service health or capture of every event.</p>
+<div class="diagram">
+<svg aria-labelledby="c10-signals-title" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 940 270">
+<title id="c10-signals-title">State, health, and logs are independent observation channels about one container</title>
+<g text-anchor="middle">
+<rect class="dg-fill-v" height="72" rx="14" width="270" x="335" y="20"></rect><text class="dg-t" x="470" y="51">one container</text><text class="dg-ts" x="470" y="74">one running application</text>
+<rect class="dg-fill-b" height="78" rx="14" width="245" x="30" y="165"></rect><text class="dg-t" x="152" y="197">state</text><text class="dg-ts" x="152" y="221">running / exited</text>
+<rect class="dg-fill-g" height="78" rx="14" width="245" x="348" y="165"></rect><text class="dg-t" x="470" y="197">health</text><text class="dg-ts" x="470" y="221">starting / healthy / unhealthy</text>
+<rect class="dg-fill-w" height="78" rx="14" width="245" x="665" y="165"></rect><text class="dg-t" x="787" y="197">logs</text><text class="dg-ts" x="787" y="221">what the process reported</text>
+</g>
+<g class="dg-stroke-b" stroke-width="2"><path d="M405 92L170 160"></path><path d="M470 92v66"></path><path d="M535 92l235 68"></path></g>
+</svg>
+<p class="diagram-cap" lang="fa">هر سه مسیر یک container را مشاهده می‌کنند، اما هرکدام نوع دیگری از مدرک را برمی‌گردانند.</p>
+<p class="diagram-cap" lang="en">All three channels observe one container, but each returns a different kind of evidence.</p>
+</div>
+<p lang="fa">این وضعیت‌ها تناقض ندارند: <code>Running + unhealthy</code> یعنی فرایند هست اما آزمون سلامت شکست خورده؛ <code>Exited</code> همراه لاگ مفید یعنی فرایند تمام شده ولی ردّی برای تشخیص داریم؛ و <code>Restarting</code> همراه خطای تکراری یعنی سیاست دوباره تلاش می‌کند، نه اینکه علت را درمان کرده باشد.</p>
+<p lang="en">These combinations are not contradictions: <code>Running + unhealthy</code> means the process exists while its probe fails; <code>Exited</code> with useful logs means the process ended but left diagnostic evidence; and <code>Restarting</code> with repeated errors means a policy is retrying, not curing the cause.</p>
+</section><section id="healthcheck">
+<h2><span lang="fa"><code>HEALTHCHECK</code> یعنی «این آزمون را اجرا کن و نتیجه‌اش را نگه دار»</span><span lang="en">What does <code>HEALTHCHECK</code> do?</span></h2>
+<p class="lede" lang="fa">فرض کن وب‌سرور هنوز یک فرایند زنده دارد، اما دیگر HTTP جواب نمی‌دهد. از دید lifecycle، container هنوز Running است. <code>HEALTHCHECK</code> یک آزمون جدا تعریف می‌کند که داخل همان container اجرا می‌شود تا چیزی نزدیک‌تر به «آماده و قابل‌استفاده بودن» را بسنجیم.</p>
+<p class="lede" lang="en">Imagine a web server with a live process that no longer answers HTTP requests. From outside, Docker sees only that the process is alive. <code>HEALTHCHECK</code> tells an image or service which command to run inside the container to get a useful signal about health or readiness.</p>
+<p lang="fa">در Dockerfile فقط یک دستور <code>HEALTHCHECK</code> مؤثر است؛ اگر چند بار بیاید، آخری جای قبلی را می‌گیرد. دو فرم اصلی دارد: اجرای فرمان برای سنجش، یا خاموش‌کردن healthcheck به‌ارث‌رسیده از image پایه.</p>
+<p lang="en">Only one <code>HEALTHCHECK</code> instruction takes effect in a Dockerfile; if several appear, the last one wins. Its two main forms run a test command or disable a healthcheck inherited from a base image.</p>
+<div class="term"><div class="term-bar"><span class="term-label">Dockerfile · only if curl exists in this image</span><button class="copy">کپی</button></div>
+<pre dir="ltr">HEALTHCHECK --interval=30s --timeout=3s \
+  --start-period=20s --start-interval=2s --retries=3 \
+  CMD ["curl", "-f", "http://127.0.0.1:8080/health"]</pre>
+</div>
+<p lang="fa">نمونه فقط وقتی کار می‌کند که image واقعاً <code>curl</code> داشته باشد و برنامه روی همان پورت مسیر سلامت را پاسخ دهد. Docker فرمان را داخل container اجرا می‌کند. فرم آرایه‌ای/exec از shell استفاده نمی‌کند؛ اگر به pipe یا شرط shell نیاز داری، فرم shell را آگاهانه انتخاب کن و مطمئن شو shell هم در image هست.</p>
+<p lang="en">This example works only if the image contains <code>curl</code> and the application serves that endpoint on the stated port. Docker runs the command inside the container. Exec/array form does not invoke a shell; if you need a pipe or shell condition, choose shell form deliberately and ensure the image contains a shell.</p>
+<div class="table-wrap"><table class="doc-table">
+<thead><tr><th>گزینه / Option</th><th>نقش / Purpose</th><th>نکتهٔ عملی / Practical reading</th></tr></thead>
+<tbody>
+<tr><td><code>test</code> / <code>CMD</code></td><td>فرمان آزمون و کد خروج آن</td><td><code>0</code> موفق، <code>1</code> ناموفق؛ <code>2</code> رزرو است</td></tr>
+<tr><td><code>interval</code></td><td>فاصلهٔ معمول میان اجرای آزمون</td><td>check را بی‌جهت هر ثانیه اجرا نکن</td></tr>
+<tr><td><code>timeout</code></td><td>حداکثر زمان هر اجرا</td><td>اگر طول بکشد همان check شکست می‌خورد</td></tr>
+<tr><td><code>retries</code></td><td>شکست‌های پی‌درپی تا unhealthy</td><td>وقفهٔ گذرا را با خرابی پایدار یکی نکن</td></tr>
+<tr><td><code>start_period</code></td><td>مهلت راه‌اندازی برای شکست‌های آغازین</td><td>پس از اولین check موفق، شکست‌های بعدی شمرده می‌شوند</td></tr>
+<tr><td><code>start_interval</code></td><td>فاصلهٔ check در دورهٔ آغاز</td><td>Engine 25.0+؛ Compose 2.20.2+</td></tr>
+</tbody>
+</table></div>
+<p lang="fa">فرمان test کد موفقیت یا شکست را می‌دهد؛ interval فاصلهٔ اجراها، timeout سقف هر اجرا و retries شمار شکست‌های پی‌درپی را تعیین می‌کند. start period به برنامه فرصت آغاز می‌دهد و start interval آهنگ آزمون را در همان بازه تنظیم می‌کند؛ گزینهٔ آخر به نسخه‌های تازه نیاز دارد.</p>
+<p lang="en">The test command supplies the pass/fail exit code; interval sets cadence, timeout bounds each run, and retries count consecutive failures. Start period gives the app initialization time, while start interval adjusts probe cadence in that window and requires recent versions.</p>
+<p lang="fa">پیش‌فرض Docker برای <code>interval</code> و <code>timeout</code> هرکدام ۳۰ ثانیه، برای <code>retries</code> سه بار، برای <code>start_period</code> صفر و برای <code>start_interval</code> پنج ثانیه است. در دورهٔ آغاز checkها با start interval اجرا می‌شوند. شکست‌ها تا قبل از نخستین موفقیت از شمار retries کنار گذاشته می‌شوند؛ با اولین موفقیت، شکست‌های متوالی دوباره حساب می‌شوند، حتی اگر start period هنوز تمام نشده باشد.</p>
+<p lang="en">Docker defaults to 30 seconds for both <code>interval</code> and <code>timeout</code>, three retries, a zero <code>start_period</code>, and a five-second <code>start_interval</code>. During startup, probes use the start interval. Failures before the first success do not count toward retries; after the first success, consecutive failures count even if the start period has not elapsed.</p>
+<div class="note safe"><div class="note-t"><span lang="fa">آزمون خوب سریع و بدون تغییر داده است</span><span lang="en">A good check is quick and read-only</span></div>
+<p lang="fa">آزمون سلامت باید سبک و بی‌خطر باشد. قرار نیست هر چند ثانیه migration اجرا کند، رکورد بسازد یا کل پایگاه‌داده را scan کند. معمولاً یک مسیر ساده مثل <code>/health</code> یا ابزار بومی خود سرویس کافی است؛ چیزی که سریع بگوید سرویس حداقل وعدهٔ اصلی‌اش را انجام می‌دهد.</p>
+<p lang="en">Probe a lightweight endpoint such as <code>/health</code> or a service-native command. A check should not create rows, run migrations, or delete files. An expensive probe run frequently can become load of its own.</p>
+</div>
+<p lang="fa">آیا <code>curl localhost</code> همیشه کافی است؟ نه. اگر فقط می‌خواهی مطمئن شوی همان وب‌سرور پاسخ می‌دهد، شاید خوب باشد. اما اگر مسیر اصلی برنامه یا وابستگی ضروری خراب باشد، یک پاسخ سادهٔ ۲۰۰ ممکن است زیادی خوش‌بینانه باشد. از آن طرف هم آزمون را آن‌قدر سنگین نکن که خودش منبع خطا شود.</p>
+<p lang="en">Is <code>curl localhost</code> enough? Perhaps, if the promise you care about is an HTTP response from that process. Perhaps not, if the main route is broken or a required dependency is unreachable; and if curl is absent, the probe cannot run at all. Test the promise that matters to consumers without turning the check into an expensive sweep of every external service.</p>
 </section>
-
 <section id="compose-readiness">
-  <h2><span lang="fa">Compose هم می‌تواند healthcheck را تعریف یا override کند</span><span lang="en">Compose can define or override a healthcheck</span></h2>
-  <p lang="fa">اگر image عمومی است یا برای یک محیط آزمون متفاوتی لازم داری، healthcheck را کنار تنظیمات سرویس در Compose تعریف کن. مقدار <code>test</code> می‌تواند آرایهٔ <code>CMD</code>، آرایهٔ <code>CMD-SHELL</code> یا رشته باشد. رشته به‌معنای اجرای shell است؛ آرایهٔ <code>CMD</code> برنامه را مستقیم اجرا می‌کند.</p>
-  <p lang="en">If the image is shared, or an environment needs a different test, define the healthcheck next to the service in Compose. <code>test</code> can be a <code>CMD</code> array, a <code>CMD-SHELL</code> array, or a string. A string implies shell execution; a <code>CMD</code> array invokes the executable directly.</p>
-  <div class="term"><div class="term-bar"><span class="term-label">compose.yaml · direct exec check</span><button class="copy">کپی</button></div>
-    <pre dir="ltr">services:
+<h2><span lang="fa">همین آزمون را می‌توان کنار سرویس Compose هم تعریف کرد</span><span lang="en">Compose can define or override a healthcheck</span></h2>
+<p lang="fa">اگر healthcheck باید مخصوص همین پروژه باشد، لازم نیست حتماً آن را داخل Dockerfile بگذاری. Compose می‌تواند آزمون سرویس را تعریف کند یا مقدار image را تغییر دهد. مهم‌تر از شکل YAML این است که بدانیم دستور داخل همان container اجرا می‌شود و خروجی‌اش فقط دربارهٔ همان آزمون حرف می‌زند.</p>
+<p lang="en">If the image is shared, or an environment needs a different test, define the healthcheck next to the service in Compose. <code>test</code> can be a <code>CMD</code> array, a <code>CMD-SHELL</code> array, or a string. A string implies shell execution; a <code>CMD</code> array invokes the executable directly.</p>
+<div class="term"><div class="term-bar"><span class="term-label">compose.yaml · direct exec check</span><button class="copy">کپی</button></div>
+<pre dir="ltr">services:
   web:
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=1)"]
@@ -54,35 +116,34 @@ desc: زنده‌بودن فرایند در برابر سلامت برنامه؛
       retries: 3
       start_period: 15s
       start_interval: 2s</pre>
-  </div>
-  <p lang="fa">در این نمونه Python ابزار آزمون است، پس فرض نکرده‌ایم image حتماً <code>curl</code> دارد. <code>127.0.0.1</code> از داخل container به همان container برمی‌گردد. این check فقط status پاسخ را می‌سنجد؛ اگر endpoint همیشه 200 بدهد، حتی وقتی قابلیت اصلی خراب است، آزمون بیش از حد خوش‌بینانه است.</p>
-  <p lang="en">Here Python is the probe, so we do not assume the image contains <code>curl</code>. From inside the container, <code>127.0.0.1</code> loops back to that same container. This checks the response status only; if the endpoint always returns 200 while the important feature is broken, the test is too optimistic.</p>
-  <p lang="fa">Compose می‌تواند مقادیر healthcheck مربوط به image را override کند. <code>start_interval</code> در Compose از نسخهٔ 2.20.2 پشتیبانی می‌شود و سمت Engine هم به Docker Engine 25.0 یا جدیدتر نیاز دارد. اگر نسخهٔ قدیمی پیام «unknown field» داد، نسخه را بررسی کن و تا زمان ارتقا این گزینه را بردار؛ بقیهٔ healthcheck همچنان کار می‌کند.</p>
-  <p lang="en">Compose can override healthcheck values from the image. Compose supports <code>start_interval</code> from version 2.20.2, and the Engine side requires Docker Engine 25.0 or later. If an older version reports an unknown field, check the version and omit this option until upgraded; the rest of the healthcheck still works.</p>
+</div>
+<p lang="fa">در نمونهٔ ما از Python استفاده شده تا فرض نکنیم image حتماً <code>curl</code> دارد. <code>127.0.0.1</code> از داخل container به خود همان container برمی‌گردد. اگر مسیر <code>/health</code> همیشه ۲۰۰ بدهد، حتی وقتی قابلیت اصلی خراب است، مشکل از Docker نیست؛ تعریف سلامت ما ضعیف بوده است.</p>
+<p lang="en">Here Python is the probe, so we do not assume the image contains <code>curl</code>. From inside the container, <code>127.0.0.1</code> loops back to that same container. This checks the response status only; if the endpoint always returns 200 while the important feature is broken, the test is too optimistic.</p>
+<p lang="fa">Compose می‌تواند مقادیر healthcheck مربوط به image را override کند. <code>start_interval</code> در Compose از نسخهٔ 2.20.2 پشتیبانی می‌شود و سمت Engine هم به Docker Engine 25.0 یا جدیدتر نیاز دارد. اگر نسخهٔ قدیمی پیام «unknown field» داد، نسخه را بررسی کن و تا زمان ارتقا این گزینه را بردار؛ بقیهٔ healthcheck همچنان کار می‌کند.</p>
+<p lang="en">Compose can override healthcheck values from the image. Compose supports <code>start_interval</code> from version 2.20.2, and the Engine side requires Docker Engine 25.0 or later. If an older version reports an unknown field, check the version and omit this option until upgraded; the rest of the healthcheck still works.</p>
 </section>
-
 <section id="states">
-  <h2><span lang="fa">از <code>starting</code> تا <code>healthy</code> یا <code>unhealthy</code></span><span lang="en">From <code>starting</code> to <code>healthy</code> or <code>unhealthy</code></span></h2>
-  <p class="lede" lang="fa">برنامه‌ای داریم که شش ثانیه برای آماده‌سازی نیاز دارد. container زودتر بالا می‌آید؛ healthcheckهای نخست شکست می‌خورند، بعد endpoint آماده می‌شود. این آزمایش فرق «فرایند شروع شد» را با «برنامه آمادهٔ استفاده است» جلوی چشم می‌آورد.</p>
-  <p class="lede" lang="en">Our application needs six seconds to initialize. The container starts first; early probes fail, then the endpoint becomes ready. This makes the difference between “the process started” and “the application is ready” visible.</p>
-  <div class="diagram">
-    <svg viewBox="0 0 960 260" role="img" aria-labelledby="c10-health-states-title">
-      <title id="c10-health-states-title">Health moves from starting to healthy after success, or unhealthy after consecutive failures</title>
-      <defs><marker id="c10-health-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"/></marker></defs>
-      <g class="dg-stroke-b" stroke-width="2" marker-end="url(#c10-health-arrow)"><path d="M295 90h105"/><path d="M295 175h105"/></g>
-      <g class="dg-stroke-w" stroke-width="2" marker-end="url(#c10-health-arrow)"><path d="M650 175h90"/></g>
-      <g text-anchor="middle">
-        <rect class="dg-fill" x="25" y="74" width="270" height="112" rx="14"/><text class="dg-t" x="160" y="111">container starts</text><text class="dg-ts" x="160" y="140">main process is Running</text><text class="dg-ts" x="160" y="163">health begins at starting</text>
-        <rect class="dg-fill-b" x="400" y="40" width="250" height="88" rx="14"/><text class="dg-t" x="525" y="76">probe succeeds</text><text class="dg-ts" x="525" y="103">health → healthy</text>
-        <rect class="dg-fill-w" x="400" y="145" width="250" height="88" rx="14"/><text class="dg-t" x="525" y="181">consecutive failures</text><text class="dg-ts" x="525" y="208">retries reached</text>
-        <rect class="dg-fill-w" x="740" y="145" width="195" height="88" rx="14"/><text class="dg-t" x="837" y="181">unhealthy</text><text class="dg-ts" x="837" y="208">process may still run</text>
-      </g>
-    </svg>
-    <p class="diagram-cap" lang="fa">health یک state مستقل است؛ شکست آزمون به‌تنهایی فرایند اصلی را متوقف نمی‌کند.</p>
-    <p class="diagram-cap" lang="en">Health is a separate state; a failed probe alone does not stop the main process.</p>
-  </div>
-  <div class="term"><div class="term-bar"><span class="term-label">Bash / WSL · disposable image with a slow-ready endpoint</span><button class="copy">کپی</button></div>
-    <pre dir="ltr">docker run -d --name slow-ready \
+<h2><span lang="fa">حالا فرق <code>Running</code> و <code>healthy</code> را با زمان ببین</span><span lang="en">From <code>starting</code> to <code>healthy</code> or <code>unhealthy</code></span></h2>
+<p class="lede" lang="fa">برنامهٔ آزمایشگاهی شش ثانیه زمان می‌خواهد تا آماده شود. container تقریباً فوری شروع می‌شود، پس چند لحظه وضعیت اصلی <code>Running</code> است ولی health هنوز <code>starting</code> مانده. وقتی مسیر سلامت جواب موفق بدهد، همان container بدون عوض‌شدن lifecycle به <code>healthy</code> می‌رسد.</p>
+<p class="lede" lang="en">Our application needs six seconds to initialize. The container starts first; early probes fail, then the endpoint becomes ready. This makes the difference between “the process started” and “the application is ready” visible.</p>
+<div class="diagram">
+<svg aria-labelledby="c10-health-states-title" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 960 260">
+<title id="c10-health-states-title">Health moves from starting to healthy after success, or unhealthy after consecutive failures</title>
+<defs><marker id="c10-health-arrow" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<g class="dg-stroke-b" marker-end="url(#c10-health-arrow)" stroke-width="2"><path d="M295 90h105"></path><path d="M295 175h105"></path></g>
+<g class="dg-stroke-w" marker-end="url(#c10-health-arrow)" stroke-width="2"><path d="M650 175h90"></path></g>
+<g text-anchor="middle">
+<rect class="dg-fill" height="112" rx="14" width="270" x="25" y="74"></rect><text class="dg-t" x="160" y="111">container starts</text><text class="dg-ts" x="160" y="140">main process is Running</text><text class="dg-ts" x="160" y="163">health begins at starting</text>
+<rect class="dg-fill-b" height="88" rx="14" width="250" x="400" y="40"></rect><text class="dg-t" x="525" y="76">probe succeeds</text><text class="dg-ts" x="525" y="103">health → healthy</text>
+<rect class="dg-fill-w" height="88" rx="14" width="250" x="400" y="145"></rect><text class="dg-t" x="525" y="181">consecutive failures</text><text class="dg-ts" x="525" y="208">retries reached</text>
+<rect class="dg-fill-w" height="88" rx="14" width="195" x="740" y="145"></rect><text class="dg-t" x="837" y="181">unhealthy</text><text class="dg-ts" x="837" y="208">process may still run</text>
+</g>
+</svg>
+<p class="diagram-cap" lang="fa">health یک وضعیت مستقل است؛ شکست آزمون به‌تنهایی فرایند اصلی را متوقف نمی‌کند.</p>
+<p class="diagram-cap" lang="en">Health is a separate state; a failed probe alone does not stop the main process.</p>
+</div>
+<div class="term"><div class="term-bar"><span class="term-label">Bash / WSL · disposable image with a slow-ready endpoint</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker run -d --name slow-ready \
   -p 18080:8080 \
   --health-cmd='python -c "import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8080/health\", timeout=1)"' \
   --health-interval=2s --health-timeout=1s --health-retries=3 \
@@ -91,44 +152,42 @@ desc: زنده‌بودن فرایند در برابر سلامت برنامه؛
 
 docker ps --filter name=slow-ready
 docker inspect --format '{{json .State.Health}}' slow-ready</pre>
-  </div>
-  <p lang="fa">نام image در این نمایش به image کوچکی اشاره می‌کند که برنامهٔ آزمایشگاه می‌سازد؛ پیش از اجرا باید آن را build کرده باشی. پیش از پایان تأخیر، <code>docker ps</code> معمولاً <code>Up ... (health: starting)</code> نشان می‌دهد؛ پس از پاسخ موفق همان container به <code>(healthy)</code> می‌رسد. state اصلی در هر دو لحظه Running است.</p>
-  <p lang="en">The image name refers to the small lab image built for this experiment; build it before running the command. Before initialization ends, <code>docker ps</code> typically shows <code>Up ... (health: starting)</code>; after a successful response, the same container becomes <code>(healthy)</code>. Its ordinary state is Running at both points.</p>
-  <p lang="fa">خروجی کامل <code>inspect</code> فیلدهایی مثل <code>Status</code>، <code>FailingStreak</code> و تاریخچهٔ محدود اجرای آزمون را دارد؛ هر مدخل می‌تواند زمان، <code>ExitCode</code> و خروجی کوتاه را ثبت کند. کد صفر یعنی موفق، یک یعنی ناموفق و دو رزرو است. متن stdout/stderr check را برای عیب‌یابی کوتاه و بی‌حساسیت نگه دار.</p>
-  <p lang="en">The full <code>inspect</code> result includes fields such as <code>Status</code>, <code>FailingStreak</code>, and a bounded probe history; each record can include time, <code>ExitCode</code>, and short output. Zero means success, one means failure, and two is reserved. Keep probe stdout/stderr short and free of sensitive data.</p>
-  <div class="term"><div class="term-bar"><span class="term-label">read compact health evidence</span><button class="copy">کپی</button></div>
-    <pre dir="ltr">docker ps --filter name=slow-ready
+</div>
+<p lang="fa">نام image در این نمایش به image کوچکی اشاره می‌کند که برنامهٔ آزمایشگاه می‌سازد؛ پیش از اجرا باید آن را build کرده باشی. پیش از پایان تأخیر، <code>docker ps</code> معمولاً <code>Up ... (health: starting)</code> نشان می‌دهد؛ پس از پاسخ موفق همان container به <code>(healthy)</code> می‌رسد. وضعیت اصلی در هر دو لحظه Running است.</p>
+<p lang="en">The image name refers to the small lab image built for this experiment; build it before running the command. Before initialization ends, <code>docker ps</code> typically shows <code>Up ... (health: starting)</code>; after a successful response, the same container becomes <code>(healthy)</code>. Its ordinary state is Running at both points.</p>
+<p lang="fa">خروجی کامل <code>inspect</code> فیلدهایی مثل <code>Status</code>، <code>FailingStreak</code> و تاریخچهٔ محدود اجرای آزمون را دارد؛ هر مدخل می‌تواند زمان، <code>ExitCode</code> و خروجی کوتاه را ثبت کند. کد صفر یعنی موفق، یک یعنی ناموفق و دو رزرو است. متن stdout/stderr آزمون را برای عیب‌یابی کوتاه و بی‌حساسیت نگه دار.</p>
+<p lang="en">The full <code>inspect</code> result includes fields such as <code>Status</code>, <code>FailingStreak</code>, and a bounded probe history; each record can include time, <code>ExitCode</code>, and short output. Zero means success, one means failure, and two is reserved. Keep probe stdout/stderr short and free of sensitive data.</p>
+<div class="term"><div class="term-bar"><span class="term-label">read compact health evidence</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker ps --filter name=slow-ready
 docker inspect --format 'state={{.State.Status}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} failing={{if .State.Health}}{{.State.Health.FailingStreak}}{{else}}0{{end}}' slow-ready
 docker inspect --format '{{json .State.Health.Log}}' slow-ready</pre>
-  </div>
-  <p lang="fa">اگر Health وجود ندارد، شاید آزمونی تعریف نشده باشد. اگر container همچنان Running اما unhealthy است، نخست خود check، endpoint، binary و خروجی خطایش را بخوان؛ بی‌درنگ restart نکن.</p>
-  <p lang="en">If Health is absent, a probe may not be configured. If the container remains Running but unhealthy, inspect the check, endpoint, binary, and error output before restarting blindly.</p>
+</div>
+<p lang="fa">اگر بخش Health اصلاً وجود ندارد، اول احتمال بده آزمونی تعریف نشده. اگر container Running است ولی unhealthy شده، قبل از restart سراغ خود آزمون برو: آیا ابزارش وجود دارد؟ پورت درست است؟ مسیر جواب می‌دهد؟ خروجی آخر چه می‌گوید؟</p>
+<p lang="en">If Health is absent, a probe may not be configured. If the container remains Running but unhealthy, inspect the check, endpoint, binary, and error output before restarting blindly.</p>
 </section>
-
 <section id="readiness">
-  <h2><span lang="fa">آزمون باید همان وعده‌ای را بسنجد که از سرویس می‌خواهیم</span><span lang="en">A probe should test the promise we expect from the service</span></h2>
-  <p lang="fa">موفق‌شدن <code>curl -f http://localhost/</code> مدرک مفیدی است، اما محدود: process پاسخی با status موفق داده. شاید مسیر اصلی برنامه هنوز خطا بدهد، یا دسترسی به database قطع باشد. برعکس، checkی که مستقیم به سرویس بیرونی وابسته است ممکن است قطعی کوتاه شبکه را به‌جای خرابی خود برنامه گزارش کند. آزمون، تعریف ما از «آماده» را آشکار می‌کند.</p>
-  <p lang="en">A successful <code>curl -f http://localhost/</code> is useful but limited evidence: the process returned a successful status. The main route may still fail, or the database may be unreachable. Conversely, a check that depends directly on an external service can report a brief network interruption as failure of the application itself. The probe reveals our definition of “ready.”</p>
-  <div class="table-wrap"><table class="doc-table">
-    <thead><tr><th>آزمون / Test</th><th>چه چیزی را نشان می‌دهد؟ / Evidence</th><th>چه چیزی را نه؟ / Not proof of</th></tr></thead>
-    <tbody>
-      <tr><td>HTTP محلی <code>/health</code></td><td>web process پاسخ قابل‌قبول می‌دهد</td><td>همهٔ قابلیت‌ها یا dependencyها کار می‌کنند</td></tr>
-      <tr><td><code>pg_isready</code></td><td>PostgreSQL برای اتصال آماده پاسخ می‌دهد</td><td>جدول، مجوز یا query برنامه درست است</td></tr>
-      <tr><td>query کامل یا مسیر سنگین</td><td>ممکن است مسیر بیشتری را پوشش دهد</td><td>هزینه یا اثر جانبی آن توجیه شده</td></tr>
-    </tbody>
-  </table></div>
-  <p lang="fa">مسیر HTTP محلی پاسخ web را ثابت می‌کند، نه سلامت همهٔ قابلیت‌ها. <code>pg_isready</code> می‌گوید PostgreSQL اتصال می‌پذیرد، نه اینکه schema و query برنامه درست‌اند. آزمون کامل‌تر را فقط وقتی انتخاب کن که هزینه و اثر جانبی‌اش توجیه دارد.</p>
-  <p lang="en">A local HTTP route proves that web responds, not that every feature works. <code>pg_isready</code> signals that PostgreSQL accepts connections, not that the app schema or queries are correct. Use a broader probe only when its cost and side effects are justified.</p>
-  <p lang="fa">پاسخ سلامت را کوتاه و بی‌حساسیت نگه دار؛ خروجی check ممکن است در metadata container ثبت شود. token، رمز، اطلاعات کاربر یا پیکربندی محرمانه را در آن ننویس. endpoint هم نباید با هر درخواست داده‌ای را تغییر دهد.</p>
-  <p lang="en">Keep health output short and non-sensitive; probe output may be recorded in container metadata. Do not include tokens, passwords, user data, or confidential configuration. The endpoint must not mutate data on each request.</p>
+<h2><span lang="fa">آزمون خوب باید چیزی را بسنجد که واقعاً برای مصرف‌کننده مهم است</span><span lang="en">A probe should test the promise we expect from the service</span></h2>
+<p lang="fa">یک درخواست موفق به <code>/health</code> نشانهٔ خوبی است، اما باید بدانی چه چیزی را ثابت می‌کند. شاید فقط وب‌سرور پاسخ می‌دهد، درحالی‌که پایگاه‌داده قطع است. از آن طرف، اگر healthcheck به چند سرویس بیرونی وابسته باشد، یک قطعی کوتاه شبکه می‌تواند برنامهٔ سالم را unhealthy نشان دهد. تعریف سلامت باید به‌اندازهٔ نیاز واقعی دقیق باشد.</p>
+<p lang="en">A successful <code>curl -f http://localhost/</code> is useful but limited evidence: the process returned a successful status. The main route may still fail, or the database may be unreachable. Conversely, a check that depends directly on an external service can report a brief network interruption as failure of the application itself. The probe reveals our definition of “ready.”</p>
+<div class="table-wrap"><table class="doc-table">
+<thead><tr><th>آزمون / Test</th><th>چه چیزی را نشان می‌دهد؟ / Evidence</th><th>چه چیزی را نه؟ / Not proof of</th></tr></thead>
+<tbody>
+<tr><td>HTTP محلی <code>/health</code></td><td>web process پاسخ قابل‌قبول می‌دهد</td><td>همهٔ قابلیت‌ها یا dependencyها کار می‌کنند</td></tr>
+<tr><td><code>pg_isready</code></td><td>PostgreSQL برای اتصال آماده پاسخ می‌دهد</td><td>جدول، مجوز یا query برنامه درست است</td></tr>
+<tr><td>query کامل یا مسیر سنگین</td><td>ممکن است مسیر بیشتری را پوشش دهد</td><td>هزینه یا اثر جانبی آن توجیه شده</td></tr>
+</tbody>
+</table></div>
+<p lang="fa">مسیر HTTP محلی پاسخ web را ثابت می‌کند، نه سلامت همهٔ قابلیت‌ها. <code>pg_isready</code> می‌گوید PostgreSQL اتصال می‌پذیرد، نه اینکه schema و پرس‌وجو برنامه درست‌اند. آزمون کامل‌تر را فقط وقتی انتخاب کن که هزینه و اثر جانبی‌اش توجیه دارد.</p>
+<p lang="en">A local HTTP route proves that web responds, not that every feature works. <code>pg_isready</code> signals that PostgreSQL accepts connections, not that the app schema or queries are correct. Use a broader probe only when its cost and side effects are justified.</p>
+<p lang="fa">پاسخ سلامت را کوتاه و بی‌حساسیت نگه دار؛ خروجی آزمون ممکن است در metadata container ثبت شود. توکن، رمز، اطلاعات کاربر یا پیکربندی محرمانه را در آن ننویس. مسیر هم نباید با هر درخواست داده‌ای را تغییر دهد.</p>
+<p lang="en">Keep health output short and non-sensitive; probe output may be recorded in container metadata. Do not include tokens, passwords, user data, or confidential configuration. The endpoint must not mutate data on each request.</p>
 </section>
-
 <section id="depends-on">
-  <h2><span lang="fa">اینجا بحث <code>depends_on</code> فصل ۰۸ کامل می‌شود</span><span lang="en">This completes Chapter 8’s <code>depends_on</code> discussion</span></h2>
-  <p lang="fa">در فصل ۰۸ دیدیم short syntax ترتیب شروع را تعیین می‌کند؛ تضمین نمی‌کند PostgreSQL آمادهٔ query باشد. اگر dependency healthcheck داشته باشد، Compose می‌تواند پیش از شروع consumer منتظر سلامت آن بماند. این barrier برای startup است، نه مدیر دائمی dependency یا تضمین همهٔ درخواست‌های آینده.</p>
-  <p lang="en">Chapter 8 showed that short-form syntax orders startup but does not guarantee PostgreSQL is ready for queries. If the dependency has a healthcheck, Compose can wait for it before starting the consumer. This is a startup barrier, not a permanent dependency manager or a guarantee about future requests.</p>
-  <div class="term"><div class="term-bar"><span class="term-label">Compose · health-based dependency condition</span><button class="copy">کپی</button></div>
-    <pre dir="ltr">services:
+<h2><span lang="fa">حالا محدودیت <code>depends_on</code> فصل ۸ معنای کامل‌تری پیدا می‌کند</span><span lang="en">This completes Chapter 8’s <code>depends_on</code> discussion</span></h2>
+<p lang="fa">در فصل ۸ گفتیم شروع‌شدن PostgreSQL با آماده‌بودنش یکی نیست. حالا یک راه برای بیان «آماده» داریم. اگر سرویس وابسته healthcheck معناداری داشته باشد، Compose می‌تواند شروع مصرف‌کننده را تا <code>healthy</code> شدن آن عقب بیندازد. این فقط گیت شروع است؛ بعد از بالا آمدن، مدیریت قطع‌ووصلی هنوز وظیفهٔ خود برنامه است.</p>
+<p lang="en">Chapter 8 showed that short-form syntax orders startup but does not guarantee PostgreSQL is ready for queries. If the dependency has a healthcheck, Compose can wait for it before starting the consumer. This is a startup barrier, not a permanent dependency manager or a guarantee about future requests.</p>
+<div class="term"><div class="term-bar"><span class="term-label">Compose · health-based dependency condition</span><button class="copy">کپی</button></div>
+<pre dir="ltr">services:
   web:
     build: ./web
     depends_on:
@@ -146,266 +205,238 @@ docker inspect --format '{{json .State.Health.Log}}' slow-ready</pre>
       timeout: 3s
       retries: 5
       start_period: 10s</pre>
-  </div>
-  <p lang="fa">Compose سرویس <code>db</code> را شروع می‌کند و تا وقتی check آن <code>healthy</code> نشده، <code>web</code> را آغاز نمی‌کند. <code>pg_isready</code> در image رسمی PostgreSQL هست؛ وجودش را در imageهای دیگر فرض نکن. اگر web بعداً crash کند یا database پس از startup از دسترس خارج شود، این شرط به‌تنهایی retry یا repair انجام نمی‌دهد؛ برنامه همچنان باید خطای اتصال را مدیریت کند.</p>
-  <p lang="en">Compose starts <code>db</code> and holds <code>web</code> until its probe reports <code>healthy</code>. <code>pg_isready</code> is available in the official PostgreSQL image; do not assume other images contain it. If web later crashes or the database becomes unavailable after startup, this condition does not retry or repair the dependency; the application still needs connection-error handling.</p>
-  <div class="note warn"><div class="note-t"><span lang="fa">healthy یعنی آزمون موفق، نه تأیید کل سامانه</span><span lang="en">Healthy means the configured test passed, not the whole system</span></div>
-    <p lang="fa">اگر healthcheck اشتباه باشد یا مسیر بی‌اهمیتی را بسنجد، Compose هم با همان تعریف تصمیم می‌گیرد. <code>service_healthy</code> قدرتی فراتر از check تو ندارد.</p>
-    <p lang="en">If the healthcheck is wrong or probes an irrelevant route, Compose makes its decision from that same flawed definition. <code>service_healthy</code> is no stronger than your probe.</p>
-  </div>
+</div>
+<p lang="fa">Compose سرویس <code>db</code> را شروع می‌کند و تا وقتی آزمون آن <code>healthy</code> نشده، <code>web</code> را آغاز نمی‌کند. <code>pg_isready</code> در image رسمی PostgreSQL هست؛ وجودش را در imageهای دیگر فرض نکن. اگر web بعداً ازکارافتادن کند یا پایگاه‌داده پس از startup از دسترس خارج شود، این شرط به‌تنهایی retry یا repair انجام نمی‌دهد؛ برنامه همچنان باید خطای اتصال را مدیریت کند.</p>
+<p lang="en">Compose starts <code>db</code> and holds <code>web</code> until its probe reports <code>healthy</code>. <code>pg_isready</code> is available in the official PostgreSQL image; do not assume other images contain it. If web later crashes or the database becomes unavailable after startup, this condition does not retry or repair the dependency; the application still needs connection-error handling.</p>
+<div class="note warn"><div class="note-t"><span lang="fa">healthy یعنی آزمون موفق، نه تأیید کل سامانه</span><span lang="en">Healthy means the configured test passed, not the whole system</span></div>
+<p lang="fa">اگر healthcheck اشتباه باشد یا مسیر بی‌اهمیتی را بسنجد، Compose هم با همان تعریف تصمیم می‌گیرد. <code>service_healthy</code> قدرتی فراتر از آزمون تو ندارد.</p>
+<p lang="en">If the healthcheck is wrong or probes an irrelevant route, Compose makes its decision from that same flawed definition. <code>service_healthy</code> is no stronger than your probe.</p>
+</div>
 </section>
-
 <section id="health-failures">
-  <h2><span lang="fa">وقتی healthcheck شکست می‌خورد، مرز خراب را پیدا کن</span><span lang="en">When a healthcheck fails, find the broken boundary</span></h2>
-  <p lang="fa">unhealthy فقط می‌گوید check موفق نشده؛ هنوز نمی‌گوید خود برنامه خراب است. ممکن است ابزار در image نباشد، port یا مسیر غلط باشد، timeout کم باشد، endpoint واقعاً خطا دهد یا syntax شل در فرم exec نوشته شده باشد. خروجی probe این فرض‌ها را از هم جدا می‌کند.</p>
-  <p lang="en">Unhealthy says the probe did not pass; it does not yet say the application itself is broken. The executable may be missing, the port or path may be wrong, timeout too short, the endpoint genuinely failing, or shell syntax placed in exec form. Probe output helps distinguish these hypotheses.</p>
-  <div class="table-wrap"><table class="doc-table">
-    <thead><tr><th>نشانه / Symptom</th><th>مرز محتمل / Likely boundary</th><th>بررسی بعدی / Next check</th></tr></thead>
-    <tbody>
-      <tr><td><code>curl: not found</code></td><td>ابزار در image نیست</td><td>از ابزار موجود استفاده کن یا check سبک بساز</td></tr>
-      <tr><td>connection refused به localhost</td><td>port اشتباه یا server هنوز گوش نمی‌دهد</td><td>port داخلی را با log startup تطبیق بده</td></tr>
-      <tr><td>همیشه healthy با endpoint خراب</td><td>test همیشه exit صفر می‌دهد</td><td>پاسخ خطا بساز و check را عمداً fail کن</td></tr>
-      <tr><td>healthy ولی درخواست کاربر شکست می‌خورد</td><td>health endpoint وعدهٔ کافی را نمی‌سنجد</td><td>مسیر مهم را جدا امتحان و دامنهٔ check را بازبینی کن</td></tr>
-      <tr><td>unknown field <code>start_interval</code></td><td>Compose یا Engine قدیمی است</td><td>نسخه را بررسی و گزینهٔ تازه را بردار یا ارتقا بده</td></tr>
-    </tbody>
-  </table></div>
-  <p lang="fa">ابزار گم‌شده یعنی check هنوز endpoint را نسنجیده؛ connection refused بیشتر به port یا زمان شروع اشاره می‌کند. آزمون همیشه سبز یا endpoint کم‌عمق اطمینان کاذب می‌دهد. پیام unknown field را با بررسی نسخهٔ Compose/Engine پیگیری کن.</p>
-  <p lang="en">A missing executable means the endpoint has not yet been tested; connection refusal points toward the port or startup timing. An always-green or shallow probe creates false confidence. Investigate an unknown field by checking Compose and Engine versions.</p>
-  <p lang="fa">آزمونی که همیشه موفق است از نبودن آزمون بدتر است، چون اطمینان کاذب می‌دهد. یک پاسخ HTTP ناموفق یا binary اشتباه ایجاد کن و مطمئن شو container به unhealthy می‌رسد. از آن طرف interval کوتاه و retries کم ممکن است وقفهٔ گذرا را خرابی پایدار جا بزند. زمان تشخیص را با هزینهٔ check و نوسان طبیعی برنامه موازنه کن.</p>
-  <p lang="en">A test that always passes can be worse than no test because it creates false confidence. Produce an HTTP failure or wrong executable deliberately and confirm the container becomes unhealthy. Conversely, a short interval and few retries can mistake a transient pause for sustained failure. Balance detection time against probe cost and normal application variance.</p>
+<h2><span lang="fa">وقتی healthcheck شکست می‌خورد، مرز خراب را پیدا کن</span><span lang="en">When a healthcheck fails, find the broken boundary</span></h2>
+<p lang="fa">unhealthy فقط می‌گوید آزمون موفق نشده؛ هنوز نمی‌گوید خود برنامه خراب است. ممکن است ابزار در image نباشد، port یا مسیر غلط باشد، timeout کم باشد، مسیر واقعاً خطا دهد یا syntax شل در فرم exec نوشته شده باشد. خروجی آزمون این فرض‌ها را از هم جدا می‌کند.</p>
+<p lang="en">Unhealthy says the probe did not pass; it does not yet say the application itself is broken. The executable may be missing, the port or path may be wrong, timeout too short, the endpoint genuinely failing, or shell syntax placed in exec form. Probe output helps distinguish these hypotheses.</p>
+<div class="table-wrap"><table class="doc-table">
+<thead><tr><th>نشانه / Symptom</th><th>مرز محتمل / Likely boundary</th><th>بررسی بعدی / Next check</th></tr></thead>
+<tbody>
+<tr><td><code>curl: not found</code></td><td>ابزار در image نیست</td><td>از ابزار موجود استفاده کن یا check سبک بساز</td></tr>
+<tr><td>connection refused به localhost</td><td>port اشتباه یا server هنوز گوش نمی‌دهد</td><td>port داخلی را با log startup تطبیق بده</td></tr>
+<tr><td>همیشه healthy با endpoint خراب</td><td>test همیشه exit صفر می‌دهد</td><td>پاسخ خطا بساز و check را عمداً fail کن</td></tr>
+<tr><td>healthy ولی درخواست کاربر شکست می‌خورد</td><td>health endpoint وعدهٔ کافی را نمی‌سنجد</td><td>مسیر مهم را جدا امتحان و دامنهٔ check را بازبینی کن</td></tr>
+<tr><td>unknown field <code>start_interval</code></td><td>Compose یا Engine قدیمی است</td><td>نسخه را بررسی و گزینهٔ تازه را بردار یا ارتقا بده</td></tr>
+</tbody>
+</table></div>
+<p lang="fa">ابزار گم‌شده یعنی آزمون هنوز مسیر را نسنجیده؛ connection refused بیشتر به port یا زمان شروع اشاره می‌کند. آزمون همیشه سبز یا مسیر کم‌عمق اطمینان کاذب می‌دهد. پیام unknown field را با بررسی نسخهٔ Compose/Engine پیگیری کن.</p>
+<p lang="en">A missing executable means the endpoint has not yet been tested; connection refusal points toward the port or startup timing. An always-green or shallow probe creates false confidence. Investigate an unknown field by checking Compose and Engine versions.</p>
+<p lang="fa">آزمونی که همیشه موفق است از نبودن آزمون بدتر است، چون اطمینان کاذب می‌دهد. یک پاسخ HTTP ناموفق یا binary اشتباه ایجاد کن و مطمئن شو container به unhealthy می‌رسد. از آن طرف interval کوتاه و retries کم ممکن است وقفهٔ گذرا را خرابی پایدار جا بزند. زمان تشخیص را با هزینهٔ آزمون و نوسان طبیعی برنامه موازنه کن.</p>
+<p lang="en">A test that always passes can be worse than no test because it creates false confidence. Produce an HTTP failure or wrong executable deliberately and confirm the container becomes unhealthy. Conversely, a short interval and few retries can mistake a transient pause for sustained failure. Balance detection time against probe cost and normal application variance.</p>
 </section>
-
 <section id="restart">
-  <h2><span lang="fa">وقتی فرایند خارج می‌شود، restart policy چه می‌کند؟</span><span lang="en">What happens when the process exits?</span></h2>
-  <p class="lede" lang="fa">حالا مسئله فرق کرده: web process با کد خروج غیرصفر تمام می‌شود. علت شاید خطای گذرا باشد، یا bugی که با هر بار شروع دوباره تکرار می‌شود. restart policy می‌گوید Docker پس از خروج چه رفتاری داشته باشد؛ نمی‌گوید چرا خارج شد.</p>
-  <p class="lede" lang="en">Now the problem is different: the web process exits with a non-zero code. The cause might be transient—or a bug that repeats on every start. A restart policy tells Docker what to do after exit; it does not explain why the process stopped.</p>
-  <div class="table-wrap"><table class="doc-table">
-    <thead><tr><th>Policy</th><th>رفتار / Behavior</th><th>مرز / Boundary</th></tr></thead>
-    <tbody>
-      <tr><td><code>no</code></td><td>خودکار شروع نمی‌کند؛ پیش‌فرض</td><td>برای سرویس دائمی باید تصمیم دیگری بگیری</td></tr>
-      <tr><td><code>on-failure[:N]</code></td><td>فقط پس از exit ناموفق؛ retry را می‌توان محدود کرد</td><td>exit صفر یا restart شدن daemon را مثل <code>always</code> پوشش نمی‌دهد</td></tr>
-      <tr><td><code>always</code></td><td>پس از توقف دوباره اجرا می‌کند</td><td>توقف دستی تا start دستی یا restart شدن daemon حفظ می‌شود</td></tr>
-      <tr><td><code>unless-stopped</code></td><td>شبیه always، جز containerی که عمداً متوقف شده</td><td>علت crash یا سلامت پس از start را تشخیص نمی‌دهد</td></tr>
-    </tbody>
-  </table></div>
-  <p lang="fa">no container را خودکار راه نمی‌اندازد؛ on-failure فقط exit غیرصفر را retry می‌کند و مانند always به daemon restart واکنش ندارد. always پس از توقف دوباره شروع می‌کند مگر توقف دستی تا start بعدی یا restart daemon. unless-stopped توقف عمدی را حفظ می‌کند. هیچ‌کدام علت را پیدا نمی‌کنند.</p>
-  <p lang="en">The no policy never restarts automatically. on-failure retries non-zero exits and does not react to daemon restart like always. always restarts after stopping unless a manual stop remains in force until a later start or daemon restart. unless-stopped preserves an intentional stop. None diagnoses the cause.</p>
-  <p lang="fa">در <code>docker run</code> فلگ <code>--restart</code> سیاست را تعیین می‌کند؛ در Compose کلید <code>restart</code> زیر service می‌آید. در Compose مقدار <code>no</code> را رشته بنویس تا با Boolean اشتباه نشود:</p>
-  <p lang="en">For <code>docker run</code>, <code>--restart</code> selects the policy; in Compose, put <code>restart</code> under the service. Quote <code>no</code> in Compose so it is not parsed as a Boolean:</p>
-  <div class="term"><div class="term-bar"><span class="term-label">choose an exit policy</span><button class="copy">کپی</button></div>
-    <pre dir="ltr">docker run -d --name worker --restart on-failure:3 example/worker:dev
+<h2><span lang="fa">اگر خود فرایند تمام شد، Docker دوباره تلاش کند یا نه؟</span><span lang="en">What happens when the process exits?</span></h2>
+<p class="lede" lang="fa">تا اینجا دربارهٔ فرایندی حرف می‌زدیم که زنده بود ولی شاید سالم نبود. حالا فرض کن خود فرایند خارج می‌شود. اینجاست که restart policy وارد می‌شود: به Docker می‌گوید بعد از پایان فرایند چه کند. اما حتی بهترین سیاست restart هم جواب سؤال «چرا برنامه خارج شد؟» را نمی‌دهد.</p>
+<p class="lede" lang="en">Now the problem is different: the web process exits with a non-zero code. The cause might be transient—or a bug that repeats on every start. A restart policy tells Docker what to do after exit; it does not explain why the process stopped.</p>
+<div class="table-wrap"><table class="doc-table">
+<thead><tr><th>Policy</th><th>رفتار / Behavior</th><th>مرز / Boundary</th></tr></thead>
+<tbody>
+<tr><td><code>no</code></td><td>خودکار شروع نمی‌کند؛ پیش‌فرض</td><td>برای سرویس دائمی باید تصمیم دیگری بگیری</td></tr>
+<tr><td><code>on-failure[:N]</code></td><td>فقط پس از exit ناموفق؛ retry را می‌توان محدود کرد</td><td>exit صفر یا restart شدن daemon را مثل <code>always</code> پوشش نمی‌دهد</td></tr>
+<tr><td><code>always</code></td><td>پس از توقف دوباره اجرا می‌کند</td><td>توقف دستی تا start دستی یا restart شدن daemon حفظ می‌شود</td></tr>
+<tr><td><code>unless-stopped</code></td><td>شبیه always، جز containerی که عمداً متوقف شده</td><td>علت crash یا سلامت پس از start را تشخیص نمی‌دهد</td></tr>
+</tbody>
+</table></div>
+<p lang="fa">no container را خودکار راه نمی‌اندازد؛ on-خطا فقط exit غیرصفر را retry می‌کند و مانند always به daemon restart واکنش ندارد. always پس از توقف دوباره شروع می‌کند مگر توقف دستی تا start بعدی یا restart daemon. unless-stopped توقف عمدی را حفظ می‌کند. هیچ‌کدام علت را پیدا نمی‌کنند.</p>
+<p lang="en">The no policy never restarts automatically. on-failure retries non-zero exits and does not react to daemon restart like always. always restarts after stopping unless a manual stop remains in force until a later start or daemon restart. unless-stopped preserves an intentional stop. None diagnoses the cause.</p>
+<p lang="fa">در <code>docker run</code> فلگ <code>--restart</code> سیاست را تعیین می‌کند؛ در Compose کلید <code>restart</code> زیر service می‌آید. در Compose مقدار <code>no</code> را رشته بنویس تا با Boolean اشتباه نشود:</p>
+<p lang="en">For <code>docker run</code>, <code>--restart</code> selects the policy; in Compose, put <code>restart</code> under the service. Quote <code>no</code> in Compose so it is not parsed as a Boolean:</p>
+<div class="term"><div class="term-bar"><span class="term-label">choose an exit policy</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker run -d --name worker --restart on-failure:3 example/worker:dev
 
 services:
   web:
     image: example/web:dev
     restart: unless-stopped</pre>
-  </div>
-  <p lang="fa">برای جلوگیری از حلقه‌ای که از همان لحظهٔ اول بی‌وقفه می‌چرخد، Docker policy را پس از آن فعال می‌کند که container دست‌کم ۱۰ ثانیه با موفقیت اجرا شده باشد. پس processی که فوراً خارج می‌شود ممکن است در آزمایش ساده restart نشود؛ برای دیدن loop، process را بیش از ده ثانیه زنده نگه دار.</p>
-  <p lang="en">To avoid an immediate endless loop, Docker activates the policy only after the container has run successfully for at least ten seconds. A process that exits immediately may therefore not restart in a simple experiment; keep it alive longer than ten seconds to demonstrate a loop.</p>
-  <p lang="fa">restart count را کنار exit code و log بخوان. count بالا خودش علت را نمی‌گوید. نکتهٔ مهم: unhealthy شدن به‌تنهایی restart policy را فعال نمی‌کند؛ policy به exit process واکنش دارد، نه health status ناموفق.</p>
-  <p lang="en">Read restart count alongside exit code and logs. A high count does not reveal the cause. Important: becoming unhealthy alone does not trigger the restart policy; it responds to process exit, not failed health status.</p>
-  <div class="term"><div class="term-bar"><span class="term-label">state and restart count</span><button class="copy">کپی</button></div>
-    <pre dir="ltr">docker ps -a --filter name=worker
+</div>
+<p lang="fa">برای جلوگیری از حلقه‌ای که از همان لحظهٔ اول بی‌وقفه می‌چرخد، Docker سیاست را پس از آن فعال می‌کند که container دست‌کم ۱۰ ثانیه با موفقیت اجرا شده باشد. پس processی که فوراً خارج می‌شود ممکن است در آزمایش ساده restart نشود؛ برای دیدن loop، فرایند را بیش از ده ثانیه زنده نگه دار.</p>
+<p lang="en">To avoid an immediate endless loop, Docker activates the policy only after the container has run successfully for at least ten seconds. A process that exits immediately may therefore not restart in a simple experiment; keep it alive longer than ten seconds to demonstrate a loop.</p>
+<p lang="fa">تعداد restart را کنار exit code و لاگ بخوان. زیادشدن تعداد فقط می‌گوید تلاش‌های تازه ساخته شده‌اند؛ علت را نمی‌گوید. یک نکتهٔ مهم: unhealthy شدن به‌تنهایی سیاست restart را فعال نمی‌کند؛ restart به پایان فرایند واکنش دارد، نه صرفاً شکست healthcheck.</p>
+<p lang="en">Read restart count alongside exit code and logs. A high count does not reveal the cause. Important: becoming unhealthy alone does not trigger the restart policy; it responds to process exit, not failed health status.</p>
+<div class="term"><div class="term-bar"><span class="term-label">state and restart count</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker ps -a --filter name=worker
 docker inspect --format 'state={{.State.Status}} exit={{.State.ExitCode}} restarts={{.RestartCount}}' worker</pre>
-  </div>
-  <div class="note warn"><div class="note-t"><span lang="fa">restart درمان ریشه‌ای نیست</span><span lang="en">A restart is not a root-cause fix</span></div>
-    <p lang="fa">A restart policy can recover from some failures; it cannot diagnose or repair the root cause. اگر image اشتباه است، پیکربندی ناقص است یا process همان bug را تکرار می‌کند، restart فقط شکست را تکرار می‌کند.</p>
-    <p lang="en">A restart policy can recover from some failures; it cannot diagnose or repair the root cause. If the image is wrong, configuration is incomplete, or the process repeats the same bug, a restart only repeats the failure.</p>
-  </div>
+</div>
+<div class="note warn"><div class="note-t"><span lang="fa">restart درمان ریشه‌ای نیست</span><span lang="en">A restart is not a root-cause fix</span></div>
+<p lang="fa">سیاست restart می‌تواند از بعضی خطاهای گذرا عبور کند، اما درمان ریشه‌ای نیست. اگر تنظیمات غلط است یا برنامه هر بار همان bug را تکرار می‌کند، restart فقط همان شکست را دوباره اجرا می‌کند.</p>
+<p lang="en">A restart policy can recover from some failures; it cannot diagnose or repair the root cause. If the image is wrong, configuration is incomplete, or the process repeats the same bug, a restart only repeats the failure.</p>
+</div>
 </section>
-
 <section id="crash-loop">
-  <h2><span lang="fa">حلقهٔ restart را ببین؛ بعد دلیلش را پیدا کن</span><span lang="en">Observe a restart loop, then find its cause</span></h2>
-  <p lang="fa">یک process آزمایشی را طوری تنظیم کن که ۱۲ ثانیه زنده بماند و بعد با کد ۲۳ خارج شود. هر بار شروعش را روی stdout می‌نویسد. این تأخیر از شرط فعال‌شدن policy عبور می‌کند و log چرخه را قابل‌دیدن نگه می‌دارد.</p>
-  <p lang="en">Configure a disposable process to stay alive for twelve seconds and then exit with code 23. It writes each start to stdout. The delay crosses the policy activation guard and makes the cycle visible in logs.</p>
-  <div class="term"><div class="term-bar"><span class="term-label">bounded failure experiment · isolated name</span><button class="copy">کپی</button></div>
-    <pre dir="ltr">docker run -d --name crash-demo --restart on-failure:3 alpine:3.21 sh -c "echo attempt-started; sleep 12; echo deliberate-exit-23; exit 23"
+<h2><span lang="fa">حلقهٔ restart را ببین؛ بعد دلیلش را پیدا کن</span><span lang="en">Observe a restart loop, then find its cause</span></h2>
+<p lang="fa">یک فرایند آزمایشی را طوری تنظیم کن که ۱۲ ثانیه زنده بماند و بعد با کد ۲۳ خارج شود. هر بار شروعش را روی stdout می‌نویسد. این تأخیر از شرط فعال‌شدن سیاست عبور می‌کند و log چرخه را قابل‌دیدن نگه می‌دارد.</p>
+<p lang="en">Configure a disposable process to stay alive for twelve seconds and then exit with code 23. It writes each start to stdout. The delay crosses the policy activation guard and makes the cycle visible in logs.</p>
+<div class="term"><div class="term-bar"><span class="term-label">bounded failure experiment · isolated name</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker run -d --name crash-demo --restart on-failure:3 alpine:3.21 sh -c "echo attempt-started; sleep 12; echo deliberate-exit-23; exit 23"
 
 docker ps -a --filter name=crash-demo
 docker inspect --format 'state={{.State.Status}} exit={{.State.ExitCode}} restarts={{.RestartCount}}' crash-demo
 docker logs --timestamps --tail=20 crash-demo</pre>
-  </div>
-  <p lang="fa">لحظهٔ دیدن خروجی مهم است؛ state شاید میان <code>Restarting</code> و <code>Up</code> جابه‌جا شود. انتظار داریم پیام شروع چند بار دیده شود و restart count بالا برود؛ سه retry تعداد تلاش‌ها را محدود می‌کند. این یعنی policy عمل می‌کند، نه اینکه سرویس بازیابی شده باشد.</p>
-  <p lang="en">Sampling time matters; state may alternate between <code>Restarting</code> and <code>Up</code>. Expect the start message to appear repeatedly and restart count to rise; three retries bound the attempts. This proves the policy is acting, not that the service recovered.</p>
-  <p lang="fa">بعد exit code و log تلاش‌ها را مقایسه کن و configuration یا dependency را بررسی کن. اگر container را زود حذف کنی راه سادهٔ خواندن log از دست می‌رود. مدرک را پیش از پاک‌سازی جمع کن؛ container آزمایشی را آخر کار حذف خواهیم کرد.</p>
-  <p lang="en">Compare exit codes and logs across attempts, then inspect configuration or dependencies. If you remove the container too early, the easy path to its logs is gone. Collect evidence before cleanup; we will remove the disposable container at the end.</p>
-  <div class="diagram">
-    <svg viewBox="0 0 960 250" role="img" aria-labelledby="c10-restart-title">
-      <title id="c10-restart-title">An exited process is observed by a restart policy, which starts another attempt but does not repair the cause</title>
-      <defs><marker id="c10-restart-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"/></marker></defs>
-      <g class="dg-stroke-b" stroke-width="2" marker-end="url(#c10-restart-arrow)"><path d="M240 125h78"/><path d="M550 125h75"/><path d="M805 165C805 225 150 225 150 170"/></g>
-      <g text-anchor="middle">
-        <rect class="dg-fill-w" x="20" y="78" width="220" height="95" rx="14"/><text class="dg-t" x="130" y="115">process exits</text><text class="dg-ts" x="130" y="143">non-zero code + evidence</text>
-        <rect class="dg-fill-v" x="318" y="78" width="232" height="95" rx="14"/><text class="dg-t" x="434" y="115">restart policy</text><text class="dg-ts" x="434" y="143">decides whether to retry</text>
-        <rect class="dg-fill-b" x="625" y="78" width="250" height="95" rx="14"/><text class="dg-t" x="750" y="115">new process attempt</text><text class="dg-ts" x="750" y="143">same image/config unless changed</text>
-      </g>
-      <text class="dg-ts" x="480" y="218" text-anchor="middle">the cause can repeat</text>
-    </svg>
-    <p class="diagram-cap" lang="fa">فلش بازگشت تلاش دیگری را نشان می‌دهد؛ علت crash را تغییر نمی‌دهد.</p>
-    <p class="diagram-cap" lang="en">The loop arrow means another attempt; it does not change the cause of the crash.</p>
-  </div>
-  <p lang="fa">بعد از اینکه state و log لازم را جمع کردی، container آزمایشی را حذف کن؛ پیش از آن حذفش نکن:</p>
-  <p lang="en">After collecting the state and logs you need, remove the disposable container. Do not remove it before then:</p>
-  <div class="term"><div class="term-bar"><span class="term-label">cleanup after collecting evidence</span><button class="copy">کپی</button></div>
-    <pre dir="ltr">docker rm -f crash-demo</pre>
-  </div>
+</div>
+<p lang="fa">لحظهٔ دیدن خروجی مهم است؛ وضعیت شاید میان <code>Restarting</code> و <code>Up</code> جابه‌جا شود. انتظار داریم پیام شروع چند بار دیده شود و restart تعداد بالا برود؛ سه retry تعداد تلاش‌ها را محدود می‌کند. این یعنی سیاست عمل می‌کند، نه اینکه سرویس بازیابی شده باشد.</p>
+<p lang="en">Sampling time matters; state may alternate between <code>Restarting</code> and <code>Up</code>. Expect the start message to appear repeatedly and restart count to rise; three retries bound the attempts. This proves the policy is acting, not that the service recovered.</p>
+<p lang="fa">بعد exit code و log تلاش‌ها را مقایسه کن و تنظیمات یا dependency را بررسی کن. اگر container را زود حذف کنی راه سادهٔ خواندن log از دست می‌رود. مدرک را پیش از پاک‌سازی جمع کن؛ container آزمایشی را آخر کار حذف خواهیم کرد.</p>
+<p lang="en">Compare exit codes and logs across attempts, then inspect configuration or dependencies. If you remove the container too early, the easy path to its logs is gone. Collect evidence before cleanup; we will remove the disposable container at the end.</p>
+<div class="diagram">
+<svg aria-labelledby="c10-restart-title" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 960 250">
+<title id="c10-restart-title">An exited process is observed by a restart policy, which starts another attempt but does not repair the cause</title>
+<defs><marker id="c10-restart-arrow" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<g class="dg-stroke-b" marker-end="url(#c10-restart-arrow)" stroke-width="2"><path d="M240 125h78"></path><path d="M550 125h75"></path><path d="M805 165C805 225 150 225 150 170"></path></g>
+<g text-anchor="middle">
+<rect class="dg-fill-w" height="95" rx="14" width="220" x="20" y="78"></rect><text class="dg-t" x="130" y="115">process exits</text><text class="dg-ts" x="130" y="143">non-zero code + evidence</text>
+<rect class="dg-fill-v" height="95" rx="14" width="232" x="318" y="78"></rect><text class="dg-t" x="434" y="115">restart policy</text><text class="dg-ts" x="434" y="143">decides whether to retry</text>
+<rect class="dg-fill-b" height="95" rx="14" width="250" x="625" y="78"></rect><text class="dg-t" x="750" y="115">new process attempt</text><text class="dg-ts" x="750" y="143">same image/config unless changed</text>
+</g>
+<text class="dg-ts" text-anchor="middle" x="480" y="218">the cause can repeat</text>
+</svg>
+<p class="diagram-cap" lang="fa">فلش بازگشت تلاش دیگری را نشان می‌دهد؛ علت ازکارافتادن را تغییر نمی‌دهد.</p>
+<p class="diagram-cap" lang="en">The loop arrow means another attempt; it does not change the cause of the crash.</p>
+</div>
+<p lang="fa">بعد از اینکه وضعیت و log لازم را جمع کردی، container آزمایشی را حذف کن؛ پیش از آن حذفش نکن:</p>
+<p lang="en">After collecting the state and logs you need, remove the disposable container. Do not remove it before then:</p>
+<div class="term"><div class="term-bar"><span class="term-label">cleanup after collecting evidence</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker rm -f crash-demo</pre>
+</div>
 </section>
-
 <section id="logs">
-  <h2><span lang="fa">برنامه معمولاً روی stdout و stderr حرف می‌زند</span><span lang="en">Applications normally speak through stdout and stderr</span></h2>
-  <p lang="fa">در مدل معمول container، برنامهٔ foreground خروجی عادی را روی <code>stdout</code> و خطا را روی <code>stderr</code> می‌نویسد. Docker این جریان‌ها را به logging driver می‌دهد. برای همین می‌توانی بدون ورود به filesystem با <code>docker logs</code> سابقه را بخوانی؛ البته برنامه باید واقعاً روی این streamها بنویسد.</p>
-  <p lang="en">In the usual container model, the foreground application writes ordinary output to <code>stdout</code> and errors to <code>stderr</code>. Docker passes these streams to a logging driver. That is why <code>docker logs</code> can read history without entering the filesystem—provided the application writes to those streams.</p>
-  <p lang="fa">فایل اختصاصی مثل <code>/var/log/app.log</code> خودبه‌خود به <code>docker logs</code> وصل نیست. برنامهٔ containerمحور بهتر است رویدادهای عملیاتی کوتاه و ساخت‌یافته را روی stdout/stderr بفرستد: شروع سرویس، آمادگی، کار مهم، خطای قابل‌اقدام و پایان. رمز، token یا دادهٔ شخصی را log نکن.</p>
-  <p lang="en">A private file such as <code>/var/log/app.log</code> is not automatically connected to <code>docker logs</code>. A container-oriented app should send concise, structured operational events to stdout/stderr: startup, readiness, important work, actionable errors, and shutdown. Do not log passwords, tokens, or personal data.</p>
-  <div class="term"><div class="term-bar"><span class="term-label">read a useful slice while the container still exists</span><button class="copy">کپی</button></div>
-    <pre dir="ltr">docker logs web
+<h2><span lang="fa">وقتی چیزی خراب شد، لاگ همان چیزی است که برنامه خودش گفته</span><span lang="en">Applications normally speak through stdout and stderr</span></h2>
+<p lang="fa">در الگوی معمول container، برنامه پیام‌های عادی را روی <code>stdout</code> و خطاها را روی <code>stderr</code> می‌نویسد و Docker آن‌ها را به درایور لاگ می‌دهد. برای همین <code>docker logs</code> می‌تواند بدون ورود به فایل‌سیستم حرف‌های برنامه را نشان بدهد؛ به شرط اینکه برنامه واقعاً همان‌جا بنویسد.</p>
+<p lang="en">In the usual container model, the foreground application writes ordinary output to <code>stdout</code> and errors to <code>stderr</code>. Docker passes these streams to a logging driver. That is why <code>docker logs</code> can read history without entering the filesystem—provided the application writes to those streams.</p>
+<p lang="fa">اگر برنامه همه‌چیز را فقط در فایل داخلی خودش بنویسد، انتظار نداشته باش <code>docker logs</code> جادویی آن فایل را بخواند. برای سرویس‌های containerمحور، پیام‌های مهم عملیاتی را کوتاه و روشن روی stdout/stderr بده و رمز یا اطلاعات حساس را وارد لاگ نکن.</p>
+<p lang="en">A private file such as <code>/var/log/app.log</code> is not automatically connected to <code>docker logs</code>. A container-oriented app should send concise, structured operational events to stdout/stderr: startup, readiness, important work, actionable errors, and shutdown. Do not log passwords, tokens, or personal data.</p>
+<div class="term"><div class="term-bar"><span class="term-label">read a useful slice while the container still exists</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker logs web
 docker logs --tail=30 web
 docker logs --follow --tail=10 web
 docker logs --timestamps --since=10m web
 docker logs --since=2026-09-24T10:00:00Z --until=2026-09-24T10:05:00Z web</pre>
-  </div>
-  <p lang="fa">برای پیام‌های تازه <code>--follow</code> را به‌کار ببر؛ با <code>--tail</code> ترکیبش کن تا همهٔ گذشته چاپ نشود. <code>--timestamps</code> زمان هر خط را اضافه می‌کند و <code>--since</code>/<code>--until</code> بازه می‌سازند؛ مقدار نسبی مثل <code>10m</code> هم پذیرفته می‌شود. زمان مطلق را با منطقهٔ زمانی روشن بنویس.</p>
-  <p lang="en">Use <code>--follow</code> to stream new messages and combine it with <code>--tail</code> to avoid printing all history. <code>--timestamps</code> adds a timestamp to each line, while <code>--since</code>/<code>--until</code> bound a time window; relative values such as <code>10m</code> also work. Include a clear timezone with absolute times.</p>
-  <p lang="fa">با Compose معمولاً چند service را یک‌جا می‌خوانی. نام service را بده تا خروجی متمرکز بماند؛ برای دید کلی همه را دنبال کن و بعد روی مورد مشکوک زوم کن.</p>
-  <p lang="en">With Compose you often inspect several services together. Name a service to keep output focused; follow all services for an overview, then narrow in on the suspect.</p>
-  <div class="term"><div class="term-bar"><span class="term-label">Compose logs across services</span><button class="copy">کپی</button></div>
-    <pre dir="ltr">docker compose logs --tail=20 web db
+</div>
+<p lang="fa">برای پیام‌های تازه <code>--follow</code> را به‌کار ببر؛ با <code>--tail</code> ترکیبش کن تا همهٔ گذشته چاپ نشود. <code>--timestamps</code> زمان هر خط را اضافه می‌کند و <code>--since</code>/<code>--until</code> بازه می‌سازند؛ مقدار نسبی مثل <code>10m</code> هم پذیرفته می‌شود. زمان مطلق را با منطقهٔ زمانی روشن بنویس.</p>
+<p lang="en">Use <code>--follow</code> to stream new messages and combine it with <code>--tail</code> to avoid printing all history. <code>--timestamps</code> adds a timestamp to each line, while <code>--since</code>/<code>--until</code> bound a time window; relative values such as <code>10m</code> also work. Include a clear timezone with absolute times.</p>
+<p lang="fa">با Compose معمولاً چند service را یک‌جا می‌خوانی. نام service را بده تا خروجی متمرکز بماند؛ برای دید کلی همه را دنبال کن و بعد روی مورد مشکوک زوم کن.</p>
+<p lang="en">With Compose you often inspect several services together. Name a service to keep output focused; follow all services for an overview, then narrow in on the suspect.</p>
+<div class="term"><div class="term-bar"><span class="term-label">Compose logs across services</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker compose logs --tail=20 web db
 docker compose logs --follow --tail=10
 docker compose logs --timestamps --since=5m web</pre>
-  </div>
-  <p lang="fa">خروجی Compose معمولاً با نام service و container پیشوند می‌گیرد. ترتیب خط‌های چند process به‌تنهایی ترتیب دقیق رویدادها را ثابت نمی‌کند؛ اگر ترتیب مهم است، زمان و شناسهٔ درخواست یا کار را هم در log برنامه بگذار.</p>
-  <p lang="en">Compose output is typically prefixed with service and container names. Interleaved lines alone do not prove exact event order; if ordering matters, include timestamps and a request or job identifier in application logs.</p>
+</div>
+<p lang="fa">خروجی Compose معمولاً با نام service و container پیشوند می‌گیرد. ترتیب خط‌های چند فرایند به‌تنهایی ترتیب دقیق رویدادها را ثابت نمی‌کند؛ اگر ترتیب مهم است، زمان و شناسهٔ درخواست یا کار را هم در log برنامه بگذار.</p>
+<p lang="en">Compose output is typically prefixed with service and container names. Interleaved lines alone do not prove exact event order; if ordering matters, include timestamps and a request or job identifier in application logs.</p>
 </section>
-
 <section id="logging-driver">
-  <h2><span lang="fa">logging driver مرز خروجی برنامه و نگه‌داری آن است</span><span lang="en">A logging driver separates app output from log storage</span></h2>
-  <p lang="fa">برنامه stdout/stderr تولید می‌کند؛ logging driver تعیین می‌کند Docker آن stream را چطور جمع‌آوری، نگه‌داری یا ارسال کند. driver پیش‌فرض معمولاً <code>json-file</code> است و به‌طور پیش‌فرض rotation ندارد؛ خروجی زیاد می‌تواند دیسک میزبان را پر کند. driver <code>local</code> به‌طور پیش‌فرض rotation دارد، اما تغییر تنظیم daemon روی containerهای از قبل ساخته‌شده خودکار اثر نمی‌گذارد.</p>
-  <p lang="en">The app produces stdout/stderr; the logging driver determines how Docker collects, stores, or forwards those streams. The default is commonly <code>json-file</code>, which does not rotate by default; high-volume output can fill host disk. The <code>local</code> driver rotates by default, but daemon setting changes do not automatically affect existing containers.</p>
-  <div class="table-wrap"><table class="doc-table">
-    <thead><tr><th>لایه / Layer</th><th>مسئولیت / Responsibility</th><th>نشانهٔ خرابی / Failure clue</th></tr></thead>
-    <tbody>
-      <tr><td>برنامه</td><td>رویداد مفید را به stdout/stderr بفرستد</td><td><code>docker logs</code> خالی ولی فایل داخلی پر است</td></tr>
-      <tr><td>Docker logging driver</td><td>دریافت، buffer، چرخش یا ارسال خروجی</td><td>driver یا مقصد بیرونی در دسترس نیست</td></tr>
-      <tr><td>مصرف‌کنندهٔ log</td><td>خواندن محلی یا سامانهٔ بیرونی</td><td>driver انتخابی خواندن محلی را نمی‌دهد</td></tr>
-    </tbody>
-  </table></div>
-  <p lang="fa">برنامه باید رویداد را روی stdout/stderr بنویسد؛ Docker فایل دلخواه داخلی را خودکار جمع نمی‌کند. logging driver خروجی را می‌گیرد، می‌چرخاند، نگه می‌دارد یا forward می‌کند. مصرف‌کننده بعداً بسته به قابلیت همان driver محلی یا بیرونی آن را می‌خواند.</p>
-  <p lang="en">The application must write events to stdout/stderr; Docker does not automatically collect an arbitrary internal file. The logging driver receives, rotates, stores, or forwards output. A consumer then reads it locally or externally, depending on that driver’s capabilities.</p>
-  <p lang="fa">رفتار <code>docker logs</code> را برای همهٔ driverها یکسان فرض نکن. بعضی driverها log را بیرون Docker می‌فرستند و خواندن محلی را پشتیبانی نمی‌کنند؛ dual logging هم ممکن است فعال نباشد. اگر log پیدا نشد، پیش از نتیجه‌گیری دربارهٔ برنامه نوع driver و مقصد را بررسی کن.</p>
-  <p lang="en">Do not assume <code>docker logs</code> behaves identically with every driver. Some drivers forward logs and do not support local reads; dual logging may not be enabled. If logs appear missing, inspect the driver and destination before concluding that the application produced nothing.</p>
-  <div class="term"><div class="term-bar"><span class="term-label">inspect logging configuration</span><button class="copy">کپی</button></div>
-    <pre dir="ltr">docker info --format '{{.LoggingDriver}}'
+<h2><span lang="fa">logging درایور مرز خروجی برنامه و نگه‌داری آن است</span><span lang="en">A logging driver separates app output from log storage</span></h2>
+<p lang="fa">برنامه stdout/stderr تولید می‌کند؛ logging درایور تعیین می‌کند Docker آن stream را چطور جمع‌آوری، نگه‌داری یا ارسال کند. درایور پیش‌فرض معمولاً <code>json-file</code> است و به‌طور پیش‌فرض rotation ندارد؛ خروجی زیاد می‌تواند دیسک میزبان را پر کند. درایور <code>local</code> به‌طور پیش‌فرض rotation دارد، اما تغییر تنظیم daemon روی containerهای از قبل ساخته‌شده خودکار اثر نمی‌گذارد.</p>
+<p lang="en">The app produces stdout/stderr; the logging driver determines how Docker collects, stores, or forwards those streams. The default is commonly <code>json-file</code>, which does not rotate by default; high-volume output can fill host disk. The <code>local</code> driver rotates by default, but daemon setting changes do not automatically affect existing containers.</p>
+<div class="table-wrap"><table class="doc-table">
+<thead><tr><th>لایه / Layer</th><th>مسئولیت / Responsibility</th><th>نشانهٔ خرابی / Failure clue</th></tr></thead>
+<tbody>
+<tr><td>برنامه</td><td>رویداد مفید را به stdout/stderr بفرستد</td><td><code>docker logs</code> خالی ولی فایل داخلی پر است</td></tr>
+<tr><td>Docker logging driver</td><td>دریافت، buffer، چرخش یا ارسال خروجی</td><td>driver یا مقصد بیرونی در دسترس نیست</td></tr>
+<tr><td>مصرف‌کنندهٔ log</td><td>خواندن محلی یا سامانهٔ بیرونی</td><td>driver انتخابی خواندن محلی را نمی‌دهد</td></tr>
+</tbody>
+</table></div>
+<p lang="fa">برنامه باید رویداد را روی stdout/stderr بنویسد؛ Docker فایل دلخواه داخلی را خودکار جمع نمی‌کند. logging درایور خروجی را می‌گیرد، می‌چرخاند، نگه می‌دارد یا forward می‌کند. مصرف‌کننده بعداً بسته به قابلیت همان درایور محلی یا بیرونی آن را می‌خواند.</p>
+<p lang="en">The application must write events to stdout/stderr; Docker does not automatically collect an arbitrary internal file. The logging driver receives, rotates, stores, or forwards output. A consumer then reads it locally or externally, depending on that driver’s capabilities.</p>
+<p lang="fa">رفتار <code>docker logs</code> را برای همهٔ driverها یکسان فرض نکن. بعضی driverها log را بیرون Docker می‌فرستند و خواندن محلی را پشتیبانی نمی‌کنند؛ dual logging هم ممکن است فعال نباشد. اگر log پیدا نشد، پیش از نتیجه‌گیری دربارهٔ برنامه نوع درایور و مقصد را بررسی کن.</p>
+<p lang="en">Do not assume <code>docker logs</code> behaves identically with every driver. Some drivers forward logs and do not support local reads; dual logging may not be enabled. If logs appear missing, inspect the driver and destination before concluding that the application produced nothing.</p>
+<div class="term"><div class="term-bar"><span class="term-label">inspect logging configuration</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker info --format '{{.LoggingDriver}}'
 docker inspect --format '{{.HostConfig.LogConfig.Type}}' web</pre>
-  </div>
-  <p lang="fa">برای برنامهٔ پرحرف، rotation و سقف نگه‌داری را در سیاست daemon یا سرویس طراحی کن. تنظیم daemon معمولاً containerهای بعدی را تحت تأثیر می‌گذارد و برای container موجود شاید recreate لازم شود. پاک‌کردن container هم جای نگه‌داری log را نمی‌گیرد.</p>
-  <p lang="en">For a chatty application, plan rotation and retention at the daemon or service level. A daemon setting generally affects newly created containers; an existing one may need recreation. Removing a container is not a log-retention strategy.</p>
+</div>
+<p lang="fa">برای برنامهٔ پرحرف، rotation و سقف نگه‌داری را در سیاست daemon یا سرویس طراحی کن. تنظیم daemon معمولاً containerهای بعدی را تحت تأثیر می‌گذارد و برای container موجود شاید recreate لازم شود. پاک‌کردن container هم جای نگه‌داری log را نمی‌گیرد.</p>
+<p lang="en">For a chatty application, plan rotation and retention at the daemon or service level. A daemon setting generally affects newly created containers; an existing one may need recreation. Removing a container is not a log-retention strategy.</p>
 </section>
-
 <section id="climax">
-  <h2><span lang="fa">سه نشانه را کنار هم بگذار: آماده شد، crash کرد، برگشت</span><span lang="en">Combine the signals: ready, crashed, recovered</span></h2>
-  <p class="lede" lang="fa">web شروع می‌شود؛ state می‌گوید Running و health هنوز starting است. check موفق می‌شود و health به healthy می‌رسد. بعد process خارج می‌شود؛ restart policy تلاش تازه‌ای می‌سازد. log علت exit را نگه می‌دارد و healthcheck نشان می‌دهد تلاش تازه واقعاً آماده شده یا نه.</p>
-  <p class="lede" lang="en">Web starts; state says Running while health is still starting. A probe succeeds and health becomes healthy. Later the process exits; the restart policy creates another attempt. Logs preserve the exit clue, and the healthcheck tells us whether the new attempt is actually ready.</p>
-  <div class="diagram">
-    <svg viewBox="0 0 980 315" role="img" aria-labelledby="c10-climax-title">
-      <title id="c10-climax-title">Timeline combining startup, health transitions, process crash, restart, logs, and verified recovery</title>
-      <defs><marker id="c10-climax-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"/></marker></defs>
-      <g class="dg-stroke-b" stroke-width="2" marker-end="url(#c10-climax-arrow)"><path d="M190 93h115"/><path d="M420 93h115"/><path d="M650 93h105"/><path d="M850 128C850 180 150 180 150 128"/></g>
-      <g text-anchor="middle">
-        <rect class="dg-fill" x="18" y="53" width="172" height="78" rx="12"/><text class="dg-t" x="104" y="83">start</text><text class="dg-ts" x="104" y="108">Running · starting</text>
-        <rect class="dg-fill-g" x="305" y="53" width="172" height="78" rx="12"/><text class="dg-t" x="391" y="83">ready</text><text class="dg-ts" x="391" y="108">Running · healthy</text>
-        <rect class="dg-fill-w" x="535" y="53" width="172" height="78" rx="12"/><text class="dg-t" x="621" y="83">process exits</text><text class="dg-ts" x="621" y="108">Exited + exit code</text>
-        <rect class="dg-fill-v" x="755" y="53" width="205" height="78" rx="12"/><text class="dg-t" x="857" y="83">restart attempt</text><text class="dg-ts" x="857" y="108">policy starts it again</text>
-      </g>
-      <rect class="dg-fill-b" x="220" y="226" width="300" height="62" rx="12"/><text class="dg-t" x="370" y="252" text-anchor="middle">logs preserve what happened</text><text class="dg-ts" x="370" y="274" text-anchor="middle">startup · error · exit · next attempt</text>
-      <rect class="dg-fill-g" x="565" y="226" width="330" height="62" rx="12"/><text class="dg-t" x="730" y="252" text-anchor="middle">health verifies recovery</text><text class="dg-ts" x="730" y="274" text-anchor="middle">not just a new Running state</text>
-      <g class="dg-stroke-b" stroke-width="2"><path d="M390 131v85"/><path d="M850 131v85"/></g>
-    </svg>
-    <p class="diagram-cap" lang="fa">restart تلاش می‌سازد؛ log سرنخ می‌دهد؛ health آمادگی اجرای تازه را می‌سنجد. این سه کار جای هم را نمی‌گیرند.</p>
-    <p class="diagram-cap" lang="en">Restart creates an attempt; logs provide clues; health checks readiness of the new attempt. These jobs are not interchangeable.</p>
-  </div>
-  <p lang="fa">ترتیب تشخیص را نگه دار: state را ببین تا بدانی process هست یا خارج شده؛ health را بخوان تا نتیجهٔ آزمون را ببینی؛ log همان بازه را بخوان تا علت احتمالی را پیدا کنی. پس از repair دوباره بررسی کن: state پایدار است؟ health برگشته؟ log خطای تازه‌ای دارد؟ دیدن Running پس از restart هنوز مدرک recovery نیست.</p>
-  <p lang="en">Keep the diagnostic order: inspect state to learn whether the process exists, inspect health for the probe result, then read logs from the same window for a likely cause. After a repair, check again: is state stable, has health returned, and do logs show a new error? Seeing Running after restart is not proof of recovery.</p>
+<h2><span lang="fa">سه نشانه را کنار هم بگذار: شروع شد، آماده شد، افتاد، دوباره برگشت</span><span lang="en">Combine the signals: ready, crashed, recovered</span></h2>
+<p class="lede" lang="fa">حالا داستان کامل می‌شود. سرویس start می‌شود و وضعیت می‌گوید Running؛ health هنوز starting است. چند ثانیه بعد آزمون موفق می‌شود و health به healthy می‌رسد. بعد فرایند عمداً خارج می‌شود، سیاست restart تلاش تازه‌ای می‌سازد، لاگ سرنخ خروج را نگه می‌دارد و healthcheck نشان می‌دهد اجرای تازه فقط Running نیست، دوباره آماده هم شده است.</p>
+<p class="lede" lang="en">Web starts; state says Running while health is still starting. A probe succeeds and health becomes healthy. Later the process exits; the restart policy creates another attempt. Logs preserve the exit clue, and the healthcheck tells us whether the new attempt is actually ready.</p>
+<div class="diagram">
+<svg aria-labelledby="c10-climax-title" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 980 315">
+<title id="c10-climax-title">Timeline combining startup, health transitions, process crash, restart, logs, and verified recovery</title>
+<defs><marker id="c10-climax-arrow" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<g class="dg-stroke-b" marker-end="url(#c10-climax-arrow)" stroke-width="2"><path d="M190 93h115"></path><path d="M420 93h115"></path><path d="M650 93h105"></path><path d="M850 128C850 180 150 180 150 128"></path></g>
+<g text-anchor="middle">
+<rect class="dg-fill" height="78" rx="12" width="172" x="18" y="53"></rect><text class="dg-t" x="104" y="83">start</text><text class="dg-ts" x="104" y="108">Running · starting</text>
+<rect class="dg-fill-g" height="78" rx="12" width="172" x="305" y="53"></rect><text class="dg-t" x="391" y="83">ready</text><text class="dg-ts" x="391" y="108">Running · healthy</text>
+<rect class="dg-fill-w" height="78" rx="12" width="172" x="535" y="53"></rect><text class="dg-t" x="621" y="83">process exits</text><text class="dg-ts" x="621" y="108">Exited + exit code</text>
+<rect class="dg-fill-v" height="78" rx="12" width="205" x="755" y="53"></rect><text class="dg-t" x="857" y="83">restart attempt</text><text class="dg-ts" x="857" y="108">policy starts it again</text>
+</g>
+<rect class="dg-fill-b" height="62" rx="12" width="300" x="220" y="226"></rect><text class="dg-t" text-anchor="middle" x="370" y="252">logs preserve what happened</text><text class="dg-ts" text-anchor="middle" x="370" y="274">startup · error · exit · next attempt</text>
+<rect class="dg-fill-g" height="62" rx="12" width="330" x="565" y="226"></rect><text class="dg-t" text-anchor="middle" x="730" y="252">health verifies recovery</text><text class="dg-ts" text-anchor="middle" x="730" y="274">not just a new Running state</text>
+<g class="dg-stroke-b" stroke-width="2"><path d="M390 131v85"></path><path d="M850 131v85"></path></g>
+</svg>
+<p class="diagram-cap" lang="fa">restart تلاش می‌سازد؛ log سرنخ می‌دهد؛ health آمادگی اجرای تازه را می‌سنجد. این سه کار جای هم را نمی‌گیرند.</p>
+<p class="diagram-cap" lang="en">Restart creates an attempt; logs provide clues; health checks readiness of the new attempt. These jobs are not interchangeable.</p>
+</div>
+<p lang="fa">برای عیب‌یابی همین ترتیب را نگه دار: اول وضعیت و exit code، بعد health، بعد لاگ همان بازه. پس از اصلاح هم همان سه سؤال را دوباره بپرس. دیدن <code>Running</code> بعد از restart به‌تنهایی هنوز بازیابی را ثابت نمی‌کند.</p>
+<p lang="en">Keep the diagnostic order: inspect state to learn whether the process exists, inspect health for the probe result, then read logs from the same window for a likely cause. After a repair, check again: is state stable, has health returned, and do logs show a new error? Seeing Running after restart is not proof of recovery.</p>
 </section>
-
 <section id="failures">
-  <h2><span lang="fa">از نشانه به آزمون بعدی، نه restart تصادفی</span><span lang="en">Choose the next test from the symptom, not a random restart</span></h2>
-  <p lang="fa">یک نشانه به‌تنهایی علت قطعی نیست. جدول کمک می‌کند سؤال بعدی را انتخاب کنی؛ پیش از تغییر چند گزینه هم‌زمان، یک فرض را با یک آزمون محدود بسنج.</p>
-  <p lang="en">One symptom rarely proves a cause. Use the table to choose the next question; test one hypothesis with one focused check before changing several settings at once.</p>
-  <div class="table-wrap"><table class="doc-table">
-    <thead><tr><th>مشاهده / Observation</th><th>برداشت اولیه / First interpretation</th><th>بررسی بعدی / Next check</th></tr></thead>
-    <tbody>
-      <tr><td>Running، ولی unhealthy</td><td>فرایند هست، check شکست می‌خورد</td><td><code>.State.Health.Log</code>، binary، port و endpoint</td></tr>
-      <tr><td>Restarting با log تکراری</td><td>فرایند خارج و دوباره ساخته می‌شود</td><td>exit code، آخرین log، config و dependency</td></tr>
-      <tr><td>Exited با log مفید</td><td>فرایند تمام شده اما container موجود است</td><td><code>inspect</code> و log را پیش از حذف نگه دار</td></tr>
-      <tr><td><code>docker logs</code> خالی</td><td>برنامه log نکرده یا driver محلی نمی‌دهد</td><td>stdout/stderr، driver و مقصد log</td></tr>
-      <tr><td>container از قبل remove شده</td><td>هویت و log محلی در دسترس نیست</td><td>نگه‌داری بیرونی یا بازتولید کنترل‌شده</td></tr>
-      <tr><td>web زودتر از database آمده</td><td>فقط short <code>depends_on</code> بوده</td><td>healthcheck واقعی و شرط <code>service_healthy</code></td></tr>
-    </tbody>
-  </table></div>
-  <p lang="fa">Running و unhealthy یعنی process زنده و probe ناموفق است؛ Restarting همراه log مشابه یعنی چرخهٔ exit و تلاش دوباره را بررسی کن. log خالی ممکن است از برنامه یا driver باشد، و container حذف‌شده مدرک محلی‌اش را از دست داده. short <code>depends_on</code> هم به‌تنهایی readiness را تضمین نمی‌کند.</p>
-  <p lang="en">Running plus unhealthy means the process lives while its probe fails; Restarting with repeated logs calls for inspecting the exit/retry cycle. Empty logs may come from the app or driver, and a removed container loses local evidence. Short <code>depends_on</code> alone does not guarantee readiness.</p>
-  <p lang="fa">اگر healthcheck همیشه سبز می‌ماند، خود آزمون را با شکست کنترل‌شده امتحان کن؛ این از نگاه‌کردن دوباره به status سبز مفیدتر است. اگر restart count بالا می‌رود، logها را در یک بازهٔ زمانی بخوان و نقطهٔ مشترک تلاش‌ها را پیدا کن.</p>
-  <p lang="en">If health stays green no matter what, test the probe with a controlled failure; that is more useful than staring at the status again. If restart count rises, read logs in a bounded time window and find what the attempts have in common.</p>
+<h2><span lang="fa">از روی نشانه، سؤال بعدی را انتخاب کن؛ نه اینکه همه‌چیز را restart کنی</span><span lang="en">Choose the next test from the symptom, not a random restart</span></h2>
+<p lang="fa">یک نشانه به‌تنهایی تشخیص نهایی نیست. اگر unhealthy است، آزمون سلامت را بررسی کن. اگر Restarting است، exit و لاگ تلاش‌های تکراری را ببین. اگر لاگ خالی است، اول بفهم برنامه کجا می‌نویسد و درایور لاگ چیست. هر بار فقط یک فرض را امتحان کن تا علت بین چند تغییر گم نشود.</p>
+<p lang="en">One symptom rarely proves a cause. Use the table to choose the next question; test one hypothesis with one focused check before changing several settings at once.</p>
+<div class="table-wrap"><table class="doc-table">
+<thead><tr><th>مشاهده / Observation</th><th>برداشت اولیه / First interpretation</th><th>بررسی بعدی / Next check</th></tr></thead>
+<tbody>
+<tr><td>Running، ولی unhealthy</td><td>فرایند هست، check شکست می‌خورد</td><td><code>.State.Health.Log</code>، binary، port و endpoint</td></tr>
+<tr><td>Restarting با log تکراری</td><td>فرایند خارج و دوباره ساخته می‌شود</td><td>exit code، آخرین log، config و dependency</td></tr>
+<tr><td>Exited با log مفید</td><td>فرایند تمام شده اما container موجود است</td><td><code>inspect</code> و log را پیش از حذف نگه دار</td></tr>
+<tr><td><code>docker logs</code> خالی</td><td>برنامه log نکرده یا driver محلی نمی‌دهد</td><td>stdout/stderr، driver و مقصد log</td></tr>
+<tr><td>container از قبل remove شده</td><td>هویت و log محلی در دسترس نیست</td><td>نگه‌داری بیرونی یا بازتولید کنترل‌شده</td></tr>
+<tr><td>web زودتر از database آمده</td><td>فقط short <code>depends_on</code> بوده</td><td>healthcheck واقعی و شرط <code>service_healthy</code></td></tr>
+</tbody>
+</table></div>
+<p lang="fa">Running و unhealthy یعنی فرایند زنده و آزمون ناموفق است؛ Restarting همراه log مشابه یعنی چرخهٔ exit و تلاش دوباره را بررسی کن. log خالی ممکن است از برنامه یا درایور باشد، و container حذف‌شده مدرک محلی‌اش را از دست داده. short <code>depends_on</code> هم به‌تنهایی readiness را تضمین نمی‌کند.</p>
+<p lang="en">Running plus unhealthy means the process lives while its probe fails; Restarting with repeated logs calls for inspecting the exit/retry cycle. Empty logs may come from the app or driver, and a removed container loses local evidence. Short <code>depends_on</code> alone does not guarantee readiness.</p>
+<p lang="fa">اگر healthcheck همیشه سبز می‌ماند، خود آزمون را با شکست کنترل‌شده امتحان کن؛ این از نگاه‌کردن دوباره به وضعیت سبز مفیدتر است. اگر restart تعداد بالا می‌رود، logها را در یک بازهٔ زمانی بخوان و نقطهٔ مشترک تلاش‌ها را پیدا کن.</p>
+<p lang="en">If health stays green no matter what, test the probe with a controlled failure; that is more useful than staring at the status again. If restart count rises, read logs in a bounded time window and find what the attempts have in common.</p>
 </section>
-
 <section id="exercises">
-  <h2><span lang="fa">۱۸ تمرین: از حدس وضعیت تا تشخیص علت</span><span lang="en">18 exercises: from predicting state to diagnosing cause</span></h2>
-  <p class="lede" lang="fa">در هر مورد اول بگو چه چیزی را می‌دانی و چه چیزی هنوز ثابت نشده. پاسخ را بعد از پیش‌بینی یا انتخاب فرمان بررسی باز کن.</p>
-  <p class="lede" lang="en">For each scenario, state what the evidence tells you and what is not yet proven. Open the solution after making a prediction or choosing a diagnostic command.</p>
-
-  <div class="ex" id="ex-10-1"><h3><span lang="fa">۱. <code>Up</code> اما درخواست ناموفق</span><span lang="en">1. <code>Up</code>, but requests fail</span></h3><p lang="fa">container در <code>docker ps</code> برابر Up است، اما endpoint از مرورگر timeout می‌شود. این status چه چیزی را ثابت می‌کند و دو سؤال بعدی‌ات چیست؟</p><p lang="en">A container is Up in <code>docker ps</code>, but the browser request times out. What has this status proved, and what are two useful next questions?</p><details class="ex-sol"><summary><span lang="fa">فرایند زنده است؛ پاسخ‌گویی ثابت نشده</span><span lang="en">The process is alive; responsiveness is unproven</span></summary><p lang="fa">Up می‌گوید container در وضعیت اجراست، نه اینکه endpoint سالم است. اول port mapping و network را بررسی کن، بعد مسیر HTTP و log برنامه را بسنج. healthcheck هم فقط وقتی نشانه‌ای می‌دهد که آزمون معنادار تعریف شده باشد.</p><p lang="en">Up means the container is running, not that its endpoint is healthy. Check port mapping and networking, then test HTTP and inspect app logs. A healthcheck adds evidence only when its probe is meaningful.</p></details></div>
-
-  <div class="ex" id="ex-10-2"><h3><span lang="fa">۲. state با health یکی نیست</span><span lang="en">2. State is not health</span></h3><p lang="fa">خروجی <code>state=running health=unhealthy</code> است. آیا با restart کردن Docker می‌تواند آن را سالم اعلام کند؟</p><p lang="en">Output says <code>state=running health=unhealthy</code>. Can restarting make Docker declare it healthy?</p><details class="ex-sol"><summary><span lang="fa">اول نتیجه و خروجی check را بخوان</span><span lang="en">Read the probe result first</span></summary><p lang="fa">فرایند هنوز زنده است اما آزمون سلامت شکست خورده. restart شاید یک‌بار فرایند را از نو بسازد؛ اگر endpoint، port یا binary check غلط باشد همان نتیجه برمی‌گردد. <code>.State.Health.Log</code> را با inspect بخوان و از روی آن فرض بعدی را انتخاب کن.</p><p lang="en">The process is alive, but its probe failed. A restart may recreate it once; a wrong endpoint, port, or probe binary will produce the same result. Read <code>.State.Health.Log</code> with inspect and use it to choose the next hypothesis.</p></details></div>
-
-  <div class="ex" id="ex-10-3"><h3><span lang="fa">۳. خروجی check برابر یک</span><span lang="en">3. The probe exits with one</span></h3><p lang="fa">در آخرین health record مقدار <code>ExitCode: 1</code> است. چه نتیجه‌ای مجاز است و چه نتیجه‌ای زودهنگام؟</p><p lang="en">The latest health record has <code>ExitCode: 1</code>. What conclusion is justified, and what is premature?</p><details class="ex-sol"><summary><span lang="fa">فرمان آزمون شکست خورده؛ علت هنوز معلوم نیست</span><span lang="en">The probe failed; the cause is still unknown</span></summary><p lang="fa">می‌دانیم همان اجرای check ناموفق بوده؛ معلوم نیست برنامه خراب است یا فرمان، مسیر، port، permission یا dependency اشتباه است. خروجی همان مدخل را کنار log برنامه بخوان. exit code check را با exit code process اصلی اشتباه نگیر.</p><p lang="en">We know that probe invocation failed; we do not know whether the app, command, path, port, permissions, or dependency is wrong. Read the record output alongside app logs. Do not confuse the probe exit code with the main process exit code.</p></details></div>
-
-  <div class="ex" id="ex-10-4"><h3><span lang="fa">۴. <code>curl</code> در image نیست</span><span lang="en">4. <code>curl</code> is missing from the image</span></h3><p lang="fa">image کوچک با <code>curl -f http://localhost/health</code> بررسی می‌شود و unhealthy است. خروجی <code>curl: not found</code> می‌گوید. چه چیزی را هنوز نسنجیده‌ایم؟</p><p lang="en">A slim image is probed with <code>curl -f http://localhost/health</code> and is unhealthy. Output says <code>curl: not found</code>. What have we not tested yet?</p><details class="ex-sol"><summary><span lang="fa">endpoint را هنوز اصلاً probe نکرده‌ایم</span><span lang="en">The endpoint has not been probed at all</span></summary><p lang="fa">executable آزمون در image نیست؛ این مدرک خرابی endpoint نیست. از ابزاری که وجود دارد استفاده کن یا ابزار کوچک و موجهی اضافه کن. نصب ابزار بزرگ فقط برای check، حجم و سطح حمله را زیاد می‌کند.</p><p lang="en">The probe executable is absent; this is not evidence that the endpoint is broken. Use an existing tool or add a small justified one. Installing a large utility solely for the check increases image size and attack surface.</p></details></div>
-
-  <div class="ex" id="ex-10-5"><h3><span lang="fa">۵. localhost در کدام container است؟</span><span lang="en">5. Which container owns localhost?</span></h3><p lang="fa">web روی port داخلی 8080 گوش می‌دهد، اما healthcheck در database به <code>localhost:8080</code> می‌زند و connection refused می‌گیرد. چرا؟</p><p lang="en">Web listens on internal port 8080, but a healthcheck in the database calls <code>localhost:8080</code> and gets connection refused. Why?</p><details class="ex-sol"><summary><span lang="fa">آزمون داخل خود database اجرا می‌شود</span><span lang="en">The probe runs inside the database container</span></summary><p lang="fa">healthcheck داخل همان container اجرا می‌شود که health آن را می‌سنجد؛ localhost به database برمی‌گردد، نه web. برای database از آزمون خودش مثل <code>pg_isready</code> استفاده کن.</p><p lang="en">The healthcheck runs inside the container it measures, so localhost points to the database, not web. Use a database-native probe such as <code>pg_isready</code>.</p></details></div>
-
-  <div class="ex" id="ex-10-6"><h3><span lang="fa">۶. interval یک‌ثانیه‌ای</span><span lang="en">6. A one-second interval</span></h3><p lang="fa">سرویسی interval=1s و retries=1 دارد. چه خطرهایی می‌بینی و چه داده‌ای برای تنظیم بهتر جمع می‌کنی؟</p><p lang="en">A service uses interval=1s and retries=1. What risks do you see, and what data would guide better settings?</p><details class="ex-sol"><summary><span lang="fa">نوسان گذرا خیلی زود unhealthy می‌شود</span><span lang="en">A transient pause may trigger unhealthy too quickly</span></summary><p lang="fa">بار لحظه‌ای یا مکث کوتاه سریعاً وضعیت را قرمز می‌کند و خود probe هم بار اضافه دارد. زمان startup و پاسخ عادی و تحمل مصرف‌کننده را اندازه بگیر؛ بعد interval، timeout و retries را با آن‌ها موازنه کن.</p><p lang="en">A short pause or load spike can mark the service unhealthy quickly, while probes add load. Measure normal startup and response times and consumer tolerance, then balance interval, timeout, and retries against them.</p></details></div>
-
-  <div class="ex" id="ex-10-7"><h3><span lang="fa">۷. اولین موفقیت در start period</span><span lang="en">7. The first success during start period</span></h3><p lang="fa">check در ثانیهٔ ۲ fail، در ۵ موفق و در ۷ دوباره fail می‌شود. با <code>start_period: 10s</code> و <code>retries: 2</code> آیا شکست ثانیهٔ ۷ نادیده است؟</p><p lang="en">The probe fails at second 2, succeeds at 5, then fails at 7. With <code>start_period: 10s</code> and <code>retries: 2</code>, is the second-7 failure ignored?</p><details class="ex-sol"><summary><span lang="fa">نه؛ پس از نخستین موفقیت شکست‌ها دوباره شمرده می‌شوند</span><span lang="en">No; failures count again after the first success</span></summary><p lang="fa">شکست‌های پیش از اولین check موفق در مهلت startup کنار گذاشته می‌شوند؛ بعد از موفقیت، شکست‌های بعدی به retries می‌روند، حتی اگر start period تمام نشده باشد. در ثانیهٔ ۷ شکست شمرده می‌شود.</p><p lang="en">Failures before the first successful probe are ignored during startup; after success, later failures count toward retries even before the start period ends. The second-7 failure counts.</p></details></div>
-
-  <div class="ex" id="ex-10-8"><h3><span lang="fa">۸. dependency هنوز آماده نیست</span><span lang="en">8. The dependency is not ready yet</span></h3><p lang="fa">Compose فقط <code>web: depends_on: db</code> دارد. نخستین query هنگام initialization پایگاه داده شکست می‌خورد. مدل را چطور اصلاح می‌کنی؟</p><p lang="en">Compose only has <code>web: depends_on: db</code>. The first query fails during database initialization. How do you improve the model?</p><details class="ex-sol"><summary><span lang="fa">healthcheck و شرط service_healthy</span><span lang="en">A healthcheck and service_healthy condition</span></summary><p lang="fa">برای db آزمون readiness معنادار بگذار و در web بنویس <code>condition: service_healthy</code>. short syntax ترتیب شروع را می‌دهد؛ شرط تازه startup را عقب می‌اندازد تا check موفق شود. این جای retry برنامه در اتصال‌های بعدی را نمی‌گیرد.</p><p lang="en">Give db a meaningful readiness probe and set <code>condition: service_healthy</code> for web. Short syntax only orders startup; the condition waits for a successful check. It does not replace app retries for later connections.</p></details></div>
-
-  <div class="ex" id="ex-10-9"><h3><span lang="fa">۹. check همیشه موفق</span><span lang="en">9. A check that always succeeds</span></h3><p lang="fa">healthcheck با <code>curl ... || true</code> حتی با پاسخ HTTP 500 سبز می‌ماند. کدام قسمت شکست را پنهان کرده؟</p><p lang="en">A healthcheck using <code>curl ... || true</code> stays green despite HTTP 500. Which part hides the failure?</p><details class="ex-sol"><summary><span lang="fa"><code>true</code> exit status نهایی را صفر می‌کند</span><span lang="en"><code>true</code> makes the final status successful</span></summary><p lang="fa">وقتی curl fail می‌شود، shell به‌خاطر <code>|| true</code> فرمان موفق اجرا می‌کند؛ healthcheck فقط status نهایی را می‌بیند. عبارت را بردار و پاسخ خراب را عمداً امتحان کن تا check واقعاً fail شود.</p><p lang="en">When curl fails, the shell runs a successful command because of <code>|| true</code>; the healthcheck sees only the final status. Remove it and deliberately test a failing response.</p></details></div>
-
-  <div class="ex" id="ex-10-10"><h3><span lang="fa">۱۰. exit code دو</span><span lang="en">10. Exit code two</span></h3><p lang="fa">ابزار healthcheck برای ورودی نامعتبر exit code دو می‌دهد. آیا این کد را برای معنی ویژهٔ خودت به‌کار ببر؟</p><p lang="en">A healthcheck tool exits with code two on invalid input. Should you use that code for a custom meaning?</p><details class="ex-sol"><summary><span lang="fa">نه؛ دو برای Docker رزرو است</span><span lang="en">No; Docker reserves code two</span></summary><p lang="fa">قرارداد healthcheck صفر را موفق و یک را ناموفق می‌داند؛ دو رزرو شده است. wrapper را طوری بنویس که خطاهای ورودی را به یک تبدیل کند و پیام کوتاه بدهد.</p><p lang="en">The healthcheck contract uses zero for success and one for failure; two is reserved. Make a wrapper map invalid input to one and emit a short message.</p></details></div>
-
-  <div class="ex" id="ex-10-11"><h3><span lang="fa">۱۱. policy برای کار دسته‌ای</span><span lang="en">11. A policy for a batch job</span></h3><p lang="fa">یک worker با موفقیت exit صفر می‌کند؛ شکست موقت را حداکثر دو بار باید retry کند. کدام policy مناسب است و چه خطر جانبی را می‌سنجی؟</p><p lang="en">A worker exits zero on success and should retry transient failures at most twice. Which policy fits, and what side effect must you consider?</p><details class="ex-sol"><summary><span lang="fa"><code>on-failure:2</code>، اگر تکرار امن باشد</span><span lang="en"><code>on-failure:2</code>, if repetition is safe</span></summary><p lang="fa">این policy فقط خروج ناموفق را تا سقف تعیین‌شده retry می‌کند؛ خروج صفر پایان طبیعی است. مطمئن شو retry عملیات غیرتکرارپذیر را دوباره ثبت یا side effect ناخواسته ایجاد نمی‌کند.</p><p lang="en">This policy retries non-zero exits up to the limit; zero remains normal completion. Ensure a retry cannot duplicate a non-idempotent operation or cause an unwanted side effect.</p></details></div>
-
-  <div class="ex" id="ex-10-12"><h3><span lang="fa">۱۲. توقف دستی پس از reboot</span><span lang="en">12. A manual stop across reboot</span></h3><p lang="fa">اپراتور container را دستی متوقف کرده و host reboot می‌شود. کدام policy برای حفظ این توقف طراحی شده؟</p><p lang="en">An operator manually stops a container and the host reboots. Which policy is designed to preserve that stop?</p><details class="ex-sol"><summary><span lang="fa"><code>unless-stopped</code></span><span lang="en"><code>unless-stopped</code></span></summary><p lang="fa">این policy توقف صریح را پس از restart شدن daemon حفظ می‌کند؛ رفتار را مستند کن تا توقف عمدی با crash اشتباه نشود. <code>always</code> در این مرز فرق دارد.</p><p lang="en">This policy honors an explicit stop across daemon restart. Document that behavior so an intentional stop is not mistaken for a crash; <code>always</code> differs at this boundary.</p></details></div>
-
-  <div class="ex" id="ex-10-13"><h3><span lang="fa">۱۳. unhealthy شد اما restart نشد</span><span lang="en">13. Unhealthy, but not restarted</span></h3><p lang="fa">healthcheck چند بار fail شده و container unhealthy است، اما restart count ثابت مانده. آیا این اشکال است؟</p><p lang="en">The healthcheck failed repeatedly and the container is unhealthy, but restart count is unchanged. Is this a bug?</p><details class="ex-sol"><summary><span lang="fa">نه؛ process خارج نشده است</span><span lang="en">No; the process has not exited</span></summary><p lang="fa">health نتیجهٔ probe را نگه می‌دارد، اما restart policy به خروج process واکنش دارد. اگر فرایند زنده است، restart count لزوماً تغییر نمی‌کند. واکنش به unhealthy نیازمند سازوکار بالاتری است که بیرون از دامنهٔ این فصل است.</p><p lang="en">Health records the probe result, while restart policy responds to process exit. If it remains alive, the restart count need not change. Acting on unhealthy requires a higher-level mechanism outside this chapter’s scope.</p></details></div>
-
-  <div class="ex" id="ex-10-14"><h3><span lang="fa">۱۴. علت تکراری در crash loop</span><span lang="en">14. A repeated cause in a crash loop</span></h3><p lang="fa">state گاهی Restarting است، restart count بالا می‌رود و هر تلاش log می‌کند <code>missing DB_HOST</code>. آیا retry بیشتر درمان است؟</p><p lang="en">State intermittently shows Restarting, restart count rises, and every attempt logs <code>missing DB_HOST</code>. Will more retries fix it?</p><details class="ex-sol"><summary><span lang="fa">نه؛ پیکربندی هر بار ناقص است</span><span lang="en">No; configuration is missing on every attempt</span></summary><p lang="fa">log علت تکرارشونده را نشان می‌دهد؛ policy فقط process را دوباره اجرا می‌کند. ورودی Compose را اصلاح کن و container را با config تازه recreate کن. شمار restartها تأیید می‌کند حلقه متوقف شده، نه اینکه علت خودبه‌خود اصلاح شده باشد.</p><p lang="en">Logs show the repeated cause; the policy only reruns the process. Fix Compose input and recreate with the corrected config. Restart count can confirm the loop stopped, not that the cause fixed itself.</p></details></div>
-
-  <div class="ex" id="ex-10-15"><h3><span lang="fa">۱۵. چرا <code>docker logs</code> خالی است؟</span><span lang="en">15. Why are <code>docker logs</code> empty?</span></h3><p lang="fa">برنامه می‌گوید log را در فایل داخلی می‌نویسد، اما <code>docker logs web</code> خالی است. دو احتمال مستقل را نام ببر.</p><p lang="en">The app says it writes logs to an internal file, but <code>docker logs web</code> is empty. Name two independent possibilities.</p><details class="ex-sol"><summary><span lang="fa">مسیر خروجی برنامه یا logging driver</span><span lang="en">App output path or logging driver</span></summary><p lang="fa">برنامه شاید فقط فایل داخلی را می‌نویسد نه stdout/stderr؛ یا driver خواندن محلی را پشتیبانی نمی‌کند و log را جای دیگری می‌فرستد. اول مسیر خروجی برنامه را روشن کن، بعد driver و مقصد را بررسی کن.</p><p lang="en">The app may write only to an internal file instead of stdout/stderr, or the driver may not support local reads and may forward elsewhere. Confirm the app output path, then inspect the driver and destination.</p></details></div>
-
-  <div class="ex" id="ex-10-16"><h3><span lang="fa">۱۶. log را بعد از rm می‌خواهی</span><span lang="en">16. You need logs after rm</span></h3><p lang="fa">container حذف شده و می‌خواهی خروجی‌اش را با <code>docker logs</code> بخوانی. پیش از rm چه باید می‌کردی؟</p><p lang="en">The container is removed and you want its output with <code>docker logs</code>. What should you have done before rm?</p><details class="ex-sol"><summary><span lang="fa">مدرک را ذخیره یا به مقصد پایدار بفرست</span><span lang="en">Capture or forward the evidence durably</span></summary><p lang="fa">پیش از حذف log و inspect لازم را جمع می‌کردی یا logging driver/سامانهٔ بیرونی با نگه‌داری مناسب داشتی. پس از remove شاید lookup محلی ممکن نباشد؛ مقصد بیرونی می‌تواند مستقل باقی بماند. نگه‌داری را به container حذف‌شده نسپار.</p><p lang="en">Before removal, capture relevant logs and inspect data or use a logging driver/external system with suitable retention. Local lookup may no longer work after removal, though an external sink may retain records. Do not rely on a removed container for retention.</p></details></div>
-
-  <div class="ex" id="ex-10-17"><h3><span lang="fa">۱۷. healthcheck ارزان طراحی کن</span><span lang="en">17. Design a cheap healthcheck</span></h3><p lang="fa">API برای health هر بار همهٔ جدول‌ها را scan و یک ردیف آزمایشی insert می‌کند. چه تغییری می‌دهی؟</p><p lang="en">An API scans every table and inserts a test row for each health probe. What would you change?</p><details class="ex-sol"><summary><span lang="fa">آزمون محدود و بدون mutation</span><span lang="en">A focused, read-only probe</span></summary><p lang="fa">اگر فقط پاسخ‌گویی process مهم است، endpoint سبک را بسنج. اگر آمادگی database هم بخشی از قرارداد است، از check کوتاه و read-only یا ابزار بومی استفاده کن، نه scan و insert پرتکرار. probe نباید داده بسازد یا dependency را زیر بار ببرد.</p><p lang="en">If process responsiveness is the promise, probe a lightweight endpoint. If database readiness is part of the contract, use a short read-only check or native tool rather than repeated scans and inserts. A probe should not mutate data or overload a dependency.</p></details></div>
-
-  <div class="ex" id="ex-10-18"><h3><span lang="fa">۱۸. سه مدرک در گزارش رخداد</span><span lang="en">18. Three signals in an incident note</span></h3><p lang="fa">container چند بار crash کرده و کاربر فقط می‌گوید «سرویس بد است». چه سه مدرکی را با زمان جمع می‌کنی و چه نتیجه‌ای را از آن‌ها نمی‌گیری؟</p><p lang="en">A container has crashed several times and the user only says “the service is bad.” Which three time-bounded pieces of evidence do you collect, and what do you avoid concluding?</p><details class="ex-sol"><summary><span lang="fa">state، health و log؛ با تفسیر محدود</span><span lang="en">State, health, and logs—with bounded conclusions</span></summary><p lang="fa">state، exit code و restart count؛ status و خروجی اخیر probe؛ و logهای پنجرهٔ crash را جمع کن. state به‌تنهایی کیفیت پاسخ را ثابت نمی‌کند، health فقط check تعریف‌شده را می‌سنجد و log ممکن است ناقص باشد. این‌ها نقطهٔ شروع عیب‌یابی‌اند، نه حکم نهایی.</p><p lang="en">Collect state, exit code, and restart count; health and recent probe output; and logs from the crash window. State alone does not prove response quality, health measures only the configured probe, and logs can be incomplete. These are diagnostic starting points, not a final verdict.</p></details></div>
+<h2><span lang="fa">۱۸ تمرین: اول بگو چه چیزی را می‌دانی، بعد دنبال چیزی برو که هنوز ثابت نشده</span><span lang="en">18 exercises: from predicting state to diagnosing cause</span></h2>
+<p class="lede" lang="fa">در این تمرین‌ها جواب خوب معمولاً یک دستور نیست؛ یک ترتیب فکر است. اول مشخص کن الان چه چیزی قطعی است: فرایند زنده است؟ health چه می‌گوید؟ لاگ چه سرنخی دارد؟ بعد فقط همان بررسی‌ای را انتخاب کن که یکی از سؤال‌های باز را جواب می‌دهد.</p>
+<p class="lede" lang="en">For each scenario, state what the evidence tells you and what is not yet proven. Open the solution after making a prediction or choosing a diagnostic command.</p>
+<div class="ex" id="ex-10-1"><h3><span lang="fa">۱. <code>Up</code> اما درخواست ناموفق</span><span lang="en">1. <code>Up</code>, but requests fail</span></h3><p lang="fa">container در <code>docker ps</code> برابر Up است، اما مسیر از مرورگر timeout می‌شود. این وضعیت چه چیزی را ثابت می‌کند و دو سؤال بعدی‌ات چیست؟</p><p lang="en">A container is Up in <code>docker ps</code>, but the browser request times out. What has this status proved, and what are two useful next questions?</p><details class="ex-sol"><summary><span lang="fa">فرایند زنده است؛ پاسخ‌گویی ثابت نشده</span><span lang="en">The process is alive; responsiveness is unproven</span></summary><p lang="fa">Up می‌گوید container در وضعیت اجراست، نه اینکه مسیر سالم است. اول port mapping و network را بررسی کن، بعد مسیر HTTP و log برنامه را بسنج. healthcheck هم فقط وقتی نشانه‌ای می‌دهد که آزمون معنادار تعریف شده باشد.</p><p lang="en">Up means the container is running, not that its endpoint is healthy. Check port mapping and networking, then test HTTP and inspect app logs. A healthcheck adds evidence only when its probe is meaningful.</p></details></div>
+<div class="ex" id="ex-10-2"><h3><span lang="fa">۲. وضعیت با health یکی نیست</span><span lang="en">2. State is not health</span></h3><p lang="fa">خروجی <code>state=running health=unhealthy</code> است. آیا با restart کردن Docker می‌تواند آن را سالم اعلام کند؟</p><p lang="en">Output says <code>state=running health=unhealthy</code>. Can restarting make Docker declare it healthy?</p><details class="ex-sol"><summary><span lang="fa">اول نتیجه و خروجی آزمون را بخوان</span><span lang="en">Read the probe result first</span></summary><p lang="fa">فرایند هنوز زنده است اما آزمون سلامت شکست خورده. restart شاید یک‌بار فرایند را از نو بسازد؛ اگر مسیر، port یا binary آزمون غلط باشد همان نتیجه برمی‌گردد. <code>.State.Health.Log</code> را با inspect بخوان و از روی آن فرض بعدی را انتخاب کن.</p><p lang="en">The process is alive, but its probe failed. A restart may recreate it once; a wrong endpoint, port, or probe binary will produce the same result. Read <code>.State.Health.Log</code> with inspect and use it to choose the next hypothesis.</p></details></div>
+<div class="ex" id="ex-10-3"><h3><span lang="fa">۳. خروجی آزمون برابر یک</span><span lang="en">3. The probe exits with one</span></h3><p lang="fa">در آخرین health record مقدار <code>ExitCode: 1</code> است. چه نتیجه‌ای مجاز است و چه نتیجه‌ای زودهنگام؟</p><p lang="en">The latest health record has <code>ExitCode: 1</code>. What conclusion is justified, and what is premature?</p><details class="ex-sol"><summary><span lang="fa">فرمان آزمون شکست خورده؛ علت هنوز معلوم نیست</span><span lang="en">The probe failed; the cause is still unknown</span></summary><p lang="fa">می‌دانیم همان اجرای آزمون ناموفق بوده؛ معلوم نیست برنامه خراب است یا فرمان، مسیر، port، permission یا dependency اشتباه است. خروجی همان مدخل را کنار log برنامه بخوان. exit code آزمون را با exit code فرایند اصلی اشتباه نگیر.</p><p lang="en">We know that probe invocation failed; we do not know whether the app, command, path, port, permissions, or dependency is wrong. Read the record output alongside app logs. Do not confuse the probe exit code with the main process exit code.</p></details></div>
+<div class="ex" id="ex-10-4"><h3><span lang="fa">۴. <code>curl</code> در image نیست</span><span lang="en">4. <code>curl</code> is missing from the image</span></h3><p lang="fa">image کوچک با <code>curl -f http://localhost/health</code> بررسی می‌شود و unhealthy است. خروجی <code>curl: not found</code> می‌گوید. چه چیزی را هنوز نسنجیده‌ایم؟</p><p lang="en">A slim image is probed with <code>curl -f http://localhost/health</code> and is unhealthy. Output says <code>curl: not found</code>. What have we not tested yet?</p><details class="ex-sol"><summary><span lang="fa">مسیر را هنوز اصلاً آزمون نکرده‌ایم</span><span lang="en">The endpoint has not been probed at all</span></summary><p lang="fa">executable آزمون در image نیست؛ این مدرک خرابی مسیر نیست. از ابزاری که وجود دارد استفاده کن یا ابزار کوچک و موجهی اضافه کن. نصب ابزار بزرگ فقط برای آزمون، حجم و سطح حمله را زیاد می‌کند.</p><p lang="en">The probe executable is absent; this is not evidence that the endpoint is broken. Use an existing tool or add a small justified one. Installing a large utility solely for the check increases image size and attack surface.</p></details></div>
+<div class="ex" id="ex-10-5"><h3><span lang="fa">۵. localhost در کدام container است؟</span><span lang="en">5. Which container owns localhost?</span></h3><p lang="fa">web روی port داخلی 8080 گوش می‌دهد، اما healthcheck در پایگاه‌داده به <code>localhost:8080</code> می‌زند و connection refused می‌گیرد. چرا؟</p><p lang="en">Web listens on internal port 8080, but a healthcheck in the database calls <code>localhost:8080</code> and gets connection refused. Why?</p><details class="ex-sol"><summary><span lang="fa">آزمون داخل خود پایگاه‌داده اجرا می‌شود</span><span lang="en">The probe runs inside the database container</span></summary><p lang="fa">healthcheck داخل همان container اجرا می‌شود که health آن را می‌سنجد؛ localhost به پایگاه‌داده برمی‌گردد، نه web. برای پایگاه‌داده از آزمون خودش مثل <code>pg_isready</code> استفاده کن.</p><p lang="en">The healthcheck runs inside the container it measures, so localhost points to the database, not web. Use a database-native probe such as <code>pg_isready</code>.</p></details></div>
+<div class="ex" id="ex-10-6"><h3><span lang="fa">۶. interval یک‌ثانیه‌ای</span><span lang="en">6. A one-second interval</span></h3><p lang="fa">سرویسی interval=1s و retries=1 دارد. چه خطرهایی می‌بینی و چه داده‌ای برای تنظیم بهتر جمع می‌کنی؟</p><p lang="en">A service uses interval=1s and retries=1. What risks do you see, and what data would guide better settings?</p><details class="ex-sol"><summary><span lang="fa">نوسان گذرا خیلی زود unhealthy می‌شود</span><span lang="en">A transient pause may trigger unhealthy too quickly</span></summary><p lang="fa">بار لحظه‌ای یا مکث کوتاه سریعاً وضعیت را قرمز می‌کند و خود آزمون هم بار اضافه دارد. زمان startup و پاسخ عادی و تحمل مصرف‌کننده را اندازه بگیر؛ بعد interval، timeout و retries را با آن‌ها موازنه کن.</p><p lang="en">A short pause or load spike can mark the service unhealthy quickly, while probes add load. Measure normal startup and response times and consumer tolerance, then balance interval, timeout, and retries against them.</p></details></div>
+<div class="ex" id="ex-10-7"><h3><span lang="fa">۷. اولین موفقیت در start period</span><span lang="en">7. The first success during start period</span></h3><p lang="fa">آزمون در ثانیهٔ ۲ fail، در ۵ موفق و در ۷ دوباره fail می‌شود. با <code>start_period: 10s</code> و <code>retries: 2</code> آیا شکست ثانیهٔ ۷ نادیده است؟</p><p lang="en">The probe fails at second 2, succeeds at 5, then fails at 7. With <code>start_period: 10s</code> and <code>retries: 2</code>, is the second-7 failure ignored?</p><details class="ex-sol"><summary><span lang="fa">نه؛ پس از نخستین موفقیت شکست‌ها دوباره شمرده می‌شوند</span><span lang="en">No; failures count again after the first success</span></summary><p lang="fa">شکست‌های پیش از اولین آزمون موفق در مهلت startup کنار گذاشته می‌شوند؛ بعد از موفقیت، شکست‌های بعدی به retries می‌روند، حتی اگر start period تمام نشده باشد. در ثانیهٔ ۷ شکست شمرده می‌شود.</p><p lang="en">Failures before the first successful probe are ignored during startup; after success, later failures count toward retries even before the start period ends. The second-7 failure counts.</p></details></div>
+<div class="ex" id="ex-10-8"><h3><span lang="fa">۸. dependency هنوز آماده نیست</span><span lang="en">8. The dependency is not ready yet</span></h3><p lang="fa">Compose فقط <code>web: depends_on: db</code> دارد. نخستین پرس‌وجو هنگام initialization پایگاه داده شکست می‌خورد. مدل را چطور اصلاح می‌کنی؟</p><p lang="en">Compose only has <code>web: depends_on: db</code>. The first query fails during database initialization. How do you improve the model?</p><details class="ex-sol"><summary><span lang="fa">healthcheck و شرط service_healthy</span><span lang="en">A healthcheck and service_healthy condition</span></summary><p lang="fa">برای db آزمون readiness معنادار بگذار و در web بنویس <code>condition: service_healthy</code>. short syntax ترتیب شروع را می‌دهد؛ شرط تازه startup را عقب می‌اندازد تا آزمون موفق شود. این جای retry برنامه در اتصال‌های بعدی را نمی‌گیرد.</p><p lang="en">Give db a meaningful readiness probe and set <code>condition: service_healthy</code> for web. Short syntax only orders startup; the condition waits for a successful check. It does not replace app retries for later connections.</p></details></div>
+<div class="ex" id="ex-10-9"><h3><span lang="fa">۹. آزمون همیشه موفق</span><span lang="en">9. A check that always succeeds</span></h3><p lang="fa">healthcheck با <code>curl ... || true</code> حتی با پاسخ HTTP 500 سبز می‌ماند. کدام قسمت شکست را پنهان کرده؟</p><p lang="en">A healthcheck using <code>curl ... || true</code> stays green despite HTTP 500. Which part hides the failure?</p><details class="ex-sol"><summary><span lang="fa"><code>true</code> exit وضعیت نهایی را صفر می‌کند</span><span lang="en"><code>true</code> makes the final status successful</span></summary><p lang="fa">وقتی curl fail می‌شود، shell به‌خاطر <code>|| true</code> فرمان موفق اجرا می‌کند؛ healthcheck فقط وضعیت نهایی را می‌بیند. عبارت را بردار و پاسخ خراب را عمداً امتحان کن تا آزمون واقعاً fail شود.</p><p lang="en">When curl fails, the shell runs a successful command because of <code>|| true</code>; the healthcheck sees only the final status. Remove it and deliberately test a failing response.</p></details></div>
+<div class="ex" id="ex-10-10"><h3><span lang="fa">۱۰. exit code دو</span><span lang="en">10. Exit code two</span></h3><p lang="fa">ابزار healthcheck برای ورودی نامعتبر exit code دو می‌دهد. آیا این کد را برای معنی ویژهٔ خودت به‌کار ببر؟</p><p lang="en">A healthcheck tool exits with code two on invalid input. Should you use that code for a custom meaning?</p><details class="ex-sol"><summary><span lang="fa">نه؛ دو برای Docker رزرو است</span><span lang="en">No; Docker reserves code two</span></summary><p lang="fa">قرارداد healthcheck صفر را موفق و یک را ناموفق می‌داند؛ دو رزرو شده است. wrapper را طوری بنویس که خطاهای ورودی را به یک تبدیل کند و پیام کوتاه بدهد.</p><p lang="en">The healthcheck contract uses zero for success and one for failure; two is reserved. Make a wrapper map invalid input to one and emit a short message.</p></details></div>
+<div class="ex" id="ex-10-11"><h3><span lang="fa">۱۱. سیاست برای کار دسته‌ای</span><span lang="en">11. A policy for a batch job</span></h3><p lang="fa">یک worker با موفقیت exit صفر می‌کند؛ شکست موقت را حداکثر دو بار باید retry کند. کدام سیاست مناسب است و چه خطر جانبی را می‌سنجی؟</p><p lang="en">A worker exits zero on success and should retry transient failures at most twice. Which policy fits, and what side effect must you consider?</p><details class="ex-sol"><summary><span lang="fa"><code>on-failure:2</code>، اگر تکرار امن باشد</span><span lang="en"><code>on-failure:2</code>, if repetition is safe</span></summary><p lang="fa">این سیاست فقط خروج ناموفق را تا سقف تعیین‌شده retry می‌کند؛ خروج صفر پایان طبیعی است. مطمئن شو retry عملیات غیرتکرارپذیر را دوباره ثبت یا side effect ناخواسته ایجاد نمی‌کند.</p><p lang="en">This policy retries non-zero exits up to the limit; zero remains normal completion. Ensure a retry cannot duplicate a non-idempotent operation or cause an unwanted side effect.</p></details></div>
+<div class="ex" id="ex-10-12"><h3><span lang="fa">۱۲. توقف دستی پس از reboot</span><span lang="en">12. A manual stop across reboot</span></h3><p lang="fa">اپراتور container را دستی متوقف کرده و میزبان reboot می‌شود. کدام سیاست برای حفظ این توقف طراحی شده؟</p><p lang="en">An operator manually stops a container and the host reboots. Which policy is designed to preserve that stop?</p><details class="ex-sol"><summary><span lang="fa"><code>unless-stopped</code></span><span lang="en"><code>unless-stopped</code></span></summary><p lang="fa">این سیاست توقف صریح را پس از restart شدن daemon حفظ می‌کند؛ رفتار را مستند کن تا توقف عمدی با ازکارافتادن اشتباه نشود. <code>always</code> در این مرز فرق دارد.</p><p lang="en">This policy honors an explicit stop across daemon restart. Document that behavior so an intentional stop is not mistaken for a crash; <code>always</code> differs at this boundary.</p></details></div>
+<div class="ex" id="ex-10-13"><h3><span lang="fa">۱۳. unhealthy شد اما restart نشد</span><span lang="en">13. Unhealthy, but not restarted</span></h3><p lang="fa">healthcheck چند بار fail شده و container unhealthy است، اما restart تعداد ثابت مانده. آیا این اشکال است؟</p><p lang="en">The healthcheck failed repeatedly and the container is unhealthy, but restart count is unchanged. Is this a bug?</p><details class="ex-sol"><summary><span lang="fa">نه؛ فرایند خارج نشده است</span><span lang="en">No; the process has not exited</span></summary><p lang="fa">health نتیجهٔ آزمون را نگه می‌دارد، اما restart سیاست به خروج فرایند واکنش دارد. اگر فرایند زنده است، restart تعداد لزوماً تغییر نمی‌کند. واکنش به unhealthy نیازمند سازوکار بالاتری است که بیرون از دامنهٔ این فصل است.</p><p lang="en">Health records the probe result, while restart policy responds to process exit. If it remains alive, the restart count need not change. Acting on unhealthy requires a higher-level mechanism outside this chapter’s scope.</p></details></div>
+<div class="ex" id="ex-10-14"><h3><span lang="fa">۱۴. علت تکراری در ازکارافتادن loop</span><span lang="en">14. A repeated cause in a crash loop</span></h3><p lang="fa">وضعیت گاهی Restarting است، restart تعداد بالا می‌رود و هر تلاش log می‌کند <code>missing DB_HOST</code>. آیا retry بیشتر درمان است؟</p><p lang="en">State intermittently shows Restarting, restart count rises, and every attempt logs <code>missing DB_HOST</code>. Will more retries fix it?</p><details class="ex-sol"><summary><span lang="fa">نه؛ پیکربندی هر بار ناقص است</span><span lang="en">No; configuration is missing on every attempt</span></summary><p lang="fa">log علت تکرارشونده را نشان می‌دهد؛ سیاست فقط فرایند را دوباره اجرا می‌کند. ورودی Compose را اصلاح کن و container را با تنظیمات تازه recreate کن. شمار restartها تأیید می‌کند حلقه متوقف شده، نه اینکه علت خودبه‌خود اصلاح شده باشد.</p><p lang="en">Logs show the repeated cause; the policy only reruns the process. Fix Compose input and recreate with the corrected config. Restart count can confirm the loop stopped, not that the cause fixed itself.</p></details></div>
+<div class="ex" id="ex-10-15"><h3><span lang="fa">۱۵. چرا <code>docker logs</code> خالی است؟</span><span lang="en">15. Why are <code>docker logs</code> empty?</span></h3><p lang="fa">برنامه می‌گوید log را در فایل داخلی می‌نویسد، اما <code>docker logs web</code> خالی است. دو احتمال مستقل را نام ببر.</p><p lang="en">The app says it writes logs to an internal file, but <code>docker logs web</code> is empty. Name two independent possibilities.</p><details class="ex-sol"><summary><span lang="fa">مسیر خروجی برنامه یا logging درایور</span><span lang="en">App output path or logging driver</span></summary><p lang="fa">برنامه شاید فقط فایل داخلی را می‌نویسد نه stdout/stderr؛ یا درایور خواندن محلی را پشتیبانی نمی‌کند و log را جای دیگری می‌فرستد. اول مسیر خروجی برنامه را روشن کن، بعد درایور و مقصد را بررسی کن.</p><p lang="en">The app may write only to an internal file instead of stdout/stderr, or the driver may not support local reads and may forward elsewhere. Confirm the app output path, then inspect the driver and destination.</p></details></div>
+<div class="ex" id="ex-10-16"><h3><span lang="fa">۱۶. log را بعد از rm می‌خواهی</span><span lang="en">16. You need logs after rm</span></h3><p lang="fa">container حذف شده و می‌خواهی خروجی‌اش را با <code>docker logs</code> بخوانی. پیش از rm چه باید می‌کردی؟</p><p lang="en">The container is removed and you want its output with <code>docker logs</code>. What should you have done before rm?</p><details class="ex-sol"><summary><span lang="fa">مدرک را ذخیره یا به مقصد پایدار بفرست</span><span lang="en">Capture or forward the evidence durably</span></summary><p lang="fa">پیش از حذف log و inspect لازم را جمع می‌کردی یا logging درایور/سامانهٔ بیرونی با نگه‌داری مناسب داشتی. پس از remove شاید lookup محلی ممکن نباشد؛ مقصد بیرونی می‌تواند مستقل باقی بماند. نگه‌داری را به container حذف‌شده نسپار.</p><p lang="en">Before removal, capture relevant logs and inspect data or use a logging driver/external system with suitable retention. Local lookup may no longer work after removal, though an external sink may retain records. Do not rely on a removed container for retention.</p></details></div>
+<div class="ex" id="ex-10-17"><h3><span lang="fa">۱۷. healthcheck ارزان طراحی کن</span><span lang="en">17. Design a cheap healthcheck</span></h3><p lang="fa">API برای health هر بار همهٔ جدول‌ها را scan و یک ردیف آزمایشی insert می‌کند. چه تغییری می‌دهی؟</p><p lang="en">An API scans every table and inserts a test row for each health probe. What would you change?</p><details class="ex-sol"><summary><span lang="fa">آزمون محدود و بدون mutation</span><span lang="en">A focused, read-only probe</span></summary><p lang="fa">اگر فقط پاسخ‌گویی فرایند مهم است، مسیر سبک را بسنج. اگر آمادگی پایگاه‌داده هم بخشی از قرارداد است، از آزمون کوتاه و read-only یا ابزار بومی استفاده کن، نه scan و insert پرتکرار. آزمون نباید داده بسازد یا dependency را زیر بار ببرد.</p><p lang="en">If process responsiveness is the promise, probe a lightweight endpoint. If database readiness is part of the contract, use a short read-only check or native tool rather than repeated scans and inserts. A probe should not mutate data or overload a dependency.</p></details></div>
+<div class="ex" id="ex-10-18"><h3><span lang="fa">۱۸. سه مدرک در گزارش رخداد</span><span lang="en">18. Three signals in an incident note</span></h3><p lang="fa">container چند بار ازکارافتادن کرده و کاربر فقط می‌گوید «سرویس بد است». چه سه مدرکی را با زمان جمع می‌کنی و چه نتیجه‌ای را از آن‌ها نمی‌گیری؟</p><p lang="en">A container has crashed several times and the user only says “the service is bad.” Which three time-bounded pieces of evidence do you collect, and what do you avoid concluding?</p><details class="ex-sol"><summary><span lang="fa">وضعیت، health و log؛ با تفسیر محدود</span><span lang="en">State, health, and logs—with bounded conclusions</span></summary><p lang="fa">وضعیت، exit code و restart تعداد؛ وضعیت و خروجی اخیر آزمون؛ و logهای پنجرهٔ ازکارافتادن را جمع کن. وضعیت به‌تنهایی کیفیت پاسخ را ثابت نمی‌کند، health فقط آزمون تعریف‌شده را می‌سنجد و log ممکن است ناقص باشد. این‌ها نقطهٔ شروع عیب‌یابی‌اند، نه حکم نهایی.</p><p lang="en">Collect state, exit code, and restart count; health and recent probe output; and logs from the crash window. State alone does not prove response quality, health measures only the configured probe, and logs can be incomplete. These are diagnostic starting points, not a final verdict.</p></details></div>
 </section>
-
 <section id="lab">
-  <h2><span lang="fa">آزمایشگاه: یک فرایند، سه نشانه، یک بازیابی واقعی</span><span lang="en">Lab: one process, three signals, one verified recovery</span></h2>
-  <p class="lede" lang="fa">یک web کوچک می‌سازیم که برای آماده‌شدن شش ثانیه وقت می‌خواهد، endpoint سلامت دارد و رویدادهای مهم را log می‌کند. بعد فقط یک چیز را هر بار خراب می‌کنیم: اول health endpoint را بی‌آنکه process بایستد، بعد خود process را. هدف فقط سبزشدن Docker نیست؛ state، health و log باید جداگانه برای recovery مدرک بدهند.</p>
-  <p class="lede" lang="en">We will run a tiny web service that takes six seconds to become ready, exposes a health endpoint, and logs important events. Then we break one thing at a time: first health while the process stays up, then the process itself. The goal is not just a green Docker display; state, health, and logs must each provide evidence of recovery.</p>
-
-  <h3><span lang="fa">۱. پوشهٔ آزمایشی بساز و برنامه را بخوان</span><span lang="en">1. Create a disposable folder and read the app</span></h3>
-  <p lang="fa">از پوشه‌ای تازه شروع کن تا پروژه‌ها و volumeهای فصل‌های قبل تغییر نکنند. فایل‌های زیر را همان‌جا بساز. این server فقط برای lab است؛ داده یا credential واقعی در آن نگذار.</p>
-  <p lang="en">Start in a fresh folder so projects and volumes from earlier chapters remain untouched. Create the files there. This server is lab-only; do not use real data or credentials.</p>
-  <div class="term"><div class="term-bar"><span class="term-label">PowerShell · isolated workspace</span><button class="copy">کپی</button></div>
-    <pre dir="ltr">New-Item -ItemType Directory -Path .\health-lab
+<h2><span lang="fa">آزمایشگاه: یک سرویس را سالم، ناسالم و ازکارافتاده ببین و فرقشان را با چشم خودت ثابت کن</span><span lang="en">Lab: one process, three signals, one verified recovery</span></h2>
+<p class="lede" lang="fa">یک وب کوچک می‌سازیم که شش ثانیه برای آماده‌شدن وقت می‌خواهد. بعد دو خرابی جدا ایجاد می‌کنیم: اول فقط health endpoint را خراب می‌کنیم درحالی‌که فرایند و صفحهٔ اصلی هنوز کار می‌کنند؛ بعد خود فرایند را از کار می‌اندازیم. هدف این است که با وضعیت، health و لاگ سه داستان متفاوت را از هم جدا کنی.</p>
+<p class="lede" lang="en">We will run a tiny web service that takes six seconds to become ready, exposes a health endpoint, and logs important events. Then we break one thing at a time: first health while the process stays up, then the process itself. The goal is not just a green Docker display; state, health, and logs must each provide evidence of recovery.</p>
+<h3><span lang="fa">۱. پوشهٔ آزمایشی بساز و برنامه را بخوان</span><span lang="en">1. Create a disposable folder and read the app</span></h3>
+<p lang="fa">تمرین را در پوشه‌ای تازه انجام بده تا هیچ منبعی از فصل‌های قبل دست نخورد. این سرویس فقط برای آزمایش است؛ داده یا رمز واقعی واردش نکن. در پایان هم قبل از پاک‌کردن container، لاگ و تعداد restart را نگه دار تا مدرک عیب‌یابی از بین نرود.</p>
+<p lang="en">Start in a fresh folder so projects and volumes from earlier chapters remain untouched. Create the files there. This server is lab-only; do not use real data or credentials.</p>
+<div class="term"><div class="term-bar"><span class="term-label">PowerShell · isolated workspace</span><button class="copy">کپی</button></div>
+<pre dir="ltr">New-Item -ItemType Directory -Path .\health-lab
 Set-Location .\health-lab</pre>
-  </div>
-  <p lang="fa">در همان پوشه فایل <code>app.py</code> را بساز. زمان آغاز، آمادگی را تعیین می‌کند؛ وجود <code>health.fail</code> فقط endpoint سلامت را ناموفق می‌کند. مسیر <code>/_crash</code> پاسخ می‌دهد و کمی بعد فرایند اصلی را با exit code آزمایشی ۲۳ خارج می‌کند.</p>
-  <p lang="en">Create <code>app.py</code> in the same folder. Elapsed time controls readiness; the presence of <code>health.fail</code> makes only the health endpoint fail. The <code>/_crash</code> route responds and shortly afterward exits the main process with disposable code 23.</p>
-  <div class="term"><div class="term-bar"><span class="term-label">app.py · local, disposable web server</span><button class="copy">کپی</button></div>
-    <pre dir="ltr">import json
+</div>
+<p lang="fa">در همان پوشه فایل <code>app.py</code> را بساز. زمان آغاز، آمادگی را تعیین می‌کند؛ وجود <code>health.fail</code> فقط مسیر سلامت را ناموفق می‌کند. مسیر <code>/_crash</code> پاسخ می‌دهد و کمی بعد فرایند اصلی را با exit code آزمایشی ۲۳ خارج می‌کند.</p>
+<p lang="en">Create <code>app.py</code> in the same folder. Elapsed time controls readiness; the presence of <code>health.fail</code> makes only the health endpoint fail. The <code>/_crash</code> route responds and shortly afterward exits the main process with disposable code 23.</p>
+<div class="term"><div class="term-bar"><span class="term-label">app.py · local, disposable web server</span><button class="copy">کپی</button></div>
+<pre dir="ltr">import json
 import os
 import threading
 import time
@@ -428,7 +459,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         global reported_ready
         elapsed = time.monotonic() - STARTED
-            if self.path == "/health":
+        if self.path == "/health":
             if elapsed &lt; READY_AFTER:
                 return self.reply(503, "starting")
             if os.path.exists("/app/health.fail"):
@@ -453,15 +484,14 @@ class Handler(BaseHTTPRequestHandler):
 
 log("process_started", ready_after_seconds=READY_AFTER)
 ThreadingHTTPServer(("0.0.0.0", 8080), Handler).serve_forever()</pre>
-  </div>
-  <p lang="fa">رویدادهای شروع، آمادگی، درخواست زودهنگام، درخواست موفق و crash عمدی log می‌شوند. probeهای عادی را ثبت نمی‌کنیم تا خروجی با پیام تکراری شلوغ نشود. اگر کد را تغییر دادی، <code>python -m py_compile app.py</code> را اجرا کن؛ نبود خروجی فقط نحو را تأیید می‌کند، نه رفتار server را.</p>
-  <p lang="en">Startup, readiness, early requests, successful requests, and the deliberate crash are logged. Routine probes are omitted to keep output readable. If you edit the code, run <code>python -m py_compile app.py</code>; no output confirms syntax only, not server behavior.</p>
-
-  <h3><span lang="fa">۲. Compose را با healthcheck و restart policy بساز</span><span lang="en">2. Add a healthcheck and restart policy in Compose</span></h3>
-  <p lang="fa">فایل <code>compose.yaml</code> را کنار برنامه بساز. پوشه read-only mount شده، پس container نمی‌تواند خودش marker را بسازد یا پاک کند؛ تغییر را از host کنترل می‌کنیم.</p>
-  <p lang="en">Create <code>compose.yaml</code> beside the app. The folder is mounted read-only, so the container cannot create or remove the marker; we control that change from the host.</p>
-  <div class="term"><div class="term-bar"><span class="term-label">compose.yaml · the probe can fail without stopping the process</span><button class="copy">کپی</button></div>
-    <pre dir="ltr">services:
+</div>
+<p lang="fa">رویدادهای شروع، آمادگی، درخواست زودهنگام، درخواست موفق و ازکارافتادن عمدی log می‌شوند. probeهای عادی را ثبت نمی‌کنیم تا خروجی با پیام تکراری شلوغ نشود. اگر کد را تغییر دادی، <code>python -m py_compile app.py</code> را اجرا کن؛ نبود خروجی فقط نحو را تأیید می‌کند، نه رفتار server را.</p>
+<p lang="en">Startup, readiness, early requests, successful requests, and the deliberate crash are logged. Routine probes are omitted to keep output readable. If you edit the code, run <code>python -m py_compile app.py</code>; no output confirms syntax only, not server behavior.</p>
+<h3><span lang="fa">۲. Compose را با healthcheck و restart سیاست بساز</span><span lang="en">2. Add a healthcheck and restart policy in Compose</span></h3>
+<p lang="fa">فایل <code>compose.yaml</code> را کنار برنامه بساز. پوشه read-only mount شده، پس container نمی‌تواند خودش نشانگر را بسازد یا پاک کند؛ تغییر را از میزبان کنترل می‌کنیم.</p>
+<p lang="en">Create <code>compose.yaml</code> beside the app. The folder is mounted read-only, so the container cannot create or remove the marker; we control that change from the host.</p>
+<div class="term"><div class="term-bar"><span class="term-label">compose.yaml · the probe can fail without stopping the process</span><button class="copy">کپی</button></div>
+<pre dir="ltr">services:
   web:
     image: python:3.13-alpine
     command: ["python", "-u", "/app/app.py"]
@@ -477,179 +507,104 @@ ThreadingHTTPServer(("0.0.0.0", 8080), Handler).serve_forever()</pre>
       start_period: 8s
       start_interval: 1s
     restart: unless-stopped</pre>
-  </div>
-  <p lang="fa">این تنظیم برای <code>start_interval</code> به Compose 2.20.2+ و Engine 25.0+ نیاز دارد. نسخه را با <code>docker compose version</code> بررسی کن؛ اگر قدیمی است خط <code>start_interval</code> را بردار، interval معمولی همچنان کار می‌کند. Python داخل image ابزار آزمون هم هست، پس به وجود curl وابسته نیستیم.</p>
-  <p lang="en">This configuration needs Compose 2.20.2+ and Engine 25.0+ for <code>start_interval</code>. Check with <code>docker compose version</code>; on an older version remove that line, and the ordinary interval still works. Python is already present in the image, so the probe does not depend on curl.</p>
-
-  <h3><span lang="fa">۳. baseline را ببین: starting بعد healthy</span><span lang="en">3. Observe the baseline: starting, then healthy</span></h3>
-  <p lang="fa">پروژه را با نام یکتای <code>health-lab</code> بالا بیاور تا منابعش از تمرین‌های دیگر جدا بمانند. هم‌زمان state و health را بخوان.</p>
-  <p lang="en">Start the project with the unique name <code>health-lab</code> so its resources stay separate from other exercises. Read state and health as it starts.</p>
-  <div class="term"><div class="term-bar"><span class="term-label">start and sample more than once</span><button class="copy">کپی</button></div>
-    <pre dir="ltr">docker compose -p health-lab up -d
+</div>
+<p lang="fa">این تنظیم برای <code>start_interval</code> به Compose 2.20.2+ و Engine 25.0+ نیاز دارد. نسخه را با <code>docker compose version</code> بررسی کن؛ اگر قدیمی است خط <code>start_interval</code> را بردار، interval معمولی همچنان کار می‌کند. Python داخل image ابزار آزمون هم هست، پس به وجود curl وابسته نیستیم.</p>
+<p lang="en">This configuration needs Compose 2.20.2+ and Engine 25.0+ for <code>start_interval</code>. Check with <code>docker compose version</code>; on an older version remove that line, and the ordinary interval still works. Python is already present in the image, so the probe does not depend on curl.</p>
+<h3><span lang="fa">۳. baseline را ببین: starting بعد healthy</span><span lang="en">3. Observe the baseline: starting, then healthy</span></h3>
+<p lang="fa">پروژه را با نام یکتای <code>health-lab</code> بالا بیاور تا منابعش از تمرین‌های دیگر جدا بمانند. هم‌زمان وضعیت و health را بخوان.</p>
+<p lang="en">Start the project with the unique name <code>health-lab</code> so its resources stay separate from other exercises. Read state and health as it starts.</p>
+<div class="term"><div class="term-bar"><span class="term-label">start and sample more than once</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker compose -p health-lab up -d
 docker compose -p health-lab ps
 $cid = docker compose -p health-lab ps -q web
 docker inspect --format 'state={{.State.Status}} health={{.State.Health.Status}}' $cid
 Start-Sleep -Seconds 3
 docker compose -p health-lab ps
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8090/</pre>
-  </div>
-  <p lang="fa">بار نخست باید Running و starting ببینی؛ چند ثانیه بعد healthy و پاسخ صفحه <code>web is ready</code>. state اصلی در هر دو لحظه Running است. اگر دیر نمونه گرفتی و فقط healthy دیدی، سرویس را restart کن و بلافاصله مشاهده را تکرار کن.</p>
-  <p lang="en">The first sample should show Running and starting; a few seconds later, healthy and a page response of <code>web is ready</code>. Ordinary state is Running at both times. If you sampled too late and saw only healthy, restart the service and sample immediately.</p>
-
-  <h3><span lang="fa">۴. health را خراب کن، نه process را</span><span lang="en">4. Break health, not the process</span></h3>
-  <p lang="fa">marker را روی host بساز؛ container فقط آن را می‌خواند. چند interval صبر کن، هر دو status را ببین و مسیر معمول را جدا امتحان کن.</p>
-  <p lang="en">Create the marker on the host; the container only reads it. Wait several intervals, inspect both statuses, and test the normal route separately.</p>
-  <div class="term"><div class="term-bar"><span class="term-label">host change + Docker observations</span><button class="copy">کپی</button></div>
-    <pre dir="ltr">New-Item -ItemType File -Path .\health.fail
+</div>
+<p lang="fa">بار نخست باید Running و starting ببینی؛ چند ثانیه بعد healthy و پاسخ صفحه <code>web is ready</code>. وضعیت اصلی در هر دو لحظه Running است. اگر دیر نمونه گرفتی و فقط healthy دیدی، سرویس را restart کن و بلافاصله مشاهده را تکرار کن.</p>
+<p lang="en">The first sample should show Running and starting; a few seconds later, healthy and a page response of <code>web is ready</code>. Ordinary state is Running at both times. If you sampled too late and saw only healthy, restart the service and sample immediately.</p>
+<h3><span lang="fa">۴. health را خراب کن، نه فرایند را</span><span lang="en">4. Break health, not the process</span></h3>
+<p lang="fa">نشانگر را روی میزبان بساز؛ container فقط آن را می‌خواند. چند interval صبر کن، هر دو وضعیت را ببین و مسیر معمول را جدا امتحان کن.</p>
+<p lang="en">Create the marker on the host; the container only reads it. Wait several intervals, inspect both statuses, and test the normal route separately.</p>
+<div class="term"><div class="term-bar"><span class="term-label">host change + Docker observations</span><button class="copy">کپی</button></div>
+<pre dir="ltr">New-Item -ItemType File -Path .\health.fail
 Start-Sleep -Seconds 8
 docker compose -p health-lab ps
 $cid = docker compose -p health-lab ps -q web
 docker inspect --format 'state={{.State.Status}} health={{.State.Health.Status}} failing={{.State.Health.FailingStreak}}' $cid
 docker inspect --format '{{json .State.Health.Log}}' $cid
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8090/</pre>
-  </div>
-  <p lang="fa">انتظار داریم state هنوز Running باشد، health برابر unhealthy شود و مسیر عادی همچنان موفق جواب دهد. marker فقط health endpoint را خراب کرده، نه process یا صفحه. اگر هر دو درخواست شکست خوردند، مسیر برنامه یا port را جدا بررسی کن.</p>
-  <p lang="en">We expect state to remain Running, health to become unhealthy, and the normal route to keep succeeding. The marker broke only the health endpoint, not the process or page. If both requests fail, inspect the app or port separately.</p>
-
-  <h3><span lang="fa">۵. marker را بردار و سلامت را دوباره ثابت کن</span><span lang="en">5. Remove the marker and prove health again</span></h3>
-  <p lang="fa">فایل را از host پاک کن، نه container را restart. check بعدی باید موفق شود و health از unhealthy به healthy برگردد، درحالی‌که همان process هنوز زنده است.</p>
-  <p lang="en">Remove the host file without restarting the container. A later probe should pass and health should move from unhealthy back to healthy while the same process remains alive.</p>
-  <div class="term"><div class="term-bar"><span class="term-label">repair only the health condition</span><button class="copy">کپی</button></div>
-    <pre dir="ltr">Remove-Item -LiteralPath .\health.fail
+</div>
+<p lang="fa">انتظار داریم وضعیت هنوز Running باشد، health برابر unhealthy شود و مسیر عادی همچنان موفق جواب دهد. نشانگر فقط health مسیر را خراب کرده، نه فرایند یا صفحه. اگر هر دو درخواست شکست خوردند، مسیر برنامه یا port را جدا بررسی کن.</p>
+<p lang="en">We expect state to remain Running, health to become unhealthy, and the normal route to keep succeeding. The marker broke only the health endpoint, not the process or page. If both requests fail, inspect the app or port separately.</p>
+<h3><span lang="fa">۵. نشانگر را بردار و سلامت را دوباره ثابت کن</span><span lang="en">5. Remove the marker and prove health again</span></h3>
+<p lang="fa">فایل را از میزبان پاک کن، نه container را restart. آزمون بعدی باید موفق شود و health از unhealthy به healthy برگردد، درحالی‌که همان فرایند هنوز زنده است.</p>
+<p lang="en">Remove the host file without restarting the container. A later probe should pass and health should move from unhealthy back to healthy while the same process remains alive.</p>
+<div class="term"><div class="term-bar"><span class="term-label">repair only the health condition</span><button class="copy">کپی</button></div>
+<pre dir="ltr">Remove-Item -LiteralPath .\health.fail
 Start-Sleep -Seconds 4
 docker compose -p health-lab ps
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8090/</pre>
-  </div>
-  <p lang="fa">این recovery سلامت است: علت خطای endpoint برداشته شد و check آن را تأیید کرد. حالا logهای همان service را بخوان و event آمادگی و درخواست موفق را پیدا کن:</p>
-  <p lang="en">This is health recovery: the endpoint failure was removed and the probe confirmed it. Read the service logs and find readiness and successful-request events:</p>
-  <div class="term"><div class="term-bar"><span class="term-label">bounded, timestamped evidence</span><button class="copy">کپی</button></div>
-    <pre dir="ltr">docker compose -p health-lab logs --timestamps --since=10m --tail=30 web</pre>
-  </div>
-
-  <h3><span lang="fa">۶. process را خارج کن و بازیابی را سه‌گانه بسنج</span><span lang="en">6. Exit the process and verify recovery through all three signals</span></h3>
-  <p lang="fa">حالا مسیر crash را صدا بزن. PowerShell ممکن است هم‌زمان با قطع اتصال خطا نشان دهد؛ این آزمایش عمداً process را پس از پاسخ خارج می‌کند. چند ثانیه بعد state، restart count و log را ببین.</p>
-  <p lang="en">Call the crash route. PowerShell may report a connection interruption because the experiment exits the process just after the response. A few seconds later inspect state, restart count, and logs.</p>
-  <div class="term"><div class="term-bar"><span class="term-label">controlled process exit and observation</span><button class="copy">کپی</button></div>
-    <pre dir="ltr">try { Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8090/_crash } catch { $_.Exception.Message }
+</div>
+<p lang="fa">این بازیابی سلامت است: علت خطای مسیر برداشته شد و آزمون آن را تأیید کرد. حالا logهای همان service را بخوان و event آمادگی و درخواست موفق را پیدا کن:</p>
+<p lang="en">This is health recovery: the endpoint failure was removed and the probe confirmed it. Read the service logs and find readiness and successful-request events:</p>
+<div class="term"><div class="term-bar"><span class="term-label">bounded, timestamped evidence</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker compose -p health-lab logs --timestamps --since=10m --tail=30 web</pre>
+</div>
+<h3><span lang="fa">۶. فرایند را خارج کن و بازیابی را سه‌گانه بسنج</span><span lang="en">6. Exit the process and verify recovery through all three signals</span></h3>
+<p lang="fa">حالا مسیر ازکارافتادن را صدا بزن. PowerShell ممکن است هم‌زمان با قطع اتصال خطا نشان دهد؛ این آزمایش عمداً فرایند را پس از پاسخ خارج می‌کند. چند ثانیه بعد وضعیت، restart تعداد و log را ببین.</p>
+<p lang="en">Call the crash route. PowerShell may report a connection interruption because the experiment exits the process just after the response. A few seconds later inspect state, restart count, and logs.</p>
+<div class="term"><div class="term-bar"><span class="term-label">controlled process exit and observation</span><button class="copy">کپی</button></div>
+<pre dir="ltr">try { Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8090/_crash } catch { $_.Exception.Message }
 Start-Sleep -Seconds 3
 docker compose -p health-lab ps
 $cid = docker compose -p health-lab ps -q web
 docker inspect --format 'state={{.State.Status}} exit={{.State.ExitCode}} restarts={{.RestartCount}} health={{.State.Health.Status}}' $cid
 docker compose -p health-lab logs --timestamps --tail=40 web</pre>
-  </div>
-  <p lang="fa">چون container از قبل بیش از ده ثانیه اجرا شده، <code>unless-stopped</code> باید process تازه‌ای بسازد. restart count باید افزایش یابد؛ هنگام نمونه‌گیری health ممکن است دوباره starting باشد چون process تازه هم شش ثانیه زمان لازم دارد. log باید crash و شروع بعدی را نشان دهد. چند ثانیه صبر کن و healthy و پاسخ صفحه را دوباره تأیید کن؛ این‌ها با هم مدرک recovery هستند.</p>
-  <p lang="en">Because the container has already run for more than ten seconds, <code>unless-stopped</code> should start a new process. Restart count should rise; at sampling time health may be starting again because the new process also needs six seconds. Logs should show the crash and next startup. Wait a little, then confirm healthy and a successful page response; together these are evidence of recovery.</p>
-
-  <h3><span lang="fa">۷. مدرک را نگه دار و بعد cleanup کن</span><span lang="en">7. Preserve evidence, then clean up</span></h3>
-  <p lang="fa">پیش از حذف، یادداشت کن: Up با starting چه تفاوتی داشت؛ هنگام unhealthy آیا process هنوز Running بود؛ و restart را کدام مدرک‌ها نشان دادند؟ بعد منابع Compose را جمع کن. volume نساخته‌ایم و cleanup به پوشه‌های دیگر دست نمی‌زند.</p>
-  <p lang="en">Before cleanup, note how Up differed from starting, whether the process stayed Running while unhealthy, and which evidence showed the restart. Then remove this Compose project. We created no volume, and cleanup does not touch other folders.</p>
-  <div class="term"><div class="term-bar"><span class="term-label">scoped cleanup · run from health-lab</span><button class="copy">کپی</button></div>
-    <pre dir="ltr">docker compose -p health-lab down
+</div>
+<p lang="fa">چون container از قبل بیش از ده ثانیه اجرا شده، <code>unless-stopped</code> باید فرایند تازه‌ای بسازد. restart تعداد باید افزایش یابد؛ هنگام نمونه‌گیری health ممکن است دوباره starting باشد چون فرایند تازه هم شش ثانیه زمان لازم دارد. log باید ازکارافتادن و شروع بعدی را نشان دهد. چند ثانیه صبر کن و healthy و پاسخ صفحه را دوباره تأیید کن؛ این‌ها با هم مدرک بازیابی هستند.</p>
+<p lang="en">Because the container has already run for more than ten seconds, <code>unless-stopped</code> should start a new process. Restart count should rise; at sampling time health may be starting again because the new process also needs six seconds. Logs should show the crash and next startup. Wait a little, then confirm healthy and a successful page response; together these are evidence of recovery.</p>
+<h3><span lang="fa">۷. مدرک را نگه دار و بعد پاک‌سازی کن</span><span lang="en">7. Preserve evidence, then clean up</span></h3>
+<p lang="fa">پیش از حذف، یادداشت کن: Up با starting چه تفاوتی داشت؛ هنگام unhealthy آیا فرایند هنوز Running بود؛ و restart را کدام مدرک‌ها نشان دادند؟ بعد منابع Compose را جمع کن. volume نساخته‌ایم و پاک‌سازی به پوشه‌های دیگر دست نمی‌زند.</p>
+<p lang="en">Before cleanup, note how Up differed from starting, whether the process stayed Running while unhealthy, and which evidence showed the restart. Then remove this Compose project. We created no volume, and cleanup does not touch other folders.</p>
+<div class="term"><div class="term-bar"><span class="term-label">scoped cleanup · run from health-lab</span><button class="copy">کپی</button></div>
+<pre dir="ltr">docker compose -p health-lab down
 if (Test-Path -LiteralPath .\health.fail) { Remove-Item -LiteralPath .\health.fail }
 Set-Location ..</pre>
-  </div>
-  <p lang="fa">container را پیش از جمع‌آوری log و restart count حذف نکن. فایل‌های <code>app.py</code> و <code>compose.yaml</code> آزمایشی را می‌توانی نگه داری؛ اگر خواستی پوشه را پاک کنی، اول مسیر دقیق را بررسی کن. در محیط واقعی برای نگه‌داری بلندمدت باید logging مقصد و retention جداگانه داشته باشی.</p>
-  <p lang="en">Do not remove the container before collecting logs and restart count. You may keep the lab’s <code>app.py</code> and <code>compose.yaml</code>; if you delete the folder, verify its exact path first. In a real environment, durable retention requires a separately configured logging destination and policy.</p>
+</div>
+<p lang="fa">container را پیش از جمع‌آوری log و restart تعداد حذف نکن. فایل‌های <code>app.py</code> و <code>compose.yaml</code> آزمایشی را می‌توانی نگه داری؛ اگر خواستی پوشه را پاک کنی، اول مسیر دقیق را بررسی کن. در محیط واقعی برای نگه‌داری بلندمدت باید logging مقصد و retention جداگانه داشته باشی.</p>
+<p lang="en">Do not remove the container before collecting logs and restart count. You may keep the lab’s <code>app.py</code> and <code>compose.yaml</code>; if you delete the folder, verify its exact path first. In a real environment, durable retention requires a separately configured logging destination and policy.</p>
 </section>
-
-<section id="signals">
-  <h2><span lang="fa">وضعیت، سلامت و لاگ سه سؤال متفاوت‌اند</span><span lang="en">State, health, and logs answer different questions</span></h2>
-  <p lang="fa">وضعیت می‌گوید فرایند اصلی چه می‌کند. healthcheck می‌گوید آزمونی که خودمان تعریف کرده‌ایم چه نتیجه‌ای داشته. لاگ می‌گوید برنامه چه چیزی روی خروجی استاندارد یا خطایش نوشته است. هیچ‌کدام به‌تنهایی جای دو تای دیگر را نمی‌گیرد.</p>
-  <p lang="en">State tells us what the main process is doing. A healthcheck tells us whether our chosen test passed. Logs tell us what the application wrote to its standard output or error stream. None substitutes for the other two.</p>
-  <div class="table-wrap"><table class="doc-table">
-    <thead><tr><th>نشانه / Signal</th><th>چه می‌پرسد؟ / Question</th><th>نمونه / Example</th><th>چه چیزی را ثابت نمی‌کند؟ / Does not prove</th></tr></thead>
-    <tbody>
-      <tr><td>State</td><td>فرایند اصلی زنده است؟</td><td><code>docker ps -a</code></td><td>برنامه به درخواست‌ها جواب می‌دهد</td></tr>
-      <tr><td>Health</td><td>آزمون تنظیم‌شده موفق شده؟</td><td><code>docker inspect</code>، <code>docker ps</code></td><td>همهٔ مسیرهای کاربر یا dependencyها سالم‌اند</td></tr>
-      <tr><td>Logs</td><td>برنامه چه رویداد یا خطایی گزارش کرده؟</td><td><code>docker logs</code></td><td>هیچ داده‌ای گم یا ثبت‌نشده نمانده</td></tr>
-    </tbody>
-  </table></div>
-  <p lang="fa">وضعیت زنده‌بودن process را نشان می‌دهد، health فقط آزمون تنظیم‌شده را، و log گزارش خود برنامه را؛ هیچ‌کدام به‌تنهایی پوشش کامل سلامت یا ثبت همهٔ رویدادها را ثابت نمی‌کند.</p>
-  <p lang="en">State shows process liveness, health reports only the configured test, and logs contain the app’s own reports; none alone proves complete service health or capture of every event.</p>
-  <div class="diagram">
-    <svg viewBox="0 0 940 270" role="img" aria-labelledby="c10-signals-title">
-      <title id="c10-signals-title">State, health, and logs are independent observation channels about one container</title>
-      <g text-anchor="middle">
-        <rect class="dg-fill-v" x="335" y="20" width="270" height="72" rx="14"/><text class="dg-t" x="470" y="51">one container</text><text class="dg-ts" x="470" y="74">one running application</text>
-        <rect class="dg-fill-b" x="30" y="165" width="245" height="78" rx="14"/><text class="dg-t" x="152" y="197">state</text><text class="dg-ts" x="152" y="221">running / exited</text>
-        <rect class="dg-fill-g" x="348" y="165" width="245" height="78" rx="14"/><text class="dg-t" x="470" y="197">health</text><text class="dg-ts" x="470" y="221">starting / healthy / unhealthy</text>
-        <rect class="dg-fill-w" x="665" y="165" width="245" height="78" rx="14"/><text class="dg-t" x="787" y="197">logs</text><text class="dg-ts" x="787" y="221">what the process reported</text>
-      </g>
-      <g class="dg-stroke-b" stroke-width="2"><path d="M405 92L170 160"/><path d="M470 92v66"/><path d="M535 92l235 68"/></g>
-    </svg>
-    <p class="diagram-cap" lang="fa">هر سه مسیر یک container را مشاهده می‌کنند، اما هرکدام نوع دیگری از مدرک را برمی‌گردانند.</p>
-    <p class="diagram-cap" lang="en">All three channels observe one container, but each returns a different kind of evidence.</p>
-  </div>
-  <p lang="fa">این وضعیت‌ها تناقض ندارند: <code>Running + unhealthy</code> یعنی فرایند هست اما آزمون سلامت شکست خورده؛ <code>Exited</code> همراه لاگ مفید یعنی فرایند تمام شده ولی ردّی برای تشخیص داریم؛ و <code>Restarting</code> همراه خطای تکراری یعنی policy دوباره تلاش می‌کند، نه اینکه علت را درمان کرده باشد.</p>
-  <p lang="en">These combinations are not contradictions: <code>Running + unhealthy</code> means the process exists while its probe fails; <code>Exited</code> with useful logs means the process ended but left diagnostic evidence; and <code>Restarting</code> with repeated errors means a policy is retrying, not curing the cause.</p>
-</section>
-
-<section id="healthcheck">
-  <h2><span lang="fa"><code>HEALTHCHECK</code> چه کاری انجام می‌دهد؟</span><span lang="en">What does <code>HEALTHCHECK</code> do?</span></h2>
-  <p class="lede" lang="fa">فرض کن وب‌سرور process زنده‌ای دارد، اما دیگر درخواست HTTP را پاسخ نمی‌دهد. Docker از بیرون فقط زنده‌بودن process را می‌بیند. <code>HEALTHCHECK</code> به image یا سرویس می‌گوید چه فرمانی را در container اجرا کند تا نشانه‌ای کاربردی از سلامت یا آمادگی بگیرد.</p>
-  <p class="lede" lang="en">Imagine a web server with a live process that no longer answers HTTP requests. From outside, Docker sees only that the process is alive. <code>HEALTHCHECK</code> tells an image or service which command to run inside the container to get a useful signal about health or readiness.</p>
-  <p lang="fa">در Dockerfile فقط یک دستور <code>HEALTHCHECK</code> مؤثر است؛ اگر چند بار بیاید، آخری جای قبلی را می‌گیرد. دو فرم اصلی دارد: اجرای فرمان برای سنجش، یا خاموش‌کردن healthcheck به‌ارث‌رسیده از image پایه.</p>
-  <p lang="en">Only one <code>HEALTHCHECK</code> instruction takes effect in a Dockerfile; if several appear, the last one wins. Its two main forms run a test command or disable a healthcheck inherited from a base image.</p>
-  <div class="term"><div class="term-bar"><span class="term-label">Dockerfile · only if curl exists in this image</span><button class="copy">کپی</button></div>
-    <pre dir="ltr">HEALTHCHECK --interval=30s --timeout=3s \
-  --start-period=20s --start-interval=2s --retries=3 \
-  CMD ["curl", "-f", "http://127.0.0.1:8080/health"]</pre>
-  </div>
-  <p lang="fa">نمونه فقط وقتی کار می‌کند که image واقعاً <code>curl</code> داشته باشد و برنامه روی همان پورت endpoint سلامت را پاسخ دهد. Docker فرمان را داخل container اجرا می‌کند. فرم آرایه‌ای/exec از shell استفاده نمی‌کند؛ اگر به pipe یا شرط shell نیاز داری، فرم shell را آگاهانه انتخاب کن و مطمئن شو shell هم در image هست.</p>
-  <p lang="en">This example works only if the image contains <code>curl</code> and the application serves that endpoint on the stated port. Docker runs the command inside the container. Exec/array form does not invoke a shell; if you need a pipe or shell condition, choose shell form deliberately and ensure the image contains a shell.</p>
-  <div class="table-wrap"><table class="doc-table">
-    <thead><tr><th>گزینه / Option</th><th>نقش / Purpose</th><th>نکتهٔ عملی / Practical reading</th></tr></thead>
-    <tbody>
-      <tr><td><code>test</code> / <code>CMD</code></td><td>فرمان آزمون و کد خروج آن</td><td><code>0</code> موفق، <code>1</code> ناموفق؛ <code>2</code> رزرو است</td></tr>
-      <tr><td><code>interval</code></td><td>فاصلهٔ معمول میان اجرای آزمون</td><td>check را بی‌جهت هر ثانیه اجرا نکن</td></tr>
-      <tr><td><code>timeout</code></td><td>حداکثر زمان هر اجرا</td><td>اگر طول بکشد همان check شکست می‌خورد</td></tr>
-      <tr><td><code>retries</code></td><td>شکست‌های پی‌درپی تا unhealthy</td><td>وقفهٔ گذرا را با خرابی پایدار یکی نکن</td></tr>
-      <tr><td><code>start_period</code></td><td>مهلت راه‌اندازی برای شکست‌های آغازین</td><td>پس از اولین check موفق، شکست‌های بعدی شمرده می‌شوند</td></tr>
-      <tr><td><code>start_interval</code></td><td>فاصلهٔ check در دورهٔ آغاز</td><td>Engine 25.0+؛ Compose 2.20.2+</td></tr>
-    </tbody>
-  </table></div>
-  <p lang="fa">فرمان test کد موفقیت یا شکست را می‌دهد؛ interval فاصلهٔ اجراها، timeout سقف هر اجرا و retries شمار شکست‌های پی‌درپی را تعیین می‌کند. start period به برنامه فرصت آغاز می‌دهد و start interval آهنگ آزمون را در همان بازه تنظیم می‌کند؛ گزینهٔ آخر به نسخه‌های تازه نیاز دارد.</p>
-  <p lang="en">The test command supplies the pass/fail exit code; interval sets cadence, timeout bounds each run, and retries count consecutive failures. Start period gives the app initialization time, while start interval adjusts probe cadence in that window and requires recent versions.</p>
-  <p lang="fa">پیش‌فرض Docker برای <code>interval</code> و <code>timeout</code> هرکدام ۳۰ ثانیه، برای <code>retries</code> سه بار، برای <code>start_period</code> صفر و برای <code>start_interval</code> پنج ثانیه است. در دورهٔ آغاز checkها با start interval اجرا می‌شوند. شکست‌ها تا قبل از نخستین موفقیت از شمار retries کنار گذاشته می‌شوند؛ با اولین موفقیت، شکست‌های متوالی دوباره حساب می‌شوند، حتی اگر start period هنوز تمام نشده باشد.</p>
-  <p lang="en">Docker defaults to 30 seconds for both <code>interval</code> and <code>timeout</code>, three retries, a zero <code>start_period</code>, and a five-second <code>start_interval</code>. During startup, probes use the start interval. Failures before the first success do not count toward retries; after the first success, consecutive failures count even if the start period has not elapsed.</p>
-  <div class="note safe"><div class="note-t"><span lang="fa">check خوب سریع و بدون تغییر داده است</span><span lang="en">A good check is quick and read-only</span></div>
-    <p lang="fa">یک endpoint سبک مثل <code>/health</code> یا فرمان بومی سرویس را بسنج. check نباید رکورد بسازد، migration اجرا کند یا فایل پاک کند. آزمون گران و پرتکرار خودش می‌تواند به منبع بار تبدیل شود.</p>
-    <p lang="en">Probe a lightweight endpoint such as <code>/health</code> or a service-native command. A check should not create rows, run migrations, or delete files. An expensive probe run frequently can become load of its own.</p>
-  </div>
-  <p lang="fa">آیا <code>curl localhost</code> کافی است؟ شاید، اگر وعدهٔ موردنظر پاسخ HTTP از همان process باشد. شاید نه، اگر مسیر اصلی خراب باشد یا برنامه به dependency لازم وصل نشود؛ و اگر curl در image نباشد اصلاً check اجرا نمی‌شود. آزمون را به وعده‌ای وصل کن که برای مصرف‌کننده مهم است، اما آن را به بررسی سنگین همهٔ سرویس‌های بیرونی تبدیل نکن.</p>
-  <p lang="en">Is <code>curl localhost</code> enough? Perhaps, if the promise you care about is an HTTP response from that process. Perhaps not, if the main route is broken or a required dependency is unreachable; and if curl is absent, the probe cannot run at all. Test the promise that matters to consumers without turning the check into an expensive sweep of every external service.</p>
-</section>
-
 <section id="handoff">
-  <h2><span lang="fa">سه مشاهده را برای سه سؤال نگه دار</span><span lang="en">Keep three observations for three questions</span></h2>
-  <p lang="fa">state گفت process هست یا خارج شده؛ healthcheck گفت آزمون انتخاب‌شده موفق است یا نه؛ و log نشان داد برنامه چه رویدادی گزارش کرده. فرایند زنده می‌تواند unhealthy باشد، container خارج‌شده log مفید داشته باشد و restart loop لحظه‌ای Running نشان دهد بی‌آنکه مشکل حل شده باشد.</p>
-  <p lang="en">State told us whether the process existed or exited; healthcheck told us whether the chosen test passed; logs showed what the application reported. A live process can be unhealthy, an exited container can retain useful logs, and a restart loop can briefly show Running without fixing anything.</p>
-  <div class="table-wrap"><table class="doc-table">
-    <thead><tr><th>سؤال / Question</th><th>مدرک نخست / First evidence</th><th>محدودیت / Limitation</th></tr></thead>
-    <tbody>
-      <tr><td>فرایند زنده است؟</td><td>state، exit code</td><td>زنده‌بودن یعنی پاسخ‌گویی نیست</td></tr>
-      <tr><td>آزمون سلامت می‌گذرد؟</td><td>health و خروجی probe</td><td>فقط وعدهٔ تعریف‌شده را می‌سنجد</td></tr>
-      <tr><td>چه اتفاقی افتاد؟</td><td>logهای زمان‌دار</td><td>ممکن است ناقص یا بیرون از driver محلی باشند</td></tr>
-    </tbody>
-  </table></div>
-  <p lang="fa">برای زنده‌بودن فرایند state و exit code را بخوان؛ برای آزمون تعریف‌شده health و خروجی probe را ببین؛ و برای بازسازی رویدادها log زمان‌دار را جمع کن. هر نشانه محدودیت دارد و به‌تنهایی حکم نهایی نیست.</p>
-  <p lang="en">Use state and exit code for process liveness, health and probe output for the configured test, and timestamped logs to reconstruct events. Every signal has limits and none is a verdict by itself.</p>
-  <p lang="fa">این فصل metrics، dashboard، log مرکزی یا orchestration نساخت؛ فقط مشاهدهٔ یک container را دقیق‌تر کرد. فصل بعد image را در registry منتشر می‌کند: وقتی image از ماشین تو بیرون می‌رود، باید بدانی کدام نسخه را push و pull کرده‌ای و نشانهٔ هویت آن چیست.</p>
-  <p lang="en">This chapter did not build metrics, dashboards, centralized logging, or orchestration; it sharpened how to observe one container. Next we publish images to a registry. Once an image leaves your machine, you need to know which version was pushed and pulled and what identifies it.</p>
+<h2><span lang="fa">اگر فقط یک چیز از این فصل یادت بماند: <code>Running</code> جواب همهٔ سؤال‌ها نیست</span><span lang="en">Keep three observations for three questions</span></h2>
+<p lang="fa">وضعیت می‌گوید فرایند اصلی زنده است یا نه؛ healthcheck نتیجهٔ آزمونی را می‌گوید که خودمان تعریف کرده‌ایم؛ و لاگ روایت برنامه از اتفاقات است. ممکن است فرایند زنده ولی unhealthy باشد، یا container خارج شده باشد و لاگ خوبی برای تشخیص باقی گذاشته باشد.</p>
+<p lang="en">State told us whether the process existed or exited; healthcheck told us whether the chosen test passed; logs showed what the application reported. A live process can be unhealthy, an exited container can retain useful logs, and a restart loop can briefly show Running without fixing anything.</p>
+<div class="table-wrap"><table class="doc-table">
+<thead><tr><th>سؤال / Question</th><th>مدرک نخست / First evidence</th><th>محدودیت / Limitation</th></tr></thead>
+<tbody>
+<tr><td>فرایند زنده است؟</td><td>state، exit code</td><td>زنده‌بودن یعنی پاسخ‌گویی نیست</td></tr>
+<tr><td>آزمون سلامت می‌گذرد؟</td><td>health و خروجی probe</td><td>فقط وعدهٔ تعریف‌شده را می‌سنجد</td></tr>
+<tr><td>چه اتفاقی افتاد؟</td><td>logهای زمان‌دار</td><td>ممکن است ناقص یا بیرون از driver محلی باشند</td></tr>
+</tbody>
+</table></div>
+<p lang="fa">برای یک رخداد واقعی هر سه را کنار زمان بخوان: وضعیت و exit code، نتیجهٔ healthcheck و لاگ همان بازه. هیچ‌کدام به‌تنهایی حکم نهایی نیستند، اما کنار هم خیلی سریع‌تر نشان می‌دهند سؤال بعدی را باید کجا بپرسی.</p>
+<p lang="en">Use state and exit code for process liveness, health and probe output for the configured test, and timestamped logs to reconstruct events. Every signal has limits and none is a verdict by itself.</p>
+<p lang="fa">این فصل metrics، dashboard، log مرکزی یا orchestration نساخت؛ فقط مشاهدهٔ یک container را دقیق‌تر کرد. فصل بعد image را در registry منتشر می‌کند: وقتی image از ماشین تو بیرون می‌رود، باید بدانی کدام نسخه را push و pull کرده‌ای و نشانهٔ هویت آن چیست.</p>
+<p lang="en">This chapter did not build metrics, dashboards, centralized logging, or orchestration; it sharpened how to observe one container. Next we publish images to a registry. Once an image leaves your machine, you need to know which version was pushed and pulled and what identifies it.</p>
 </section>
-
 <section id="quick">
-  <h2><span lang="fa">مرجع سریع</span><span lang="en">Quick reference</span></h2>
-  <div class="cheat">
-    <div class="cheat-row"><code>docker ps -a</code><span lang="fa">state را ببین؛ <code>Up</code> به‌معنی healthy نیست</span><span lang="en">read state; <code>Up</code> does not mean healthy</span></div>
-    <div class="cheat-row"><code>docker inspect --format '{{json .State.Health}}' NAME</code><span lang="fa">وضعیت health و اجرای probe را بخوان</span><span lang="en">read health status and probe records</span></div>
-    <div class="cheat-row"><code>condition: service_healthy</code><span lang="fa">برای آمادگی startup dependency در Compose صبر کن</span><span lang="en">wait for dependency readiness during Compose startup</span></div>
-    <div class="cheat-row"><code>restart: unless-stopped</code><span lang="fa">رفتار exit را مشخص کن؛ علت را تعمیر نمی‌کند</span><span lang="en">choose exit behavior; it does not fix the cause</span></div>
-    <div class="cheat-row"><code>{{.RestartCount}}</code><span lang="fa">تعداد restart را کنار exit و log بخوان</span><span lang="en">read restart count alongside exit state and logs</span></div>
-    <div class="cheat-row"><code>docker logs -f --tail=20 NAME</code><span lang="fa">خطوط تازه را دنبال کن، نه همهٔ گذشته را</span><span lang="en">follow new output without dumping all history</span></div>
-    <div class="cheat-row"><code>docker compose logs --since=5m web db</code><span lang="fa">بازه‌ای محدود از چند service را مقایسه کن</span><span lang="en">compare a bounded window across services</span></div>
-    <div class="cheat-row"><code>docker inspect --format '{{.HostConfig.LogConfig.Type}}' NAME</code><span lang="fa">وقتی log محلی نیست driver را بررسی کن</span><span lang="en">inspect the driver when local logs are missing</span></div>
-  </div>
-  <p lang="fa">برای رفتار جاری، مرجع رسمی <a href="https://docs.docker.com/reference/dockerfile/#healthcheck">Dockerfile <code>HEALTHCHECK</code></a>، <a href="https://docs.docker.com/reference/compose-file/services/#healthcheck">healthcheck سرویس Compose</a>، <a href="https://docs.docker.com/compose/how-tos/startup-order/">ترتیب شروع و <code>service_healthy</code></a>، <a href="https://docs.docker.com/engine/containers/start-containers-automatically/">restart policyها</a>، <a href="https://docs.docker.com/reference/cli/docker/container/logs/">گزینه‌های <code>docker logs</code></a>، <a href="https://docs.docker.com/engine/logging/">خواندن log container</a> و <a href="https://docs.docker.com/engine/logging/configure/">logging driver و rotation</a> را ببین. پشتیبانی <code>start_interval</code> به نسخهٔ Compose و Engine وابسته است.</p>
-  <p lang="en">For current behavior, consult the official references for Dockerfile <a href="https://docs.docker.com/reference/dockerfile/#healthcheck"><code>HEALTHCHECK</code></a>, <a href="https://docs.docker.com/reference/compose-file/services/#healthcheck">Compose service healthchecks</a>, <a href="https://docs.docker.com/compose/how-tos/startup-order/">startup order and <code>service_healthy</code></a>, <a href="https://docs.docker.com/engine/containers/start-containers-automatically/">restart policies</a>, <a href="https://docs.docker.com/reference/cli/docker/container/logs/"><code>docker logs</code> options</a>, <a href="https://docs.docker.com/engine/logging/">reading container logs</a>, and <a href="https://docs.docker.com/engine/logging/configure/">logging drivers and rotation</a>. <code>start_interval</code> support depends on Compose and Engine versions.</p>
+<h2><span lang="fa">مرجع سریع</span><span lang="en">Quick reference</span></h2>
+<div class="cheat">
+<div class="cheat-row"><code>docker ps -a</code><span lang="fa">وضعیت را ببین؛ <code>Up</code> به‌معنی healthy نیست</span><span lang="en">read state; <code>Up</code> does not mean healthy</span></div>
+<div class="cheat-row"><code>docker inspect --format '{{json .State.Health}}' NAME</code><span lang="fa">وضعیت health و اجرای آزمون را بخوان</span><span lang="en">read health status and probe records</span></div>
+<div class="cheat-row"><code>condition: service_healthy</code><span lang="fa">برای آمادگی startup dependency در Compose صبر کن</span><span lang="en">wait for dependency readiness during Compose startup</span></div>
+<div class="cheat-row"><code>restart: unless-stopped</code><span lang="fa">رفتار exit را مشخص کن؛ علت را تعمیر نمی‌کند</span><span lang="en">choose exit behavior; it does not fix the cause</span></div>
+<div class="cheat-row"><code>{{.RestartCount}}</code><span lang="fa">تعداد restart را کنار exit و log بخوان</span><span lang="en">read restart count alongside exit state and logs</span></div>
+<div class="cheat-row"><code>docker logs -f --tail=20 NAME</code><span lang="fa">خطوط تازه را دنبال کن، نه همهٔ گذشته را</span><span lang="en">follow new output without dumping all history</span></div>
+<div class="cheat-row"><code>docker compose logs --since=5m web db</code><span lang="fa">بازه‌ای محدود از چند service را مقایسه کن</span><span lang="en">compare a bounded window across services</span></div>
+<div class="cheat-row"><code>docker inspect --format '{{.HostConfig.LogConfig.Type}}' NAME</code><span lang="fa">وقتی log محلی نیست درایور را بررسی کن</span><span lang="en">inspect the driver when local logs are missing</span></div>
+</div>
+<p lang="fa">برای رفتار جاری، مرجع رسمی <a href="https://docs.docker.com/reference/dockerfile/#healthcheck">Dockerfile <code>HEALTHCHECK</code></a>، <a href="https://docs.docker.com/reference/compose-file/services/#healthcheck">healthcheck سرویس Compose</a>، <a href="https://docs.docker.com/compose/how-tos/startup-order/">ترتیب شروع و <code>service_healthy</code></a>، <a href="https://docs.docker.com/engine/containers/start-containers-automatically/">restart policyها</a>، <a href="https://docs.docker.com/reference/cli/docker/container/logs/">گزینه‌های <code>docker logs</code></a>، <a href="https://docs.docker.com/engine/logging/">خواندن log container</a> و <a href="https://docs.docker.com/engine/logging/configure/">logging درایور و rotation</a> را ببین. پشتیبانی <code>start_interval</code> به نسخهٔ Compose و Engine وابسته است.</p>
+<p lang="en">For current behavior, consult the official references for Dockerfile <a href="https://docs.docker.com/reference/dockerfile/#healthcheck"><code>HEALTHCHECK</code></a>, <a href="https://docs.docker.com/reference/compose-file/services/#healthcheck">Compose service healthchecks</a>, <a href="https://docs.docker.com/compose/how-tos/startup-order/">startup order and <code>service_healthy</code></a>, <a href="https://docs.docker.com/engine/containers/start-containers-automatically/">restart policies</a>, <a href="https://docs.docker.com/reference/cli/docker/container/logs/"><code>docker logs</code> options</a>, <a href="https://docs.docker.com/engine/logging/">reading container logs</a>, and <a href="https://docs.docker.com/engine/logging/configure/">logging drivers and rotation</a>. <code>start_interval</code> support depends on Compose and Engine versions.</p>
 </section>

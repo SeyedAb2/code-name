@@ -33,10 +33,10 @@ desc: Docker CLI، Engine، daemon و مسیر درخواست را بفهم؛ س
 </table>
 </div>
 <div class="diagram">
-<svg aria-labelledby="d2-request-flow" role="img" viewbox="0 0 860 430">
+<svg aria-labelledby="d2-request-flow" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 860 430">
 <title id="d2-request-flow">Docker CLI request path</title>
 <defs>
-<marker id="d2-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker>
+<marker id="d2-arrow" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker>
 </defs>
 <g class="dg-stroke-b" marker-end="url(#d2-arrow)" stroke-width="2">
 <path d="M430 58v28"></path><path d="M430 126v28"></path><path d="M430 194v28"></path><path d="M430 262v28"></path><path d="M430 330v28"></path>
@@ -151,9 +151,9 @@ Cannot connect to the Docker daemon at unix:///var/run/docker.sock.</pre>
 </table>
 </div>
 <div class="diagram">
-<svg aria-labelledby="d2-desktop-engine" role="img" viewbox="0 0 900 300">
+<svg aria-labelledby="d2-desktop-engine" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 900 300">
 <title id="d2-desktop-engine">Engine and Desktop relationship</title>
-<defs><marker id="d2-de-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<defs><marker id="d2-de-arrow" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
 <g class="dg-stroke-b" marker-end="url(#d2-de-arrow)" stroke-width="2">
 <path d="M210 150h90"></path><path d="M600 150h90"></path>
 </g>
@@ -289,9 +289,9 @@ docker ps</pre>
 <p lang="fa">فرض کن در PowerShell دستور docker ps کاملاً کار می‌کند، اما همان دستور داخل Ubuntu خطا می‌دهد. این عجیب نیست. PowerShell و Ubuntu دو محیط جدا هستند و هرکدام CLI و مسیر اتصال خودشان را دارند. ممکن است هر دو در نهایت به همان Docker Engine برسند، اما راه رسیدنشان یکی نیست.</p>
 <p lang="en">This is where a misleading diagram can do more damage than a weak paragraph. The Windows CLI and the Linux CLI inside Ubuntu are different executables in different environments. Both <em>can</em> reach Docker Desktop’s backend, but they do not follow an identical path. WSL Integration matters for the Linux distribution’s access; PowerShell should not be modeled as passing through a generic “WSL Integration layer.”</p>
 <div class="diagram">
-<svg aria-labelledby="d2-wsl-paths" role="img" viewbox="0 0 940 380">
+<svg aria-labelledby="d2-wsl-paths" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 940 380">
 <title id="d2-wsl-paths">Windows and WSL client paths to Docker Desktop Engine</title>
-<defs><marker id="d2-wsl-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<defs><marker id="d2-wsl-arrow" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
 <g class="dg-stroke-b" marker-end="url(#d2-wsl-arrow)" stroke-width="2">
 <path d="M195 95h105"></path><path d="M195 285h105"></path>
 <path d="M520 95h95"></path><path d="M520 285h95"></path>
@@ -356,9 +356,9 @@ docker ps -a --filter ancestor=hello-world</pre>
 <p class="lede" lang="fa">فرض کن فقط این جمله را می‌شنوی: «Docker کار نمی‌کند.» این هنوز هیچ چیزی به ما نمی‌گوید. باید خطا را مرحله‌به‌مرحله کوچک کنیم: آیا دستور docker پیدا می‌شود؟ آیا CLI به Engine وصل می‌شود؟ آیا مشکل دسترسی داریم؟ آیا روی Windows، WSL درست به Desktop متصل شده؟ هر جواب، چند احتمال را کنار می‌زند.</p>
 <p class="lede" lang="en">An error string is not a complete diagnosis; it is an observation. A strong flow is: symptom → suspected layer → diagnostic command → fix → verification.</p>
 <div class="diagram">
-<svg aria-labelledby="d2-debug-flow" role="img" viewbox="0 0 940 270">
+<svg aria-labelledby="d2-debug-flow" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 940 270">
 <title id="d2-debug-flow">Docker installation troubleshooting flow</title>
-<defs><marker id="d2-debug-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<defs><marker id="d2-debug-arrow" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
 <g class="dg-stroke-b" marker-end="url(#d2-debug-arrow)" stroke-width="2">
 <path d="M170 135h55"></path><path d="M370 135h55"></path><path d="M570 135h55"></path><path d="M770 135h55"></path>
 </g>

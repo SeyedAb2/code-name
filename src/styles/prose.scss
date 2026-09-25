@@ -12,11 +12,17 @@
    ========================================================================== */
 
 .prose {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+
   /* ── بخش‌ها ──────────────────────────────────────────────────────────── */
   section { scroll-margin-top: calc(var(--bar-h) + 20px); }
 
   > section {
     margin-bottom: 52px;
+    min-width: 0;
     /* فصل‌ها بلندند؛ چیزی که بیرون از دید است رندر نشود.
        ارتفاع تخمینی جلوی پریدن نوار اسکرول را می‌گیرد. */
     content-visibility: auto;
@@ -372,46 +378,6 @@
   /* ── نمودار ──────────────────────────────────────────────────────────── */
   figure { margin: 26px 0 30px; }
 
-  .diagram {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--r-lg);
-    padding: 20px 16px;
-    box-shadow: var(--shadow-1);
-    overflow-x: auto;
-
-    svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
-
-    /* رنگ‌ها از توکن‌ها می‌آیند، پس نمودار در هر دو تم درست است */
-    svg .dg-fill     { fill: var(--surface-sunk); }
-    svg .dg-fill-b   { fill: var(--tint-blue); }
-    svg .dg-fill-v   { fill: var(--tint-violet); }
-    svg .dg-fill-g   { fill: var(--tint-safe); }
-    svg .dg-fill-w   { fill: var(--tint-warn); }
-    svg .dg-stroke   { stroke: var(--line-strong); fill: none; }
-    svg .dg-stroke-b { stroke: var(--blue);   fill: none; }
-    svg .dg-stroke-v { stroke: var(--violet); fill: none; }
-    svg .dg-stroke-g { stroke: var(--safe);   fill: none; }
-    svg .dg-stroke-w { stroke: var(--warn);   fill: none; }
-    svg .dg-t  { fill: var(--ink);      font-family: var(--fa);   font-size: 13px; }
-    svg .dg-ts { fill: var(--ink-soft); font-family: var(--fa);   font-size: 11.5px; }
-    svg .dg-tm { fill: var(--ink-soft); font-family: var(--mono); font-size: 11px; }
-    svg .dg-tb { fill: var(--blue);     font-family: var(--mono); font-size: 11px; }
-    svg .dg-arrow   { fill: var(--line-strong); }
-    svg .dg-arrow-b { fill: var(--blue); }
-
-    /* Safe defaults for lesson SVGs that use native elements without classes. */
-    svg rect:not([class]) {
-      fill: var(--surface-sunk);
-      stroke: var(--line-strong);
-    }
-    svg text:not([class]) {
-      fill: var(--ink);
-      font-family: var(--mono);
-      font-size: 13px;
-    }
-  }
-
   figcaption {
     margin-top: 10px;
     font-size: .82rem;
@@ -563,7 +529,7 @@
     &:hover { border-color: var(--line-strong); }
     &.solved { border-color: color-mix(in srgb, var(--safe) 45%, transparent); }
 
-    > p, > ul, > ol, > .term, > .code, > details, > .note, > figure, > .table-wrap {
+    > h3, > p, > ul, > ol, > .term, > .code, > details, > .note, > figure, > .table-wrap {
       margin-inline: 16px;
     }
     > p { margin-top: 14px; max-width: none; }
@@ -851,8 +817,83 @@
     .masthead { padding: 22px 18px; border-radius: var(--r-lg); }
     .term pre, .code pre { font-size: 12.5px; padding: 13px; }
     .ex-h { padding: 10px 13px; }
-    .ex > p, .ex > ul, .ex > ol, .ex > .term, .ex > .code, .ex > details, .ex > .note {
+    .ex > h3, .ex > p, .ex > ul, .ex > ol, .ex > .term, .ex > .code, .ex > details, .ex > .note {
       margin-inline: 13px;
     }
+  }
+}
+
+/*
+ * Diagrams are emitted from hand-authored lesson HTML. Keep their styling
+ * independent of the prose wrapper so an imperfect/mixed HTML fragment can
+ * never leave an SVG with browser-default black fills and text.
+ */
+.diagram {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 20px 16px;
+  box-shadow: var(--shadow-1);
+  overflow-x: auto;
+
+  svg {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+  }
+
+  .diagram-cap {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    margin: 12px 0 0;
+    color: var(--ink-soft);
+    font-size: .88rem;
+    line-height: 1.8;
+    overflow-wrap: anywhere;
+    word-break: normal;
+    text-align: start;
+  }
+
+  .diagram-cap[lang="en"] { direction: ltr; text-align: left; }
+
+  svg .dg-fill     { fill: var(--surface-sunk); }
+  svg .dg-fill-b   { fill: var(--tint-blue); }
+  svg .dg-fill-v   { fill: var(--tint-violet); }
+  svg .dg-fill-g   { fill: var(--tint-safe); }
+  svg .dg-fill-w   { fill: var(--tint-warn); }
+  svg .dg-network-edge { fill: var(--tint-violet); stroke: var(--violet); stroke-width: 2; stroke-dasharray: 8 5; }
+  svg .dg-network-backend { fill: var(--tint-blue); stroke: var(--blue); stroke-width: 2; stroke-dasharray: 8 5; }
+  svg .dg-stroke   { stroke: var(--line-strong); fill: none; }
+  svg .dg-stroke-b { stroke: var(--blue); fill: none; }
+  svg .dg-stroke-v { stroke: var(--violet); fill: none; }
+  svg .dg-stroke-g { stroke: var(--safe); fill: none; }
+  svg .dg-stroke-w { stroke: var(--warn); fill: none; }
+  svg .dg-t  { fill: var(--ink); font-family: var(--fa); font-size: 13px; }
+  svg .dg-ts { fill: var(--ink-soft); font-family: var(--fa); font-size: 11.5px; }
+  svg .dg-tm { fill: var(--ink-soft); font-family: var(--mono); font-size: 11px; }
+  svg .dg-tb { fill: var(--blue); font-family: var(--mono); font-size: 11px; }
+  /* Lesson labels are technical/LTR by default; never inherit page RTL direction. */
+  svg text { direction: ltr; unicode-bidi: isolate; }
+  svg .dg-arrow   { fill: var(--line-strong); }
+  svg .dg-arrow-b { fill: var(--blue); }
+
+  svg rect:not([class]) { fill: var(--surface-sunk); stroke: var(--line-strong); }
+  svg text:not([class]) { fill: var(--ink); font-family: var(--mono); font-size: 13px; }
+}
+
+@media (max-width: 640px) {
+  .diagram svg {
+    width: 640px;
+    min-width: 640px;
+    max-width: none;
+    margin-inline: 0;
   }
 }

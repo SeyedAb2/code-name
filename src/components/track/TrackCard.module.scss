@@ -86,12 +86,16 @@
   height: 54px;
   flex: none;
   border-radius: 15px;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
   color: var(--acc, var(--blue));
   background: color-mix(in srgb, var(--acc, var(--blue)) 13%, transparent);
   border: 1px solid var(--line);
   transition: transform .3s cubic-bezier(.2, .8, .3, 1), background .3s;
+
+  svg { display: block; flex: none; }
 }
 
 .card:hover .logo {

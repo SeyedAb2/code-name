@@ -53,6 +53,9 @@ test-results/
 /tmp/
 /scratch/
 .cache/
+.claude/
+.codex/
+.next/
 
 # ─── دارایی‌های تولیدی ────────────────────────────────────────────────────
 # نسخه‌های لوگو را tools/make-logo.js از assets/images/logo.png می‌سازد،

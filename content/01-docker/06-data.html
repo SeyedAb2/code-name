@@ -58,9 +58,9 @@ file is gone</pre>
 <p lang="fa">فصل اول یک سرنخ به ما داده بود: image لایه‌های خواندنی دارد و container هنگام اجرا یک لایهٔ قابل‌نوشتن روی آن‌ها می‌گذارد. این لایه برای فایل موقت و تغییرات کوتاه‌مدت کاملاً طبیعی است. دردسر از جایی شروع می‌شود که چیزی مثل پایگاه‌داده، upload یا فایل مهم را هم همان‌جا بگذاریم و انتظار داشته باشیم بعد از حذف container زنده بماند.</p>
 <p lang="en">In Chapter 1 we saw that an image is made of read-only layers and a running container adds a read-write layer on top. When Docker changes a file, the changed version lives in that layer; the original image is untouched. This is useful for cache, temporary files, and short experiments, not for data that should live independently of a container.</p>
 <div class="diagram">
-<svg aria-labelledby="c6-layer-title" role="img" viewbox="0 0 980 330">
+<svg aria-labelledby="c6-layer-title" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 980 330">
 <title id="c6-layer-title">A writable layer survives stop and start but disappears when the container is removed</title>
-<defs><marker id="c6-layer-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<defs><marker id="c6-layer-arrow" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
 <g class="dg-stroke-b" marker-end="url(#c6-layer-arrow)" stroke-width="2">
 <path d="M205 96h90"></path><path d="M445 96h90"></path><path d="M685 96h90"></path>
 <path d="M330 232v45"></path><path d="M630 232v45"></path>
@@ -79,7 +79,7 @@ file is gone</pre>
 <rect class="dg-fill-b" height="38" rx="10" width="240" x="510" y="277"></rect>
 <text class="dg-t" x="630" y="302">new container → empty</text>
 </g>
-<text class="dg-ts" x="250" y="82">start from</text><text class="dg-ts" x="490" y="82">same lifecycle</text><text class="dg-ts" x="730" y="82">still attached</text>
+<text class="dg-ts" text-anchor="middle" x="250" y="42">start from</text><text class="dg-ts" text-anchor="middle" x="490" y="42">same lifecycle</text><text class="dg-ts" text-anchor="middle" x="730" y="42">still attached</text>
 <text class="dg-ts" x="353" y="255">destroy</text><text class="dg-ts" x="653" y="255">recreate</text>
 </svg>
 <p class="diagram-cap" lang="fa">فلش‌های ردیف بالا ادامهٔ همان کانتینر را نشان می‌دهند: <code>stop/start</code> فایل را نگه می‌دارد. فلش‌های پایین دو رویداد جدا را نشان می‌دهند: <code>rm</code> layer را از بین می‌برد و کانتینر تازه از image دوباره شروع می‌شود.</p>
@@ -107,9 +107,9 @@ file is gone</pre>
 </div>
 <p lang="en">For data generated or consumed by containers, a named volume is usually the natural choice. A volume has its own name, such as <code>demo-data</code>, and its lifetime is separate from a container. The container sees it at a path; Docker manages where it is stored.</p>
 <div class="diagram">
-<svg aria-labelledby="c6-volume-title" role="img" viewbox="0 0 930 270">
+<svg aria-labelledby="c6-volume-title" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 930 270">
 <title id="c6-volume-title">A container writes through a mounted data path into a named volume that another container can reuse</title>
-<defs><marker id="c6-volume-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<defs><marker id="c6-volume-arrow" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
 <g class="dg-stroke-b" marker-end="url(#c6-volume-arrow)" stroke-width="2">
 <path d="M255 135h115"></path><path d="M600 135h100"></path>
 </g>
@@ -121,7 +121,7 @@ file is gone</pre>
 <rect class="dg-fill-g" height="114" rx="12" width="205" x="700" y="78"></rect>
 <text class="dg-t" x="802" y="115">container B</text><text class="dg-ts" x="802" y="145">/data/report.txt</text><text class="dg-ts" x="802" y="170">same bytes</text>
 </g>
-<text class="dg-ts" x="310" y="125">mount at /data</text><text class="dg-ts" x="648" y="125">reuse same volume</text>
+<text class="dg-ts" text-anchor="middle" x="312" y="42">mount at /data</text><text class="dg-ts" text-anchor="middle" x="650" y="42">reuse same volume</text>
 </svg>
 <p class="diagram-cap" lang="fa">فلش اول می‌گوید مسیر <code>/data</code> داخل container به volume وصل شده و نوشتن از آن مسیر در <code>demo-data</code> ذخیره می‌شود. فلش دوم نشان می‌دهد container دیگری می‌تواند همان volume را دوباره mount کند.</p>
 <p class="diagram-cap" lang="en">The first arrow says that the container path <code>/data</code> is connected to the volume, so writes there land in <code>demo-data</code>. The second arrow shows another container mounting the same volume and seeing the same bytes.</p>
@@ -203,9 +203,9 @@ hide-demo</pre>
 <p lang="fa">گاهی برعکس volume، دقیقاً می‌خواهی همان فایلی که روی سیستم خودت ویرایش می‌کنی داخل container هم فوراً دیده شود. اینجا <em>bind mount</em> مناسب است: Docker یک مسیر واقعی از host را داخل container نشان می‌دهد. فایل هنوز مال host است؛ Docker فقط راه دسترسی را وصل می‌کند.</p>
 <p lang="en">With a bind mount, the source is a real path on the host. This is useful for source code, a local config file, output that must appear immediately on your machine, and everyday VS Code work. Docker does not own the data; it makes the host path visible inside the container.</p>
 <div class="diagram">
-<svg aria-labelledby="c6-bind-title" role="img" viewbox="0 0 950 285">
+<svg aria-labelledby="c6-bind-title" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 950 285">
 <title id="c6-bind-title">A host directory is bind-mounted into a container workspace and writes can flow back to the host</title>
-<defs><marker id="c6-bind-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<defs><marker id="c6-bind-arrow" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
 <g class="dg-stroke-b" marker-end="url(#c6-bind-arrow)" stroke-width="2">
 <path d="M270 115h145"></path><path d="M415 175H270"></path>
 <path d="M675 115h120"></path><path d="M795 175H675"></path>
@@ -219,7 +219,7 @@ hide-demo</pre>
 <text class="dg-t" x="860" y="101">container</text><text class="dg-ts" x="860" y="133">/workspace</text><text class="dg-ts" x="860" y="162">VS Code view</text><text class="dg-ts" x="860" y="190">can write</text>
 </g>
 <text class="dg-ts" x="342" y="105">read files</text><text class="dg-ts" x="342" y="194">save changes</text>
-<text class="dg-ts" x="732" y="105">visible</text><text class="dg-ts" x="732" y="194">writes host</text>
+<text class="dg-ts" text-anchor="middle" x="735" y="105">visible</text><text class="dg-ts" text-anchor="middle" x="735" y="194">writes host</text>
 </svg>
 <p class="diagram-cap" lang="fa">فلش رفت‌وبرگشت اول نشان می‌دهد فایل از <code>./site</code> خوانده می‌شود و ذخیرهٔ داخل کانتینر به host برمی‌گردد. فلش‌های دوم فقط قابل‌دیدن بودن همین مسیر را در <code>/workspace</code> نشان می‌دهند؛ Docker مالک پوشهٔ host نیست.</p>
 <p class="diagram-cap" lang="en">The first pair of arrows shows files read from <code>./site</code> and writes from the container returning to the host. The second pair shows the same path visible at <code>/workspace</code>; Docker does not own the host directory.</p>
@@ -331,9 +331,9 @@ $ docker exec -i pg-data psql -U postgres -c "SELECT id, body FROM notes;"
 <p lang="fa">اینجا یک دام مهم هست: «داده از container جدا شد» به معنی «پس پشتیبان داریم» نیست. اگر خود volume اشتباهی پاک شود یا دیسک خراب شود، اسم volume معجزه نمی‌کند. بنابراین باید یک نسخهٔ مستقل بیرون از همان volume بسازیم و مهم‌تر از آن، یک بار هم بازیابی‌اش را امتحان کنیم.</p>
 <p lang="en">Having a volume is not the same as having a backup. If you remove the wrong volume, Docker cannot guess the previous version. We use a temporary helper container: mount the data volume read-only, bind a host backup folder, and write a <code>tar</code> archive there.</p>
 <div class="diagram">
-<svg aria-labelledby="c6-backup-title" role="img" viewbox="0 0 980 300">
+<svg aria-labelledby="c6-backup-title" preserveAspectRatio="xMidYMid meet" role="img" viewBox="0 0 980 300">
 <title id="c6-backup-title">A helper container reads a volume into a host archive, then restores it into a fresh volume</title>
-<defs><marker id="c6-backup-arrow" markerheight="10" markerwidth="10" orient="auto" refx="8" refy="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
+<defs><marker id="c6-backup-arrow" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="3"><path class="dg-arrow-b" d="M0 0L0 6L9 3z"></path></marker></defs>
 <g class="dg-stroke-b" marker-end="url(#c6-backup-arrow)" stroke-width="2">
 <path d="M190 105h70"></path><path d="M450 105h70"></path><path d="M710 105h75"></path>
 <path d="M785 198H710"></path><path d="M520 198H450"></path>
@@ -352,8 +352,8 @@ $ docker exec -i pg-data psql -U postgres -c "SELECT id, body FROM notes;"
 <rect class="dg-fill-w" height="55" rx="12" width="190" x="520" y="198"></rect>
 <text class="dg-t" x="615" y="231">tar extracts</text>
 </g>
-<text class="dg-ts" x="225" y="95">read-only</text><text class="dg-ts" x="485" y="95">tar czf</text><text class="dg-ts" x="748" y="95">restore target</text>
-<text class="dg-ts" x="748" y="191">tar xzf</text><text class="dg-ts" x="485" y="191">into volume</text>
+<text class="dg-ts" text-anchor="middle" x="225" y="95">read-only</text><text class="dg-ts" text-anchor="middle" x="485" y="95">tar czf</text><text class="dg-ts" text-anchor="middle" x="748" y="95">restore</text>
+<text class="dg-ts" text-anchor="middle" x="748" y="191">tar xzf</text><text class="dg-ts" text-anchor="middle" x="485" y="191">into volume</text>
 </svg>
 <p class="diagram-cap" lang="fa">فلش بالایی مسیر پشتیبان را می‌خواند: volume → کمکی → فایل پشتیبان روی host → volume تازه. فلش پایینی مسیر بازیابی را برمی‌گرداند: فایل پشتیبان توسط کمکی باز می‌شود و فایل‌ها داخل volume مقصد بازکردن می‌شوند.</p>
 <p class="diagram-cap" lang="en">The top path is backup: volume → helper → archive on the host → fresh volume. The bottom path is restore: a helper opens the archive and extracts its files into the destination volume.</p>

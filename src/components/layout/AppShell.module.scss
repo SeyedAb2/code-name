@@ -1,8 +1,11 @@
 @use "../../styles/tokens" as *;
 
 .shell {
+  box-sizing: border-box;
+  width: 100%;
   max-width: $bp-xl;
   margin: 0 auto;
+  overflow-x: clip;
   /* فاصله از نوار چسبان بالا — بدون این، تیتر صفحه به هدر می‌چسبد */
   padding: clamp(22px, 3.5vw, 34px) clamp(14px, 3vw, 28px) 90px;
 }
