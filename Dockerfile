@@ -17,7 +17,7 @@ FROM node:22-alpine AS deps
 WORKDIR /app
 # فقط این دو فایل: تا وقتی وابستگی‌ها عوض نشوند، این لایه از کش می‌آید
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm install --no-audit --no-fund
 
 FROM node:22-alpine AS build
 WORKDIR /app
