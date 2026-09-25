@@ -5,6 +5,11 @@ const nextConfig: NextConfig = {
      node_modules لازمش را کنار خودش دارد. Dockerfile دقیقاً همین را کپی
      می‌کند، برای همین ایمیج نهایی نه SDK دارد نه کد منبع. */
   output: "standalone",
+  experimental: {
+    cpus: 2,
+    staticGenerationMaxConcurrency: 2,
+    staticGenerationMinPagesPerWorker: 20,
+  },
 };
 
 export default nextConfig;
