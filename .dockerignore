@@ -11,7 +11,8 @@ node_modules
 out
 
 # ابزارهای نویسنده؛ دادهٔ تولیدی‌شان (src/lib/courses.data.ts) در مخزن هست
-tools
+tools/*
+!tools/write-build-version.cjs
 data
 
 # مستندات مخزن، نه سایت

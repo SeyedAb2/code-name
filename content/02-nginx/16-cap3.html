@@ -14,19 +14,20 @@ desc: سه مسیر سرویس را پشت یک Nginx جمع کن؛ TLS آزما
   <h2><span lang="fa">مأموریت: سه سرویس، یک درِ ورودی</span><span lang="en">Mission: three services, one front door</span></h2>
   <p class="lede" lang="fa">تیم محصول می‌گوید: «صفحهٔ catalog، API برنامه و ورود کاربر آماده‌اند. حالا همه را پشت یک آدرس امن بگذار.» سه مسیر داریم: <code>/catalog/</code> برای پاسخ عمومی و قابل‌cache، <code>/api/</code> برای برنامه‌ای که دو نمونه دارد، و <code>/login/</code> برای مسیری حساس که نباید بی‌مهار درخواست بگیرد. از بیرون فقط Nginx دیده می‌شود.</p>
   <p class="lede" lang="en">The product team says: “The catalog page, application API, and sign-in endpoint are ready. Put them behind one secure address.” There are three paths: <code>/catalog/</code> for public cacheable data, <code>/api/</code> for an app with two instances, and <code>/login/</code> for a sensitive route that should not accept an unchecked burst. Only Nginx is reachable from outside.</p>
-  <div class="diagram"><svg viewBox="0 0 1040 590" role="img" aria-labelledby="ngcap-flow-title" xmlns="http://www.w3.org/2000/svg">
+  <div class="diagram"><svg viewBox="0 0 1080 590" role="img" aria-labelledby="ngcap-flow-title" xmlns="http://www.w3.org/2000/svg">
     <title id="ngcap-flow-title">One HTTPS client enters Nginx; path branches lead to catalog cache, two balanced API instances, and rate-limited login. Backends remain inside the private network / یک کاربر HTTPS وارد Nginx می‌شود و مسیرها به catalog، دو نمونهٔ API و login محدودشده می‌روند؛ سرویس‌های پشت gateway در شبکهٔ خصوصی‌اند.</title>
     <defs><marker id="ngcap-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow-b"/></marker></defs>
-    <rect x="28" y="240" width="170" height="92" rx="16" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/><text x="113" y="277" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">client</text><text x="113" y="306" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">HTTPS :443</text>
-    <rect x="258" y="186" width="245" height="202" rx="20" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/><text x="380" y="228" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Nginx edge</text><text x="380" y="263" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">TLS · routing</text><text x="380" y="294" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">cache · rate limit</text><text x="380" y="345" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">structured access log</text>
-    <path d="M198 286H258" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#ngcap-arrow)"/>
-    <rect x="564" y="52" width="245" height="104" rx="16" class="dg-fill-g" stroke="var(--safe)" stroke-width="2"/><text x="686" y="91" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">catalog</text><text x="686" y="123" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">public GET · cache</text>
-    <rect x="564" y="244" width="205" height="92" rx="16" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/><text x="666" y="281" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">api-1</text><text x="666" y="311" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">instance id: one</text>
-    <rect x="824" y="244" width="188" height="92" rx="16" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/><text x="918" y="281" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">api-2</text><text x="918" y="311" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">instance id: two</text>
-    <rect x="564" y="432" width="245" height="104" rx="16" class="dg-fill-y" stroke="var(--warn)" stroke-width="2"/><text x="686" y="471" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">login</text><text x="686" y="503" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">per-client rate limit</text>
-    <path d="M503 218L564 104" class="dg-stroke-g" stroke-width="2.5" marker-end="url(#ngcap-arrow)"/><path d="M503 284H564" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#ngcap-arrow)"/><path d="M769 290H824" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#ngcap-arrow)"/><path d="M503 354L564 484" class="dg-stroke-y" stroke-width="2.5" marker-end="url(#ngcap-arrow)"/>
-    <text x="528" y="148" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">/catalog/</text><text x="528" y="271" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">/api/</text><text x="528" y="425" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">/login/</text>
-    <rect x="253" y="444" width="250" height="94" rx="16" class="dg-fill" stroke="var(--line-strong)" stroke-width="1.5"/><text x="378" y="481" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">same private network</text><text x="378" y="511" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">only edge publishes 80/443</text>
+    <rect x="24" y="246" width="170" height="92" rx="16" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/><text x="109" y="283" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">client</text><text x="109" y="312" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">HTTPS :443</text>
+    <rect x="246" y="196" width="244" height="196" rx="20" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/><text x="368" y="235" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Nginx edge</text><text x="368" y="268" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">TLS · path routing</text><text x="368" y="300" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">/catalog · /api · /login</text><text x="368" y="333" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">cache · rate limit</text><text x="368" y="366" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">access log</text>
+    <path d="M194 292H246" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#ngcap-arrow)"/>
+    <rect x="530" y="28" width="528" height="532" rx="22" fill="none" stroke="var(--violet)" stroke-width="2" stroke-dasharray="8 6"/>
+    <text x="554" y="58" text-anchor="start" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">private Compose network · no backend host ports</text>
+    <rect x="568" y="84" width="450" height="96" rx="16" class="dg-fill-g" stroke="var(--safe)" stroke-width="2"/><text x="793" y="123" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">catalog</text><text x="793" y="153" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">public GET · short cache</text>
+    <rect x="568" y="220" width="450" height="152" rx="18" fill="none" stroke="var(--blue)" stroke-width="2"/><text x="793" y="249" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">api_pool · Nginx selects one peer</text>
+    <rect x="590" y="270" width="190" height="78" rx="14" class="dg-fill-b" stroke="var(--blue)" stroke-width="1.5"/><text x="685" y="301" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">api-1</text><text x="685" y="328" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">instance one</text>
+    <rect x="806" y="270" width="190" height="78" rx="14" class="dg-fill-b" stroke="var(--blue)" stroke-width="1.5"/><text x="901" y="301" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">api-2</text><text x="901" y="328" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">instance two</text>
+    <rect x="568" y="416" width="450" height="104" rx="16" class="dg-fill-y" stroke="var(--warn)" stroke-width="2"/><text x="793" y="457" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">login</text><text x="793" y="490" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">per-client rate limit</text>
+    <path d="M490 224L568 132" class="dg-stroke-g" stroke-width="2.5" marker-end="url(#ngcap-arrow)"/><path d="M490 294H568" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#ngcap-arrow)"/><path d="M490 360L568 468" class="dg-stroke-y" stroke-width="2.5" marker-end="url(#ngcap-arrow)"/>
   </svg><p class="diagram-cap" lang="fa">فلش‌ها مسیر درخواست‌اند؛ شاخهٔ API دو مقصد هم‌نقش دارد و Nginx بینشان انتخاب می‌کند. کادر شبکه مرز دسترسی backendهاست؛ تنها پورت‌های Nginx روی host منتشر می‌شوند.</p><p class="diagram-cap" lang="en">Arrows show request paths. The API branch has two equivalent targets for Nginx to select between. The network boundary keeps backends private; only Nginx publishes host ports.</p></div>
   <div class="note warn"><p lang="fa">برای اینکه روی لپ‌تاپ هم قابل تکرار باشد، در این مأموریت از TLS خودامضاشده استفاده می‌کنیم و در درخواست آزمایشگاهی از <code>curl -k</code> کمک می‌گیریم. این فقط رمزگذاری مسیر تا Nginx را برای آزمایش نشان می‌دهد؛ گواهی مورداعتماد مرورگر یا اثبات مالکیت دامنه نیست. برای HTTPS عمومی باید دامنه و گواهی معتبر پروژهٔ ۱ را جایگزین کنی.</p><p lang="en">For repeatable local work, this mission uses a self-signed certificate and <code>curl -k</code> for lab requests. That demonstrates encryption to Nginx, not browser trust or domain ownership. Public HTTPS requires a real domain and the trusted certificate from Project 1.</p></div>
 </section>
@@ -52,9 +53,9 @@ desc: سه مسیر سرویس را پشت یک Nginx جمع کن؛ TLS آزما
 docker compose exec nginx wget -qO- http://catalog:8080/catalog/featured
 docker compose exec nginx wget -qO- http://api-1:8080/api/whoami
 docker compose exec nginx wget -qO- http://login:8080/login/</span>
-<span class="s">catalog revision 1
-api-1
-login ready</span></pre></div>
+<span class="s">{"service": "catalog", "item": "featured", "revision": "catalog revision 1"}
+{"service": "api-1", "instance": "api-1"}
+{"service": "login", "result": "login ready"}</span></pre></div>
   <p lang="fa">اگر Nginx image ابزار <code>wget</code> نداشت، اشکالی ندارد: از container آزمایش موقت متصل به همان network استفاده کن. ابزار تشخیصی را به image نهایی اضافه نکن فقط برای راحتی این مرحله.</p><p lang="en">If the Nginx image lacks <code>wget</code>, use a disposable diagnostic container attached to the same network. Do not add troubleshooting tools to the final image merely for this step.</p>
 </section>
 
@@ -64,11 +65,10 @@ login ready</span></pre></div>
   <div class="term"><div class="term-bar"><span class="term-label">inspect published bindings from both Docker and the host</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">docker compose ps
 docker compose port nginx 80
 docker compose port nginx 443
-docker compose port api-1 8080
 ss -lnt</span>
 <span class="s">127.0.0.1:8080
 127.0.0.1:8443
-no published port for api-1</span></pre></div>
+backend services have no published host bindings</span></pre></div>
   <p lang="fa">برای آزمایش روی همان ماشین، پورت‌ها را به <code>127.0.0.1</code> bind کن تا از شبکهٔ بیرونی در دسترس نباشند. اگر با ماشین مجازی جدا کار می‌کنی، برای آزمون از host میزبان مسیر دسترسی را آگاهانه تنظیم کن؛ firewall جایگزین bind محدود نیست.</p><p lang="en">For a same-machine lab, bind published ports to <code>127.0.0.1</code> so they are not reachable from external interfaces. With a separate VM, deliberately arrange a path from the host for testing; a firewall is not a substitute for a narrow bind.</p>
 </section>
 
@@ -87,9 +87,9 @@ chmod 600 ./lab-certs/server.key</span></pre></div>
 curl -k -i https://localhost:8443/api/whoami
 curl -k -i https://localhost:8443/login/</span>
 <span class="s">HTTP/1.1 200 OK
-catalog revision 1
-api-1
-login ready</span></pre></div>
+{"service": "catalog", "item": "featured", "revision": "catalog revision 1"}
+{"service": "api-1", "instance": "api-1"}
+{"service": "login", "result": "login ready"}</span></pre></div>
   <p lang="fa">اگر status، body و backend نامنتظره است، URL را از Nginx error log تا <code>proxy_pass</code> دنبال کن؛ با تغییر هم‌زمان چند location چیزی یاد نمی‌گیری. گواهی خودامضا ممکن است warning بدهد، اما handshake و نام سرویس route شده باید دیده شود.</p><p lang="en">If status, body, or backend is unexpected, trace that URL from the Nginx error log to <code>proxy_pass</code>; changing several locations at once obscures the lesson. A self-signed warning is expected, but the handshake and routed service should be visible.</p>
 </section>
 
@@ -109,17 +109,17 @@ X-Cache-Status: HIT</span></pre></div>
   <div class="term"><div class="term-bar"><span class="term-label">send sequential requests and preserve the returned instance IDs</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">for i in $(seq 1 8); do
   curl -k -sS https://localhost:8443/api/whoami
 done</span>
-<span class="s">api-1
-api-2
-api-1
-api-2
+<span class="s">{"service": "api-1", "instance": "api-1"}
+{"service": "api-2", "instance": "api-2"}
+{"service": "api-1", "instance": "api-1"}
+{"service": "api-2", "instance": "api-2"}
 ...</span></pre></div>
   <p lang="fa">برای آزمایش passive failure، فقط یک نمونه را متوقف کن، چند بار API را بخوان و سپس همان نمونه را برگردان. Nginx متن‌باز با خطاهای درخواست واقعی، برای مدتی backend خراب را از انتخاب کنار می‌گذارد؛ این active healthcheck دوره‌ایِ NGINX Plus نیست و تا رسیدن درخواست خطادار هم ممکن است خرابی را نداند.</p><p lang="en">For a passive-failure drill, stop exactly one instance, request the API several times, then restore that instance. Open-source Nginx uses failures from real requests to avoid a failed backend for a period; this is not NGINX Plus active health checking, and failure may remain unknown until a request encounters it.</p>
   <div class="term"><div class="term-bar"><span class="term-label">stop one disposable API instance, observe, and bring it back</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">docker compose stop api-2
-for i in $(seq 1 5); do curl -k -sS -o /dev/null -w '%{http_code}\n' https://localhost:8443/api/whoami; done
+for i in $(seq 1 5); do curl -k -sS -w '\nstatus=%{http_code}\n' https://localhost:8443/api/whoami; done
 docker compose start api-2
 docker compose ps</span></pre></div>
-  <p lang="fa">بسته به زمان‌بندی انتخاب backend و نسخه، ممکن است نخستین درخواست بعد از توقف با ۵۰۲ روبه‌رو شود؛ error log و <code>$upstream_addr</code> را نگه دار. بعد از بالا آمدن backend هم Nginx معمولاً با درخواست واقعی دوباره موفقیت را می‌بیند؛ یک health endpoint تنها، تضمین فعال بودن backend در لحظهٔ بعد نیست.</p><p lang="en">Depending on selection timing and version, the first request after stopping a backend may get 502; keep the error log and <code>$upstream_addr</code>. After it returns, Nginx generally sees success again through a real request; one health endpoint is not a guarantee about the next instant.</p>
+  <p lang="fa">ممکن است کاربر همچنان ۲۰۰ ببیند، چون Nginx برای خطای قابل retry سراغ peer سالم بعدی می‌رود؛ پس فقط status را نگاه نکن. body باید نام api-1 را نشان بدهد و access/error log نشانی و status تلاش upstream را ثبت کند. اگر peer سالمی نمانده یا retry ممکن نباشد، ۵۰۲ هم ممکن است. بعد از بالا آمدن backend، Nginx معمولاً با درخواست واقعی دوباره موفقیت را می‌بیند؛ یک health endpoint تنها، تضمین فعال بودن backend در لحظهٔ بعد نیست.</p><p lang="en">The client may still see 200 because Nginx can retry a retryable failure against the other peer, so do not inspect status alone. The body should identify api-1, and access/error logs should show the upstream address and attempt status. If no healthy peer remains or retry is not possible, 502 is possible. After the backend returns, Nginx generally sees success again through a real request; one health endpoint is not a guarantee about the next instant.</p>
 </section>
 
 <section id="checkpoint-6">
@@ -141,15 +141,15 @@ docker compose logs --tail=20 nginx</span>
   <div class="term"><div class="term-bar"><span class="term-label">follow a few requests and correlate fields from one line</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">docker compose logs --since=2m nginx
 curl -k -sS https://localhost:8443/api/whoami
 curl -k -sS https://localhost:8443/catalog/featured</span>
-<span class="s">... rid=... status=200 upstream=api-1:8080 upstream_status=200 upstream_time=0.002 cache=- limit=PASSED
-... rid=... status=200 upstream=catalog:8080 upstream_status=200 upstream_time=0.001 cache=HIT limit=PASSED</span></pre></div>
-  <p lang="fa">اگر client پاسخ خطا دید، همان زمان و request id را در access log پیدا کن؛ اگر درخواست اصلاً به backend نرسیده، journal سرویس‌های آزمایشی چیزی دربارهٔ خطای Nginx نمی‌گوید. اگر log می‌گوید upstream ناموجود است، DNS داخلی و وضعیت Compose را جدا بررسی کن. log سرنخ است، نه علت قطعی به‌تنهایی.</p><p lang="en">If a client sees an error, find its time and request ID in the access log. If the request never reached a backend, the demo service journal cannot explain an Nginx-side failure. If the log names an unavailable upstream, inspect internal DNS and Compose state separately. A log is a clue, not a definitive cause by itself.</p>
+<span class="s">... rid=... status=200 upstream=api-1:8080 upstream_status=200 upstream_time=0.002 cache=- limit=-
+... rid=... status=200 upstream=- upstream_status=- upstream_time=- cache=HIT limit=-</span></pre></div>
+  <p lang="fa">در cache HIT، upstreamی صدا نشده؛ پس خط log می‌تواند برای آدرس و زمان upstream علامت <code>-</code> داشته باشد. اگر درخواست API هنگام خرابی peer retry شود، ممکن است چند upstream status در همان خط ثبت شوند. اگر client پاسخ خطا دید، همان زمان و request id را پیدا کن؛ journal سرویس‌های آزمایشی چیزی دربارهٔ خطایی که Nginx پیش از رسیدن به backend داده نمی‌گوید. log سرنخ است، نه علت قطعی به‌تنهایی.</p><p lang="en">On a cache HIT, no upstream was contacted, so the log may show <code>-</code> for upstream address and time. If an API request retries after a peer failure, one log line may contain multiple upstream statuses. When a client sees an error, find its time and request ID; demo-service journals cannot explain an error Nginx returned before reaching a backend. A log is a clue, not a definitive cause by itself.</p>
 </section>
 
 <section id="checkpoint-8">
   <h2><span lang="fa">نقطهٔ ۸: خرابی را قبل از reload متوقف کن</span><span lang="en">Checkpoint 8: stop a bad config before reload</span></h2>
-  <p lang="fa">حالا دو خرابی متفاوت را تمرین کن. اول مسیر API را موقتاً به پورت نادرست بفرست: <code>nginx -t</code> باز هم ممکن است موفق شود، چون syntax درست است؛ درخواست واقعی باید ۵۰۲ و نشانی upstream اشتباه را نشان بدهد. تغییر را برگردان و همان درخواست را دوباره موفق کن.</p><p lang="en">Now practice two different failures. First point the API route at a wrong port: <code>nginx -t</code> may still pass because the syntax is valid; a real request should reveal 502 and the wrong upstream address. Revert and repeat the same request successfully.</p>
-  <p lang="fa">بعد در یک کپیِ config یک directive را عمداً غلط بنویس. قبل از reload باید <code>nginx -t</code> شکست بخورد؛ چون reload نکرده‌ای، workerهای قبلی باید همچنان پاسخ بدهند. فایل فعال را فقط پس از مقایسه با نسخهٔ پشتیبان جایگزین کن.</p><p lang="en">Next, misspell a directive in a config copy. <code>nginx -t</code> must fail before reload; because you did not reload, existing workers should continue serving. Replace the active file only after comparing it with the backup.</p>
+  <p lang="fa">حالا دو خرابی متفاوت را تمرین کن. اول نسخهٔ سالم را نگه دار، مقصد API را موقتاً به پورت نادرست بفرست، <code>nginx -t</code> بگیر و اگر syntax قبول شد reload کن؛ درخواست واقعی باید خطای upstream یا retry را در log نشان بدهد. بعد مقصد را برگردان، test و reload کن و همان درخواست را دوباره موفق کن.</p><p lang="en">Now practice two distinct failures. Keep a known-good copy, point the API at a wrong port, run <code>nginx -t</code>, and reload only if syntax passes. A real request should expose the upstream failure or retry in logs. Restore the target, test and reload, then repeat the same request successfully.</p>
+  <p lang="fa">برای خرابی دوم، فایل bind-mounted فعال را پس از backup عمداً با directive نادرست تغییر بده، اما reload نکن. <code>nginx -t</code> باید candidate را رد کند؛ workerهای موجود هنوز config بارگذاری‌شدهٔ قبلی را دارند و باید پاسخ بدهند. فایل known-good را برگردان، بعد test و reload امن را انجام بده.</p><p lang="en">For the second fault, back up and deliberately misspell a directive in the active bind-mounted file, but do not reload. <code>nginx -t</code> must reject the candidate; existing workers still hold the previously loaded config and should answer. Restore the known-good file, then test and safely reload.</p>
   <div class="term"><div class="term-bar"><span class="term-label">validate the candidate first; preserve the running config until it passes</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">docker compose exec nginx nginx -t
 curl -k -sS -o /dev/null -w '%{http_code}\n' https://localhost:8443/catalog/featured</span>
 <span class="s">nginx: [emerg] unknown directive "proxy_passs" ...
@@ -308,6 +308,7 @@ http {
         location /catalog/ {
             proxy_pass http://catalog:8080;
             proxy_set_header Host $host;
+            proxy_set_header X-Request-ID $request_id;
             proxy_cache public_catalog;
             proxy_cache_valid 200 20s;
             proxy_cache_key "$scheme$proxy_host$request_uri";
