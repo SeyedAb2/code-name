@@ -516,7 +516,7 @@ export const TRACKS: Track[] = [
       {
         "n": "03",
         "file": "03-server-block.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 70,
         "fa": {
@@ -533,7 +533,7 @@ export const TRACKS: Track[] = [
       {
         "n": "04",
         "file": "04-location.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -550,7 +550,7 @@ export const TRACKS: Track[] = [
       {
         "n": "05",
         "file": "05-static.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 70,
         "fa": {
@@ -567,7 +567,7 @@ export const TRACKS: Track[] = [
       {
         "n": "06",
         "file": "06-proxy.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -584,7 +584,7 @@ export const TRACKS: Track[] = [
       {
         "n": "07",
         "file": "07-lb.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
@@ -601,7 +601,7 @@ export const TRACKS: Track[] = [
       {
         "n": "08",
         "file": "08-tls.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -618,7 +618,7 @@ export const TRACKS: Track[] = [
       {
         "n": "09",
         "file": "09-ratelimit.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 70,
         "fa": {
@@ -635,7 +635,7 @@ export const TRACKS: Track[] = [
       {
         "n": "10",
         "file": "10-logs.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 65,
         "fa": {
@@ -652,7 +652,7 @@ export const TRACKS: Track[] = [
       {
         "n": "11",
         "file": "11-ws-upload.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 70,
         "fa": {
@@ -669,7 +669,7 @@ export const TRACKS: Track[] = [
       {
         "n": "12",
         "file": "12-tuning.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
@@ -686,7 +686,7 @@ export const TRACKS: Track[] = [
       {
         "n": "13",
         "file": "13-debug.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
@@ -703,8 +703,8 @@ export const TRACKS: Track[] = [
       {
         "n": "14",
         "file": "14-cap1.html",
-        "ready": false,
-        "ex": 5,
+        "ready": true,
+        "ex": 0,
         "mins": 60,
         "fa": {
           "t": "پروژهٔ ۱ — یک سایت استاتیک با HTTPS",
@@ -720,8 +720,8 @@ export const TRACKS: Track[] = [
       {
         "n": "15",
         "file": "15-cap2.html",
-        "ready": false,
-        "ex": 7,
+        "ready": true,
+        "ex": 0,
         "mins": 90,
         "fa": {
           "t": "پروژهٔ ۲ — پروکسی جلوی یک اپ",
@@ -737,8 +737,8 @@ export const TRACKS: Track[] = [
       {
         "n": "16",
         "file": "16-cap3.html",
-        "ready": false,
-        "ex": 9,
+        "ready": true,
+        "ex": 0,
         "mins": 150,
         "fa": {
           "t": "پروژهٔ ۳ — gateway کامل",
@@ -754,10 +754,10 @@ export const TRACKS: Track[] = [
     ],
     "stats": {
       "chapters": 16,
-      "exercises": 255,
+      "exercises": 234,
       "minutes": 1245,
       "capstones": 3,
-      "ready": 2
+      "ready": 16
     }
   },
   {
@@ -782,7 +782,7 @@ export const TRACKS: Track[] = [
       {
         "n": "01",
         "file": "01-shell.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
@@ -799,7 +799,7 @@ export const TRACKS: Track[] = [
       {
         "n": "02",
         "file": "02-perms.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
@@ -816,7 +816,7 @@ export const TRACKS: Track[] = [
       {
         "n": "03",
         "file": "03-systemd.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -833,7 +833,7 @@ export const TRACKS: Track[] = [
       {
         "n": "04",
         "file": "04-packages.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 65,
         "fa": {
@@ -850,7 +850,7 @@ export const TRACKS: Track[] = [
       {
         "n": "05",
         "file": "05-text.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -867,7 +867,7 @@ export const TRACKS: Track[] = [
       {
         "n": "06",
         "file": "06-bash.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -1074,7 +1074,7 @@ export const TRACKS: Track[] = [
       "exercises": 273,
       "minutes": 1345,
       "capstones": 3,
-      "ready": 0
+      "ready": 6
     }
   },
   {

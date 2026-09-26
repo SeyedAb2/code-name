@@ -36,7 +36,7 @@ export const DICT = {
   searchPlaceholder: { fa: "جستجو در همهٔ مسیرها…", en: "Search all tracks…" },
   bookmarks: { fa: "علاقه‌مندی‌ها", en: "Bookmarks" },
   share: { fa: "اشتراک‌گذاری", en: "Share" },
-  contribute: { fa: "مشارکت در پروژه", en: "Contribute" },
+  contribute: { fa: "مشارکت", en: "Contribute" },
   about: { fa: "دربارهٔ پروژه", en: "About" },
   roadmaps: { fa: "رودمپ‌ها", en: "Roadmaps" },
   menu: { fa: "منو", en: "Menu" },

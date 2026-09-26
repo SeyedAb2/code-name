@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { usePrefs } from "@/context/PrefsContext";
 import { useProgress } from "@/context/ProgressContext";
 import { t, num } from "@/lib/i18n";
-import { HomeIcon, SearchIcon, StarIcon, MapIcon } from "@/components/ui/Icons";
+import { HomeIcon, SearchIcon, StarIcon, MapIcon, CodeIcon } from "@/components/ui/Icons";
 import s from "./MobileNav.module.scss";
 
 export default function MobileNav({ onSearch }: { onSearch: () => void }) {
@@ -32,6 +32,10 @@ export default function MobileNav({ onSearch }: { onSearch: () => void }) {
       <Link href="/roadmap" className={s.item} aria-current={path.startsWith("/roadmap") ? "page" : undefined}>
         <span className={s.icon}><MapIcon size={21} /></span>
         <span>{t("roadmaps", lang)}</span>
+      </Link>
+      <Link href="/contributing" className={s.item} aria-current={path === "/contributing" ? "page" : undefined}>
+        <span className={s.icon}><CodeIcon size={21} /></span>
+        <span>{lang === "fa" ? "مشارکت" : "Contribute"}</span>
       </Link>
     </nav>
   );

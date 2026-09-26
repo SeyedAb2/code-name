@@ -310,7 +310,7 @@
     padding: 10px 5px;
     border-radius: 15px;
     h3 { font-size: clamp(.62rem, 2.6vw, .76rem); line-height: 1.45; }
-    span { display: none; }
+    > span:not(.tileIcon) { display: none; }
   }
   .tileIcon { width: 34px; height: 34px; border-radius: 11px; }
   .tileIcon :global(svg) { width: 19px; height: 19px; }

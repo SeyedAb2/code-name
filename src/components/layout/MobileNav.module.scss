@@ -10,7 +10,7 @@
     bottom: max(10px, env(safe-area-inset-bottom));
     min-height: 70px;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     align-items: center;
     padding: 7px 8px;
     border: 1px solid color-mix(in srgb, var(--line-strong) 75%, transparent);
