@@ -10,6 +10,11 @@
   padding: clamp(22px, 3.5vw, 34px) clamp(14px, 3vw, 28px) 90px;
 }
 
+@media (max-width: 719px) {
+  .shell { padding-bottom: calc(112px + env(safe-area-inset-bottom)); }
+  .footer { padding-bottom: calc(104px + env(safe-area-inset-bottom)); }
+}
+
 .footer {
   border-top: 1px solid var(--line);
   background: var(--surface);

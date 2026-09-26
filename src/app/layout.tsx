@@ -17,9 +17,12 @@ export const metadata: Metadata = {
     icon: [
       { url: "/assets/images/logo-32.png", sizes: "32x32", type: "image/png" },
       { url: "/assets/images/logo-128.png", sizes: "128x128", type: "image/png" },
+      { url: "/assets/images/logo-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/assets/images/logo-512.png", sizes: "512x512", type: "image/png" },
     ],
     apple: [{ url: "/assets/images/logo-256.png", sizes: "256x256" }],
   },
+  manifest: "/manifest.webmanifest",
   openGraph: {
     type: "website",
     siteName: SITE.name.fa,
@@ -32,10 +35,10 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#EEF2F9" },
+    { media: "(prefers-color-scheme: light)", color: "#080C16" },
     { media: "(prefers-color-scheme: dark)", color: "#080C16" },
   ],
-  colorScheme: "light dark",
+  colorScheme: "dark light",
   viewportFit: "cover",
 };
 

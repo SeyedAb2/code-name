@@ -1,0 +1,410 @@
+<!--meta
+title: لاگ و آنالیز
+desc: تشخیص درخواست کند از روی access/error log، زمان کل درخواست و زمان upstream، فرمت سفارشی و چرخش امن فایل‌ها.
+-->
+
+<div class="masthead">
+  <span class="eyebrow"><span class="dot"></span><span lang="fa">Nginx · فصل ۱۰</span><span lang="en">Nginx · Chapter 10</span></span>
+  <h1 lang="fa">لاگ و آنالیز</h1>
+  <h1 lang="en">Logs and analysis</h1>
+  <p class="sub" lang="fa">کاربر می‌گوید «سایت کند است». از کجا بفهمیم؟ access log یک درخواست آهسته ثبت کرده، ولی آیا برنامه کند بوده، کاربر دیر فرستاده یا Nginx دیر پاسخ را تحویل داده؟ این فصل را با پرسیدن سؤال از شاهد ماجرا پیش می‌بریم: log.</p>
+  <p class="sub" lang="en">A user says, “The site is slow.” How can we tell? The access log records a slow request, but was the app slow, did the client send slowly, or did Nginx take time to deliver the response? We will investigate by questioning the witness: the log.</p>
+  <div class="facts">
+    <div class="fact"><b>۶۵</b><span lang="fa">دقیقهٔ مطالعه</span><span lang="en">minutes</span></div>
+    <div class="fact"><b>۱۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></div>
+    <div class="fact"><b>۱</b><span lang="fa">نمودار</span><span lang="en">diagram</span></div>
+    <div class="fact"><b>۱</b><span lang="fa">فرمت سفارشی</span><span lang="en">custom format</span></div>
+  </div>
+</div>
+
+<section id="incident">
+  <h2><span lang="fa">«کند است» هنوز تشخیص نیست</span><span lang="en">“It is slow” is not a diagnosis yet</span></h2>
+  <p class="lede" lang="fa">در فصل قبل، status و زمان پاسخ را برای rate limit کنار هم گذاشتیم. حالا یک 200 داریم که کاربر می‌گوید هفت ثانیه طول کشیده؛ access log فعلی فقط status و مسیر را نشان می‌دهد. اگر فوراً سراغ upstream برویم، شاید اشتباه را جای دیگری جست‌وجو کنیم.</p>
+  <p class="lede" lang="en">In the previous chapter, we compared statuses and response times while tuning rate limits. Now we have a 200 that a user says took seven seconds; the current access log shows only status and path. If we blame the upstream immediately, we may investigate the wrong boundary.</p>
+  <p lang="fa">دو log اصلی را از هم جدا کنیم. <code>access_log</code> هنگام پایان پردازش هر درخواست اطلاعاتی مثل status، بایت و زمان را می‌نویسد. <code>error_log</code> رویدادها و مشکل‌های خود Nginx را با شدت‌های مختلف ثبت می‌کند؛ تضمین نمی‌کند برای هر پاسخ 4xx یک خط داشته باشیم.</p>
+  <p lang="en">Separate the two main logs. <code>access_log</code> writes per-request information such as status, bytes, and timing when processing ends. <code>error_log</code> records Nginx events and problems at different severities; it does not guarantee one line for every 4xx response.</p>
+  <div class="table-wrap"><table class="doc-table">
+    <thead><tr><th><span lang="fa">log</span><span lang="en">Log</span></th><th><span lang="fa">به کدام سؤال جواب می‌دهد؟</span><span lang="en">What question does it answer?</span></th><th><span lang="fa">چه چیزی را به‌تنهایی ثابت نمی‌کند؟</span><span lang="en">What does it not prove by itself?</span></th></tr></thead>
+    <tbody>
+      <tr><td><code>access_log</code></td><td><span lang="fa">کدام درخواست با چه status و زمانی تمام شد؟</span><span lang="en">Which request finished with what status and timing?</span></td><td><span lang="fa">علت درونی کندی برنامه</span><span lang="en">The app’s internal cause of slowness</span></td></tr>
+      <tr><td><code>error_log</code></td><td><span lang="fa">Nginx چه هشدار یا خطایی دید؟</span><span lang="en">What warning or error did Nginx observe?</span></td><td><span lang="fa">ثبت‌شدن هر درخواست سالم</span><span lang="en">That every successful request was recorded there</span></td></tr>
+    </tbody>
+  </table></div>
+  <p lang="fa">شدت <code>error_log</code> از <code>debug</code> تا <code>emerg</code> مرتب است؛ وقتی سطحی مثل <code>warn</code> می‌گذاری، warning و شدت‌های بالاتر نوشته می‌شوند. سطح پیش‌فرض <code>error</code> است. <code>debug</code> فقط وقتی build مناسب باشد کار می‌کند و log بسیار پرحجم می‌سازد؛ برای عیب‌یابی محدود و کوتاه نگهش دار.</p>
+  <p lang="en">Nginx error levels range from <code>debug</code> through <code>emerg</code>; setting a level such as <code>warn</code> records warnings and more severe events. The default is <code>error</code>. Debug logging requires a suitable build and can produce a large volume; keep it targeted and brief.</p>
+</section>
+
+<section id="time-model">
+  <h2><span lang="fa">یک عدد زمان، دو مسیر متفاوت را قاطی می‌کند</span><span lang="en">One timing number mixes two different paths</span></h2>
+  <p class="lede" lang="fa">برای درخواست proxied، Nginx هم از client داده می‌گیرد، هم به upstream وصل می‌شود، هم پاسخ را به client می‌فرستد. <code>$request_time</code> کل عمر درخواست در Nginx را پوشش می‌دهد؛ <code>$upstream_response_time</code> زمان دریافت پاسخ upstream را. اولی را با دومی مقایسه می‌کنیم، نه اینکه یکی را جای دیگری بنشانیم.</p>
+  <p class="lede" lang="en">For a proxied request, Nginx reads from the client, talks to the upstream, and sends the response back. <code>$request_time</code> covers the request’s lifetime in Nginx; <code>$upstream_response_time</code> measures receiving the upstream response. Compare them—do not substitute one for the other.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 1080 340" role="img" aria-labelledby="timing-title" xmlns="http://www.w3.org/2000/svg">
+      <title id="timing-title">Request timeline: total request_time includes the client path; upstream_response_time covers Nginx waiting for the upstream response / request_time مسیر client و upstream را در بر می‌گیرد؛ upstream_response_time فقط پاسخ upstream را اندازه می‌گیرد</title>
+      <defs>
+        <marker id="timing-blue" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow-b"/></marker>
+        <marker id="timing-violet" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow"/></marker>
+      </defs>
+      <rect x="38" y="107" width="205" height="96" rx="15" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/>
+      <text x="140" y="146" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Client</text>
+      <text x="140" y="178" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">send / receive</text>
+      <rect x="438" y="107" width="205" height="96" rx="15" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/>
+      <text x="540" y="146" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Nginx</text>
+      <text x="540" y="178" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">proxy + log</text>
+      <rect x="838" y="107" width="205" height="96" rx="15" class="dg-fill-g" stroke="var(--safe)" stroke-width="2"/>
+      <text x="940" y="146" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Upstream</text>
+      <text x="940" y="178" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">app response</text>
+      <path d="M243 137H438" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#timing-blue)"/>
+      <text x="340" y="122" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">client sends request</text>
+      <path d="M643 155H838" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#timing-blue)"/>
+      <text x="740" y="140" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">proxy request</text>
+      <path d="M838 183H643" class="dg-stroke" stroke-width="2.5" marker-end="url(#timing-violet)"/>
+      <text x="740" y="222" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">upstream response</text>
+      <path d="M438 183H243" class="dg-stroke" stroke-width="2.5" marker-end="url(#timing-violet)"/>
+      <text x="340" y="222" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">response to client</text>
+      <rect x="97" y="267" width="885" height="48" rx="12" class="dg-fill" stroke="var(--line-strong)" stroke-width="1.5"/>
+      <text x="539" y="297" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">request_time: from first client bytes read to final response bytes sent</text>
+      <path d="M440 236H640" class="dg-stroke-v" stroke-width="5" stroke-linecap="round"/>
+      <text x="540" y="258" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">upstream_response_time</text>
+    </svg>
+    <p class="diagram-cap" lang="fa">فلش‌های رو به راست request و فلش‌های برگشت response هستند. نوار بلند زمان کل از دید Nginx را نشان می‌دهد؛ بازهٔ بنفش فقط مسیر دریافت پاسخ upstream است. تأخیر client می‌تواند اولی را زیاد کند بی‌آنکه دومی بالا برود.</p>
+    <p class="diagram-cap" lang="en">Right-pointing arrows are requests; left-pointing arrows are responses. The long bar is total time as observed by Nginx; the violet interval is only the upstream response. Client delay can raise the first without raising the second.</p>
+  </div>
+  <p lang="fa">زمان upstream هم «زمان اجرای CPU برنامه» نیست؛ شامل مرحله‌هایی از ارتباط و دریافت پاسخ است که Nginx اندازه می‌گیرد. اگر چند upstream امتحان شده باشند، مقدارها ممکن است با جداکننده‌های چندگانه بیایند؛ نتیجه را بی‌بررسی به یک عدد تبدیل نکن.</p>
+  <p lang="en">Upstream time is not “app CPU time”; it includes communication and response-receiving phases measured by Nginx. If several upstream attempts occurred, values may appear with separators; do not flatten them into one number without understanding the attempts.</p>
+</section>
+
+<section id="lab-setup">
+  <h2><span lang="fa">آزمایشگاه: سه پاسخ، سه زمان متفاوت</span><span lang="en">Lab: three responses, three different timings</span></h2>
+  <p class="lede" lang="fa">یک برنامهٔ مصنوعی می‌سازیم که مسیر سریع، کند و خطادار دارد و یک POST آزمایشی را هم می‌پذیرد. هیچ فایل مهمی را نمی‌نویسد. برنامه و Nginx روی loopback هستند؛ این آزمایش برای production نیست و فقط به پوشهٔ موقتی که خودمان می‌سازیم دست می‌زند.</p>
+  <p class="lede" lang="en">We will create a synthetic app with fast, slow, and failing paths plus a test POST. It writes no important files. Both app and Nginx bind to loopback; this is not a production test and touches only a temporary directory we create.</p>
+  <p lang="fa">پیش از شروع، پورت‌های <code>18100</code> و <code>19100</code> را بررسی کن. اگر اشغال‌اند، سرویس موجود را متوقف نکن؛ شمارهٔ آزاد دیگری انتخاب کن و همه‌جا یکسان جایگزینش کن.</p>
+  <p lang="en">Before starting, check ports <code>18100</code> and <code>19100</code>. If they are occupied, do not stop the existing service; choose different free ports and replace them consistently.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">check ports and create an isolated log lab</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">if command -v ss &gt;/dev/null; then
+  ss -ltn | grep -E ':(18100|19100)([[:space:]]|$)' || true
+elif command -v lsof &gt;/dev/null; then
+  lsof -nP -iTCP:18100 -iTCP:19100 -sTCP:LISTEN
+else
+  echo 'Check ports 18100 and 19100 with your OS network tool.'
+fi
+LOG_LAB=$(mktemp -d /tmp/nginx-logs.XXXXXX)
+chmod 700 "$LOG_LAB"
+mkdir -p "$LOG_LAB/logs" "$LOG_LAB/run" "$LOG_LAB/pids"
+printf 'Temporary lab: %s\n' "$LOG_LAB"</span>
+<span class="s">Temporary lab: /tmp/nginx-logs.H4s8Qm</span></pre></div>
+  <p lang="fa">نام مسیر متغیر است. آن را در همان shell نگه دار. اگر نمی‌توانی پورت‌ها را بررسی کنی، فرمان اجرای برنامه را نگه دار تا بعداً متوقفش کنی؛ به‌جای حذف یا توقف سرویس ناشناس، پورت دیگری انتخاب کن.</p>
+  <p lang="en">The path varies. Keep it in the same shell. If you cannot inspect ports, keep the process-start command so you can stop it later; choose another port rather than deleting or stopping an unknown service.</p>
+  <p lang="fa">برنامهٔ آزمایش به <code>/fast</code> فوری جواب می‌دهد، <code>/slow</code> را حدود ۳۵۰ میلی‌ثانیه نگه می‌دارد و <code>/fail</code> را با 500 پاسخ می‌دهد. مسیر POST فقط تعداد بایت را بازمی‌گرداند؛ payload را ذخیره نمی‌کند.</p>
+  <p lang="en">The test app answers <code>/fast</code> immediately, holds <code>/slow</code> for about 350 milliseconds, and returns 500 for <code>/fail</code>. Its POST path only reports a byte count; it stores no payload.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">create a bounded loopback app with visible slow and error paths</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cat &gt; "$LOG_LAB/app.py" &lt;&lt;'PY'
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlsplit
+import sys
+import time
+
+port = int(sys.argv[1])
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        path = urlsplit(self.path).path
+        if path == "/slow":
+            time.sleep(0.35)
+        status = 500 if path == "/fail" else 200
+        body = f"test path={path}\n".encode()
+        self.send_response(status)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_POST(self):
+        size = int(self.headers.get("Content-Length", "0"))
+        self.rfile.read(size)
+        body = f"received={size} bytes; not stored\n".encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+ThreadingHTTPServer(("127.0.0.1", port), Handler).serve_forever()
+PY
+python3 -m py_compile "$LOG_LAB/app.py"
+python3 -u "$LOG_LAB/app.py" 19100 &gt; "$LOG_LAB/app.log" 2&gt;&amp;1 &amp;
+echo $! &gt; "$LOG_LAB/pids/app.pid"
+sleep 0.3
+curl -sS http://127.0.0.1:19100/fast
+curl -sS -o /dev/null -w 'status=%{http_code}\n' \
+  http://127.0.0.1:19100/fail</span>
+<span class="s">test path=/fast
+status=500</span></pre></div>
+  <p lang="fa">پاسخ مستقیم 500 از خود برنامه می‌آید؛ هنوز Nginx در مسیر نیست. این baseline کمک می‌کند خطایی را که upstream ساخته با خطای proxy اشتباه نگیریم. اگر curl مستقیم نمی‌رسد، app.log و پورت را بررسی کن.</p>
+  <p lang="en">The direct 500 comes from the app; Nginx is not in the path yet. This baseline helps us distinguish an upstream-generated error from a proxy error. If direct curl fails, inspect app.log and the port.</p>
+</section>
+
+<section id="custom-format">
+  <h2><span lang="fa">یک access log که به سؤال جواب بدهد</span><span lang="en">An access log that answers the question</span></h2>
+  <p class="lede" lang="fa">به log موجود چند نشانهٔ هدفمند اضافه می‌کنیم: زمان کل، زمان اتصال به upstream، زمان تا header پاسخ upstream و زمان دریافت پاسخ. کنارشان status، بایت بدنه و کل بایت‌های فرستاده‌شده، referer و user-agent می‌آیند. user-agent و referer را client می‌فرستد؛ این‌ها دادهٔ قابل‌جعل‌اند، نه هویت معتبر.</p>
+  <p class="lede" lang="en">Add targeted signals to the access log: total time, upstream connect time, time to upstream response headers, and upstream response time. Include status, body bytes and total bytes sent, referer, and user-agent. The client supplies referer and user-agent; they are forgeable data, not authenticated identity.</p>
+  <p lang="fa">فرمت را در <code>http</code> تعریف می‌کنیم، بعد آن را با اسمش در <code>access_log</code> انتخاب می‌کنیم. نام variableها را دقیق نگه دار؛ مقدار <code>-</code> یعنی آن نشانه برای درخواست حاضر وجود نداشته، نه صفر ثانیه.</p>
+  <p lang="en">Define the format in <code>http</code>, then select it by name in <code>access_log</code>. Keep variable names exact; a <code>-</code> means the signal was unavailable for that request, not zero seconds.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">configure access and error logs under the temporary prefix</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cat &gt; "$LOG_LAB/nginx.conf" &lt;&lt;'NGINX'
+worker_processes 1;
+pid run/nginx.pid;
+error_log logs/error.log warn;
+events { worker_connections 128; }
+
+http {
+    log_format timed
+        'ts=$time_iso8601 client=$remote_addr method=$request_method '
+        'path=$uri status=$status body_bytes=$body_bytes_sent sent_bytes=$bytes_sent '
+        'rt=$request_time connect=$upstream_connect_time '
+        'header=$upstream_header_time urt=$upstream_response_time '
+        'ustatus=$upstream_status ref="$http_referer" ua="$http_user_agent"';
+    access_log logs/access.log timed;
+
+    server {
+        listen 127.0.0.1:18100;
+        server_name localhost;
+        location / {
+            proxy_pass http://127.0.0.1:19100;
+        }
+    }
+}
+NGINX
+nginx -t -p "$LOG_LAB/" -c nginx.conf</span>
+<span class="s">nginx: the configuration file .../nginx.conf syntax is ok
+nginx: configuration file ... test is successful</span></pre></div>
+  <p lang="fa">Nginx فقط نحو و فایل‌های تنظیم را بررسی کرده؛ backend و فرمت مفهومی log هنوز با درخواست آزموده نشده‌اند. <code>error_log ... warn</code> یعنی warning و شدت‌های بالاتر را ثبت کن. اگر خطای permission دیدی، پیش از chmod کردن پوشه، مالکیت و کاربری master/worker را بررسی کن.</p>
+  <p lang="en">Nginx has checked config syntax and files only; the backend and the meaning of the log format are not yet tested by a request. <code>error_log ... warn</code> records warnings and more severe events. If permissions fail, inspect directory ownership and the master/worker account before changing modes.</p>
+  <p lang="fa">با همان prefix اجرا کن و هر سه حالت را از مسیر Nginx بفرست. سپس فایل access log را بخوان؛ پاسخ 500 در <code>/fail</code> باید با status upstream هم مقایسه شود.</p>
+  <p lang="en">Start Nginx with the same prefix and send all three cases through it. Then inspect the access log; compare the 500 on <code>/fail</code> with the upstream status too.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">start Nginx, create fast/slow/error evidence, read live log</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">nginx -p "$LOG_LAB/" -c nginx.conf
+for path in fast slow fail; do
+  curl -sS -o /dev/null -w "$path status=%{http_code}\n" \
+    "http://127.0.0.1:18100/$path"
+done
+tail -n 3 "$LOG_LAB/logs/access.log"</span>
+<span class="s">fast status=200
+slow status=200
+fail status=500
+... path=/fast status=200 ... rt=0.002 connect=0.000 header=0.001 urt=0.001 ...
+... path=/slow status=200 ... rt=0.352 connect=0.000 header=0.351 urt=0.351 ...
+... path=/fail status=500 ... ustatus=500 ...</span></pre></div>
+  <p lang="fa">اعداد نمونه‌اند و با ماشین فرق می‌کنند. مسیر کند باید زمان بالاتری در <code>header</code>/<code>urt</code> داشته باشد؛ اگر فقط <code>rt</code> بالا است، هنوز علت upstream ثابت نشده. در خطای 500، upstream هم 500 داده؛ این با Nginx نتوانستنِ اتصال به backend فرق دارد.</p>
+  <p lang="en">Sample timings vary by machine. The slow route should show a larger <code>header</code>/<code>urt</code>; if only <code>rt</code> is high, an upstream delay is not yet proven. For the 500, the upstream also returned 500—different from Nginx being unable to connect to it.</p>
+</section>
+
+<section id="request-time-trap">
+  <h2><span lang="fa">یک عدد بزرگ؛ اما مقصر کیست؟</span><span lang="en">A large number—but who is responsible?</span></h2>
+  <p lang="fa">مسیر <code>/slow</code> واقعاً backend کندی داشت؛ پس اگر <code>rt</code> بزرگ باشد، حتماً backend مقصر است؟ نه لزوماً. <code>request_time</code> از وقتی Nginx اولین بایت درخواست را از client می‌گیرد تا وقتی فرستادن پاسخ به client تمام می‌شود اندازه‌گیری می‌شود. برای درخواست proxyشده، <code>upstream_response_time</code> فقط بازهٔ ارتباط با upstream را نشان می‌دهد. بیایید درخواست را عمداً آهسته بفرستیم.</p>
+  <p lang="en">The <code>/slow</code> route really did have a slow backend. So does a large <code>rt</code> always blame the backend? No. <code>request_time</code> spans from Nginx reading the first client-request byte until it finishes sending the response. For a proxied request, <code>upstream_response_time</code> measures the upstream exchange. Let’s deliberately send a request slowly.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bounded slow upload: 32 KiB at about 4 KiB/s</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">head -c 32768 /dev/zero &gt; "$LOG_LAB/upload.bin"
+curl -sS -o /dev/null --limit-rate 4k \
+  --data-binary @"$LOG_LAB/upload.bin" \
+  http://127.0.0.1:18100/upload
+tail -n 1 "$LOG_LAB/logs/access.log"</span>
+<span class="s">... path=/upload status=200 ... rt=8.01 ... header=0.001 urt=0.001 ...</span></pre></div>
+  <p lang="fa">این آزمایش محدود است: فقط ۳۲ KiB داده می‌فرستد و چند ثانیه طول می‌کشد. اگر <code>rt</code> نزدیک ۸ ثانیه شد ولی <code>urt</code> نزدیک صفر ماند، زمان عمدتاً صرف رسیدن بدنهٔ درخواست از client شده؛ شواهد فعلی backend را کند نشان نمی‌دهند. تنظیم buffering، اندازهٔ بدنه و شبکه هم روی این رفتار اثر دارند، پس این یک تشخیص برای همین درخواست است، نه حکم کلی دربارهٔ همهٔ مسیرها.</p>
+  <p lang="en">This experiment is bounded: it sends only 32 KiB and takes a few seconds. If <code>rt</code> is near eight seconds while <code>urt</code> stays near zero, most of the time was spent receiving the body from the client; the current evidence does not show a slow backend. Buffering, body size, and the network also affect this behavior, so this diagnoses this request—not every route.</p>
+  <div class="note warn"><span lang="fa">اگر فقط یک عدد را به تیم نشان بدهی و بگویی «backend هشت ثانیه طول کشید»، گزارش گمراه‌کننده است. زمان کل درخواست و زمان upstream را کنار هم بخوان؛ هیچ‌کدام به‌تنهایی زمان CPU برنامه را ثابت نمی‌کنند.</span><span lang="en">Showing one number and saying “the backend took eight seconds” would be misleading. Read total request time beside upstream time; neither one proves application CPU time by itself.</span></div>
+</section>
+
+<section id="find-slowest">
+  <h2><span lang="fa">پیدا کردن کندترین مسیر، نه طولانی‌ترین خط</span><span lang="en">Find the slowest route, not the longest log line</span></h2>
+  <p lang="fa">لاگ ما فیلدها را به شکل <code>key=value</code> نوشته. با یک فیلتر کوچک می‌توانیم زمان upstream را از مسیر جدا کنیم. این نمونه فقط مقدار عددی <code>urt</code> را رتبه‌بندی می‌کند؛ درخواست بدون upstream یا با چند تلاش ممکن است مقدار متفاوتی داشته باشد و باید جداگانه بررسی شود.</p>
+  <p lang="en">Our log writes fields as <code>key=value</code>. A small filter can pair upstream time with the route. This ranks only numeric <code>urt</code> values; requests without an upstream or with multiple attempts may have different values and deserve separate inspection.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">rank observed upstream response times</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">awk '{
+  path="?"; time="-";
+  for (i=1; i&lt;=NF; i++) {
+    if ($i ~ /^path=/) path=$i;
+    if ($i ~ /^urt=/) time=$i;
+  }
+  if (time ~ /^urt=[0-9.]+$/) {
+    sub(/^path=/, "", path); sub(/^urt=/, "", time);
+    print time, path
+  }
+}' "$LOG_LAB/logs/access.log" | sort -nr | head</span>
+<span class="s">0.351 /slow
+0.001 /upload
+0.001 /fail
+0.001 /fast</span></pre></div>
+  <p lang="fa">عدد اول در هر ردیف زمان بزرگ‌تر به کوچک‌تر است؛ این نمونه می‌گوید در دادهٔ آزمایش، <code>/slow</code> کندترین پاسخ upstream بوده. این روش ساده فرض می‌کند مقدار زمان یک عدد است و فیلد مسیر با فاصله شکسته نمی‌شود؛ برای log format پیچیده یا JSON از parser متناسب استفاده کن. چند بار نمونه‌گیری هم از یک درخواست منفرد قابل‌اعتمادتر است.</p>
+  <p lang="en">The first column is sorted from largest to smallest; in this sample, <code>/slow</code> had the slowest upstream response. This simple filter assumes a numeric time and a path without whitespace. Use a parser suited to a more complex format or JSON, and prefer repeated samples over one request.</p>
+</section>
+
+<section id="watch-and-scope">
+  <h2><span lang="fa">زنده دیدن لاگ و محدود کردن دامنه</span><span lang="en">Watch logs live and narrow their scope</span></h2>
+  <p lang="fa">برای دیدن خط‌های تازه، <code>tail -f</code> فایل بازشده را دنبال می‌کند. هنگام چرخش فایل، ممکن است همان فایل قدیمی را دنبال کند. <code>tail -F</code> نام فایل را دوباره بازبینی می‌کند و بعد از جابه‌جایی فایل معمولاً انتخاب مناسب‌تری است. اول چند خط آخر را ببین تا موج تازه را با تاریخچهٔ قدیمی قاطی نکنی.</p>
+  <p lang="en">Use <code>tail -f</code> to watch new lines in an open file. During rotation it may keep following the old file. <code>tail -F</code> retries by name and is often a better fit after a rename. Start with a few existing lines so old history does not blur the new signal.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">follow only the disposable lab's access log</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">tail -n 5 "$LOG_LAB/logs/access.log"
+tail -F "$LOG_LAB/logs/access.log"</span></pre></div>
+  <p lang="fa">اگر Nginx را به‌صورت service نصب کرده‌ای، ممکن است بخشی از خطاها در فایل تعریف‌شده یا در system journal باشند؛ نام unit و مسیر log بین توزیع‌ها فرق می‌کند. تنظیم واقعی را با <code>nginx -T</code> ببین و برای journal، unit موجود را با <code>systemctl status</code> پیدا کن؛ حدس نزن که همه‌جا یک مسیر ثابت دارد.</p>
+  <p lang="en">With a packaged Nginx service, errors may go to a configured file or the system journal; unit names and paths vary by distribution. Inspect effective configuration with <code>nginx -T</code>, and identify the installed unit with <code>systemctl status</code> rather than assuming one universal path.</p>
+  <p lang="fa">لاگ را می‌توانی در <code>http</code> برای حالت عمومی، در <code>server</code> برای یک virtual server، یا در <code>location</code> برای مسیر خاص تنظیم کنی. اگر سطح پایین‌تر تعریف داشته باشد، تنظیم قبلی را به ارث نمی‌برد؛ برای نوشتن در هر دو مقصد، هر دو را در همان سطح پایین‌تر بنویس.</p>
+  <p lang="en">You can configure logs in <code>http</code> for the general case, in <code>server</code> for one virtual server, or in <code>location</code> for one path. A lower-level definition does not inherit the prior access-log setting; declare both destinations at the lower level if you need both.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">محل تنظیم</span><span lang="en">Scope</span></th><th><span lang="fa">مناسب برای</span><span lang="en">Useful for</span></th><th><span lang="fa">حواست به</span><span lang="en">Watch for</span></th></tr></thead><tbody>
+    <tr><td><code>http</code></td><td><span lang="fa">پیش‌فرض مشترک چند server</span><span lang="en">Shared default across servers</span></td><td><span lang="fa">ممکن است حجم زیادی بسازد.</span><span lang="en">Can generate substantial volume.</span></td></tr>
+    <tr><td><code>server</code></td><td><span lang="fa">یک سایت یا virtual server</span><span lang="en">One site or virtual server</span></td><td><span lang="fa">نام و مسیر فایل را روشن نگه دار.</span><span lang="en">Keep the file’s purpose and path clear.</span></td></tr>
+    <tr><td><code>location</code></td><td><span lang="fa">بررسی موقت یک مسیر خاص</span><span lang="en">Temporary investigation of one route</span></td><td><span lang="fa">ممکن است access log عمومی را کنار بزند.</span><span lang="en">May replace the general access log.</span></td></tr>
+  </tbody></table></div>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">focused location logging (adapt paths to the active prefix)</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">location = /slow {
+    access_log logs/access.log timed;
+    access_log logs/slow-only.log timed;
+    proxy_pass http://127.0.0.1:19100;
+}</span></pre></div>
+  <p lang="fa">لاگ جدا پیدا کردن سیگنال را آسان می‌کند، اما فایل و حجم بیشتری می‌سازد و ممکن است دادهٔ حساس ثبت کند. برای همیشه همهٔ headerها، query stringها یا اطلاعات شخصی را لاگ نکن؛ فقط چیزی را ثبت کن که برای عیب‌یابی لازم است و دسترسی و نگهداری‌اش را مشخص کن.</p>
+  <p lang="en">A separate log makes a signal easier to find, but creates more files and volume and may capture sensitive data. Do not log every header, query string, or personal detail by default; record what troubleshooting needs and define access and retention.</p>
+</section>
+
+<section id="rotation">
+  <h2><span lang="fa">لاگ باید جا داشته باشد؛ دیسک نامحدود نیست</span><span lang="en">Logs need room; disks are not infinite</span></h2>
+  <p lang="fa">در آزمایش کوچک، فایل دست‌نخورده می‌ماند؛ روی سرور واقعی، access log می‌تواند هر روز بزرگ‌تر شود. اگر فایل را فقط rename کنی، Nginx ممکن است همچنان روی file descriptor قدیمی بنویسد. الگوی رایج این است: فایل را جابه‌جا کن، فایل تازه بساز، بعد به master بگو فایل‌های log را دوباره باز کند.</p>
+  <p lang="en">Our tiny lab leaves its file alone; on a real server, access logs can grow every day. If you only rename a file, Nginx may keep writing through its old file descriptor. A common sequence is: move the file, create a new one, then ask the master to reopen log files.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">rotate only the disposable lab log, then reopen it</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">mv "$LOG_LAB/logs/access.log" "$LOG_LAB/logs/access.log.1"
+: &gt; "$LOG_LAB/logs/access.log"
+nginx -s reopen -p "$LOG_LAB/" -c nginx.conf
+curl -sS -o /dev/null http://127.0.0.1:18100/fast
+wc -l "$LOG_LAB/logs/access.log" "$LOG_LAB/logs/access.log.1"</span>
+<span class="s">1 .../access.log
+4 .../access.log.1</span></pre></div>
+  <p lang="fa">پس از درخواست تازه، خط باید در فایل جدید دیده شود؛ خط‌های قبلی در فایل چرخانده‌شده می‌مانند. اگر فایل تازه خالی ماند، اول خروجی reopen و <code>error.log</code> را بخوان. این فرمان برای Nginx همین آزمایش است؛ روی سرویس زنده، rotation را با ابزار و سیاست همان میزبان هماهنگ کن.</p>
+  <p lang="en">After the new request, its line should appear in the new file; earlier lines remain in the rotated file. If the new file stays empty, inspect the reopen result and <code>error.log</code> first. This command targets our lab Nginx; coordinate live rotation with the host’s own tooling and policy.</p>
+  <p lang="fa">در بسیاری از Linuxها <code>logrotate</code> و timer یا cron چرخش را زمان‌بندی می‌کنند، اما نصب و زمان‌بندی در همهٔ توزیع‌ها یکسان نیست. برای دیدن timerهای همین میزبان، این بررسی فقط اطلاعات می‌خواند:</p>
+  <p lang="en">Many Linux systems use <code>logrotate</code> with a timer or cron, but installation and scheduling vary by distribution. This read-only check lists timers on this host:</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">discover the local rotation schedule before changing it</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">systemctl list-timers --all | grep -i logrotate || true
+logrotate -d /etc/logrotate.conf</span>
+<span class="s">... debug mode: configuration read; no files are rotated ...</span></pre></div>
+  <p lang="fa">حالت <code>-d</code> برای بررسی پیکربندی است؛ به‌جای آزمایش روی فایل‌های سیستم از آن استفاده کن. روش rename و reopen معمولاً از <code>copytruncate</code> روشن‌تر است؛ copytruncate بین کپی و کوتاه‌کردن فایل فاصله‌ای دارد که ممکن است چند خط از دست بروند. جزئیات بسته و hookهای سرویس را پیش از تغییر سیاست واقعی بخوان.</p>
+  <p lang="en">The <code>-d</code> mode inspects configuration; use it instead of experimenting on system logs. Rename-and-reopen is generally clearer than <code>copytruncate</code>, which has a window between copying and truncating in which lines can be lost. Read the package and service hooks before changing a live policy.</p>
+  <p lang="fa">اگر log ناپدید یا خالی شد، permission و فضای همان filesystem را هم بررسی کن. <code>df -h</code> بلوک‌های آزاد و <code>df -i</code> inodeهای آزاد را نشان می‌دهد؛ هر دو می‌توانند مانع ساخت فایل شوند. برای permission، مالکیت پوشهٔ والد و کاربر worker مهم است؛ <code>chmod 777</code> درمان مناسبی نیست.</p>
+  <p lang="en">If a log disappears or stays empty, inspect permissions and the filesystem’s free space too. <code>df -h</code> shows free blocks; <code>df -i</code> shows free inodes. Either can prevent file creation. For permissions, inspect the parent directory and worker identity; <code>chmod 777</code> is not a sound repair.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">read-only checks for path permissions and both kinds of capacity</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">namei -l "$LOG_LAB/logs/access.log"
+df -h "$LOG_LAB"
+df -i "$LOG_LAB"</span>
+<span class="s">... drwx------ ... nginx-logs.xxxxxx
+... drwxr-xr-x ... logs
+... -rw-r--r-- ... access.log
+Filesystem  Size Used Avail Use% Mounted on
+...          ...  ...  ...   ...  ...</span></pre></div>
+  <p lang="fa">اگر بلوک خالی هست اما inodeها ۱۰۰٪ مصرف شده‌اند، فایل تازه ساخته نمی‌شود. اگر مسیر یکی از پوشه‌های والد اجازهٔ عبور برای worker نداشته باشد، وجود خود فایل هم کمکی نمی‌کند. خروجی واقعی را با user/group پردازش worker مقایسه کن؛ روی محیط تولید، مالکیت را طبق ساختار همان بسته و سرویس تنظیم کن.</p>
+  <p lang="en">If blocks remain but inodes are exhausted, a new file still cannot be created. If a parent directory lacks traversal permission for the worker, the file’s own mode does not help. Compare actual ownership with the worker’s user/group; on production, follow that package and service’s ownership model.</p>
+</section>
+
+<section id="structured-logs">
+  <h2><span lang="fa">JSON مفید است، اگر واقعاً JSON بماند</span><span lang="en">JSON helps only if it remains valid JSON</span></h2>
+  <p lang="fa">وقتی ابزار تحلیل باید فیلدها را جدا بخواند، قالب ساخت‌یافته کمک می‌کند. نسخه‌های امروزی Nginx در <code>log_format</code> امکان <code>escape=json</code> دارند؛ اگر روی نسخهٔ قدیمی‌تری هستی، قبل از کپی تنظیم با <code>nginx -v</code> و مستندات همان نسخه سازگاری را بررسی کن. متغیرهایی مثل user-agent ممکن است نقل‌قول یا نویسهٔ کنترلی داشته باشند، پس escape را حذف نکن.</p>
+  <p lang="en">Structured output helps when an analysis tool needs separate fields. Current Nginx versions support <code>escape=json</code> in <code>log_format</code>; on an older version, check <code>nginx -v</code> and that version’s documentation before copying the directive. Values such as user-agent may contain quotes or control characters, so do not remove escaping.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">an escaped JSON access format</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">log_format json_access escape=json
+    '{"time":"$time_iso8601","remote":"$remote_addr",'
+    '"request":"$request","status":"$status",'
+    '"bytes":"$body_bytes_sent","request_time":"$request_time",'
+    '"upstream_time":"$upstream_response_time",'
+    '"referer":"$http_referer","user_agent":"$http_user_agent"}';
+access_log logs/access.jsonl json_access;</span></pre></div>
+  <p lang="fa">مقادیر متغیرها را رشته گذاشتیم؛ برای نمونه بعضی زمان‌ها می‌توانند <code>-</code> باشند، که عدد JSON نیست. پس از ساخت یک خط، اگر <code>jq</code> نصب است، اعتبارش را بررسی کن. نبودن jq به معنی خراب بودن Nginx نیست؛ فقط این ابزار بررسی در دسترس نیست.</p>
+  <p lang="en">We encoded variable values as strings; some timing fields can be <code>-</code>, which is not a JSON number. Validate a produced line with <code>jq</code> if installed. Missing jq does not mean Nginx is broken; only this validation tool is unavailable.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">validate one emitted line, if jq is available</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">tail -n 1 "$LOG_LAB/logs/access.jsonl" | jq -e .</span>
+<span class="s">{
+  "time": "...",
+  "status": "200",
+  "request_time": "0.002"
+}</span></pre></div>
+  <p lang="fa">خروجی ساخت‌یافته، درستی معنای داده را تضمین نمی‌کند: user-agent و referer از client می‌آیند و می‌توانند جعلی باشند. همچنین IP و URL ممکن است دادهٔ حساس داشته باشند. دسترسی، مدت نگهداری و نیاز واقعی به هر فیلد را مشخص کن. JSON را بهانه‌ای برای ثبت بی‌حد اطلاعات نکن.</p>
+  <p lang="en">Structured syntax does not make data truthful: user-agent and referer come from the client and can be forged. IPs and URLs may also contain sensitive data. Define access, retention, and a reason for every field; JSON is not a reason to log everything.</p>
+</section>
+
+<section id="exercises">
+  <h2><span lang="fa">تمرین؛ شاهد را از حدس جدا کن</span><span lang="en">Exercises: separate evidence from guesses</span></h2>
+  <p lang="fa">در هر تمرین، قبل از تعمیر بگو کدام شاهد بین دو احتمال فرق می‌گذارد. بعضی سؤال‌ها چند پاسخ قابل‌قبول دارند؛ مهم این است که نتیجه از داده جلوتر نرود.</p>
+  <p lang="en">Before proposing a fix, identify which evidence distinguishes the competing explanations. Some prompts allow more than one reasonable answer; the important thing is not to claim more than the data supports.</p>
+
+  <div class="ex" id="ex-01"><h3>۱. <span lang="fa">کدام log؟</span><span lang="en">Which log?</span></h3><p lang="fa">client پاسخ 404 می‌گیرد و error log خط تازه‌ای ندارد. اولین جا برای بررسی چیست؟</p><p lang="en">A client receives 404, but the error log has no new line. Where do you look first?</p><details class="ex-sol"><summary><span lang="fa">پاسخ و دلیل</span><span lang="en">Answer and reasoning</span></summary><p lang="fa">Access log را ببین؛ پاسخ HTTP معتبر، حتی 404، معمولاً در access log ثبت می‌شود. نبود خط در error log ثابت نمی‌کند که درخواست به Nginx نرسیده.</p><p lang="en">Check the access log: a valid HTTP response, including 404, is normally an access event. No error-log line does not prove the request never reached Nginx.</p></details></div>
+  <div class="ex" id="ex-02"><h3>۲. <span lang="fa">سطح هشدار</span><span lang="en">Severity level</span></h3><p lang="fa">با <code>error_log ... warn</code> چه سطح‌هایی ثبت می‌شوند؟</p><p lang="en">With <code>error_log ... warn</code>, which severities are recorded?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">هشدار و شدت‌های بالاتر، مثل error و crit. تغییر به debug فقط برای دیدن همه‌چیز راه‌حل بی‌هزینه نیست؛ build مناسب و کنترل حجم لازم است.</p><p lang="en">Warnings and more severe levels such as error and crit. Switching to debug is not a free way to see everything; it requires a suitable build and volume control.</p></details></div>
+  <div class="ex" id="ex-03"><h3>۳. <span lang="fa">پاسخ موفق، زمان مشکوک</span><span lang="en">Successful response, suspicious timing</span></h3><p lang="fa">یک خط می‌گوید <code>status=200 rt=0.8 urt=0.79</code>. زمان بیشتر کجا گذشته؟ چه چیزی هنوز معلوم نیست؟</p><p lang="en">A line says <code>status=200 rt=0.8 urt=0.79</code>. Where was most time spent, and what remains unknown?</p><details class="ex-sol"><summary><span lang="fa">تفسیر</span><span lang="en">Interpretation</span></summary><p lang="fa">تقریباً بیشتر بازه داخل upstream بوده. این به‌تنهایی نمی‌گوید برنامه CPU مصرف کرده، منتظر DB بوده یا شبکهٔ upstream کند بوده؛ لاگ خود برنامه و dependency را هم لازم داریم.</p><p lang="en">Most of the interval was inside the upstream exchange. This alone cannot tell whether the app used CPU, waited on a database, or encountered network delay; application and dependency logs are also needed.</p></details></div>
+  <div class="ex" id="ex-04"><h3>۴. <span lang="fa">بدنهٔ کند</span><span lang="en">A slow request body</span></h3><p lang="fa">برای آپلود، <code>rt=8.0</code> و <code>urt=0.01</code> می‌بینی. آیا backend هشت ثانیه مشغول بوده؟</p><p lang="en">For an upload you see <code>rt=8.0</code> and <code>urt=0.01</code>. Was the backend busy for eight seconds?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">این شواهد چنین چیزی را نشان نمی‌دهد؛ بیشتر زمان بیرون از upstream گذشت. زمان ارسال body، پاسخ‌دهی client و جزئیات buffering را بررسی کن.</p><p lang="en">The evidence does not show that; most time was outside the upstream interval. Investigate client body transfer, response delivery, and buffering details.</p></details></div>
+  <div class="ex" id="ex-05"><h3>۵. <span lang="fa">ترتیب کندترین‌ها</span><span lang="en">Rank the slowest</span></h3><p lang="fa">از <code>0.03</code>، <code>0.7</code> و <code>0.2</code> کدام پاسخ upstream کندتر است؟ چرا sort الفبایی خطرناک است؟</p><p lang="en">Which upstream response is slowest: <code>0.03</code>, <code>0.7</code>, or <code>0.2</code>? Why can lexical sorting mislead?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa"><code>0.7</code>؛ مرتب‌سازی متنی می‌تواند مقدارهای اعشاری را طبق نویسه‌ها مرتب کند نه عدد. از sort عددی مثل <code>sort -nr</code> استفاده کن و ورودی را هم بررسی کن.</p><p lang="en"><code>0.7</code>. Text sorting can order decimal strings lexically instead of numerically. Use numeric sorting such as <code>sort -nr</code> and inspect the input too.</p></details></div>
+  <div class="ex" id="ex-06"><h3>۶. <span lang="fa">backend اصلاً پاسخ نداده</span><span lang="en">The upstream never replied</span></h3><p lang="fa">access log وضعیت 502 دارد و <code>ustatus=-</code>. چه نتیجه‌ای می‌گیری؟</p><p lang="en">The access log shows 502 and <code>ustatus=-</code>. What can you conclude?</p><details class="ex-sol"><summary><span lang="fa">تفسیر</span><span lang="en">Interpretation</span></summary><p lang="fa">این خط پاسخ HTTP upstream را نشان نمی‌دهد؛ برای علت دقیق error log و خطای اتصال/timeout را بخوان. هنوز نمی‌دانیم backend خاموش، آدرس اشتباه یا شبکه مسدود بوده.</p><p lang="en">This line shows no upstream HTTP status. Read the error log for connection or timeout details. We do not yet know whether the backend was down, misaddressed, or blocked by networking.</p></details></div>
+  <div class="ex" id="ex-07"><h3>۷. <span lang="fa">چرا 404 در error log نیست؟</span><span lang="en">Why is a 404 absent from error.log?</span></h3><p lang="fa">آیا باید سطح error log را debug کنی تا همهٔ 404ها ثبت شوند؟</p><p lang="en">Should you enable debug error logging to capture every 404?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">نه؛ access log برای درخواست و status آن است. error log برای خطاهای عملیاتی Nginx است. debug ممکن است بسیار پرحجم شود و برای یک پاسخ عادی ابزار مناسبی نیست.</p><p lang="en">No. The access log records requests and their status; the error log records Nginx operational errors. Debug can be very noisy and is not the right tool for an ordinary response.</p></details></div>
+  <div class="ex" id="ex-08"><h3>۸. <span lang="fa">لاگ زنده بعد از rotation</span><span lang="en">Following a log after rotation</span></h3><p lang="fa">بعد از rename، <code>tail -f</code> خط‌های فایل تازه را نشان نمی‌دهد. چه گزینه‌ای را امتحان می‌کنی؟</p><p lang="en">After a rename, <code>tail -f</code> does not show lines from the new file. What do you try?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa"><code>tail -F</code> نام را دوباره دنبال می‌کند. ولی اول مطمئن شو Nginx هم فایل log را reopen کرده و درخواست جدید در فایل تازه نوشته شده.</p><p lang="en"><code>tail -F</code> follows the name again. Also verify that Nginx reopened its log and that a new request was written to the new file.</p></details></div>
+  <div class="ex" id="ex-09"><h3>۹. <span lang="fa">فرمت ناقص</span><span lang="en">An incomplete format</span></h3><p lang="fa">تیم می‌خواهد «کندترین route» را پیدا کند. چه فیلدهایی را کنار هم نگه می‌داری؟</p><p lang="en">A team wants to find the slowest route. Which fields do you keep together?</p><details class="ex-sol"><summary><span lang="fa">پاسخ پیشنهادی</span><span lang="en">Suggested answer</span></summary><p lang="fa">route یا request، status، زمان کل، upstream time و در صورت proxy چند upstream timing/status. زمان، واحد/فرمت و امکان مقدار <code>-</code> را هم مستند کن؛ اگر فیلد مسیر را حذف کنی، زمان به درخواست مشخصی وصل نمی‌شود.</p><p lang="en">Keep route or request, status, total time, upstream time, and—when proxying—upstream timing/status. Document formatting and possible <code>-</code> values; without a route field, a duration cannot be tied to a request.</p></details></div>
+  <div class="ex" id="ex-10"><h3>۱۰. <span lang="fa">یک log یا دو تا؟</span><span lang="en">One log or two?</span></h3><p lang="fa">فقط <code>/checkout</code> را موقتاً جدا می‌کنی. چه نکته‌ای دربارهٔ ارث‌بری باید بررسی شود؟</p><p lang="en">You temporarily separate only <code>/checkout</code>. What inheritance detail must you check?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">تعریف access_log در location، تنظیم بالاتر را به ارث نمی‌برد. اگر هم access log عمومی و هم checkout log را می‌خواهی، هر دو مقصد را داخل همان location تعریف کن؛ بعد حجم و نگهداری را بازبینی کن.</p><p lang="en">An access_log at location scope does not inherit the higher-level setting. Declare both destinations in that location if you need the general and checkout logs, then review volume and retention.</p></details></div>
+  <div class="ex" id="ex-11"><h3>۱۱. <span lang="fa">خط در فایل نیست</span><span lang="en">The line is missing</span></h3><p lang="fa">Nginx بالا است ولی فایل جدید ساخته نشده. دو بررسی امن را نام ببر.</p><p lang="en">Nginx is running but the new file was not created. Name two safe checks.</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">error log را برای <code>open() ... failed</code> بخوان و مالکیت/اجازهٔ پوشهٔ والد و worker را بررسی کن؛ سپس <code>df -h</code> و <code>df -i</code> را برای filesystem مقصد ببین. هنوز سراغ chmod عمومی نرو.</p><p lang="en">Look for <code>open() ... failed</code> in the error log and inspect parent-directory permissions and worker identity; then check <code>df -h</code> and <code>df -i</code> for the target filesystem. Do not start with broad chmod.</p></details></div>
+  <div class="ex" id="ex-12"><h3>۱۲. <span lang="fa">بستن سریع مشکل دیسک؟</span><span lang="en">A quick disk-space fix?</span></h3><p lang="fa">فایل access log بزرگ شده. حذفش می‌کنی؟ قبلش چه چیزی را می‌سنجی؟</p><p lang="en">The access log grew large. Would you delete it? What do you check first?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">نه بی‌تشخیص. اندازه و روند رشد، فضای بلوک و inode، سیاست rotation و نیاز نگهداری را بررسی کن. حذف فایل باز ممکن است فضا را هم آزاد نکند تا descriptor بسته شود و شواهد حادثه را از بین می‌برد.</p><p lang="en">Not without diagnosis. Check size and growth, blocks and inodes, rotation policy, and retention needs. Deleting an open file may not free space until its descriptor closes, and it destroys incident evidence.</p></details></div>
+  <div class="ex" id="ex-13"><h3>۱۳. <span lang="fa">کاربر عجیب در JSON</span><span lang="en">A strange value in JSON</span></h3><p lang="fa">یک user-agent نقل‌قول دارد و JSON خط نامعتبر شده. چه چیزی را بررسی می‌کنی؟</p><p lang="en">A user-agent contains quotes and the JSON line is invalid. What do you inspect?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">مطمئن شو <code>log_format ... escape=json</code> فعال است و خط واقعی را با parser بررسی کن. قالب دستی بدون escaping می‌شکند؛ user-agent را هم ورودی قابل‌اعتماد فرض نکن.</p><p lang="en">Ensure <code>log_format ... escape=json</code> is enabled and validate the actual line with a parser. Hand-built formatting without escaping breaks; do not trust user-agent as authoritative data.</p></details></div>
+  <div class="ex" id="ex-14"><h3>۱۴. <span lang="fa">چرخش بدون reopen</span><span lang="en">Rotation without reopen</span></h3><p lang="fa">فایل تازه وجود دارد اما خط‌ها در فایل <code>.1</code> اضافه می‌شوند. محتمل‌ترین بخش جاافتاده چیست؟</p><p lang="en">The new file exists, but lines keep appearing in <code>.1</code>. What step was likely missed?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">Nginx هنوز descriptor قدیمی را نگه داشته؛ پس از rename و ساخت فایل تازه، master باید logها را reopen کند، مثلاً با <code>nginx -s reopen</code> در context درست یا hook بستهٔ سیستم.</p><p lang="en">Nginx still holds the old descriptor. After rename and file creation, the master must reopen logs—for example with <code>nginx -s reopen</code> in the correct context or the system package’s hook.</p></details></div>
+  <div class="ex" id="ex-15"><h3>۱۵. <span lang="fa">زمان چند upstream</span><span lang="en">Multiple upstream timings</span></h3><p lang="fa">مقدار <code>urt</code> شامل چند عدد جداشده با ویرگول است. آن را یک عدد اعشاری حساب می‌کنی؟</p><p lang="en">The <code>urt</code> value contains comma-separated timings. Treat it as one decimal?</p><details class="ex-sol"><summary><span lang="fa">تفسیر</span><span lang="en">Interpretation</span></summary><p lang="fa">نه؛ چند تلاش یا گروه upstream می‌تواند چند مقدار بسازد. مقدار خام، statusهای upstream و error log را کنار هم بخوان تا retry یا چند مرحله را ببینی؛ فیلتر عددی سادهٔ ما برای این مورد کافی نیست.</p><p lang="en">No. Retries or upstream groups can produce multiple values. Read the raw value with upstream statuses and the error log to identify retries or stages; our simple numeric filter is not sufficient here.</p></details></div>
+  <div class="ex" id="ex-16"><h3>۱۶. <span lang="fa">debug را روشن کنیم؟</span><span lang="en">Should we enable debug?</span></h3><p lang="fa">مشکل فقط یک درخواست نادر است. آیا debug دائمی انتخاب خوبی است؟</p><p lang="en">The issue affects a rare request. Is permanent debug logging a good choice?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">معمولاً نه: حجم و دادهٔ حساس ممکن است زیاد شود و build هم باید از debug پشتیبانی کند. ابتدا access/error log فعلی و یک بازهٔ محدود را بررسی کن؛ اگر debug لازم شد، دامنه و زمانش را محدود و بعد خاموش کن.</p><p lang="en">Usually not: volume and sensitive data can increase, and the build must support debug. Start with existing access/error logs and a narrow time window; if debug is necessary, constrain its scope and duration, then turn it off.</p></details></div>
+  <div class="ex" id="ex-17"><h3>۱۷. <span lang="fa">referer حقیقت قطعی است؟</span><span lang="en">Is the referer definitive truth?</span></h3><p lang="fa">گزارش بر اساس <code>referer</code> می‌گوید همهٔ درخواست‌ها از یک سایت خاص آمده‌اند. چه احتیاطی لازم است؟</p><p lang="en">A report based on <code>referer</code> says every request came from one site. What caution applies?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">referer را client می‌فرستد؛ ممکن است خالی، حذف‌شده یا جعل شود. برای تحلیل سرنخ است، نه مرز اعتماد یا اثبات هویت. اطلاعات را حداقلی نگه دار.</p><p lang="en">Referer is client-provided; it can be absent, stripped, or forged. It is a clue for analysis, not an identity proof or trust boundary. Keep collection minimal.</p></details></div>
+  <div class="ex" id="ex-18"><h3>۱۸. <span lang="fa">گزارش رخداد</span><span lang="en">Incident summary</span></h3><p lang="fa">مسیر <code>/slow</code> برای مشتری کند است؛ یک access line چه فیلدهایی باید داشته باشد تا بررسی اول را ممکن کند؟ محدودیت نتیجه‌گیری را هم بنویس.</p><p lang="en">Customers report that <code>/slow</code> is slow. Which fields should one access line include for an initial investigation? State the limit of the conclusion too.</p><details class="ex-sol"><summary><span lang="fa">یک پاسخ معقول</span><span lang="en">One reasonable answer</span></summary><p lang="fa">زمان، method/path، status، <code>request_time</code>، upstream timing/status و زمان‌بندی دریافت/ارسال اگر مسئله آپلود یا پاسخ بزرگ است. چند درخواست را مقایسه و error/app log را هم بررسی می‌کنم. access log به‌تنهایی علت داخل برنامه، DB یا تجربهٔ واقعی همهٔ clientها را اثبات نمی‌کند.</p><p lang="en">Include time, method/path, status, <code>request_time</code>, upstream timing/status, and transfer details if uploads or large responses are involved. Compare multiple requests and inspect error/application logs too. An access log alone cannot prove an internal app or database cause, or represent every client’s experience.</p></details></div>
+</section>
+
+<section id="lab">
+  <h2><span lang="fa">ماموریت: کندترین مسیر را با شاهد پیدا کن</span><span lang="en">Mission: find the slowest route with evidence</span></h2>
+  <p lang="fa">تیم پشتیبانی می‌گوید «سرور کند شده»، اما نمی‌داند پاسخ از Nginx دیر شده یا برنامه. با همین محیط جدا، گزارشی بنویس که یک همکار بتواند نتیجه‌اش را بازبینی کند: درخواست، زمان کل، upstream، status و محدودیت تشخیص.</p>
+  <p lang="en">Support says “the server got slow,” but cannot tell whether the delay is in Nginx or the application. Use this isolated environment to write a reviewable report: request, total time, upstream, status, and diagnostic limits.</p>
+  <ol lang="fa"><li>یک بار هر سه مسیر <code>/fast</code>، <code>/slow</code> و <code>/fail</code> را درخواست کن.</li><li>کندترین upstream را از روی دادهٔ واقعی پیدا کن؛ خط آپلود آهسته را هم جدا نگه دار.</li><li>یک خطای permission بساز فقط در فایل/پوشهٔ آزمایش، بعد error log را بخوان و مالکیت را اصلاح کن.</li><li>خط‌ها را به فایل پشتیبان منتقل کن، فایل تازه بساز و با <code>nginx -s reopen</code> ادامهٔ ثبت را ثابت کن.</li><li>گزارش کوتاه بنویس: چه دیدی، چه چیزی محتمل است، چه چیزی هنوز ثابت نشده، و قدم بعدی چیست.</li></ol>
+  <ol lang="en"><li>Request <code>/fast</code>, <code>/slow</code>, and <code>/fail</code> once each.</li><li>Find the slowest upstream from actual data; keep the slow-upload line separate.</li><li>Create a permissions failure only inside the lab’s file/directory, read the error log, then repair ownership.</li><li>Move the lines to a rotated file, create a fresh file, and prove logging continues with <code>nginx -s reopen</code>.</li><li>Write a short report: what you observed, what is likely, what is unproven, and the next check.</li></ol>
+  <details class="capsule"><summary><span lang="fa">راهنمایی؛ اول خطی را پیدا کن که بین دو علت فرق می‌گذارد</span><span lang="en">Hint: first find the line that distinguishes two causes</span></summary><p lang="fa"><code>rt</code> و <code>urt</code> را کنار هم بخوان. برای permission، error log از access log کمک‌کننده‌تر است. بعد از rotation یک درخواست تازه بساز؛ وجود فایل به‌تنهایی ثابت نمی‌کند Nginx در آن می‌نویسد.</p><p lang="en">Read <code>rt</code> beside <code>urt</code>. For permissions, the error log is more useful than the access log. After rotation, make a fresh request; a file’s existence alone does not prove Nginx is writing to it.</p></details>
+  <details class="capsule"><summary><span lang="fa">راه‌حل نمونه؛ گزارش را از چیزی که خط‌ها ثابت می‌کنند جلوتر نبر</span><span lang="en">Sample resolution: do not claim more than the lines prove</span></summary><p lang="fa">در خروجی نمونه، <code>/slow</code> هم <code>rt</code> و هم <code>urt</code> نزدیک ۰٫۳۵ دارد؛ در همان محیط، تأخیر upstream با مسیر کند سازگار است. آپلود محدود <code>rt</code> حدود ۸ ثانیه اما <code>urt</code> نزدیک ۰٫۰۰۱ دارد؛ پس کندی عمدتاً در بازهٔ client/Nginx بوده. برای 500، مقدار <code>ustatus=500</code> می‌گوید upstream پاسخ خطا داده. هیچ‌کدام به‌تنهایی علت درونی برنامه را مشخص نمی‌کند. بعد از rotation، یک درخواست تازه و خطش در فایل جدید، شاهد reopen موفق است.</p><p lang="en">In the sample, <code>/slow</code> has both <code>rt</code> and <code>urt</code> near 0.35, consistent with upstream delay in this environment. The bounded upload has roughly eight seconds of <code>rt</code> but near 0.001 <code>urt</code>, so most delay was in the client/Nginx interval. For the 500, <code>ustatus=500</code> shows the upstream returned an error. None identifies the application’s internal cause by itself. A new request appearing in the fresh file after rotation is evidence of a successful reopen.</p></details>
+</section>
+
+<section id="cleanup">
+  <h2><span lang="fa">جمع‌کردن آزمایش، بدون دست‌زدن به سرویس دیگر</span><span lang="en">Clean up without touching another service</span></h2>
+  <p lang="fa">پیش از پایان، لاگ‌ها را برای گزارش نگه دار؛ بعد فقط Nginx همین prefix را متوقف کن. اگر PID برنامه به مسیر اسکریپت همین پوشه اشاره نمی‌کند، آن را نکش. این بررسی جلوی اشتباه گرفتن PID آزمایش با یک برنامهٔ دیگر را می‌گیرد.</p>
+  <p lang="en">Keep the logs until you have the evidence for your report, then stop only the Nginx instance using this prefix. Do not kill the app PID unless its command points to the script in this exact lab directory; this prevents confusing it with another process.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">verify process identity before stopping, then inspect the exact temp path</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">nginx -s quit -p "$LOG_LAB/" -c nginx.conf || true
+MASTER_PID_FILE="$LOG_LAB/run/nginx.pid"
+for _ in $(seq 1 50); do
+  [ -s "$MASTER_PID_FILE" ] || break
+  MASTER_PID=$(cat "$MASTER_PID_FILE")
+  kill -0 "$MASTER_PID" 2&gt;/dev/null || break
+  sleep 0.1
+done
+APP_PID=$(cat "$LOG_LAB/pids/app.pid")
+APP_ARGS=$(ps -p "$APP_PID" -o args= 2&gt;/dev/null || true)
+case "$APP_ARGS" in
+  *"$LOG_LAB/app.py"*) kill "$APP_PID" ;;
+  *) echo "App PID does not match this lab; leaving it untouched." ;;
+esac
+if [ -s "$MASTER_PID_FILE" ] &amp;&amp; kill -0 "$(cat "$MASTER_PID_FILE")" 2&gt;/dev/null; then
+  echo 'Nginx has not exited; keep the lab directory and inspect it.'
+elif [ -n "$APP_ARGS" ] &amp;&amp; kill -0 "$APP_PID" 2&gt;/dev/null; then
+  echo 'App is still running; keep the lab directory and inspect it.'
+else
+case "$LOG_LAB" in
+  /tmp/nginx-logs.*)
+    printf 'Lab directory to remove: %s\n' "$LOG_LAB"
+    read -r -p 'Type REMOVE to delete this lab directory: ' CONFIRM
+    [ "$CONFIRM" = REMOVE ] &amp;&amp; rm -rf -- "$LOG_LAB"
+    ;;
+  *) echo 'Unexpected path; not removing anything.' ;;
+esac
+fi</span></pre></div>
+  <p lang="fa">اگر برنامه یا Nginx هنوز زنده است، پیش از حذف پوشه دلیلش را پیدا کن؛ پوشهٔ log را وقتی descriptor باز است پاک نکن. اگر خواستی خروجی را نگه داری، فقط همین مسیر آزمایش را حذف نکن و فایل‌ها را در محل امن خودت کپی کن. هیچ‌کدام از فرمان‌ها مجوز پاک‌کردن logهای واقعی سیستم را نمی‌دهند.</p>
+  <p lang="en">If the app or Nginx is still alive, understand why before removing the directory; do not delete log files while descriptors are open. To retain evidence, keep this lab directory or copy its files to a safe location. None of these commands authorizes deleting real system logs.</p>
+</section>
+
+<section id="quick-reference">
+  <h2><span lang="fa">برگهٔ دم‌دستی؛ هر عدد را در جای خودش بخوان</span><span lang="en">Quick reference: read each number in its proper context</span></h2>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">پرسش</span><span lang="en">Question</span></th><th><span lang="fa">شاهد اولیه</span><span lang="en">First evidence</span></th><th><span lang="fa">محدودیت</span><span lang="en">Limit</span></th></tr></thead><tbody>
+    <tr><td><span lang="fa">کدام درخواست و چه status؟</span><span lang="en">Which request and status?</span></td><td><code>access_log</code>، <code>$status</code>، مسیر و زمان</td><td><span lang="fa">علت درونی برنامه را نمی‌گوید.</span><span lang="en">Does not explain the app’s internal cause.</span></td></tr>
+    <tr><td><span lang="fa">Nginx خطا دید؟</span><span lang="en">Did Nginx report an error?</span></td><td><code>error_log</code> و level فعال</td><td><span lang="fa">نبود خطا یعنی درخواست سالم بوده؟ نه.</span><span lang="en">No line does not mean the request was healthy.</span></td></tr>
+    <tr><td><span lang="fa">کل درخواست چقدر طول کشید؟</span><span lang="en">How long did the request take overall?</span></td><td><code>$request_time</code></td><td><span lang="fa">زمان client و انتقال را هم شامل می‌شود.</span><span lang="en">Includes client and transfer time too.</span></td></tr>
+    <tr><td><span lang="fa">upstream چه زمانی پاسخ داد؟</span><span lang="en">How long did upstream take?</span></td><td><code>$upstream_response_time</code> و status</td><td><span lang="fa">CPU time برنامه نیست؛ ممکن است چند مقدار باشد.</span><span lang="en">Not app CPU time; may contain multiple values.</span></td></tr>
+    <tr><td><span lang="fa">لاگ بعد از چرخش ادامه یافت؟</span><span lang="en">Did logging continue after rotation?</span></td><td><span lang="fa">reopen و درخواست تازه در فایل جدید</span><span lang="en">reopen and a new request in the fresh file</span></td><td><span lang="fa">وجود فایل به‌تنهایی کافی نیست.</span><span lang="en">File existence alone is not enough.</span></td></tr>
+  </tbody></table></div>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">a compact evidence check</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">tail -F /path/to/access.log
+grep 'status=5' /path/to/access.log | tail
+df -h /path/to/log-files
+df -i /path/to/log-files
+nginx -T</span></pre></div>
+  <p lang="fa">مسیر بالا نمونه است؛ از تنظیم واقعی میزبان استفاده کن. <code>nginx -T</code> پیکربندی مؤثر را چاپ می‌کند و ممکن است مقادیر حساس داشته باشد؛ خروجی را عمومی نکن. برای مشکل زنده، بازهٔ زمانی را محدود کن، شاهد را نگه دار و بعد دست به rotation یا پاک‌کردن بزن.</p>
+  <p lang="en">The path above is illustrative; use the host’s effective configuration. <code>nginx -T</code> prints effective config and may expose sensitive values, so do not publish its output. For a live issue, narrow the time window, preserve evidence, and only then rotate or remove anything.</p>
+</section>
+
+<section id="next">
+  <h2><span lang="fa">در فصل بعد: درخواست معمولی نیست</span><span lang="en">Next: not an ordinary request</span></h2>
+  <p lang="fa">حالا می‌توانیم از روی log بفهمیم درخواست کجا زمان برد و Nginx چه پاسخی ثبت کرد. اما بعضی اتصال‌ها مثل یک درخواست کوتاه تمام نمی‌شوند؛ WebSocket پس از handshake باز می‌ماند، و آپلود حجیم هم رفتار زمانی و اندازهٔ خودش را دارد. فصل بعد می‌رویم سراغ همین مرزها، بدون اینکه هر اتصال طولانی را با یک عدد لاگ ساده قضاوت کنیم.</p>
+  <p lang="en">We can now use logs to see where a request spent time and what response Nginx recorded. But some connections do not end like a short request: a WebSocket stays open after its handshake, and a large upload has its own timing and size behavior. Next we’ll examine those boundaries without judging every long-lived connection by one simple log number.</p>
+</section>

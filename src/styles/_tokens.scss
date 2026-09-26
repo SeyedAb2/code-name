@@ -71,9 +71,9 @@ $bp-xl: 1320px;
 
 @mixin light-tokens {
   /* زمینه کمی عمیق‌تر از سفید است تا کارت‌های سفید از آن جدا دیده شوند */
-  --canvas: #EEF2F9;
+  --canvas: #F0F2FC;
   --surface: #FFFFFF;
-  --surface-sunk: #E4EAF4;
+  --surface-sunk: #E5E9F7;
   --surface-code: #0E1524;   /* بلوک کد در هر دو تم تیره است */
 
   --ink: #0F1729;        /* ۱۷٫۹:۱ روی سطح */
@@ -83,9 +83,9 @@ $bp-xl: 1320px;
   --line: rgba(16, 24, 40, .13);
   --line-strong: rgba(16, 24, 40, .24);
 
-  --blue: #4F6BF5;
-  --violet: #8B5CF6;
-  --brand-grad: linear-gradient(120deg, #4F6BF5 0%, #8B5CF6 100%);
+  --blue: #465FEA;
+  --violet: #8050E8;
+  --brand-grad: linear-gradient(120deg, #465FEA 0%, #8050E8 100%);
   --safe: #15A34A;
   --warn: #B45309;
   --danger: #DC2626;
@@ -94,8 +94,8 @@ $bp-xl: 1320px;
   --shadow-2: 0 4px 12px rgba(16, 24, 40, .10), 0 1px 3px rgba(16, 24, 40, .07);
   --shadow-3: 0 18px 44px -14px rgba(16, 24, 40, .24);
 
-  --tint-blue: rgba(79, 107, 245, .08);
-  --tint-violet: rgba(139, 92, 246, .09);
+  --tint-blue: rgba(70, 95, 234, .11);
+  --tint-violet: rgba(128, 80, 232, .11);
   --tint-safe: rgba(21, 163, 74, .09);
   --tint-warn: rgba(180, 83, 9, .10);
   --tint-danger: rgba(220, 38, 38, .08);

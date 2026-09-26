@@ -1,0 +1,312 @@
+<!--meta
+title: پروژهٔ ۲ — پروکسی جلوی یک اپ
+desc: یک برنامهٔ HTTP/WebSocket را پشت Nginx و HTTPS بگذار؛ headerهای client، handshake، آپلود، timeout، log و بازیابی سرویس را از بیرون ثابت کن.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">Nginx · پروژهٔ ۲</span><span lang="en">Nginx · Project 2</span></span>
+<h1 lang="fa">پروژهٔ ۲ — پروکسی جلوی یک اپ</h1><h1 lang="en">Project 2 — proxying an app</h1>
+<p class="sub" lang="fa">اپلیکیشن بالا است و مستقیم جواب می‌دهد؛ اما کاربران باید از دامنه و HTTPS وارد شوند. حالا Nginx فقط فایل نمی‌دهد: باید هویت درخواست را به اپ برساند، WebSocket را ارتقا دهد و اجازهٔ آپلود آزمایشی را بدهد، بی‌آنکه پورت اپ را عمومی کنی.</p><p class="sub" lang="en">The application is up and responds directly, but users must reach it through a domain and HTTPS. Nginx now does more than serve files: it must forward request identity, upgrade WebSockets, and allow a bounded upload without exposing the app port publicly.</p>
+<div class="facts"><div class="fact"><b>۹۰</b><span lang="fa">دقیقهٔ مأموریت</span><span lang="en">minutes</span></div><div class="fact"><b>۷</b><span lang="fa">checkpoint</span><span lang="en">checkpoints</span></div><div class="fact"><b>۳</b><span lang="fa">خرابی قابل‌تشخیص</span><span lang="en">diagnosable faults</span></div><div class="fact"><b>۱</b><span lang="fa">مسیر عمومی</span><span lang="en">public entry point</span></div></div>
+</div>
+
+<section id="mission">
+<h2><span lang="fa">مأموریت: اپ را پشت لبهٔ HTTPS بگذار</span><span lang="en">Mission: put the app behind an HTTPS edge</span></h2>
+<p class="lede" lang="fa">تیم یک سرویس Node کوچک دارد: صفحهٔ اصلی، endpoint نمایش headerها، echo روی WebSocket و upload محدود. مستقیم روی localhost خوب کار می‌کند، اما نباید کاربر با پورت ۳۰۰۰ به آن برسد. Nginx باید تنها در ورودی عمومی باشد و خطاها را بشود از روی مدرک جدا کرد.</p><p class="lede" lang="en">The team has a small Node service: a home page, a header-inspection endpoint, WebSocket echo, and a bounded upload. It works directly on localhost, but users must not reach port 3000. Nginx is the only public entry point, and failures must be distinguishable from evidence.</p>
+<p lang="fa">پروژهٔ قبل دامنه، گواهی و سایت استاتیک را آماده کرد. این‌بار certificate همان دامنه را reuse می‌کنی و فقط مسیر HTTPS را تا برنامه ادامه می‌دهی. پروژهٔ بعد چند سرویس را به یک gateway وصل می‌کند؛ فعلاً یک Nginx و یک app داریم.</p><p lang="en">The previous project established the domain, certificate, and static site. Reuse that certificate and extend the HTTPS path to an application. The next project builds a multi-service gateway; for now there is one Nginx and one app.</p>
+<div class="diagram"><svg viewBox="0 0 980 440" role="img" aria-labelledby="cap2-flow-title" xmlns="http://www.w3.org/2000/svg">
+<title id="cap2-flow-title">Client traffic enters Nginx over HTTPS and is proxied to a loopback-only app; Nginx and app logs are separate evidence points / درخواست HTTPS وارد Nginx می‌شود و به اپ loopback می‌رسد؛ logها دو نقطهٔ مدرک جدا هستند.</title>
+<defs><marker id="cap2-flow-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow-b"/></marker></defs>
+<rect x="28" y="125" width="180" height="104" rx="16" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/><text x="118" y="165" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Browser</text><text x="118" y="196" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">HTTPS · WSS · POST</text>
+<rect x="286" y="80" width="300" height="194" rx="20" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/><text x="436" y="118" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Nginx · :443</text><text x="436" y="151" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">TLS · headers · limits</text><text x="436" y="184" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">access + error logs</text><text x="436" y="243" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">public edge</text>
+<rect x="674" y="125" width="270" height="104" rx="16" class="dg-fill-g" stroke="var(--safe)" stroke-width="2"/><text x="809" y="165" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Node app · 127.0.0.1:3000</text><text x="809" y="196" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">HTTP + WebSocket</text>
+<path d="M208 177H286" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#cap2-flow-arrow)"/><path d="M586 177H674" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#cap2-flow-arrow)"/>
+<rect x="298" y="326" width="276" height="76" rx="15" class="dg-fill" stroke="var(--line-strong)" stroke-width="1.5"/><text x="436" y="357" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">Nginx access/error logs</text><text x="436" y="382" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">request + upstream symptoms</text>
+<rect x="674" y="326" width="270" height="76" rx="15" class="dg-fill" stroke="var(--line-strong)" stroke-width="1.5"/><text x="809" y="357" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">systemd journal</text><text x="809" y="382" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">app output + restart</text>
+<path d="M436 274V326" class="dg-stroke" stroke-width="2" marker-end="url(#cap2-flow-arrow)"/><path d="M809 229V326" class="dg-stroke" stroke-width="2" marker-end="url(#cap2-flow-arrow)"/>
+</svg><p class="diagram-cap" lang="fa">فلش‌های افقی مسیر درخواست‌اند؛ فلش‌های پایین فقط محل جمع‌شدن log را نشان می‌دهند، نه مسیر ترافیک. برنامه روی loopback است و پورتش public نمی‌شود.</p><p class="diagram-cap" lang="en">Horizontal arrows are request flow; lower arrows mark log destinations, not traffic paths. The app binds to loopback and its port is not public.</p></div>
+</section>
+
+<section id="constraints">
+<h2><span lang="fa">محدوده و قرارداد تحویل</span><span lang="en">Scope and delivery contract</span></h2>
+<div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">داخل مأموریت</span><span lang="en">In scope</span></th><th><span lang="fa">فعلاً بیرون</span><span lang="en">Out of scope</span></th></tr></thead><tbody>
+<tr><td><span lang="fa">Nginx، یک Node app، TLS دامنهٔ پروژهٔ ۱</span><span lang="en">Nginx, one Node app, Project 1 domain/TLS</span></td><td><span lang="fa">load balancing، چند replica، CDN یا database</span><span lang="en">Load balancing, replicas, CDN, or database</span></td></tr>
+<tr><td><span lang="fa">HTTP، WebSocket، آپلود آزمایشی حداکثر ۱٫۵ MiB</span><span lang="en">HTTP, WebSocket, and a bounded 1.5 MiB upload test</span></td><td><span lang="fa">ذخیرهٔ واقعی فایل کاربران یا آپلود نامحدود</span><span lang="en">Persistent user-file storage or unbounded uploads</span></td></tr>
+<tr><td><span lang="fa">اپ روی 127.0.0.1:3000؛ عمومی فقط ۸۰/۴۴۳ و SSH</span><span lang="en">App on 127.0.0.1:3000; public 80/443 and SSH only</span></td><td><span lang="fa">بازکردن port 3000 به اینترنت</span><span lang="en">Exposing port 3000 to the internet</span></td></tr>
+<tr><td><span lang="fa">systemd برای اجرا/بازیابی و logهای دو سرویس</span><span lang="en">systemd lifecycle/restart and both services’ logs</span></td><td><span lang="fa">سامانهٔ پایش یا gateway چندسرویسی پروژهٔ بعد</span><span lang="en">Monitoring platform or next project’s multi-service gateway</span></td></tr>
+</tbody></table></div>
+<p lang="fa">فرض این پروژه یک Ubuntu host دارد که Nginx و Node روی همان machine اجرا می‌شوند. پس bind به loopback راه مناسبی برای ندادن پورت عمومی است. اگر اپ را بعداً به container جدا ببری، loopback دیگر مقصد Nginx نیست؛ آن معماری را به پروژهٔ بعد بسپار.</p><p lang="en">This project assumes Ubuntu runs Nginx and Node on the same host, so loopback keeps the app port private. If you later move the app into a separate container, loopback is no longer Nginx’s destination; that architecture belongs to the next project.</p>
+</section>
+
+<section id="checkpoint-one">
+<h2><span lang="fa">نقطهٔ ۱: رفتار اپ را مستقل از Nginx ثابت کن</span><span lang="en">Checkpoint 1: prove the app works independently</span></h2>
+<p lang="fa">starter را روی محیط کاری اجرا کن. endpoint اصلی و /whoami باید پاسخ بدهند، /upload تعداد byte را بشمارد، و /ws پیام را echo کند. از اول روی پورت public آزمایش نکن؛ اول مطمئن شو خود برنامه سالم است.</p><p lang="en">Run the starter in your work environment. The home and /whoami endpoints respond, /upload counts bytes, and /ws echoes messages. Do not start by testing the public port; first prove the app itself works.</p>
+<p lang="fa">در این نسخه، app عمداً headerهای ارسالی را فقط نمایش می‌دهد و از آن‌ها برای احراز هویت یا مجوز استفاده نمی‌کند. یک برنامهٔ frameworkدار باید proxyهای مورداعتمادش را دقیق تنظیم کند؛ هر client می‌تواند header جعلی بفرستد.</p><p lang="en">This starter deliberately displays forwarded headers but does not use them for identity/authorization. A framework app must configure trusted proxies precisely; any client can send forged forwarding headers.</p>
+<div class="term"><div class="term-bar"><span class="term-label">direct baseline before the edge</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl -i http://127.0.0.1:3000/
+curl -s http://127.0.0.1:3000/whoami
+ss -lntp | grep ':3000' || true</span>
+<span class="s">HTTP/1.1 200 OK
+{"host":"127.0.0.1:3000","forwardedFor":null,"forwardedProto":null}
+LISTEN ... 127.0.0.1:3000 ... node</span></pre></div>
+<p lang="fa">مدرک مهم در ss، address برابر 127.0.0.1 است، نه 0.0.0.0. این فقط همین میزبان را نشان می‌دهد؛ پس از نصب سرویس روی VPS دوباره بررسی کن. WebSocket را با console مرورگر آزمایش کن: <code>new WebSocket("ws://127.0.0.1:3000/ws")</code> و پیام ping بفرست.</p><p lang="en">The key evidence in ss is address 127.0.0.1, not 0.0.0.0. This proves only this host; check again after installing the service on the VPS. Test WebSocket in the browser console with <code>new WebSocket("ws://127.0.0.1:3000/ws")</code> and send a ping message.</p>
+</section>
+
+<section id="checkpoint-two">
+<h2><span lang="fa">نقطهٔ ۲: سرویس را به Nginx وابسته و عمومی نکن</span><span lang="en">Checkpoint 2: keep the app private and manageable</span></h2>
+<p lang="fa">روی سرور یک کاربر systemd کم‌دسترسی برای اپ بساز و service را با restart-on-failure اجرا کن. آدرس node را از <code>command -v node</code> بگیر؛ مسیر binary در نصب‌های مختلف یکی نیست.</p><p lang="en">Create a low-privilege system user and run the app under a systemd unit with restart-on-failure. Get Node’s executable path from <code>command -v node</code>; installs may differ.</p>
+<div class="term"><div class="term-bar"><span class="term-label">inspect the managed unit and its listening address</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">sudo systemctl daemon-reload
+sudo systemctl enable --now codenames-app
+sudo systemctl status codenames-app --no-pager
+sudo journalctl -u codenames-app -n 30 --no-pager
+ss -lntp | grep ':3000' || true</span></pre></div>
+<p lang="fa">systemd وضعیت فرایند و خروجی stdout/stderr اپ را می‌دهد؛ Nginx هنوز در این مرحله نقشی ندارد. اگر port عمومی گوش می‌دهد، bind address را اصلاح کن یا firewall را بررسی کن؛ فقط بستن firewall کافی نیست اگر سرویس ناخواسته روی همهٔ interfaceها bind شده.</p><p lang="en">systemd reports process state and the app’s stdout/stderr; Nginx is not involved yet. If the port is publicly listening, fix the bind address or inspect the firewall. A firewall alone is not enough if the service is unintentionally bound to every interface.</p>
+</section>
+
+<section id="checkpoint-three">
+<h2><span lang="fa">نقطهٔ ۳: HTTPS و headerهای مسیر واقعی</span><span lang="en">Checkpoint 3: HTTPS and forwarding headers</span></h2>
+<p lang="fa">گواهی دامنه را از پروژهٔ قبل استفاده کن. Nginx به 127.0.0.1:3000 proxy می‌کند و این headerها را می‌فرستد: Host اصلی، IPی که Nginx دیده، زنجیرهٔ X-Forwarded-For و scheme بیرونی. /whoami را مستقیم و از دامنه مقایسه کن.</p><p lang="en">Reuse the certificate from the previous project. Nginx proxies to 127.0.0.1:3000 and sends original Host, the IP Nginx observed, the X-Forwarded-For chain, and the external scheme. Compare /whoami directly and through the domain.</p>
+<p lang="fa">پیش از اتصال درست، یک بار upstream را عمداً به پورت ۳۰۰۱ ببر. درخواست همان URL را بزن و status را تنها تفسیر نکن؛ error log باید مقصد را نام ببرد و direct curl/ss باید نشان دهند app روی ۳۰۰۰ سالم است.</p><p lang="en">Before wiring it correctly, deliberately point the upstream at port 3001. Request the same URL, but do not interpret status alone: the error log should name the target, while direct curl/ss show the app is healthy on 3000.</p>
+<div class="term"><div class="term-bar"><span class="term-label">fault drill: wrong port, then correlate error log and listener</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl -i https://example.org/whoami
+sudo tail -n 20 /var/log/nginx/codenames.error.log
+ss -lntp | grep -E ':(3000|3001)\\b' || true
+curl -i http://127.0.0.1:3000/whoami</span>
+<span class="s"># Nginx error: connection refused to 127.0.0.1:3001
+# app listener and direct request are healthy on 127.0.0.1:3000</span></pre></div>
+<p lang="fa">وقتی شواهد هم‌خوان شد، مقصد را به ۳۰۰۰ برگردان، config test و reload کن و همان درخواست proxied را تکرار کن. پاسخ direct به‌تنهایی proxy را ثابت نمی‌کرد؛ آزمون دوم می‌کند.</p><p lang="en">Once evidence agrees, restore port 3000, test/reload, and repeat the proxied request. The direct response alone did not prove the proxy; the second test does.</p>
+<div class="term"><div class="term-bar"><span class="term-label">same endpoint, different network boundary</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl -s http://127.0.0.1:3000/whoami
+curl -s https://example.org/whoami
+curl -sSI http://example.org/</span>
+<span class="s"># direct: forwardedFor/Proto are absent
+# via HTTPS: X-Forwarded-For contains the client path,
+# X-Forwarded-Proto is https, Host is the public hostname
+# HTTP request: 301 Location: https://example.org/</span></pre></div>
+<p lang="fa">این نتیجه ثابت می‌کند همین vhost headerها را فرستاده، نه اینکه اپ مجاز است به هر header ورودی اعتماد کند. برای یک proxy عمومی، <code>$proxy_add_x_forwarded_for</code> مقدار client-supplied قبلی را نگه می‌دارد و IP دیده‌شده را اضافه می‌کند؛ اپ باید فقط proxyهای شناخته‌شده را trusted بداند و زنجیره را از سمت درست بخواند.</p><p lang="en">This proves this vhost forwarded the headers; it does not mean the app can trust arbitrary incoming values. On a public proxy, <code>$proxy_add_x_forwarded_for</code> preserves any client-supplied prefix and appends the observed address. The app must trust only known proxies and parse the chain from the correct side.</p>
+</section>
+
+<section id="checkpoint-four">
+<h2><span lang="fa">نقطهٔ ۴: WebSocket باید واقعاً ۱۰۱ شود</span><span lang="en">Checkpoint 4: the WebSocket handshake must really reach 101</span></h2>
+<p lang="fa">ابتدا location /ws را بدون headerهای Upgrade فعال کن و از مرورگر تلاش کن وصل شوی. پروتکل WebSocket با HTTP شروع می‌شود و فقط وقتی app پاسخ ۱۰۱ بدهد تونل برقرار می‌شود؛ headerهای Upgrade و Connection در Nginx hop-by-hop هستند و خودکار عبور نمی‌کنند.</p><p lang="en">First enable /ws without Upgrade forwarding and try the browser client. WebSocket begins as HTTP and becomes a tunnel only after the app returns 101; Upgrade and Connection are hop-by-hop headers and Nginx does not forward them automatically.</p>
+<div class="term"><div class="term-bar"><span class="term-label">diagnose the failed handshake before changing the location</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl -i https://example.org/ws
+sudo tail -n 30 /var/log/nginx/codenames.access.log
+sudo journalctl -u codenames-app --since '5 minutes ago' --no-pager</span>
+<span class="s">HTTP/1.1 426 Upgrade Required
+...
+# browser WebSocket panel has no successful 101 handshake</span></pre></div>
+<p lang="fa">پاسخ ۴۲۶ یا درخواست معمولی به /ws یعنی handshake تبدیل نشده؛ آن را با ۵۰۲ اشتباه نگیر، چون اتصال عادی Nginx به app می‌تواند سالم باشد. بعد map را در context سطح http تعریف و headerهای لازم را در location /ws اضافه کن؛ proxy HTTP/1.1 را صریح بنویس تا نسخه‌های قدیمی‌تر هم درست کار کنند.</p><p lang="en">A 426 or ordinary HTTP request to /ws means the handshake did not upgrade; do not confuse it with 502 because ordinary Nginx-to-app connectivity may be healthy. Then define the map in http context and add upgrade headers in /ws; state HTTP/1.1 explicitly for older Nginx versions.</p>
+<p lang="fa">نسخه‌های فعلی Nginx از 1.29.7 به بعد HTTP/1.1 را به‌طور پیش‌فرض برای proxy دارند؛ نسخه‌های قدیمی‌تر پیش‌فرض متفاوتی دارند. در این مأموریت همچنان directive را صریح می‌گذاریم. پس از اصلاح، در DevTools باید ۱۰۱ و پیام echo ببینی؛ آزمون کنسول را با <code>wss://example.org/ws</code> انجام بده.</p><p lang="en">Nginx 1.29.7 and later default proxying to HTTP/1.1; older versions differ. This project sets the directive explicitly anyway. After repair, DevTools should show 101 and an echo; test from the browser console using <code>wss://example.org/ws</code>.</p>
+</section>
+
+<section id="checkpoint-five">
+<h2><span lang="fa">نقطهٔ ۵: آپلود محدود، نه نامحدود</span><span lang="en">Checkpoint 5: bounded, not unlimited, uploads</span></h2>
+<p lang="fa">ابتدا با limit پیش‌فرض Nginx یک فایل ۱٫۵ MiB بفرست. فایل از default یک MiB بزرگ‌تر است؛ انتظار ۴۱۳ داریم. اگر خطا را در log Nginx دیدی ولی اپ هیچ درخواست uploadی ثبت نکرد، Nginx پیش از رساندن body آن را رد کرده است.</p><p lang="en">First upload a 1.5 MiB file with Nginx’s default limit. It exceeds the default one MiB, so expect 413. If Nginx logs the rejection but the app has no upload request, Nginx refused the body before forwarding it.</p>
+<div class="term"><div class="term-bar"><span class="term-label">generate one bounded test file and collect response/log evidence</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">head -c 1572864 /dev/zero &gt; /tmp/codenames-upload.bin
+wc -c /tmp/codenames-upload.bin
+curl -i -F "file=@/tmp/codenames-upload.bin" https://example.org/upload
+sudo tail -n 20 /var/log/nginx/codenames.error.log
+sudo journalctl -u codenames-app --since '5 minutes ago' --no-pager</span></pre></div>
+<p lang="fa">Nginx limit را فقط در location آپلود کمی بالاتر از محدودیت اپ بگذار، مثلاً ۳ MiB در لبه و ۲ MiB در app. این دو لایه عمداً یکسان نیستند: proxy می‌تواند سرریزهای واضح را زود رد کند و app هنوز حد خودش را نگه دارد. فایل ۱٫۵ MiB را دوباره بفرست؛ پاسخ باید تعداد byte را تأیید کند.</p><p lang="en">Raise Nginx’s limit only for the upload location and slightly above the app’s own cap—for example 3 MiB at the edge and 2 MiB in the app. The limits intentionally differ: the proxy can reject obvious excess early while the app retains its own bound. Retry the 1.5 MiB file; the response should confirm received bytes.</p>
+<p lang="fa">برای این endpoint، تعداد byte را ثبت می‌کنیم و فایل را ذخیره نمی‌کنیم. اگر محصول واقعی فایل را نگه می‌دارد، مسیر، quota، backup و پاک‌سازی جزو طراحی جدا هستند؛ این تمرین آن‌ها را پیاده‌سازی نمی‌کند.</p><p lang="en">This endpoint counts bytes without persisting the file. A real upload product needs separate design for storage paths, quotas, backups, and cleanup; this exercise does not implement those.</p>
+</section>
+
+<section id="checkpoint-six">
+<h2><span lang="fa">نقطهٔ ۶: timeout، log و بازیابی سرویس</span><span lang="en">Checkpoint 6: timeouts, logs, and service recovery</span></h2>
+<p lang="fa">برای HTTP درخواست را با access log Nginx و journal برنامه در یک بازهٔ زمانی دنبال کن. Nginx log می‌گوید client چه دید و upstream چه کرد؛ journal می‌گوید برنامه چه دریافت/نوشت. زمان‌ها و timezone را کنار هم بخوان.</p><p lang="en">Trace one HTTP request through Nginx access logs and the app journal in the same time window. Nginx shows what the client saw and upstream did; the journal shows what the app received/wrote. Compare timestamps and timezones.</p>
+<div class="term"><div class="term-bar"><span class="term-label">correlate one request across two services</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl -i https://example.org/whoami
+sudo tail -n 20 /var/log/nginx/codenames.access.log
+sudo tail -n 20 /var/log/nginx/codenames.error.log
+sudo journalctl -u codenames-app --since '5 minutes ago' --no-pager
+sudo systemctl show codenames-app -p NRestarts</span></pre></div>
+<p lang="fa">سرویس systemd را با unit خودش restart کن و health/درخواست را دوباره بسنج. برای آزمایش کنترل‌شده، فقط همین سرویس آزمایشی را با SIGKILL متوقف کن تا <code>Restart=on-failure</code> را ببینی؛ نام unit و PID را قبل از کار حتماً تأیید کن.</p><p lang="en">Restart only this systemd unit and retest. For a controlled drill, send SIGKILL only to this disposable service to observe <code>Restart=on-failure</code>; verify the unit and PID before doing so.</p>
+<div class="term"><div class="term-bar"><span class="term-label">controlled restart drill for the named lab service only</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">sudo systemctl show codenames-app -p MainPID -p NRestarts
+sudo systemctl kill --signal=SIGKILL codenames-app
+sleep 2
+sudo systemctl status codenames-app --no-pager
+sudo systemctl show codenames-app -p MainPID -p NRestarts
+curl -i http://127.0.0.1:3000/</span></pre></div>
+<p lang="fa">افزایش NRestarts و پاسخ دوبارهٔ app نشان می‌دهد systemd فرایند را بالا آورده، نه اینکه علت crash را فهمیده باشد. لاگ restart و خطای قبلی را نگه دار؛ restart policy جای diagnosis نیست. اگر property NRestarts روی systemd قدیمی نبود، journal و MainPID را شاهد بگیر.</p><p lang="en">An increased NRestarts and a responding app show systemd relaunched the process, not that it diagnosed the crash. Keep the restart and prior-error logs; restart policy is not diagnosis. If an older systemd lacks NRestarts, use the journal and MainPID as evidence.</p>
+</section>
+
+<section id="checkpoint-seven">
+<h2><span lang="fa">نقطهٔ ۷: آزمون بیرونی و گزارش تحویل</span><span lang="en">Checkpoint 7: external acceptance and handoff</span></h2>
+<p lang="fa">اکنون از یک دستگاه بیرونی آزمون کن؛ درخواست localhost روی خود VPS مسیر واقعی TLS، DNS و firewall را ثابت نمی‌کند. مرورگر، curl و DevTools باید هرکدام چیزی را ثابت کنند، نه اینکه سه screenshot یکسان بسازند.</p><p lang="en">Now test from an external device; localhost on the VPS does not prove the real TLS, DNS, and firewall path. Browser, curl, and DevTools should prove different properties rather than create three identical screenshots.</p>
+<div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">ادعا</span><span lang="en">Claim</span></th><th><span lang="fa">اثبات</span><span lang="en">Proof</span></th></tr></thead><tbody>
+<tr><td><span lang="fa">فقط edge عمومی است</span><span lang="en">Only the edge is public</span></td><td><span lang="fa">ss/listenerها و firewall؛ port 3000 روی loopback</span><span lang="en">Listeners/firewall; port 3000 bound to loopback</span></td></tr>
+<tr><td><span lang="fa">headerها تا app رسیده‌اند</span><span lang="en">Headers reach the app</span></td><td><span lang="fa">مقایسهٔ direct و proxied /whoami</span><span lang="en">Compare direct and proxied /whoami</span></td></tr>
+<tr><td><span lang="fa">WebSocket برقرار می‌شود</span><span lang="en">WebSocket works</span></td><td><span lang="fa">DevTools handshake برابر ۱۰۱ و echo پیام</span><span lang="en">DevTools shows 101 and an echoed message</span></td></tr>
+<tr><td><span lang="fa">آپلود در حد مجاز موفق است</span><span lang="en">Allowed upload succeeds</span></td><td><span lang="fa">۱٫۵ MiB، پاسخ byte count، log app و edge</span><span lang="en">1.5 MiB, byte-count response, app/edge logs</span></td></tr>
+<tr><td><span lang="fa">گواهی/redirect سالم‌اند</span><span lang="en">Certificate/redirect work</span></td><td><span lang="fa">HTTP 301، HTTPS با validation معمول curl</span><span lang="en">HTTP 301, HTTPS with normal curl validation</span></td></tr>
+<tr><td><span lang="fa">سرویس پس از شکست برمی‌گردد</span><span lang="en">Service recovers after failure</span></td><td><span lang="fa">journal، MainPID/NRestarts و درخواست موفق پس از SIGKILL کنترل‌شده</span><span lang="en">Journal, MainPID/NRestarts, successful request after controlled SIGKILL</span></td></tr>
+</tbody></table></div>
+<p lang="fa">ضمیمهٔ تحویل شامل config فعال و map، unit file، نسخهٔ Node/dependency، خروجی تست‌ها، مسیر logها و دستور rollback است. private key یا token را ضمیمه نکن.</p><p lang="en">The handoff includes active config/map, unit file, Node/dependency versions, test outputs, log paths, and rollback command. Do not attach private keys or tokens.</p>
+</section>
+
+<section id="hints">
+<h2><span lang="fa">راهنمایی مرحله‌ای</span><span lang="en">Progressive hints</span></h2>
+<details><summary><span lang="fa">۱. مستقیم کار می‌کند، دامنه ۵۰۲ می‌دهد</span><span lang="en">1. Direct works, domain returns 502</span></summary><p lang="fa">پورت و address واقعی را از config فعال بردار؛ <code>ss</code>، direct curl، Nginx error log و journal را با همان زمان کنار هم بگذار. restart اولین آزمون نیست.</p><p lang="en">Read the actual address/port from active config; correlate ss, direct curl, Nginx error log, and journal at the same time. Restart is not the first test.</p></details>
+<details><summary><span lang="fa">۲. صفحه باز می‌شود اما WebSocket نه</span><span lang="en">2. Page works, WebSocket does not</span></summary><p lang="fa">در DevTools دنبال ۱۰۱ بگرد. اگر درخواست عادی ۴۲۶ یا ۴۰۴ می‌گیرد، Upgrade به backend نرسیده؛ map را در http context و headerهای hop-by-hop را در همان location بررسی کن.</p><p lang="en">Look for 101 in DevTools. If a normal request gets 426/404, Upgrade did not reach the backend; check the map in http context and hop-by-hop headers in that location.</p></details>
+<details><summary><span lang="fa">۳. upload بی‌صدا ۴۱۳ می‌شود</span><span lang="en">3. Upload returns 413</span></summary><p lang="fa">در Nginx error log اندازه و location را بررسی کن. اگر app log ورودی ندارد، درخواست احتمالاً در edge رد شده؛ اندازهٔ Nginx را برای همان route بالا ببر و حد app را حفظ کن.</p><p lang="en">Inspect size/location in the Nginx error log. If the app has no request log, the edge likely rejected it; raise the limit only for that route and keep the app cap.</p></details>
+<details><summary><span lang="fa">۴. header IP به نظر جعلی است</span><span lang="en">4. The forwarded IP looks forged</span></summary><p lang="fa">client می‌تواند X-Forwarded-For بفرستد. مسیر trusted proxy و روش انتخاب address را در framework بررسی کن؛ این header را تنها مبنای احراز هویت نگذار.</p><p lang="en">Clients can send X-Forwarded-For. Check trusted-proxy configuration and address selection in the framework; never use this header alone for authentication.</p></details>
+</section>
+
+<section id="reference">
+<h2><span lang="fa">مرجع نهایی: app، systemd و Nginx</span><span lang="en">Reference runbook: app, systemd, and Nginx</span></h2>
+<p lang="fa">پس از ساخت خودت مقایسه کن. فرض: گواهی و DNS پروژهٔ قبل حاضر است، map داخل context <code>http</code> بار می‌شود و Nginx روی همان host اپ قرار دارد.</p><p lang="en">Compare after building your own version. Assumptions: the previous project’s certificate/DNS works, the map is loaded in <code>http</code> context, and Nginx shares a host with the app.</p>
+<h3><span lang="fa">فایل اپلیکیشن</span><span lang="en">Application file</span></h3>
+<div class="term"><div class="term-bar"><span class="term-label">server.js — small HTTP/WebSocket service; upload is counted, not stored</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">const http = require("node:http");
+const { WebSocketServer } = require("ws");
+const PORT = Number(process.env.PORT || 3000);
+const HOST = "127.0.0.1";
+
+const server = http.createServer((req, res) =&gt; {
+  const url = new URL(req.url, "http://localhost");
+  const send = (code, body, type = "text/plain") =&gt; {
+    res.writeHead(code, { "content-type": type });
+    res.end(body);
+    console.log(req.method, url.pathname, code);
+  };
+
+  if (req.method === "GET" &amp;&amp; url.pathname === "/") {
+    return send(200, "CodeNames app", "text/plain");
+  }
+  if (req.method === "GET" &amp;&amp; url.pathname === "/whoami") {
+    const data = {
+      host: req.headers.host,
+      realIp: req.headers["x-real-ip"] || null,
+      forwardedFor: req.headers["x-forwarded-for"] || null,
+      forwardedProto: req.headers["x-forwarded-proto"] || null
+    };
+    return send(200, JSON.stringify(data), "application/json");
+  }
+  if (req.method === "GET" &amp;&amp; url.pathname === "/ws") {
+    return send(426, "WebSocket upgrade required");
+  }
+  if (req.method === "POST" &amp;&amp; url.pathname === "/upload") {
+    let bytes = 0;
+    let tooLarge = false;
+    req.on("data", chunk =&gt; {
+      bytes += chunk.length;
+      if (!tooLarge &amp;&amp; bytes &gt; 2 * 1024 * 1024) {
+        tooLarge = true;
+        console.log(req.method, url.pathname, 413, bytes);
+        res.writeHead(413, { "content-type": "text/plain" });
+        res.end("application upload limit exceeded");
+      }
+    });
+    req.on("end", () =&gt; {
+      if (!tooLarge) send(200, "received " + bytes + " bytes");
+    });
+    return;
+  }
+  return send(404, "not found");
+});
+
+const wss = new WebSocketServer({ noServer: true });
+server.on("upgrade", (req, socket, head) =&gt; {
+  if (req.url !== "/ws") return socket.destroy();
+  wss.handleUpgrade(req, socket, head, ws =&gt; {
+    ws.on("message", data =&gt; ws.send("echo: " + data.toString()));
+  });
+});
+server.listen(PORT, HOST, () =&gt; console.log("listening on " + HOST + ":" + PORT));</span></pre></div>
+<p lang="fa">در app واقعی، body-size limit و rate/resource limits هم باید با نیاز محصول هماهنگ باشند؛ این starter برای upload فقط شمارنده است. نصب dependency را در working directory ثبت و lockfile را همراه نسخه‌بندی نگه دار.</p><p lang="en">A real app also needs product-appropriate body/resource limits. This starter only counts upload bytes. Install dependencies in the working directory and version the lockfile.</p>
+<div class="term"><div class="term-bar"><span class="term-label">install the WebSocket dependency and preserve the lockfile</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">npm init -y
+npm install ws
+node server.js</span></pre></div>
+<h3><span lang="fa">unit سرویس</span><span lang="en">systemd unit</span></h3>
+<div class="term"><div class="term-bar"><span class="term-label">/etc/systemd/system/codenames-app.service — use the actual Node path</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">[Unit]
+Description=CodeNames sample app behind Nginx
+After=network.target
+
+[Service]
+Type=simple
+User=proxyapp
+Group=proxyapp
+WorkingDirectory=/opt/codenames-proxy
+Environment=PORT=3000
+ExecStart=/usr/bin/node /opt/codenames-proxy/server.js
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target</span></pre></div>
+<p lang="fa">کاربر proxyapp باید بتواند فایل‌ها و node_modules را بخواند، اما نیاز به نوشتن در source ندارد. مسیر ExecStart را با نصب خودت تطبیق بده و پس از تغییر unit، <code>daemon-reload</code> و status/journal را بررسی کن.</p><p lang="en">The proxyapp user must read source and node_modules but does not need to write source. Adjust ExecStart for the actual installation; after changing the unit, run daemon-reload and inspect status/journal.</p>
+<h3><span lang="fa">map و server block</span><span lang="en">Map and server block</span></h3>
+<p lang="fa">فایل map را در جایی include کن که زیر block سراسری <code>http</code> خوانده شود، نه داخل server block. locationها تکرار headerهای موردنیاز را دارند چون تعریف headerهای proxy در location فرزند، وراثت دستورهای سطح بالاتر را قطع می‌کند.</p><p lang="en">Include the map file under the global <code>http</code> block, not inside a server block. Locations repeat required proxy headers because child-level proxy header directives stop inheritance from higher contexts.</p>
+<div class="term"><div class="term-bar"><span class="term-label">for example, /etc/nginx/conf.d/00-websocket-map.conf</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}</span></pre></div>
+<div class="term"><div class="term-bar"><span class="term-label">TLS vhost; replace the domain and reuse its real certificate</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">server {
+    listen 80;
+    server_name example.org;
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/codenames;
+    }
+    location / { return 301 https://example.org$request_uri; }
+}
+
+server {
+    listen 443 ssl;
+    server_name example.org;
+    ssl_certificate     /etc/letsencrypt/live/example.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/example.org/privkey.pem;
+
+    access_log /var/log/nginx/codenames.access.log;
+    error_log  /var/log/nginx/codenames.error.log warn;
+
+    location /ws {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 75s;
+    }
+    location /upload {
+        client_max_body_size 3m;
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 60s;
+    }
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 60s;
+    }
+}</span></pre></div>
+<p lang="fa">زمان ۷۵ ثانیه برای WebSocket یعنی فاصلهٔ بی‌داده بین readها، نه سقف عمر کل اتصال؛ اگر برنامه heartbeat می‌فرستد، آن را با timeout هماهنگ کن. این نمونه timeout را بی‌نهایت نمی‌کند.</p><p lang="en">The 75-second WebSocket timeout is an idle gap between reads, not a maximum connection lifetime. Coordinate it with application heartbeats; this example does not wait forever.</p>
+<h3><span lang="fa">آزمون و rollback</span><span lang="en">Verification and rollback</span></h3>
+<div class="term"><div class="term-bar"><span class="term-label">compare direct and public paths, then observe both logs</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">sudo nginx -t &amp;&amp; sudo systemctl reload nginx
+curl -s http://127.0.0.1:3000/whoami
+curl -s https://example.org/whoami
+curl -i -F "file=@/tmp/codenames-upload.bin" https://example.org/upload
+sudo journalctl -u codenames-app -n 30 --no-pager
+sudo tail -n 30 /var/log/nginx/codenames.access.log
+sudo certbot renew --dry-run</span></pre></div>
+<p lang="fa">برای rollback، config فعال را از نسخهٔ شناخته‌شده برگردان، <code>nginx -t</code> را اجرا کن و فقط پس از موفقیت reload کن؛ سپس همان curl، handshake و upload را دوباره آزمایش کن. سرویس را restart کردن جای rollback یا تشخیص نیست.</p><p lang="en">To roll back, restore the known-good active config, run <code>nginx -t</code>, and reload only on success; then repeat the same curl, handshake, and upload tests. Restarting the service is not diagnosis or rollback.</p>
+<h3><span lang="fa">یادداشت مهندسی و تحویل</span><span lang="en">Engineering note and handoff</span></h3>
+<p lang="fa">در تحویل ثبت کن: port عمومی فقط Nginx است؛ app روی loopback می‌شنود؛ headerها از کجا می‌آیند؛ upload چه سقفی دارد؛ WebSocket چه header و timeoutی لازم دارد؛ service چطور restart می‌شود؛ logها کجا هستند؛ و چه چیزهایی عمداً پیاده نشده‌اند. این پروژه ثابت می‌کند یک edge می‌تواند HTTP، WS و body محدود را به یک app برساند؛ ثابت نمی‌کند app برای بار تولید یا ذخیرهٔ فایل پایدار طراحی شده است.</p><p lang="en">Record that only Nginx is public; the app listens on loopback; where forwarded headers originate; upload cap; WebSocket headers/timeout; service restart behavior; log paths; and what is intentionally absent. This proves one edge can route HTTP, WS, and bounded bodies to one app—not that the app is production-load-ready or stores files persistently.</p>
+</section>
+
+<section id="next">
+<h2><span lang="fa">پروژهٔ بعد: از یک app به gateway کامل</span><span lang="en">Next: from one app to a complete gateway</span></h2>
+<p lang="fa">الان یک hostname، یک edge و یک app داری و می‌توانی خرابی upstream، handshake و upload را جدا تشخیص بدهی. پروژهٔ آخر چند سرویس را کنار هم می‌آورد؛ همان مدرک‌محوری را آنجا برای یک gateway کامل به کار می‌بریم.</p><p lang="en">You now have one hostname, edge, and app, and can distinguish upstream, handshake, and upload faults. The final project brings several services together and applies the same evidence-driven method to a complete gateway.</p>
+</section>
+
+<section id="official-refs">
+<h2><span lang="fa">مستندات رسمی برای رفتار نسخهٔ خودت</span><span lang="en">Official references for your version</span></h2>
+<ul lang="fa"><li><a href="https://nginx.org/en/docs/http/websocket.html">Nginx: WebSocket، headerهای hop-by-hop و tunnel</a></li><li><a href="https://nginx.org/en/docs/http/ngx_http_proxy_module.html">Nginx proxy: headerها، proxy_pass و timeout</a></li><li><a href="https://nginx.org/en/docs/http/ngx_http_core_module.html#client_max_body_size">Nginx: سقف body و پاسخ ۴۱۳</a></li><li><a href="https://nginx.org/en/docs/http/ngx_http_headers_module.html">Nginx: add_header و headerهای پاسخ</a></li><li><a href="https://eff-certbot.eff.org/instructions">Certbot: نصب و renewal متناسب با سیستم</a></li></ul>
+<ul lang="en"><li><a href="https://nginx.org/en/docs/http/websocket.html">Nginx: WebSocket, hop-by-hop headers, and tunneling</a></li><li><a href="https://nginx.org/en/docs/http/ngx_http_proxy_module.html">Nginx proxy: headers, proxy_pass, and timeouts</a></li><li><a href="https://nginx.org/en/docs/http/ngx_http_core_module.html#client_max_body_size">Nginx: body-size limit and 413 response</a></li><li><a href="https://nginx.org/en/docs/http/ngx_http_headers_module.html">Nginx: response headers</a></li><li><a href="https://eff-certbot.eff.org/instructions">Certbot: OS-specific install and renewal</a></li></ul>
+</section>

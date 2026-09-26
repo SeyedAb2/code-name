@@ -1,0 +1,481 @@
+<!--meta
+title: rate limiting و محافظت
+desc: محدودکردن نرخ درخواست و اتصال با zone مشترک، burst، nodelay و کلید درست؛ شناخت IP واقعی پشت proxy و مرز محافظت.
+-->
+
+<div class="masthead">
+  <span class="eyebrow"><span class="dot"></span><span lang="fa">Nginx · فصل ۹</span><span lang="en">Nginx · Chapter 9</span></span>
+  <h1 lang="fa">rate limiting و محافظت</h1>
+  <h1 lang="en">Rate limiting and protection</h1>
+  <p class="sub" lang="fa">فرم ورود سالم است، اما یک کلاینت آن را پشت‌سرهم صدا می‌زند و پردازه‌های برنامه مشغول می‌مانند. آیا Nginx می‌تواند جلوی هر حمله‌ای را بگیرد؟ نه؛ اما می‌تواند بخشی از فشار را بر اساس کلیدی روشن و محدودیتی سنجیده کنترل کند. اول ببینیم کدام درخواست‌ها را واقعاً می‌خواهیم محدود کنیم.</p>
+  <p class="sub" lang="en">The login form works, but one client calls it repeatedly and keeps app workers busy. Can Nginx stop every attack? No—but it can control some pressure using a deliberate key and a measured limit. First, let’s decide which requests we actually want to limit.</p>
+  <div class="facts">
+    <div class="fact"><b>۷۰</b><span lang="fa">دقیقهٔ مطالعه</span><span lang="en">minutes</span></div>
+    <div class="fact"><b>۱۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></div>
+    <div class="fact"><b>۳</b><span lang="fa">نمودار</span><span lang="en">diagrams</span></div>
+    <div class="fact"><b>۲</b><span lang="fa">نوع محدودیت</span><span lang="en">limit types</span></div>
+  </div>
+</div>
+
+<section id="pressure-story">
+  <h2><span lang="fa">درخواست زیاد را با مهاجم یکی نگیریم</span><span lang="en">Do not confuse high request volume with an attacker</span></h2>
+  <p class="lede" lang="fa">بعد از فصل HTTPS، حالا ارتباط کاربر تا Nginx امن است؛ اما امنیت اتصال جلوی تکرار زیاد درخواست را نمی‌گیرد. ممکن است کاربر روی دکمه دوبار کلیک کند، مرورگر retry بزند یا ربات رمزها را حدس بزند. محدودکردن همه با یک عدد می‌تواند کاربران واقعی را هم بیرون بیندازد.</p>
+  <p class="lede" lang="en">After HTTPS, the client-to-Nginx connection is secure—but secure transport does not stop repeated requests. A user may double-click, a browser may retry, or a bot may guess passwords. Applying one blunt number to everyone can lock out legitimate users too.</p>
+  <p lang="fa">پس سؤال را کوچک می‌کنیم: کدام مسیر پرهزینه است؟ بر چه مبنایی درخواست‌ها را گروه می‌کنیم؟ چه مقدار فشار کوتاه‌مدت طبیعی است؟ اگر هر درخواست از IP یک proxy مشترک برسد، آیا محدودیت واقعاً هر کاربر را جدا می‌بیند؟</p>
+  <p lang="en">So narrow the problem: which route is costly? How should requests be grouped? What short burst is normal? If every request arrives from one proxy IP, will the limit really distinguish users?</p>
+  <div class="note warn"><div class="note-t"><span lang="fa">rate limit سپر همه‌کاره نیست</span><span lang="en">A rate limit is not a universal shield</span></div><p lang="fa">Nginx می‌تواند پردازش بعضی درخواست‌ها را کم یا رد کند، اما DDoS حجیمِ شبکه را لزوماً متوقف نمی‌کند، IP توزیع‌شده را یکی نمی‌کند، حساب کاربری را نمی‌شناسد و جای احراز هویت، CAPTCHA، کنترل تقلب یا ظرفیت کافی را نمی‌گیرد.</p><p lang="en">Nginx can delay or reject some requests, but it does not necessarily stop a large network-layer DDoS, combine a distributed set of IPs into one identity, identify user accounts, or replace authentication, CAPTCHA, fraud controls, or sufficient capacity.</p></div>
+</section>
+
+<section id="choose-key">
+  <h2><span lang="fa">اول بگو «هر درخواست از چه کسی؟»</span><span lang="en">First ask, “Who does each request belong to?”</span></h2>
+  <p class="lede" lang="fa">Nginx برای محدودیت یک key می‌خواهد؛ مقدار آن می‌گوید وضعیت درخواست‌ها برای چه گروهی مشترک باشد. انتخاب رایج، IP کلاینت است: <code>$binary_remote_addr</code>. اما اگر Nginx پشت reverse proxy یا CDN باشد، <code>$remote_addr</code> معمولاً IP همان proxy است، نه کاربر.</p>
+  <p class="lede" lang="en">Nginx needs a key for the limit: its value decides which requests share state. A common choice is the client IP, represented by <code>$binary_remote_addr</code>. But behind a reverse proxy or CDN, <code>$remote_addr</code> is usually the proxy’s address, not the user’s.</p>
+  <p lang="fa">هدر <code>X-Forwarded-For</code> را هم نمی‌شود کورکورانه باور کرد؛ هر کلاینتی می‌تواند چنین headerی بفرستد. فقط وقتی آدرسِ اتصال از فهرست proxyهای مورداعتماد است، header تعیین‌شده از طرف همان proxy را بپذیر. شبکه‌های اعتمادشده را از مستند provider بگیر، نه از یک بازهٔ حدسی.</p>
+  <p lang="en">Do not blindly trust <code>X-Forwarded-For</code>; any client can send that header. Accept the configured forwarding header only when the connection comes from a trusted proxy. Get trusted ranges from the provider’s documentation, not from a guessed network.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 1080 305" role="img" aria-labelledby="key-path-title" xmlns="http://www.w3.org/2000/svg">
+      <title id="key-path-title">Without trusted real-IP handling, many clients share the proxy address as the rate-limit key / بدون تنظیم real IP مورداعتماد، همهٔ کاربران ممکن است کلید IP پروکسی را شریک شوند</title>
+      <defs><marker id="key-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow-b"/></marker></defs>
+      <rect x="35" y="44" width="190" height="78" rx="14" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/>
+      <text x="130" y="78" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Client A</text>
+      <text x="130" y="105" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">198.51.100.10</text>
+      <rect x="35" y="181" width="190" height="78" rx="14" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/>
+      <text x="130" y="215" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Client B</text>
+      <text x="130" y="242" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">203.0.113.22</text>
+      <path d="M225 83H341V148H397" class="dg-stroke-b" stroke-width="2.4" marker-end="url(#key-arrow)"/>
+      <path d="M225 220H341V157H397" class="dg-stroke-b" stroke-width="2.4" marker-end="url(#key-arrow)"/>
+      <rect x="414" y="97" width="250" height="110" rx="16" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/>
+      <text x="539" y="135" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Reverse proxy</text>
+      <text x="539" y="168" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">source seen: 192.0.2.5</text>
+      <path d="M664 152H756" class="dg-stroke-b" stroke-width="2.4" marker-end="url(#key-arrow)"/>
+      <rect x="774" y="97" width="270" height="110" rx="16" class="dg-fill-w" stroke="var(--warn)" stroke-width="2"/>
+      <text x="909" y="135" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Nginx limiter</text>
+      <text x="909" y="168" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">key = proxy IP for both</text>
+      <text x="539" y="286" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">Forwarded headers become useful only after the sending proxy is trusted</text>
+    </svg>
+    <p class="diagram-cap" lang="fa">فلش‌ها مسیر درخواست‌اند. اگر Nginx فقط اتصال proxy را ببیند، هر دو کاربر یک کلید خواهند داشت و بودجهٔ rate را شریک می‌شوند؛ header ارسالی فقط وقتی هویت می‌دهد که proxy فرستنده مورداعتماد باشد.</p>
+    <p class="diagram-cap" lang="en">Arrows show the request path. If Nginx sees only the proxy connection, both clients share one rate key; a forwarded header is useful only when its sender is trusted.</p>
+  </div>
+  <p lang="fa">در lab فعلی همهٔ درخواست‌های curl از <code>127.0.0.1</code> می‌آیند؛ پس طبیعی است یک کلید داشته باشند. این آزمایش رفتار IPهای متفاوت را شبیه‌سازی نمی‌کند. در محیط واقعی، log نشانی TCPای را که Nginx می‌بیند کنار header ورودی می‌گذارد؛ بعد از تنظیم ماژول real-IP، همان آزمایش را از مسیر proxy واقعی تکرار کن.</p>
+  <p lang="en">In this lab, all curl requests come from <code>127.0.0.1</code>, so one key is expected. This does not simulate distinct client IPs. In production, log the TCP address Nginx sees alongside the incoming header; after configuring real-IP handling, repeat the test through the actual proxy.</p>
+</section>
+
+<section id="rate-model">
+  <h2><span lang="fa">rate یعنی میانگین؛ burst جا برای موج کوتاه</span><span lang="en">Rate is an average; burst allows a short wave</span></h2>
+  <p class="lede" lang="fa">محدودیت نرخ را مثل شیر آب تصور کن: مقدار مشخصی درخواست در زمان پردازش می‌شود؛ موج کوتاه می‌تواند موقتاً از ظرفیت burst استفاده کند. این تصویر، مدل ذهنی leaky bucket است، نه نقشهٔ دقیق هر تصمیم داخلی Nginx.</p>
+  <p class="lede" lang="en">Think of the rate limit as a drain: requests are processed at a configured average rate, while a short wave can use the burst allowance. This is a leaky-bucket mental model, not a diagram of every internal Nginx decision.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 1040 320" role="img" aria-labelledby="bucket-title" xmlns="http://www.w3.org/2000/svg">
+      <title id="bucket-title">Leaky-bucket mental model: steady processing rate, bounded excess burst, then rejection / مدل ذهنی leaky bucket با نرخ پردازش ثابت، burst محدود و سپس رد درخواست</title>
+      <defs>
+        <marker id="bucket-flow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow-b"/></marker>
+        <marker id="bucket-reject" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow-w"/></marker>
+      </defs>
+      <rect x="35" y="73" width="213" height="128" rx="16" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/>
+      <text x="141" y="111" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">request stream</text>
+      <text x="141" y="147" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">steady + burst</text>
+      <path d="M248 137H336" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#bucket-flow)"/>
+      <rect x="354" y="55" width="320" height="164" rx="18" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/>
+      <text x="514" y="91" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">shared state per key</text>
+      <rect x="395" y="112" width="238" height="55" rx="11" class="dg-fill" stroke="var(--line-strong)" stroke-width="1.5"/>
+      <text x="514" y="147" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">burst allowance</text>
+      <path d="M514 219V255" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#bucket-flow)"/>
+      <text x="514" y="286" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">processed at rate</text>
+      <path d="M674 137H763" class="dg-stroke" stroke-width="2.3" marker-end="url(#bucket-reject)"/>
+      <rect x="781" y="73" width="222" height="128" rx="16" class="dg-fill-w" stroke="var(--warn)" stroke-width="2"/>
+      <text x="892" y="111" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">over burst limit</text>
+      <text x="892" y="147" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">rejected · 429 here</text>
+    </svg>
+    <p class="diagram-cap" lang="fa">در حالت پیش‌فرض، درخواست‌های اضافه ممکن است با تأخیر پردازش شوند؛ با <code>nodelay</code> درخواست‌های داخل burst بی‌درنگ عبور می‌کنند ولی از ظرفیت burst خرج می‌شود. شکل فقط مدل leaky bucket را نشان می‌دهد، نه زمان‌بندی دقیق threadها.</p>
+    <p class="diagram-cap" lang="en">By default, excess requests may be delayed; with <code>nodelay</code>, requests within the burst allowance pass immediately but consume that allowance. The sketch shows the leaky-bucket model, not exact thread scheduling.</p>
+  </div>
+  <p lang="fa">برای نمونه، <code>rate=2r/s</code> یعنی میانگین حدود دو درخواست در ثانیه برای هر key؛ <code>burst=4</code> چهار درخواست اضافه را تحمل می‌کند، نه اینکه نرخ دائمی را به شش برساند. درخواست‌های بیشتر از حد، با status انتخاب‌شده رد می‌شوند.</p>
+  <p lang="en">For example, <code>rate=2r/s</code> means an average of about two requests per second per key; <code>burst=4</code> tolerates four excess requests, not a permanent rate of six. Requests beyond the allowance are rejected with the configured status.</p>
+  <p lang="fa">zone مشترک وضعیت هر key را میان workerهای Nginx نگه می‌دارد. اندازهٔ <code>10m</code> یعنی حافظهٔ مشترک برای این stateهاست، نه نرخ، نه تعداد درخواست مجاز و نه ذخیرهٔ log. اگر تعداد زیادی key یکتا داشته باشی، ظرفیت zone هم اهمیت پیدا می‌کند.</p>
+  <p lang="en">The shared zone stores each key’s state across Nginx workers. A size such as <code>10m</code> is memory for that state—not a rate, request allowance, or log store. If many unique keys appear, zone capacity matters too.</p>
+</section>
+
+<section id="lab-setup">
+  <h2><span lang="fa">پیش از محدودکردن، یک مسیر بی‌خطر بسازیم</span><span lang="en">Before limiting, create a harmless route</span></h2>
+  <p class="lede" lang="fa">برای سنجیدن اثر تنظیم، endpoint مصنوعی می‌سازیم که فقط نام مسیر و مقدار کوچکی را برمی‌گرداند؛ هیچ حسابی نمی‌سازد و رمز ذخیره نمی‌کند. Nginx روی loopback است و برنامه روی loopback دیگری. این آزمایش را روی production یا نشانی عمومی اجرا نکن.</p>
+  <p class="lede" lang="en">To measure the config, we will make a synthetic endpoint that only echoes its path and a small value; it creates no accounts and stores no passwords. Nginx and the app bind to loopback. Do not run this test against production or a public address.</p>
+  <p lang="fa">اول آزادبودن پورت‌های <code>18090</code> و <code>19090</code> را بررسی کن و پوشهٔ موقت بساز. اگر پورت اشغال است، سرویسش را متوقف نکن؛ شمارهٔ آزاد دیگری بردار و در همهٔ فرمان‌ها جایگزینش کن.</p>
+  <p lang="en">First check ports <code>18090</code> and <code>19090</code>, then create a temporary directory. If a port is busy, do not stop its service; choose another free port and replace it consistently in every command.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">check test ports and create a private lab directory</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">if command -v ss &gt;/dev/null; then
+  ss -ltn | grep -E ':(18090|19090)([[:space:]]|$)' || true
+elif command -v lsof &gt;/dev/null; then
+  lsof -nP -iTCP:18090 -iTCP:19090 -sTCP:LISTEN
+else
+  echo 'Check ports 18090 and 19090 with your OS network tool before continuing.'
+fi
+RATE_LAB=$(mktemp -d /tmp/nginx-rate.XXXXXX)
+chmod 700 "$RATE_LAB"
+mkdir -p "$RATE_LAB/logs" "$RATE_LAB/run" "$RATE_LAB/pids"
+printf 'Temporary lab: %s\n' "$RATE_LAB"</span>
+<span class="s">Temporary lab: /tmp/nginx-rate.X7pQm2</span></pre></div>
+  <p lang="fa">نام مسیر برای هر بار فرق می‌کند. آن را در همان ترمینال نگه دار تا فرمان‌های بعدی به جای درست اشاره کنند؛ اگر نشستت بسته شد، مسیر را از روی فایل‌های temp حدس نزن.</p>
+  <p lang="en">The path changes each time. Keep it in the same terminal so later commands use the right directory; if the shell closes, do not guess the path from temporary files.</p>
+  <p lang="fa">سرور آزمایشی فقط دو مسیر دارد: <code>/login</code> و <code>/slow</code>. اولی مکث کوتاهی دارد تا موج درخواست قابل‌دیدن شود؛ دومی یک ثانیه می‌ماند تا محدودیت اتصال فعال را ببینیم.</p>
+  <p lang="en">The test app has only two paths: <code>/login</code> and <code>/slow</code>. The first pauses briefly so a request wave is visible; the second waits one second so we can observe an active-connection limit.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">create a tiny loopback-only test app</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cat &gt; "$RATE_LAB/app.py" &lt;&lt;'PY'
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlsplit
+import sys
+import time
+
+port = int(sys.argv[1])
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        path = urlsplit(self.path).path
+        time.sleep(0.4 if path == "/login" else 1.0 if path == "/slow" else 0)
+        body = f"test endpoint: {path}\n".encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+ThreadingHTTPServer(("127.0.0.1", port), Handler).serve_forever()
+PY
+python3 -m py_compile "$RATE_LAB/app.py"
+python3 -u "$RATE_LAB/app.py" 19090 &gt; "$RATE_LAB/app.log" 2&gt;&amp;1 &amp;
+echo $! &gt; "$RATE_LAB/pids/app.pid"
+sleep 0.3
+ps -p "$(cat "$RATE_LAB/pids/app.pid")" -o pid=,command=
+curl -sS http://127.0.0.1:19090/login</span>
+<span class="s">... python3 -u /tmp/nginx-rate.X7pQm2/app.py 19090
+test endpoint: /login</span></pre></div>
+  <p lang="fa">خروجی نشان می‌دهد فقط برنامهٔ آزمایش روی پورت داخلی جواب داده است. اگر پاسخ مستقیم شکست خورد، هنوز وارد rate limiting نشو؛ اول log برنامه و پورت را بررسی کن. این endpoint نمایندهٔ منطق واقعی ورود نیست.</p>
+  <p lang="en">The output shows only the test app answering on its local port. If the direct response fails, do not move on to rate limiting; first inspect the app log and port. This endpoint does not implement real login behavior.</p>
+</section>
+
+<section id="limit-req">
+  <h2><span lang="fa">اول بدون burst: هر درخواست فوری؟</span><span lang="en">First, no burst: does every request pass immediately?</span></h2>
+  <p class="lede" lang="fa">حالا Nginx را جلو می‌گذاریم، اول بدون محدودیت تا خط پایه داشته باشیم. <code>limit_req_zone</code> فقط در <code>http</code> تعریف می‌شود؛ خود <code>limit_req</code> را بعداً برای مسیر ورود می‌گذاریم.</p>
+  <p class="lede" lang="en">Now put Nginx in front, initially without a limit so we have a baseline. Define <code>limit_req_zone</code> in the <code>http</code> context; we will apply <code>limit_req</code> to the login route afterward.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">start with an observable baseline configuration</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cat &gt; "$RATE_LAB/nginx.conf" &lt;&lt;'NGINX'
+worker_processes 1;
+pid run/nginx.pid;
+error_log logs/error.log notice;
+events { worker_connections 128; }
+http {
+    log_format rate '$remote_addr xff="$http_x_forwarded_for" "$request" status=$status '
+                    'req=$limit_req_status conn=$limit_conn_status '
+                    'time=$request_time';
+    access_log logs/access.log rate;
+    limit_req_zone $binary_remote_addr zone=login_ip:10m rate=2r/s;
+    limit_conn_zone $binary_remote_addr zone=login_conn:10m;
+    server {
+        listen 127.0.0.1:18090;
+        server_name localhost;
+        limit_req_status 429;
+        limit_conn_status 429;
+        location / {
+            proxy_pass http://127.0.0.1:19090;
+            proxy_set_header Host $host;
+        }
+    }
+}
+NGINX
+nginx -t -p "$RATE_LAB/" -c nginx.conf
+nginx -p "$RATE_LAB/" -c nginx.conf</span>
+<span class="s">nginx: the configuration file .../nginx.conf syntax is ok
+nginx: configuration file .../nginx.conf test is successful</span></pre></div>
+  <p lang="fa">log آزمایش IP اتصال و مقدار header ورودی XFF را جدا از هم ثبت می‌کند، کنار وضعیت rate و مدت پاسخ. header فقط مدرک چیزی است که فرستنده نوشته، نه هویتی که باید بی‌قید قبول کنیم. متغیرهای <code>$limit_req_status</code> و <code>$limit_conn_status</code> در نسخه‌های جدید OSS در دسترس‌اند؛ اگر نسخه‌ات آن‌ها را نشناسد، موقتاً از <code>log_format</code> حذفشان کن و به status و error log نگاه کن.</p>
+  <p lang="en">The lab log records the connection IP and incoming XFF header separately, alongside the rate/connection result and response time. The header proves only what the sender supplied, not an identity to trust blindly. <code>$limit_req_status</code> and <code>$limit_conn_status</code> are available in modern OSS versions; if your version lacks them, temporarily remove them from <code>log_format</code> and inspect status and the error log.</p>
+  <p lang="fa">پیش از محدودکردن، ۱۲ درخواست هم‌زمان به endpoint بی‌اثر بفرست و statusها را بشمار. مکث کوتاه برنامه کمک می‌کند درخواست‌ها هم‌زمان برسند؛ این burst کوچک است و به سرویس عمومی نمی‌رسد.</p>
+  <p lang="en">Before enabling limits, send 12 concurrent requests to the harmless endpoint and count statuses. The app’s short pause helps them overlap; this is a small burst and never reaches a public service.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">record baseline status counts and latency</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">seq 1 12 | xargs -P12 -I{} curl -sS -o /dev/null \
+  -w '%{http_code} %{time_total}\n' \
+  "http://127.0.0.1:18090/login?id={}"
+tail -n 12 "$RATE_LAB/logs/access.log"</span>
+<span class="s">200 0.40
+200 0.41
+... 12 successful responses; timings vary</span></pre></div>
+  <p lang="fa">خط پایه می‌گوید endpoint می‌تواند موج آزمایش را جواب دهد؛ ثابت نمی‌کند برنامهٔ واقعی همین ظرفیت را دارد. حالا فقط یک چیز را عوض می‌کنیم: محدودیت نرخ را برای مسیر <code>/login</code> فعال می‌کنیم و همان درخواست‌ها را دوباره می‌فرستیم.</p>
+  <p lang="en">The baseline shows this test endpoint can answer the lab burst; it does not prove the real app has the same capacity. Now change one thing: enable a rate limit on <code>/login</code> and send the same requests again.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">add a shared per-IP rate and bounded delayed burst</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k"># Replace location / with these two locations:
+location = /login {
+    limit_req zone=login_ip burst=4;
+    proxy_pass http://127.0.0.1:19090;
+    proxy_set_header Host $host;
+}
+location / {
+    proxy_pass http://127.0.0.1:19090;
+    proxy_set_header Host $host;
+}
+nginx -t -p "$RATE_LAB/" -c nginx.conf &amp;&amp;
+  nginx -s reload -p "$RATE_LAB/" -c nginx.conf</span>
+<span class="s">nginx: configuration file ... test is successful</span></pre></div>
+  <p lang="fa">با <code>rate=2r/s</code> و چهار درخواست burst، موج هم‌زمان باید با تأخیر از صف عبور کند یا فراتر از حد با 429 رد شود. log را کنار زمان پاسخ بخوان: تأخیر لزوماً خطا نیست؛ status 429 در همین config نشانهٔ ردشدن به‌خاطر limiter است.</p>
+  <p lang="en">With <code>rate=2r/s</code> and a burst of four, a concurrent wave may be delayed or rejected with 429 once it exceeds the allowance. Read the log alongside timing: delay is not necessarily an error; 429 in this config indicates a limiter rejection.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">repeat the same bounded burst and compare</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">seq 1 12 | xargs -P12 -I{} curl -sS -o /dev/null \
+  -w '%{http_code} %{time_total}\n' \
+  "http://127.0.0.1:18090/login?id={}" |
+  sort | uniq -c
+tail -n 12 "$RATE_LAB/logs/access.log"</span>
+<span class="s">... 200 ... (delayed requests)
+... 429 ... (requests beyond configured burst)</span></pre></div>
+  <p lang="fa">تعداد دقیق 200 و 429 به زمان‌بندی و نسخه وابسته است؛ به‌جای حفظ عدد خروجی، اختلاف آن را با خط پایه و مقدار <code>req=DELAYED</code>/<code>REJECTED</code> در access log بخوان. اگر route را عوض کردی، مطمئن شو directive در همان locationای است که واقعاً match شده.</p>
+  <p lang="en">Exact 200/429 counts depend on timing and version. Compare with the baseline and inspect <code>req=DELAYED</code>/<code>REJECTED</code> in the access log rather than memorizing counts. If you changed the route, confirm the directive is in the location that actually matched.</p>
+</section>
+
+
+<section id="nodelay">
+  <h2><span lang="fa">آیا منتظرماندن برای مسیر ورود قابل‌قبول است؟</span><span lang="en">Is waiting acceptable on the login route?</span></h2>
+  <p class="lede" lang="fa">حالت پیش‌فرض درخواست‌های اضافه را با تأخیر عبور می‌دهد تا متوسط نرخ حفظ شود. برای جست‌وجو یا ورود ممکن است همین تأخیر چندثانیه‌ای تجربهٔ بدی بسازد. <code>nodelay</code> درخواست‌های داخل burst را فوری عبور می‌دهد؛ ظرفیت burst همچنان محدود است و درخواست‌های فراتر از آن رد می‌شوند.</p>
+  <p class="lede" lang="en">By default, excess requests are delayed so the configured average rate is maintained. That wait may be undesirable for search or login. <code>nodelay</code> passes requests within the burst allowance immediately; the allowance is still bounded, and requests beyond it are rejected.</p>
+  <p lang="fa">برای مقایسه فقط همین یک گزینه را عوض کن؛ نرخ، مسیر و تعداد درخواست را ثابت نگه دار. پیش‌بینی کن: زمان پاسخ‌های قبول‌شده چه می‌شود و پاسخ‌های فراتر از burst چه؟</p>
+  <p lang="en">Change only this option; keep the rate, route, and request count fixed. Predict: what happens to accepted-request latency, and what happens beyond the burst?</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">compare the same burst with nodelay enabled</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k"># In the exact /login location, change:
+limit_req zone=login_ip burst=4 nodelay;
+nginx -t -p "$RATE_LAB/" -c nginx.conf &amp;&amp;
+  nginx -s reload -p "$RATE_LAB/" -c nginx.conf
+seq 1 12 | xargs -P12 -I{} curl -sS -o /dev/null \
+  -w '%{http_code} %{time_total}\n' \
+  "http://127.0.0.1:18090/login?id={}" |
+  sort | uniq -c
+tail -n 12 "$RATE_LAB/logs/access.log"</span>
+<span class="s">... accepted burst responses complete quickly ...
+... remaining requests return 429 ...</span></pre></div>
+  <p lang="fa">در نمونه، latency درخواست‌های قبول‌شده کمتر شده ولی فشار همان لحظه به برنامه می‌رسد. <code>nodelay</code> نرخ میانگین را حذف نمی‌کند؛ burst بودجهٔ محدود است. اگر retryهای مرورگر هم‌زمان شوند، ممکن است همان بودجه را سریع مصرف کنند.</p>
+  <p lang="en">In the sample, accepted requests have lower latency, but their load reaches the app at once. <code>nodelay</code> does not remove the average rate; burst is a finite allowance. Synchronized browser retries can consume it quickly.</p>
+  <p lang="fa">برای endpoint واقعی ورود، نرخ را از رفتار عادی کاربر و هزینهٔ backend انتخاب کن. عدد lab نسخهٔ production نیست. اگر نسخهٔ Nginx پشتیبانی کند، <code>limit_req_dry_run on</code> کمک می‌کند ابتدا وضعیت اضافه‌بودن را ثبت کنی بی‌آنکه درخواست را متوقف کنی؛ نسخه و log را بررسی کن و بعد محدودیت واقعی را با rollout سنجیده فعال کن.</p>
+  <p lang="en">Choose a real login rate from normal user behavior and backend cost; the lab number is not a production preset. On Nginx versions that support it, <code>limit_req_dry_run on</code> can record excess requests without rejecting them. Verify the version and logs, then enable enforcement through a measured rollout.</p>
+</section>
+
+<section id="limit-conn">
+  <h2><span lang="fa">نرخ درخواست با تعداد اتصال فرق دارد</span><span lang="en">Request rate is not the same as active connections</span></h2>
+  <p class="lede" lang="fa">یک درخواست کند می‌تواند مدت زیادی اتصال را باز نگه دارد حتی اگر نرخ ورود پایین باشد. <code>limit_conn_zone</code> وضعیت اتصال‌های درحال‌پردازش را بر اساس key در حافظهٔ مشترک نگه می‌دارد؛ <code>limit_conn</code> سقف آن را در مسیر موردنظر تعیین می‌کند.</p>
+  <p class="lede" lang="en">A slow request can hold a connection for a long time even when arrivals are infrequent. <code>limit_conn_zone</code> stores per-key active-request state in shared memory; <code>limit_conn</code> sets its maximum at the chosen path.</p>
+  <p lang="fa">برای دیدنش درخواست‌های یک‌ثانیه‌ای <code>/slow</code> را هم‌زمان می‌فرستیم و سقف را دو می‌گذاریم. Nginx فقط بعد از خواندن کامل header درخواست آن را می‌شمارد؛ این دستور سدِ همهٔ اتصال‌های خام یا حملهٔ لایهٔ شبکه نیست. در HTTP/2 هر درخواست هم‌زمان جداگانه شمرده می‌شود، نه فقط یک socket فیزیکی.</p>
+  <p lang="en">To observe it, send concurrent one-second requests to <code>/slow</code> and set the limit to two. Nginx counts a request only after its full header is read; this is not a barrier against every raw connection or network-layer attack. Under HTTP/2, each concurrent request is counted separately, not merely one physical socket.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">cap active requests on the deliberately slow path</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k"># Add this directive only to location = /slow:
+location = /slow {
+    limit_conn login_conn 2;
+    proxy_pass http://127.0.0.1:19090;
+}
+nginx -t -p "$RATE_LAB/" -c nginx.conf &amp;&amp;
+  nginx -s reload -p "$RATE_LAB/" -c nginx.conf
+seq 1 8 | xargs -P8 -I{} curl -sS -o /dev/null \
+  -w '%{http_code} %{time_total}\n' \
+  "http://127.0.0.1:18090/slow?id={}" |
+  sort | uniq -c
+tail -n 12 "$RATE_LAB/logs/access.log"</span>
+<span class="s">... at most two requests are active together ...
+... excess concurrent requests receive 429 ...</span></pre></div>
+  <p lang="fa">اینجا پاسخ 429 را <code>limit_conn_status</code> تنظیم کرده‌ایم؛ اگر آن را برنمی‌داشتی، مقدار پیش‌فرض Nginx، 503 بود. log، زمان و شمار status را با هم بخوان. endpoint فوری <code>/login</code> برای آزمایش limit_conn مناسب نبود چون اتصالش پیش از درخواست بعدی آزاد می‌شد.</p>
+  <p lang="en">Here <code>limit_conn_status</code> sets 429; without it, Nginx defaults to 503. Read the log, timings, and status counts together. The immediate <code>/login</code> endpoint was a poor limit_conn test because its connection could finish before the next request arrived.</p>
+  <div class="note safe"><div class="note-t"><span lang="fa">دو محدودیت، دو سؤال</span><span lang="en">Two limits, two questions</span></div><p lang="fa"><code>limit_req</code> می‌پرسد این key در طول زمان چند درخواست می‌فرستد؟ <code>limit_conn</code> می‌پرسد چند درخواستِ درحال‌پردازش هم‌زمان دارد؟ یکی را با دیگری جایگزین نکن؛ ممکن است هر دو روی مسیر متفاوت لازم باشند.</p><p lang="en"><code>limit_req</code> asks how many requests this key sends over time. <code>limit_conn</code> asks how many requests it has in progress concurrently. They are not substitutes; different routes may need either or both.</p></div>
+</section>
+
+<section id="bad-key">
+  <h2><span lang="fa">خرابی عمدی: همهٔ کاربران یک بودجه دارند</span><span lang="en">Deliberate fault: every user shares one budget</span></h2>
+  <p class="lede" lang="fa">تیم می‌گوید کاربران مختلف همدیگر را محدود می‌کنند. پیش از تغییر تنظیم، log را بخوان: مقدار <code>$remote_addr</code> برای درخواست‌های جدا چه بوده؟ آیا key همان چیزی است که فکر می‌کردیم؟</p>
+  <p class="lede" lang="en">The team says different users are throttling each other. Before changing config, inspect the log: what is <code>$remote_addr</code> for separate requests? Is the key what we thought it was?</p>
+  <p lang="fa">در Linux آزمایشگاه، دو نشانی source جدا از فضای loopback انتخاب می‌کنیم تا دو key قابل مشاهده داشته باشیم. اول هرکدام را با یکی دو درخواست سبک آزمایش کن؛ اگر curl گزینهٔ <code>--interface</code> را نمی‌پذیرد یا پورت loopback را نمی‌گیرد، این بخش را رد کن و روی سیستم پشتیبانی‌شده اجرا کن.</p>
+  <p lang="en">On Linux, we will use two distinct loopback source addresses to make separate keys observable. Test each with one or two light requests first; if curl does not support <code>--interface</code> or your loopback setup does not accept them, skip this subtest and use a supported system.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">confirm the two source addresses reach the test listener</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl --interface 127.0.0.2 -sS -o /dev/null \
+  -w 'source-a status=%{http_code}\n' http://127.0.0.1:18090/login
+curl --interface 127.0.0.3 -sS -o /dev/null \
+  -w 'source-b status=%{http_code}\n' http://127.0.0.1:18090/login
+tail -n 2 "$RATE_LAB/logs/access.log"</span>
+<span class="s">source-a status=200
+source-b status=200
+127.0.0.2 "GET /login HTTP/1.1" status=200 ...
+127.0.0.3 "GET /login HTTP/1.1" status=200 ...</span></pre></div>
+  <p lang="fa">این فقط ثابت می‌کند دو source loopback به listener آزمایش رسیده‌اند. حالا key را عمداً از IP به <code>$server_name</code> تغییر بده؛ همهٔ درخواست‌های این سایت یک مقدار می‌بینند و با هم یک zone را پر می‌کنند.</p>
+  <p lang="en">This only proves two loopback sources can reach the test listener. Now deliberately change the key from the IP to <code>$server_name</code>; all requests to this site share one value and consume the same zone state.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">introduce a deliberately shared key and compare clients</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k"># In http {}, add a separate shared-key zone:
+limit_req_zone $server_name zone=login_shared:10m rate=2r/s;
+# In location = /login, use this zone:
+limit_req zone=login_shared burst=4 nodelay;
+nginx -t -p "$RATE_LAB/" -c nginx.conf &amp;&amp;
+  nginx -s reload -p "$RATE_LAB/" -c nginx.conf
+for ip in 127.0.0.2 127.0.0.3; do
+  seq 1 6 | xargs -P6 -I{} curl --interface "$ip" -sS -o /dev/null \
+    -w "$ip %{http_code}\n" \
+    "http://127.0.0.1:18090/login?client=$ip&n={}"
+done | sort | uniq -c
+tail -n 12 "$RATE_LAB/logs/access.log"</span>
+<span class="s">... both addresses appear, but share one allowance ...
+... representative: requests are rejected even though source IPs differ ...</span></pre></div>
+  <p lang="fa">حالا هر دو نشانی در log جدا هستند ولی یک key مشترک دارند؛ پس کلاینت دوم ممکن است سهمش را از مصرف کلاینت اول بگیرد. zone را به <code>$binary_remote_addr</code> و نام <code>login_ip</code> برگردان، location را هم به آن وصل کن، reload کن و همان موج‌ها را تکرار کن. اگر Nginx پشت proxy است، این مقدار هنوز ممکن است IP خود proxy باشد؛ آن‌وقت فقط بعد از اعتماد محدود به proxy واقعی، real-IP را اصلاح کن.</p>
+  <p lang="en">The logs show two addresses but the key is shared, so the second client can consume the first client’s allowance. Restore <code>$binary_remote_addr</code> and the <code>login_ip</code> zone, point the location back to it, reload, and repeat the same waves. Behind a proxy, the value may still be the proxy IP; configure real-IP handling only after narrowly trusting the actual proxy.</p>
+  <p lang="fa">تنظیم مفهومی پشت یک proxy شناخته‌شده چنین شکلی دارد؛ placeholderها را با IP/CIDR رسمی provider عوض کن و listener را طوری ببند که فقط همان proxy به origin برسد. هرگز همهٔ اینترنت را با <code>set_real_ip_from 0.0.0.0/0</code> مورداعتماد اعلام نکن.</p>
+  <p lang="en">A conceptual setup behind a known proxy looks like this; replace placeholders with the provider’s official IP/CIDR ranges and restrict origin access to that proxy. Never trust the entire internet with <code>set_real_ip_from 0.0.0.0/0</code>.</p>
+  <p lang="fa">برای دیدن مرز اعتماد در همین lab، دو XFF متفاوت از یک اتصال مستقیم بفرست. Nginx باید در log همان IP اتصال را ثبت کند؛ headerها فقط متن ورودی‌اند. این نمونه proxy واقعی نیست و عمداً نشان می‌دهد چرا تنظیم real-IP را نباید روی یک listener عمومی و بی‌قید فعال کرد.</p>
+  <p lang="en">To see the trust boundary in this lab, send two different XFF values over direct connections. Nginx should log the connection IP; the headers are only supplied text. This is not a real proxy—it deliberately shows why real-IP handling must never trust an unrestricted public listener.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">compare socket address with untrusted forwarded text</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl -sS -H 'X-Forwarded-For: 198.51.100.10' \
+  http://127.0.0.1:18090/login?xff=one -o /dev/null
+curl -sS -H 'X-Forwarded-For: 203.0.113.22' \
+  http://127.0.0.1:18090/login?xff=two -o /dev/null
+tail -n 2 "$RATE_LAB/logs/access.log"</span>
+<span class="s">127.0.0.1 xff="198.51.100.10" ...
+127.0.0.1 xff="203.0.113.22" ...</span></pre></div>
+  <p lang="fa">این دو مقدار از سمت همین client فرستاده شده‌اند؛ Nginx نباید فقط با دیدنشان key را عوض کند. در مسیر production باید header را proxy مورداعتماد تنظیم کند و client نتواند مستقیم به origin برسد.</p>
+  <p lang="en">These values were sent by the client itself; Nginx should not change the key merely because it sees them. In production, a trusted proxy must set the header, and clients must not be able to bypass that proxy to reach the origin.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">trust only the proxy network documented by your provider</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k"># Documentation-only example. Replace with your provider's actual range:
+set_real_ip_from 192.0.2.5/32;
+real_ip_header X-Forwarded-For;
+real_ip_recursive on;
+
+# Then use the normalized client address as the limit key:
+limit_req_zone $binary_remote_addr zone=login_ip:10m rate=2r/s;</span></pre></div>
+  <p lang="en">If a direct client can spoof the forwarded header, blindly trusting it becomes a way around the limiter. Only authorized proxies should reach the origin; then select the header that proxy actually sets and verify it in logs. Header names differ among CDNs and proxy services.</p>
+</section>
+
+<section id="what-it-cannot-do">
+  <h2><span lang="fa">این محدودیت دقیقاً چه چیزی را محافظت می‌کند؟</span><span lang="en">What exactly does this limit protect?</span></h2>
+  <p class="lede" lang="fa">محدودیت جلوی پردازش بخشی از درخواست‌های اضافی را در Nginx می‌گیرد؛ اما درخواست‌های ردشده هنوز به Nginx و شبکه رسیده‌اند. مهاجم می‌تواند IPهای زیاد استفاده کند، در پشت proxy با کاربران واقعی یکی شود یا endpoint دیگری را هدف بگیرد.</p>
+  <p class="lede" lang="en">The limiter prevents some excess requests from reaching further processing in Nginx, but rejected requests still reached Nginx and the network. An attacker can use many IPs, collide with real users behind a proxy, or target another route.</p>
+  <div class="table-wrap"><table class="doc-table">
+    <thead><tr><th><span lang="fa">ابزار</span><span lang="en">Control</span></th><th><span lang="fa">چه چیزی را کنترل می‌کند؟</span><span lang="en">What it controls</span></th><th><span lang="fa">چه چیزی را حل نمی‌کند؟</span><span lang="en">What it does not solve</span></th></tr></thead>
+    <tbody>
+      <tr><td><code>limit_req</code></td><td><span lang="fa">میانگین نرخ و burst برای key مشخص</span><span lang="en">Average request rate and burst per key</span></td><td><span lang="fa">حساب‌های متعدد، botnet یا حملهٔ حجیم شبکه</span><span lang="en">Multiple accounts, botnets, or large network attacks</span></td></tr>
+      <tr><td><code>limit_conn</code></td><td><span lang="fa">درخواست‌های هم‌زمان درحال‌پردازش برای key</span><span lang="en">Concurrent requests in progress per key</span></td><td><span lang="fa">همهٔ اتصال‌های خام و همهٔ پروتکل‌ها به یک شکل</span><span lang="en">Every raw connection or every protocol identically</span></td></tr>
+      <tr><td>Authentication / app logic</td><td><span lang="fa">هویت حساب، رمز، captcha یا تقلب</span><span lang="en">Account identity, credentials, CAPTCHA, or fraud</span></td><td><span lang="fa">ظرفیت شبکه و محدودیت‌های لایهٔ Nginx</span><span lang="en">Network capacity and Nginx-layer limits</span></td></tr>
+      <tr><td>Firewall / CDN / upstream protection</td><td><span lang="fa">بخشی از ترافیک پیش از origin</span><span lang="en">Some traffic before it reaches the origin</span></td><td><span lang="fa">رفتار دقیق endpoint و قواعد حساب کاربری</span><span lang="en">Endpoint behavior and account-specific rules</span></td></tr>
+    </tbody>
+  </table></div>
+  <p lang="fa">برای تولید، از مسیر کم‌خطر شروع کن، statusها و latency را بسنج، و محدودیت را با رفتار مشتری تنظیم کن. برای ورود، قفل حساب و کنترل‌های محصول را هم بسنج تا یک IP مشترک در اداره یا دانشگاه نتواند همه را بی‌دلیل 429 کند.</p>
+  <p lang="en">In production, start on a low-risk route, measure statuses and latency, and tune limits to client behavior. For login, also consider account-level controls so one shared office or campus IP does not cause needless 429s for everyone.</p>
+</section>
+
+
+<section id="repair-and-verify">
+  <h2><span lang="fa">کلید درست را برگردان و همان آزمون را تکرار کن</span><span lang="en">Restore the right key and repeat the same test</span></h2>
+  <p class="lede" lang="fa">تا اینجا خطا را از log دیدیم: دو source جدا بودند ولی key یکی بود. zone جدا برای IP می‌سازیم و همان endpoint را با همان اندازه موج تکرار می‌کنیم. اگر هر دو جداگانه موفق شدند، فقط می‌دانیم key این lab از هم جدا شده؛ تنظیم proxy واقعی هنوز باید بررسی شود.</p>
+  <p class="lede" lang="en">We found the fault in the logs: two sources had one shared key. Create a per-IP zone and repeat the same wave against the same endpoint. If each source now has its own allowance, that proves separation in this lab—not correct proxy configuration in production.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">restore a per-address zone and repeat both small bursts</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k"># In http {}, replace login_shared with:
+limit_req_zone $binary_remote_addr zone=login_ip:10m rate=2r/s;
+# In location = /login, use:
+limit_req zone=login_ip burst=4 nodelay;
+nginx -t -p "$RATE_LAB/" -c nginx.conf &amp;&amp;
+  nginx -s reload -p "$RATE_LAB/" -c nginx.conf
+for ip in 127.0.0.2 127.0.0.3; do
+  seq 1 6 | xargs -P6 -I{} curl --interface "$ip" -sS -o /dev/null \
+    -w "$ip %{http_code}\n" \
+    "http://127.0.0.1:18090/login?repair=$ip&n={}"
+done | sort | uniq -c
+tail -n 12 "$RATE_LAB/logs/access.log"</span>
+<span class="s">... each source address receives its own burst allowance ...
+... exact status counts depend on scheduling ...</span></pre></div>
+  <p lang="fa">تفاوت را با آزمایش قبلی بسنج، نه با وعدهٔ اینکه همیشه شش پاسخ موفق می‌شود؛ زمان‌بندی و statusهای قبلی اثر دارند. اگر همچنان دو مقدار <code>$remote_addr</code> یکی‌اند، اول شبکهٔ loopback و curl را بررسی کن. در پشت proxy باید header قابل‌اعتماد و فهرست IPهای مجاز را از provider بگیری.</p>
+  <p lang="en">Compare with the earlier run, but do not expect exactly six successes every time; timing and prior state matter. If both <code>$remote_addr</code> values are still identical, check loopback and curl first. Behind a proxy, obtain the trusted header and allowed IP ranges from the provider.</p>
+</section>
+
+<section id="exercises">
+  <h2><span lang="fa">تمرین‌ها: فشار را اندازه بگیر، بعد محدود کن</span><span lang="en">Exercises: measure pressure before limiting it</span></h2>
+  <p class="lede" lang="fa">برای هر موقعیت بگو کدام وضعیت را اندازه می‌گیری، کدام key مناسب است و محدودیت چه چیزی را حل نمی‌کند. عددها را کورکورانه از lab به سایت واقعی نبر.</p>
+  <p class="lede" lang="en">For each case, say what you would measure, which key fits, and what the limit cannot solve. Do not copy lab numbers blindly into a real site.</p>
+
+  <div class="ex" id="ex01"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱ · معنی 2r/s</span><span class="ex-n" lang="en">Exercise 1 · What does 2r/s mean?</span></div><p lang="fa">zone با <code>rate=2r/s</code> تعریف شده. آیا این یعنی دقیقاً هر نیم‌ثانیه یک درخواست قبول می‌شود؟</p><p lang="en">A zone uses <code>rate=2r/s</code>. Does that mean exactly one request is accepted every half second?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه؛ این متوسط نرخ پردازش برای هر key است. زمان‌بندی درخواست‌ها و burst هم مهم‌اند؛ برای رفتار واقعی status و زمان پاسخ را زیر موج کنترل‌شده بسنج.</p><p lang="en">No. It is the average processing rate per key. Request timing and burst also matter; measure statuses and response times under a controlled wave.</p></details></div>
+
+  <div class="ex" id="ex02"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۲ · burst کوچک</span><span class="ex-n" lang="en">Exercise 2 · Small burst</span></div><p lang="fa">نرخ 2r/s و <code>burst=4</code> داری. burst نرخ دائمی را چند درخواست در ثانیه می‌کند؟</p><p lang="en">You have a rate of 2r/s and <code>burst=4</code>. What permanent requests-per-second rate does burst create?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">هیچ نرخ دائمی تازه‌ای نمی‌سازد؛ چهار واحد ظرفیت اضافه برای موج کوتاه است. سپس اضافه‌ها با تأخیر پردازش می‌شوند یا پس از پرشدن burst رد می‌شوند.</p><p lang="en">It creates no new sustained rate; it allows four excess requests in a short wave. Excess is delayed or rejected after the burst allowance is full.</p></details></div>
+
+  <div class="ex" id="ex03"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۳ · درخواست‌های فوری</span><span class="ex-n" lang="en">Exercise 3 · Immediate burst</span></div><p lang="fa">با <code>nodelay</code> یک موج داخل burst بی‌درنگ می‌رسد. آیا هر موج بعدی هم بی‌نهایت عبور می‌کند؟</p><p lang="en">With <code>nodelay</code>, a burst within the allowance passes immediately. Does every later burst also pass without limit?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه؛ ظرفیت burst محدود است و درخواست‌های فراتر از آن همچنان رد می‌شوند. فقط delay درخواست‌های قابل‌قبول حذف شده، نه rate یا سقف burst.</p><p lang="en">No; burst capacity is finite, and requests beyond it are still rejected. The delay for accepted excess requests is removed, not the rate or burst cap.</p></details></div>
+
+  <div class="ex" id="ex04"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۴ · zone حافظهٔ مشترک</span><span class="ex-n" lang="en">Exercise 4 · Shared zone memory</span></div><p lang="fa">در <code>zone=login_ip:10m</code> این 10m چه چیزی نیست؟</p><p lang="en">In <code>zone=login_ip:10m</code>, what is 10m not?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">اندازهٔ حافظهٔ مشترک برای state keyهاست؛ نرخ، تعداد مجاز در ثانیه یا محل ذخیرهٔ access log نیست. اگر key یکتا زیاد شود، حافظهٔ zone هم باید معقول انتخاب شود.</p><p lang="en">It is shared memory for key state—not a rate, allowed request count per second, or access-log location. A high number of unique keys makes zone sizing relevant.</p></details></div>
+
+  <div class="ex" id="ex05"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۵ · limit_conn یا limit_req؟</span><span class="ex-n" lang="en">Exercise 5 · limit_conn or limit_req?</span></div><p lang="fa">یک درخواست دانلود چند دقیقه باز می‌ماند ولی کاربر فقط یک بار آن را شروع می‌کند. کدام محدودیت به تعداد درخواست در ثانیه نگاه می‌کند و کدام اتصال‌های فعال را؟</p><p lang="en">A download stays open for minutes, but the user starts it once. Which limit considers requests per time, and which tracks active work?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa"><code>limit_req</code> نرخ درخواست را در زمان کنترل می‌کند؛ <code>limit_conn</code> درخواست‌های درحال‌پردازش را می‌شمارد. برای دانلود طولانی ممکن است دومی مرتبط‌تر باشد، اما سقف را با رفتار چند دانلود هم‌زمان طراحی کن.</p><p lang="en"><code>limit_req</code> controls request rate over time; <code>limit_conn</code> counts requests in progress. The latter may fit long downloads better, but size the cap around normal concurrent use.</p></details></div>
+
+  <div class="ex" id="ex06"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۶ · HTTP/2 و اتصال</span><span class="ex-n" lang="en">Exercise 6 · HTTP/2 and connections</span></div><p lang="fa">یک client روی یک socket، چهار درخواست HTTP/2 هم‌زمان می‌فرستد و <code>limit_conn</code> روی ۲ است. چطور باید اثر را تحلیل کنی؟</p><p lang="en">One client sends four concurrent HTTP/2 requests over one socket, and <code>limit_conn</code> is 2. How should you reason about the result?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">Nginx هر درخواست هم‌زمان HTTP/2 را جداگانه برای این limit می‌شمارد؛ تعداد socketهای فیزیکی معیار کافی نیست. status و error log را روی همان نسخه بررسی کن.</p><p lang="en">Nginx counts each concurrent HTTP/2 request separately for this limit; physical socket count alone is not enough. Check status and error logs on the actual version.</p></details></div>
+
+  <div class="ex" id="ex07"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۷ · چرا 503؟</span><span class="ex-n" lang="en">Exercise 7 · Why 503?</span></div><p lang="fa">درخواست‌های ردشده 503 می‌گیرند، اما API قرارداد 429 می‌خواهد. کدام directive را بررسی می‌کنی؟</p><p lang="en">Rejected requests get 503, but the API contract expects 429. Which directive do you inspect?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">برای rate، <code>limit_req_status 429;</code> و برای اتصال، <code>limit_conn_status 429;</code> را بررسی کن؛ مقدار پیش‌فرض هر دو module، 503 است. هرکدام را در context مناسب بگذار و <code>nginx -t</code> و پاسخ واقعی را دوباره بسنج.</p><p lang="en">Check <code>limit_req_status 429;</code> for rate limiting and <code>limit_conn_status 429;</code> for connection limiting; both modules default to 503. Put each in a valid context, then repeat <code>nginx -t</code> and the request.</p></details></div>
+
+  <div class="ex" id="ex08"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۸ · هر کاربر یک بودجه</span><span class="ex-n" lang="en">Exercise 8 · One allowance per user</span></div><p lang="fa">همهٔ درخواست‌ها به یک <code>$server_name</code> می‌روند. چرا این key برای سهم جداگانهٔ هر IP مناسب نیست؟</p><p lang="en">All requests use the same <code>$server_name</code>. Why is this key wrong for per-IP allowances?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">مقدار برای همهٔ درخواست‌های همان virtual server یکسان است و همه یک state مشترک مصرف می‌کنند. برای quota هر IP از نشانی نرمال‌شدهٔ client key بساز؛ برای سقف کلی سرور، key سرور ممکن است هدف دیگری داشته باشد.</p><p lang="en">The value is the same for requests to that virtual server, so everyone shares one state. Use a normalized client address for per-IP quota; a server-name key may serve a separate global-cap purpose.</p></details></div>
+
+  <div class="ex" id="ex09"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۹ · پشت CDN</span><span class="ex-n" lang="en">Exercise 9 · Behind a CDN</span></div><p lang="fa">در access log همهٔ clientها IP یکسان دارند و <code>X-Forwarded-For</code> متفاوت است. پیش از اعتماد به header چه مدرکی می‌خواهی؟</p><p lang="en">Every client has one IP in the access log, while <code>X-Forwarded-For</code> differs. What do you verify before trusting the header?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">آیا اتصال مستقیم از IP/CIDR واقعی CDN می‌آید؟ مستند provider می‌گوید کدام header را خودش بازنویسی می‌کند؟ آیا firewall جلوی دورزدن CDN تا origin را گرفته؟ فقط پس از پاسخ روشن، <code>set_real_ip_from</code> محدود و <code>real_ip_header</code> را تنظیم کن.</p><p lang="en">Does the connection come from the CDN’s actual IP/CIDR? Which header does the provider overwrite? Does the firewall prevent bypassing the CDN to the origin? Only after verifying these, configure a narrow <code>set_real_ip_from</code> and the correct <code>real_ip_header</code>.</p></details></div>
+
+  <div class="ex" id="ex10"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۰ · هدر قابل جعل</span><span class="ex-n" lang="en">Exercise 10 · A spoofable header</span></div><p lang="fa">تیمی <code>set_real_ip_from 0.0.0.0/0;</code> گذاشته تا هر IP کاربر خوانده شود. خطر چیست؟</p><p lang="en">A team sets <code>set_real_ip_from 0.0.0.0/0;</code> to read every client IP. What is the risk?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">هر client می‌تواند header جعلی بفرستد و IP دلخواه انتخاب کند؛ با key بر پایهٔ آن می‌شود محدودیت را دور زد. فقط آدرس‌های proxyای را مورداعتماد بدان که header را درست می‌سازند، و دسترسی مستقیم به origin را هم ببند.</p><p lang="en">Any client could send a forged header and choose an arbitrary address, potentially evading an IP-keyed limit. Trust only proxy addresses that set the header correctly, and restrict direct access to the origin.</p></details></div>
+
+  <div class="ex" id="ex11"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۱ · آستانه برای login</span><span class="ex-n" lang="en">Exercise 11 · Login threshold</span></div><p lang="fa">می‌خواهی login را روی <code>1r/s</code> و بدون burst بگذاری. چه رفتار عادی‌ای ممکن است ناخواسته 429 بگیرد؟</p><p lang="en">You plan to limit login to <code>1r/s</code> with no burst. What legitimate behavior could be rejected?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">دوبار کلیک، retry خودکار، چند tab یا چند کاربر پشت NAT ممکن است درخواست‌های نزدیک‌به‌هم بسازند. ترافیک واقعی و نرخ خطا را اندازه بگیر؛ عدد یک کاربر و همهٔ IP مشترک را با هم قاطی نکن.</p><p lang="en">Double-clicks, automatic retries, multiple tabs, or users behind NAT can create closely spaced requests. Measure real traffic and rejection rates; do not confuse one user with everyone sharing an IP.</p></details></div>
+
+  <div class="ex" id="ex12"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۲ · همه‌چیز 200 است</span><span class="ex-n" lang="en">Exercise 12 · Everything is 200</span></div><p lang="fa">با <code>limit_req_dry_run on</code> همهٔ درخواست‌ها 200 مانده‌اند. آیا limiter کار نمی‌کند؟</p><p lang="en">With <code>limit_req_dry_run on</code>, all requests still return 200. Is the limiter broken?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">dry-run برای مشاهده است و درخواست را reject نمی‌کند. نتیجهٔ <code>REJECTED_DRY_RUN</code> یا log مربوطه را ببین، و فقط پس از تأیید threshold، enforcement را جداگانه فعال کن. این قابلیت به نسخهٔ Nginx وابسته است.</p><p lang="en">Dry run observes without rejecting. Look for <code>REJECTED_DRY_RUN</code> or its log entry, then enable enforcement separately after validating the threshold. This feature depends on Nginx version.</p></details></div>
+
+  <div class="ex" id="ex13"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۳ · هر socket؟</span><span class="ex-n" lang="en">Exercise 13 · Every socket?</span></div><p lang="fa">آیا <code>limit_conn</code> همهٔ اتصال‌هایی را که هنوز header نفرستاده‌اند می‌شمارد؟</p><p lang="en">Does <code>limit_conn</code> count every connection that has not sent its request header yet?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه؛ شمارش زمانی آغاز می‌شود که درخواست در حال پردازش باشد و کل header خوانده شده باشد. برای منابع اتصال خام و حملهٔ شبکه باید کنترل‌های دیگر را هم در نظر گرفت.</p><p lang="en">No; counting begins when a request is being processed and its full header has been read. Raw connection and network-attack controls require other measures too.</p></details></div>
+
+  <div class="ex" id="ex14"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۴ · zone پر می‌شود</span><span class="ex-n" lang="en">Exercise 14 · The zone fills</span></div><p lang="fa">در هر درخواست key تصادفی می‌سازی و shared zone کوچک است. چه خطری دارد؟</p><p lang="en">You generate a random key per request and use a small shared zone. What is the risk?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">هر درخواست state تازه می‌خواهد، پس عملاً یک client محدود نمی‌شود و zone می‌تواند پر شود. key را از یک هویت پایدار و معنی‌دار بساز و اندازه را با تعداد واقعی keyها بسنج.</p><p lang="en">Each request needs new state, so a client is effectively never grouped and the zone can fill. Choose a stable meaningful identity and size the zone for the expected key count.</p></details></div>
+
+  <div class="ex" id="ex15"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۵ · 429 روی عکس‌ها</span><span class="ex-n" lang="en">Exercise 15 · 429 on images</span></div><p lang="fa">بعد از اعمال limit در سطح <code>server</code>، فایل‌های static هم 429 می‌شوند و صفحه نیمه‌کاره است. چه چیزی را بازبینی می‌کنی؟</p><p lang="en">After adding a server-level limit, static files also return 429 and the page is incomplete. What do you review?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">سطح اعمال directive و ارث‌بری locationها را بررسی کن. limiter را در location مسیر پرهزینه بگذار یا استثناها را صریح طراحی کن؛ scope محدودیت باید با هدف محصول یکی باشد.</p><p lang="en">Review the directive’s context and location inheritance. Place the limiter on the costly route or design explicit exceptions; its scope should match the product goal.</p></details></div>
+
+  <div class="ex" id="ex16"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۶ · حمله از IPهای زیاد</span><span class="ex-n" lang="en">Exercise 16 · Many attacking IPs</span></div><p lang="fa">هر IP زیر آستانه می‌ماند، اما هزاران IP login را می‌زنند. آیا per-IP limit کافی است؟</p><p lang="en">Each IP stays below the threshold, but thousands hit login. Is a per-IP limit enough?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه؛ مجموع فشار توزیع‌شده می‌تواند بزرگ باشد. کنترل‌های account-level و برنامه، CDN/WAF، firewall و ظرفیت را با مشاهده و سیاست امنیتی ترکیب کن. Nginx limiter به‌تنهایی DDoS protection نیست.</p><p lang="en">No; distributed aggregate load can still be large. Combine account-level app controls, CDN/WAF, firewall, and capacity planning with monitoring and security policy. Nginx’s limiter alone is not DDoS protection.</p></details></div>
+
+  <div class="ex" id="ex17"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۷ · ترجیح صف یا رد فوری</span><span class="ex-n" lang="en">Exercise 17 · Delay or immediate pass?</span></div><p lang="fa">endpoint جست‌وجو موج کوتاه می‌گیرد و تأخیر چندثانیه‌ای قابل‌قبول است؛ endpoint اعلان باید فوری جواب دهد ولی ظرفیت burst محدود دارد. با کدام mode شروع می‌کنی؟</p><p lang="en">Search can tolerate a brief queue; a notification endpoint needs immediate responses but has a finite burst. Which mode would you test first?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">برای جست‌وجو، حالت تأخیری را می‌سنجم؛ برای اعلان، <code>nodelay</code> با burst کوچک و سنجش backend را آزمایش می‌کنم. هیچ عددی را بدون latency و نرخ رد واقعی نهایی نمی‌کنم.</p><p lang="en">Test delayed handling for search; test <code>nodelay</code> with a small burst and backend measurements for notifications. Finalize no number without latency and rejection measurements.</p></details></div>
+
+  <div class="ex" id="ex18"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۸ · یک 429 برای همه</span><span lang="en">Exercise 18 · One 429 for everyone</span></div><p lang="fa">پشت CDN، دفتر و خانه در log یک IP دارند؛ پس از rollout کاربران عادی 429 می‌گیرند. چه شواهدی پیش از تغییر نرخ جمع می‌کنی؟</p><p lang="en">Behind a CDN, the office and home share one logged IP; normal users get 429 after rollout. What evidence do you gather before changing the rate?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">مقدار socket peer، headerی که CDN می‌فرستد، trusted proxy ranges، scope zone، و logهای REJECTED را بررسی کن. اگر همه زیر یک proxy key هستند، بالا بردن حد شاید فقط علامت را پنهان کند؛ real-IP را با فهرست اعتماد محدود درست کن و همان آزمایش را تکرار کن.</p><p lang="en">Inspect the socket peer, CDN-provided header, trusted proxy ranges, zone scope, and REJECTED logs. If everyone shares one proxy key, raising the limit may only hide the symptom; configure narrowly trusted real-IP handling and repeat the same test.</p></details></div>
+</section>
+
+<section id="mission">
+  <h2><span lang="fa">ماموریت: صبح روز انتشار، 429های غیرمنتظره</span><span lang="en">Mission: unexpected 429s on release morning</span></h2>
+  <p class="lede" lang="fa">تیم بعد از انتشار می‌گوید فرم ورود برای بعضی کاربران عادی 429 می‌دهد؛ هم‌زمان درخواست‌های login هم باید از موج ربات‌ها در امان باشد. بدون تغییر کورکورانهٔ عدد، باید بفهمی محدودیت روی کدام route است، چه کسی را یک key می‌بیند و آیا burst طبیعی حساب شده.</p>
+  <p class="lede" lang="en">After a release, the team reports 429s for some normal login users; login requests also need protection from bot bursts. Without blindly changing a number, determine which route is limited, who shares a key, and whether normal bursts were considered.</p>
+  <ol>
+    <li><span lang="fa">از access log زمان، status، <code>$remote_addr</code> و <code>$limit_req_status</code> را برای چند درخواست ردشده کنار هم بگذار.</span><span lang="en">For rejected requests, compare time, status, <code>$remote_addr</code>, and <code>$limit_req_status</code> in the access log.</span></li>
+    <li><span lang="fa">scope directive و key zone را بخوان؛ بررسی کن آیا endpointها یا کاربران نامرتبط یک بودجه شریک‌اند.</span><span lang="en">Inspect the directive scope and zone key; check whether unrelated routes or users share one allowance.</span></li>
+    <li><span lang="fa">با درخواست کم‌خطر و محدود، baseline بساز؛ بعد فقط key یا burst را—نه هر دو را—تغییر بده.</span><span lang="en">Build a low-volume baseline, then change only the key or burst—not both at once.</span></li>
+    <li><span lang="fa">همان درخواست‌ها را تکرار کن و status، تأخیر و اثر روی endpoint را ثبت کن؛ برای proxy، trust range را مستند و محدود کن.</span><span lang="en">Repeat the same requests and record status, delay, and endpoint effect; document and narrowly scope trusted proxy ranges.</span></li>
+  </ol>
+  <details class="capsule"><summary><span lang="fa">سرنخ‌ها را یکی‌یکی باز کن</span><span lang="en">Reveal hints one at a time</span></summary><p lang="fa">اگر remote addressها یکی است ولی headerها فرق دارند، به مرز proxy فکر کن. اگر status ردشده 503 است، status directive و error log را بخوان. اگر فقط burst رد می‌شود، پیش از زیادکردن نرخ بررسی کن آیا <code>burst</code> یا <code>nodelay</code> با تجربهٔ موردانتظار سازگار است.</p><p lang="en">If remote addresses match but headers differ, inspect the proxy boundary. If rejections are 503, check status directives and error logs. If only bursts are rejected, review whether <code>burst</code> or <code>nodelay</code> fits expected behavior before increasing the sustained rate.</p></details>
+  <details class="ex-sol"><summary><span lang="fa">گزارش نمونه و معیار قبولی</span><span lang="en">Sample report and acceptance criteria</span></summary><p lang="fa">گزارش معتبر می‌گوید: route محدودشده کدام بود؛ key چه مقدار داشت؛ آیا هویت از proxy مورداعتماد می‌آمد؛ baseline چه status و latencyای داشت؛ کدام یک تغییر انجام شد؛ و همان موج بعد از تغییر چه تفاوتی نشان داد. نتیجهٔ درست فقط «429 قطع شد» نیست—باید کاربران مجاز همچنان پذیرفته شوند و burst اضافه هم مهار شود.</p><p lang="en">A sound report names the limited route and key value; says whether identity came from a trusted proxy; records baseline status and latency; identifies the one change made; and compares the same wave afterward. “429 stopped” is not enough—legitimate users must still pass while excess bursts remain controlled.</p></details>
+</section>
+
+<section id="cleanup">
+  <h2><span lang="fa">فقط همین آزمایشگاه را جمع کن</span><span lang="en">Clean up only this lab</span></h2>
+  <p class="lede" lang="fa">پیش از توقف، logها را بخوان و اگر خروجی برای گزارش لازم است ذخیره کن. بعد Nginx همین prefix موقت و برنامه‌ای را که همین فایل را اجرا می‌کند متوقف می‌کنیم؛ هیچ processای را با نام عمومی مثل <code>python3</code> نمی‌کشیم.</p>
+  <p class="lede" lang="en">Read the logs and save any evidence needed for your report before stopping anything. Then stop only Nginx using this temporary prefix and the app running this exact file; do not kill processes by a generic name such as <code>python3</code>.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">check the recorded PID, stop matching lab processes, confirm removal</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">APP_PID=$(cat "$RATE_LAB/pids/app.pid")
+APP_SAFE=1
+APP_CMD=$(ps -p "$APP_PID" -o command= 2&gt;/dev/null || true)
+printf 'app PID=%s\n%s\n' "$APP_PID" "$APP_CMD"
+case "$APP_CMD" in
+  *"$RATE_LAB/app.py 19090"*) kill -TERM "$APP_PID" ;;
+  '') ;;
+  *) echo 'PID mismatch; do not stop it.'; APP_SAFE=0 ;;
+esac
+nginx -s quit -p "$RATE_LAB/" -c nginx.conf
+sleep 0.4
+if [ "$APP_SAFE" -ne 1 ]; then
+  echo 'PID mismatch; nothing removed.'
+elif ps -p "$APP_PID" -o command= 2&gt;/dev/null |
+     grep -F -- "$RATE_LAB/app.py 19090" &gt;/dev/null; then
+  echo 'Lab app still running; do not remove its files.'
+else
+  printf 'Lab path: %s\n' "$RATE_LAB"
+  read -r -p 'Type REMOVE to delete this temporary lab: ' confirm
+  if [ "$confirm" = REMOVE ] &amp;&amp;
+     [[ "$RATE_LAB" =~ ^/tmp/nginx-rate\.[A-Za-z0-9]{6}$ ]] &amp;&amp;
+     [ ! -L "$RATE_LAB" ] &amp;&amp;
+     [ ! -e "$RATE_LAB/run/nginx.pid" ]; then
+    rm -r -- "$RATE_LAB"
+  else
+    echo 'Confirmation or safety check failed; nothing removed.'
+  fi
+fi</span></pre></div>
+  <p lang="fa">PID را با فرمان ثبت‌شده تطبیق بده؛ اگر match نیست، توقف و حذف نکن. مسیر چاپ‌شده باید همان <code>/tmp/nginx-rate.XXXXXX</code> این آزمایش باشد. خطای شرط ایمنی را دور نزن و پوشهٔ پیکربندی واقعی Nginx را به این cleanup نده.</p>
+  <p lang="en">Match the PID against the recorded command; if it does not match, stop and do not delete. The printed path must be this lab’s <code>/tmp/nginx-rate.XXXXXX</code> directory. Do not bypass a failed safety check or pass a real Nginx config directory to this cleanup.</p>
+</section>
+
+<section id="quick-reference">
+  <h2><span lang="fa">مرجع سریع: نرخ، اتصال، هویت</span><span lang="en">Quick reference: rate, concurrency, identity</span></h2>
+  <div class="table-wrap"><table class="doc-table">
+    <thead><tr><th><span lang="fa">تنظیم</span><span lang="en">Directive</span></th><th><span lang="fa">پاسخ کدام سؤال؟</span><span lang="en">Question answered</span></th><th><span lang="fa">چه چیزی را ثابت نمی‌کند؟</span><span lang="en">What it does not prove</span></th></tr></thead>
+    <tbody>
+      <tr><td><code>limit_req_zone</code></td><td><span lang="fa">وضعیت rate برای هر key کجا مشترک نگه داشته شود؟</span><span lang="en">Where is per-key rate state shared?</span></td><td><span lang="fa">اینکه خود key هویت درستی است</span><span lang="en">That the key represents the intended identity</span></td></tr>
+      <tr><td><code>burst</code> / <code>nodelay</code></td><td><span lang="fa">موج کوتاه چطور مدیریت شود؟</span><span lang="en">How should a short wave be handled?</span></td><td><span lang="fa">نرخ دائمی بیشتر یا محافظت از همهٔ حمله‌ها</span><span lang="en">A higher sustained rate or universal attack protection</span></td></tr>
+      <tr><td><code>limit_conn_zone</code> / <code>limit_conn</code></td><td><span lang="fa">چند درخواست هم‌زمان از هر key در حال پردازش است؟</span><span lang="en">How many requests per key are currently in progress?</span></td><td><span lang="fa">همهٔ اتصال‌های خام و درخواست‌های نخوانده</span><span lang="en">Every raw connection or unread request</span></td></tr>
+      <tr><td><code>set_real_ip_from</code></td><td><span lang="fa">از کدام proxy اجازه داریم header هویت را بپذیریم؟</span><span lang="en">Which proxy may supply a trusted identity header?</span></td><td><span lang="fa">امن‌بودن header ارسالی از هر client</span><span lang="en">Trustworthiness of a header from arbitrary clients</span></td></tr>
+      <tr><td><code>limit_req_status</code> / <code>limit_conn_status</code></td><td><span lang="fa">درخواست ردشده چه statusی بگیرد؟</span><span lang="en">Which status should a rejected request receive?</span></td><td><span lang="fa">اینکه علت rejection را لاگ ثبت کرده</span><span lang="en">That rejection evidence was logged</span></td></tr>
+    </tbody>
+  </table></div>
+  <p lang="fa">برای رفتار دقیق directiveها، <a href="https://nginx.org/en/docs/http/ngx_http_limit_req_module.html">مستند limit_req</a>، <a href="https://nginx.org/en/docs/http/ngx_http_limit_conn_module.html">مستند limit_conn</a> و <a href="https://nginx.org/en/docs/http/ngx_http_realip_module.html">مستند real-IP</a> را با نسخهٔ نصب‌شده تطبیق بده. ماژول real-IP در بعضی buildها به‌طور پیش‌فرض فعال نیست؛ اگر directive ناشناخته است، <code>nginx -V</code> و بستهٔ توزیع را بررسی کن.</p>
+  <p lang="en">For precise directive behavior, compare the <a href="https://nginx.org/en/docs/http/ngx_http_limit_req_module.html">limit_req docs</a>, <a href="https://nginx.org/en/docs/http/ngx_http_limit_conn_module.html">limit_conn docs</a>, and <a href="https://nginx.org/en/docs/http/ngx_http_realip_module.html">real-IP docs</a> with your installed version. The real-IP module may not be built in by default; if a directive is unknown, inspect <code>nginx -V</code> and your distribution package.</p>
+</section>
+
+<section id="next">
+  <h2><span lang="fa">محدودیت فعال شد؛ حالا از کجا بفهمیم چه شد؟</span><span lang="en">The limit is on; how do we know what happened?</span></h2>
+  <p class="lede" lang="fa">این فصل statusها و latency را کنار هم خواند تا فرق درخواست قبول‌شده، تأخیری و ردشده را ببینیم. اما وقتی شمار درخواست‌ها زیاد می‌شود، پیدا کردن موج، مسیر کند و الگوی 429 دشوارتر است. فصل بعد logهای Nginx را طوری می‌سازد که چنین پرسش‌هایی جواب‌پذیر شوند.</p>
+  <p class="lede" lang="en">This chapter compared statuses and latency to distinguish passed, delayed, and rejected requests. As volume grows, spotting bursts, slow routes, and 429 patterns gets harder. Next we will shape Nginx logs so those questions become answerable.</p>
+</section>

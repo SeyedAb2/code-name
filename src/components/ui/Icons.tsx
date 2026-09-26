@@ -163,6 +163,13 @@ export const LayersIcon = ({ size = 18, className }: P) => (
   </svg>
 );
 
+export const HomeIcon = ({ size = 18, className }: P) => (
+  <svg {...base(size, className)} strokeWidth={1.9}>
+    <path d="m3.5 10 8.5-7 8.5 7v10a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1z" />
+    <path d="M9 21v-7h6v7" />
+  </svg>
+);
+
 export const UsersIcon = ({ size = 18, className }: P) => (
   <svg {...base(size, className)} strokeWidth={1.9}>
     <circle cx="9" cy="8" r="3.2" />

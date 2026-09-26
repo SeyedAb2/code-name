@@ -1,0 +1,85 @@
+@use "../../styles/tokens" as *;
+
+.nav { display: none; }
+
+@include below($bp-md) {
+  .nav {
+    position: fixed;
+    z-index: 75;
+    inset-inline: 12px;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    min-height: 70px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: center;
+    padding: 7px 8px;
+    border: 1px solid color-mix(in srgb, var(--line-strong) 75%, transparent);
+    border-radius: 25px;
+    background: color-mix(in srgb, var(--surface) 91%, transparent);
+    box-shadow: 0 12px 36px rgba(10, 18, 40, .22), inset 0 1px 0 rgba(255,255,255,.2);
+    -webkit-backdrop-filter: blur(18px) saturate(1.5);
+    backdrop-filter: blur(18px) saturate(1.5);
+  }
+
+  .item {
+    position: relative;
+    min-width: 0;
+    min-height: 54px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    border: 0;
+    border-radius: 17px;
+    padding: 3px 1px;
+    background: transparent;
+    color: var(--ink-faint);
+    font-family: inherit;
+    font-size: .65rem;
+    font-weight: 650;
+    line-height: 1.35;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+
+    &:hover { color: var(--blue); text-decoration: none; }
+    &[aria-current="page"] { color: var(--blue); }
+  }
+
+  .icon { height: 26px; display: grid; place-items: center; }
+  .home { transform: translateY(-8px); color: var(--blue); }
+  .homeIcon {
+    width: 54px;
+    height: 54px;
+    display: grid;
+    place-items: center;
+    color: white;
+    border: 4px solid var(--canvas);
+    border-radius: 50%;
+    background: var(--brand-grad);
+    box-shadow: 0 7px 18px color-mix(in srgb, var(--blue) 35%, transparent);
+  }
+  .home.active .homeIcon { box-shadow: 0 7px 20px color-mix(in srgb, var(--blue) 45%, transparent); }
+  .home span:last-child { margin-top: -2px; }
+  .badge {
+    position: absolute;
+    top: 1px;
+    inset-inline-end: calc(50% - 25px);
+    min-width: 16px;
+    height: 16px;
+    padding-inline: 4px;
+    display: grid;
+    place-items: center;
+    border-radius: 99px;
+    color: #fff;
+    background: var(--violet);
+    font: normal 600 .58rem/1 var(--num);
+  }
+}
+
+@media (max-width: 370px) {
+  .nav { inset-inline: 7px; padding-inline: 4px; }
+  .item { font-size: .6rem; }
+}

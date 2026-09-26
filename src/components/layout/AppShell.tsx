@@ -9,6 +9,8 @@ import TopBar, { type Crumb } from "./TopBar";
 import Loader from "./Loader";
 import SearchDialog from "@/components/search/SearchDialog";
 import MobileMenu from "./MobileMenu";
+import MobileNav from "./MobileNav";
+import UpdateNotice from "./UpdateNotice";
 import AboutModal from "@/components/about/AboutModal";
 import s from "./AppShell.module.scss";
 
@@ -68,6 +70,8 @@ export default function AppShell({ children, crumbs, bare }: Props) {
 
       <main>{bare ? children : <div className={s.shell}>{children}</div>}</main>
 
+      <MobileNav onSearch={() => setSearch(true)} />
+
       <footer className={s.footer}>
         <div className={s.footerInner}>
           <span className={s.footerBrand}>
@@ -96,6 +100,7 @@ export default function AppShell({ children, crumbs, bare }: Props) {
         onShare={share}
       />
       <AboutModal open={about} onClose={() => setAbout(false)} />
+      <UpdateNotice />
     </>
   );
 }

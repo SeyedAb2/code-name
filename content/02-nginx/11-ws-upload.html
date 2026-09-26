@@ -1,0 +1,498 @@
+<!--meta
+title: WebSocket و آپلود حجیم
+desc: عبور درست handshake وب‌سوکت از reverse proxy، timeout اتصال ماندگار و تشخیص 413 پیش از رسیدن بدنه به برنامه.
+-->
+
+<div class="masthead">
+  <span class="eyebrow"><span class="dot"></span><span lang="fa">Nginx · فصل ۱۱</span><span lang="en">Nginx · Chapter 11</span></span>
+  <h1 lang="fa">WebSocket و آپلود حجیم</h1>
+  <h1 lang="en">WebSockets and large uploads</h1>
+  <p class="sub" lang="fa">چت وصل می‌شود و بلافاصله قطع می‌شود؛ فایل هم با 413 برمی‌گردد. این دو خطا یکی نیستند: یکی handshake و اتصال ماندگار است، دیگری محدودیت بدنهٔ درخواست. با شاهد پیدا می‌کنیم هر کدام کجا متوقف شده.</p>
+  <p class="sub" lang="en">The chat connects and immediately drops; a file upload returns 413. These are different failures: one concerns a handshake and a long-lived connection, the other a request-body limit. We will use evidence to find where each one stopped.</p>
+  <div class="facts">
+    <div class="fact"><b>۷۰</b><span lang="fa">دقیقهٔ مطالعه</span><span lang="en">minutes</span></div>
+    <div class="fact"><b>۱۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></div>
+    <div class="fact"><b>۲</b><span lang="fa">نمودار جریان</span><span lang="en">flow diagrams</span></div>
+    <div class="fact"><b>۲</b><span lang="fa">خرابی عمدی</span><span lang="en">deliberate failures</span></div>
+  </div>
+</div>
+
+<section id="two-reports">
+  <h2><span lang="fa">دو گزارش پشتیبانی؛ هنوز دو تشخیص نداریم</span><span lang="en">Two support reports, not two diagnoses yet</span></h2>
+  <p class="lede" lang="fa">یکی می‌گوید «صفحهٔ چت باز می‌شود، اما چند لحظه بعد قطع می‌شود». دیگری می‌گوید «فایل ۸ مگابایتی رد شد». اگر هر دو را با یک timeout یا افزایش بی‌حساب buffer حل کنیم، احتمالاً فقط شواهد را پاک کرده‌ایم.</p>
+  <p class="lede" lang="en">One report says, “The chat opens, then disconnects a moment later.” Another says, “An 8 MB file was rejected.” If we try to fix both with one timeout or by blindly increasing buffers, we may only erase the evidence.</p>
+  <p lang="fa">از فصل قبل می‌دانیم status و log را باید کنار هم خواند. برای چت می‌پرسیم: آیا handshake تا 101 رسیده و connection مانده؟ برای آپلود: کدام لایه درخواست را رد کرده—Nginx یا برنامه؟ اول مسیر را می‌کشیم، بعد هر کدام را جدا آزمایش می‌کنیم.</p>
+  <p lang="en">From the previous chapter we know to read statuses beside logs. For chat: did the handshake reach 101, and did the connection remain open? For uploads: which layer rejected the request—Nginx or the app? We will map the path and test each separately.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">نشانه</span><span lang="en">Symptom</span></th><th><span lang="fa">اولین شاهد</span><span lang="en">First evidence</span></th><th><span lang="fa">چیزی که هنوز ثابت نشده</span><span lang="en">Not yet proven</span></th></tr></thead><tbody>
+    <tr><td><span lang="fa">WebSocket قطع می‌شود</span><span lang="en">WebSocket disconnects</span></td><td><span lang="fa">نتیجهٔ handshake و خطای client/Nginx/app</span><span lang="en">Handshake result and client/Nginx/app logs</span></td><td><span lang="fa">اینکه timeout حتماً مقصر است</span><span lang="en">That a timeout is necessarily the cause</span></td></tr>
+    <tr><td><span lang="fa">آپلود 413 می‌گیرد</span><span lang="en">Upload gets 413</span></td><td><span lang="fa">access log Nginx و اینکه app درخواست را دیده یا نه</span><span lang="en">Nginx access log and whether the app saw it</span></td><td><span lang="fa">اینکه «سرور» یعنی حتماً خود برنامه</span><span lang="en">That “the server” must mean the app itself</span></td></tr>
+  </tbody></table></div>
+</section>
+
+<section id="websocket-model">
+  <h2><span lang="fa">WebSocket از کجا شروع می‌شود؟ از یک HTTP معمولی</span><span lang="en">Where does WebSocket begin? With ordinary HTTP</span></h2>
+  <p lang="fa">در اتصال WebSocket روی HTTP/1.1، client با یک درخواست HTTP و headerهای <code>Upgrade</code> و <code>Connection</code> درخواست تغییر پروتکل می‌کند. اگر سرور بپذیرد، پاسخ <code>101 Switching Protocols</code> می‌آید؛ بعد همان اتصال برای پیام‌های دوطرفه باز می‌ماند. 101 یعنی handshake پذیرفته شد، نه اینکه هر پیام بعدی حتماً درست کار می‌کند.</p>
+  <p lang="en">With WebSocket over HTTP/1.1, the client sends an HTTP request with <code>Upgrade</code> and <code>Connection</code> headers to request a protocol switch. If accepted, the server replies <code>101 Switching Protocols</code>; the same connection then stays open for two-way messages. A 101 proves the handshake was accepted, not that every later message will work.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 1080 430" role="img" aria-labelledby="ws-flow-title" xmlns="http://www.w3.org/2000/svg">
+      <title id="ws-flow-title">WebSocket handshake and frames pass through Nginx / handshake و پیام‌های WebSocket از Nginx عبور می‌کنند</title>
+      <defs><marker id="ws-flow-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow-b"/></marker><marker id="ws-flow-back" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow"/></marker></defs>
+      <rect x="38" y="150" width="220" height="110" rx="18" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/>
+      <text x="148" y="195" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Browser / Client</text>
+      <text x="148" y="228" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">WebSocket client</text>
+      <rect x="430" y="150" width="220" height="110" rx="18" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/>
+      <text x="540" y="195" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Nginx</text>
+      <text x="540" y="228" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">reverse proxy</text>
+      <rect x="822" y="150" width="220" height="110" rx="18" class="dg-fill-g" stroke="var(--safe)" stroke-width="2"/>
+      <text x="932" y="195" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">WebSocket app</text>
+      <text x="932" y="228" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">echo service</text>
+      <path d="M258 175H430" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#ws-flow-arrow)"/>
+      <text x="344" y="137" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">HTTP/1.1 Upgrade</text>
+      <path d="M430 235H258" class="dg-stroke" stroke-width="2.5" marker-end="url(#ws-flow-back)"/>
+      <text x="344" y="286" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">101 response</text>
+      <path d="M650 175H822" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#ws-flow-arrow)"/>
+      <text x="736" y="137" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">forwarded headers</text>
+      <path d="M822 235H650" class="dg-stroke" stroke-width="2.5" marker-end="url(#ws-flow-back)"/>
+      <text x="736" y="286" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">101 Switching Protocols</text>
+      <path d="M258 304H430" class="dg-stroke-v" stroke-width="2.5" marker-end="url(#ws-flow-arrow)"/>
+      <path d="M430 321H258" class="dg-stroke-v" stroke-width="2.5" marker-end="url(#ws-flow-back)"/>
+      <path d="M650 304H822" class="dg-stroke-v" stroke-width="2.5" marker-end="url(#ws-flow-arrow)"/>
+      <path d="M822 321H650" class="dg-stroke-v" stroke-width="2.5" marker-end="url(#ws-flow-back)"/>
+      <rect x="128" y="350" width="824" height="52" rx="15" class="dg-fill" stroke="var(--line-strong)" stroke-width="1.5"/>
+      <text x="540" y="382" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">After 101: frames flow both ways through the Nginx tunnel</text>
+    </svg>
+    <p class="diagram-cap" lang="fa">فلش‌های آبی درخواست handshake را به سمت برنامه می‌برند؛ فلش برگشتی پاسخ 101 است. پس از آن پیام‌ها همچنان از Nginx عبور می‌کنند؛ اتصال مستقیم client به برنامه ساخته نمی‌شود.</p>
+    <p class="diagram-cap" lang="en">Blue arrows carry the handshake request toward the app; the returning arrow is the 101 response. Afterward, messages still pass through Nginx—the client does not become directly connected to the app.</p>
+  </div>
+  <p lang="fa">Nginx headerهای hop-by-hop مثل <code>Upgrade</code> و <code>Connection</code> را خودکار به upstream نمی‌فرستد. برای همین ممکن است HTTP عادی proxy شود ولی WebSocket بالا نیاید. در فصل ۶ هدرهای proxy را شناختیم؛ اینجا باید تغییر پروتکل را صریح عبور بدهیم.</p>
+  <p lang="en">Nginx does not automatically pass hop-by-hop headers such as <code>Upgrade</code> and <code>Connection</code> to the upstream. Ordinary HTTP can therefore proxy correctly while WebSocket fails. We met proxy headers in Chapter 6; here we must explicitly forward the protocol switch.</p>
+</section>
+
+<section id="map-and-headers">
+  <h2><span lang="fa">Connection را برای هر درخواست یکسان نگذار</span><span lang="en">Do not set Connection the same way for every request</span></h2>
+  <p lang="fa">برای یک endpoint WebSocket، مقدار ثابت <code>Connection "upgrade"</code> ممکن است جواب بدهد؛ اما همان server درخواست HTTP معمولی هم دارد. الگوی <code>map</code> در بخش <code>http</code>، وقتی client واقعاً Upgrade فرستاده مقدار <code>upgrade</code> می‌سازد و در بقیهٔ درخواست‌ها <code>close</code> می‌گذارد. map اینجا تصمیم هدر را روشن می‌کند.</p>
+  <p lang="en">For a WebSocket-only endpoint, a fixed <code>Connection "upgrade"</code> may work, but the same server also handles ordinary HTTP. A <code>map</code> in the <code>http</code> block sets <code>upgrade</code> when the client actually requested it and <code>close</code> otherwise. Here the map makes the header decision explicit.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">the compatibility-conscious WebSocket proxy pattern</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">http {
+    map $http_upgrade $connection_upgrade {
+        default upgrade;
+        ''      close;
+    }
+    server {
+        location = /ws {
+            proxy_pass http://127.0.0.1:19111;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+            proxy_read_timeout 75s;
+        }
+    }
+}</span></pre></div>
+  <p lang="fa">در نسخه‌های Nginx قدیمی‌تر از 1.29.7، HTTP/1.0 مقدار پیش‌فرض <code>proxy_http_version</code> بود؛ در نسخه‌های جدیدتر پیش‌فرض 1.1 شده. ما آن را صریح می‌نویسیم تا رفتار فصل به نسخه وابسته نماند. <code>map</code> باید در context <code>http</code> باشد، نه داخل <code>server</code> یا <code>location</code>.</p>
+  <p lang="en">Before Nginx 1.29.7, the default <code>proxy_http_version</code> was HTTP/1.0; newer versions default to 1.1. We write it explicitly so the chapter’s behavior is not version-dependent. The <code>map</code> belongs in the <code>http</code> context, not inside <code>server</code> or <code>location</code>.</p>
+  <p lang="fa"><code>proxy_read_timeout 75s</code> نمی‌گوید کل WebSocket فقط ۷۵ ثانیه عمر دارد. فاصلهٔ بی‌داده بین دو خواندن از upstream نباید از این مقدار عبور کند؛ ping منظم برنامه می‌تواند اتصال زنده را فعال نگه دارد. timeout را با heartbeat برنامه هماهنگ کن، نه با حدس.</p>
+  <p lang="en"><code>proxy_read_timeout 75s</code> does not cap the WebSocket’s total lifetime at 75 seconds. It limits the idle gap between successive reads from the upstream; regular application pings can keep an active connection alive. Coordinate the timeout with the app’s heartbeat rather than guessing.</p>
+  <div class="note safe"><span lang="fa">پس از handshake موفق، WebSocket هنوز از Nginx رد می‌شود. «Tunnel» یعنی Nginx دو جریان پیام را روی اتصال proxyشده عبور می‌دهد؛ نه اینکه proxy ناپدید شود یا client به socket داخلی برنامه دسترسی پیدا کند.</span><span lang="en">After a successful handshake, WebSocket still passes through Nginx. “Tunnel” means Nginx relays the two message streams over the proxied connection; the proxy does not disappear and the client does not gain access to the app’s internal socket.</span></div>
+</section>
+
+<section id="websocket-lab">
+  <h2><span lang="fa">اول اتصال را ببینیم؛ بعد هدر را خراب کنیم</span><span lang="en">First observe the connection, then break the header</span></h2>
+  <p class="lede" lang="fa">یک echo service کوچک می‌سازیم: پیام را می‌گیرد و همان را برمی‌گرداند. Node فقط روی loopback گوش می‌دهد و Nginx هم روی پورت آزمایشی loopback است. پوشهٔ موقت و پورت‌های آزاد را خودت تأیید کن؛ اگر اشغال‌اند چیزی را متوقف نکن.</p>
+  <p class="lede" lang="en">We will create a tiny echo service: it receives a message and sends it back. Node listens only on loopback, and Nginx uses a test loopback port too. Verify the temporary directory and free ports yourself; do not stop anything if a port is occupied.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">confirm tools and create a private disposable workspace</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">node --version
+npm --version
+nginx -v
+WS_LAB=$(mktemp -d /tmp/nginx-ws.XXXXXX)
+chmod 700 "$WS_LAB"
+mkdir -p "$WS_LAB/logs" "$WS_LAB/run" "$WS_LAB/pids"
+printf 'Lab: %s\n' "$WS_LAB"
+ss -ltn | grep -E ':(18111|19111)([[:space:]]|$)' || true</span>
+<span class="s">v22.x.x
+10.x.x
+nginx version: nginx/1.x.x
+Lab: /tmp/nginx-ws.xxxxxx</span></pre></div>
+  <p lang="fa">خروجی نسخه‌ها و مسیر نمونه‌اند. اگر <code>node</code>، <code>npm</code>، <code>nginx</code> یا <code>ss</code> در دسترس نیست، قبل از آزمایش آن ابزار را در محیط Linux آزمایشگاه آماده کن؛ برای بررسی پورت می‌توانی از <code>lsof</code> استفاده کنی. هیچ سرویس زنده‌ای را برای آزادکردن پورت نکش.</p>
+  <p lang="en">Versions and the path are illustrative. If <code>node</code>, <code>npm</code>, <code>nginx</code>, or <code>ss</code> is unavailable, prepare that tool in a Linux lab before proceeding; use <code>lsof</code> to inspect ports if needed. Do not kill a live service to free a port.</p>
+  <p lang="fa">وابستگی <code>ws</code> فقط در این پوشهٔ موقت نصب می‌شود. برنامه payload آپلود را ذخیره نمی‌کند؛ فقط تعداد بایت را می‌شمارد. سقف داخلی ۴ MiB هم می‌گذاریم تا اگر Nginx را دور زدیم، app بی‌محابا داده نپذیرد.</p>
+  <p lang="en">The <code>ws</code> dependency is installed only in this temporary directory. The app does not store upload payloads; it only counts bytes. We also set a 4 MiB application limit so bypassing Nginx does not make the app accept unlimited data.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">create the tiny bounded echo and upload service</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cd "$WS_LAB"
+npm init -y
+npm install ws
+cat &gt; server.js &lt;&lt;'JS'
+const http = require('node:http');
+const { WebSocketServer } = require('ws');
+const server = http.createServer((req, res) =&gt; {
+  if (req.method === 'POST' &amp;&amp; req.url === '/upload') {
+    const max = 4 * 1024 * 1024;
+    let bytes = 0;
+    let rejected = false;
+    req.on('data', chunk =&gt; {
+      bytes += chunk.length;
+      if (bytes &gt; max &amp;&amp; !rejected) {
+        rejected = true;
+        console.log('UPLOAD rejected bytes=' + bytes);
+        res.writeHead(413).end('app limit exceeded\n');
+        req.resume();
+      }
+    });
+    req.on('end', () =&gt; {
+      if (rejected) return;
+      console.log('UPLOAD accepted bytes=' + bytes);
+      res.writeHead(200, { 'content-type': 'text/plain' });
+      res.end('received=' + bytes + ' bytes; not stored\n');
+    });
+    return;
+  }
+  if (req.url === '/ws') {
+    console.log('HTTP /ws without Upgrade');
+    res.writeHead(426, { 'content-type': 'text/plain', 'sec-websocket-version': '13' });
+    res.end('WebSocket upgrade required\n');
+    return;
+  }
+  res.writeHead(200, { 'content-type': 'text/plain' });
+  res.end('try /ws or POST /upload\n');
+});
+const wss = new WebSocketServer({ noServer: true });
+server.on('upgrade', (req, socket, head) =&gt; {
+  if (req.url !== '/ws') return socket.destroy();
+  wss.handleUpgrade(req, socket, head, ws =&gt; wss.emit('connection', ws, req));
+});
+wss.on('connection', ws =&gt; {
+  console.log('WS connected');
+  ws.on('message', data =&gt; {
+    console.log('WS message bytes=' + data.length);
+    ws.send('echo: ' + data);
+  });
+});
+server.listen(19111, '127.0.0.1', () =&gt; console.log('app listening on 127.0.0.1:19111'));
+JS
+node --check server.js</span>
+<span class="s">added 1 package ...
+... (Node and npm versions vary)</span></pre></div>
+  <p lang="fa">کد فقط دو نقش دارد: اگر Upgrade نرسد، <code>/ws</code> یک 426 روشن می‌دهد؛ اگر handshake برسد، echo service پیام را برمی‌گرداند. اگر <code>npm install</code> شکست خورد، قبل از ادامهٔ Nginx، شبکه/registry یا نسخهٔ Node را بررسی کن؛ این خطا هنوز دربارهٔ proxy چیزی نمی‌گوید.</p>
+  <p lang="en">The code has two jobs: if Upgrade is absent, <code>/ws</code> returns a clear 426; if the handshake arrives, the echo service sends the message back. If <code>npm install</code> fails, inspect network/registry or Node version before continuing; that failure says nothing about the proxy yet.</p>
+  <p lang="fa">یک client کوچک هم لازم داریم که handshake واقعی بزند و یک پیام بفرستد. رخداد <code>unexpected-response</code> را چاپ می‌کند تا پاسخ ردشده را با «connection timeout» اشتباه نگیریم.</p>
+  <p lang="en">We also need a client that performs a real handshake and sends one message. It prints <code>unexpected-response</code> so we do not confuse a rejected handshake with a connection timeout.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">write a one-message WebSocket client</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cat &gt; client.js &lt;&lt;'JS'
+const WebSocket = require('ws');
+const ws = new WebSocket('ws://127.0.0.1:18111/ws');
+ws.on('open', () =&gt; ws.send('hello-nginx'));
+ws.on('message', data =&gt; {
+  console.log(data.toString());
+  ws.close();
+});
+ws.on('unexpected-response', (_req, res) =&gt; {
+  console.log('handshake rejected: HTTP ' + res.statusCode);
+  process.exitCode = 1;
+  ws.terminate();
+});
+ws.on('error', err =&gt; {
+  console.error('connection error: ' + err.message);
+  process.exitCode = 1;
+});
+JS
+node --check client.js</span></pre></div>
+  <p lang="fa">پیش از Nginx، app را بالا می‌آوریم و یک درخواست HTTP عادی می‌زنیم. پاسخ پایه مشخص می‌کند برنامه زنده است؛ هنوز handshake را آزمایش نکرده‌ایم.</p>
+  <p lang="en">Start the app before Nginx and make an ordinary HTTP request. This baseline shows the app is alive; we have not tested the WebSocket handshake yet.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">start only the loopback app and prove its HTTP path</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">node server.js &gt; "$WS_LAB/app.log" 2&gt;&amp;1 &amp;
+echo $! &gt; "$WS_LAB/pids/app.pid"
+sleep 0.5
+curl -i http://127.0.0.1:19111/</span>
+<span class="s">HTTP/1.1 200 OK
+...
+try /ws or POST /upload</span></pre></div>
+</section>
+
+<section id="broken-upgrade">
+  <h2><span lang="fa">خرابی اول: HTTP عادی می‌رسد، Upgrade نه</span><span lang="en">Failure one: ordinary HTTP arrives, Upgrade does not</span></h2>
+  <p lang="fa">یک Nginx آزمایشی می‌سازیم که عمداً headerهای WebSocket را عبور نمی‌دهد. timeout را فعلاً دست نمی‌زنیم؛ می‌خواهیم یک چیز را عوض کنیم و ببینیم شکست handshake چه شکلی است.</p>
+  <p lang="en">We will configure test Nginx to deliberately omit the WebSocket headers. We will leave timeouts alone for now so one changed condition produces one observable handshake failure.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">first config: HTTP proxy works, WebSocket headers are deliberately absent</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cat &gt; "$WS_LAB/nginx.conf" &lt;&lt;'NGINX'
+worker_processes 1;
+pid run/nginx.pid;
+error_log logs/error.log info;
+events { worker_connections 128; }
+http {
+    log_format lab '$remote_addr "$request" status=$status bytes=$body_bytes_sent';
+    access_log logs/access.log lab;
+    server {
+        listen 127.0.0.1:18111;
+        server_name localhost;
+        location / {
+            proxy_pass http://127.0.0.1:19111;
+            proxy_http_version 1.1;
+            client_max_body_size 64k;
+            # Deliberate fault: no Upgrade/Connection forwarding.
+        }
+    }
+}
+NGINX
+nginx -t -p \"$WS_LAB/\" -c nginx.conf
+nginx -p \"$WS_LAB/\" -c nginx.conf
+node client.js</span>
+<span class="s">nginx: configuration file ... syntax is ok
+nginx: configuration file ... test is successful
+handshake rejected: HTTP 426</span></pre></div>
+  <p lang="fa">در access log باید <code>GET /ws</code> با status 426 ببینی؛ در <code>app.log</code> هم پیام <code>HTTP /ws without Upgrade</code> می‌آید. این شاهد می‌گوید درخواست به app رسیده، اما به‌صورت HTTP معمولی. پس مشکل DNS یا خاموش‌بودن upstream نیست و هنوز timeout را مقصر نمی‌دانیم.</p>
+  <p lang="en">The access log should show <code>GET /ws</code> with 426; <code>app.log</code> should also say <code>HTTP /ws without Upgrade</code>. The request reached the app as ordinary HTTP. This is not a DNS or down-upstream problem, and we have no reason to blame a timeout yet.</p>
+  <p lang="fa">حالا همان درخواست را پس از اصلاح headerها تکرار می‌کنیم. به <code>map</code> در context درست، هر دو header و timeout میانه‌رو نیاز داریم. قبل از reload، <code>nginx -t</code> خطای syntax را از رفتار شبکه جدا می‌کند.</p>
+  <p lang="en">Now repeat the same request after fixing the headers. We need the map at the right context, both headers, and a measured timeout. Run <code>nginx -t</code> before reload to separate syntax errors from network behavior.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">repair by replacing the lab config, then test and reload</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cat &gt; "$WS_LAB/nginx.conf" &lt;&lt;'NGINX'
+worker_processes 1;
+pid run/nginx.pid;
+error_log logs/error.log info;
+events { worker_connections 128; }
+http {
+    map $http_upgrade $connection_upgrade {
+        default upgrade;
+        ''      close;
+    }
+    log_format lab '$remote_addr "$request" status=$status bytes=$body_bytes_sent';
+    access_log logs/access.log lab;
+    server {
+        listen 127.0.0.1:18111;
+        server_name localhost;
+        location = /ws {
+            proxy_pass http://127.0.0.1:19111;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+            proxy_read_timeout 75s;
+        }
+        location / {
+            proxy_pass http://127.0.0.1:19111;
+            proxy_http_version 1.1;
+        }
+        location = /upload {
+            client_max_body_size 64k;
+            proxy_request_buffering on;
+            proxy_pass http://127.0.0.1:19111;
+            proxy_http_version 1.1;
+        }
+    }
+}
+NGINX
+nginx -t -p \"$WS_LAB/\" -c nginx.conf &amp;&amp; \\
+  nginx -s reload -p \"$WS_LAB/\" -c nginx.conf
+node client.js</span>
+<span class="s">nginx: configuration file ... test is successful
+echo: hello-nginx</span></pre></div>
+  <p lang="fa">پیام echo و status handshake 101 در access log، هر کدام شاهد متفاوتی‌اند: client ثابت می‌کند پیام برگشت؛ Nginx log نشان می‌دهد درخواست ارتقا پذیرفته شده. این یک اتصال کوتاه را ثابت می‌کند، نه پایداری چندساعته یا سلامت heartbeat production.</p>
+  <p lang="en">The echoed message and the 101 in the access log are different evidence: the client proves a message returned; Nginx log shows the upgrade was accepted. This proves one short connection, not hours of stability or a production heartbeat design.</p>
+</section>
+
+<section id="timeouts">
+  <h2><span lang="fa">اتصال ماندگار یعنی سکوت را درست تفسیر کن</span><span lang="en">A persistent connection makes silence matter</span></h2>
+  <p lang="fa">برای request معمولی، بعد از پاسخ اتصال تمام می‌شود. WebSocket ممکن است باز بماند اما مدتی هیچ داده‌ای نفرستد. <code>proxy_read_timeout</code> زمان کل connection نیست؛ فاصلهٔ مجاز بین دو عملیات خواندن از upstream است. اگر app heartbeat ندارد، اتصال خاموش می‌تواند بعد از این فاصله بسته شود.</p>
+  <p lang="en">An ordinary request ends after its response. A WebSocket can stay open while sending no data for a while. <code>proxy_read_timeout</code> is not a total connection lifetime; it is the allowed gap between successive reads from the upstream. Without an app heartbeat, a quiet connection may close after that gap.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">تنظیم</span><span lang="en">Setting</span></th><th><span lang="fa">چه چیزی را محدود می‌کند؟</span><span lang="en">What it limits</span></th><th><span lang="fa">چه چیزی نیست؟</span><span lang="en">What it is not</span></th></tr></thead><tbody>
+    <tr><td><code>proxy_read_timeout</code></td><td><span lang="fa">فاصلهٔ بی‌داده در خواندن پاسخ upstream</span><span lang="en">Idle gap between upstream reads</span></td><td><span lang="fa">حد کل عمر WebSocket</span><span lang="en">A maximum total WebSocket lifetime</span></td></tr>
+    <tr><td><code>proxy_send_timeout</code></td><td><span lang="fa">فاصلهٔ بی‌پیشرفت هنگام نوشتن درخواست به upstream</span><span lang="en">Idle gap while writing to upstream</span></td><td><span lang="fa">مهلت کلی همهٔ انتقال‌ها</span><span lang="en">A total deadline for all transfers</span></td></tr>
+    <tr><td><span lang="fa">ping/pong برنامه</span><span lang="en">Application ping/pong</span></td><td><span lang="fa">فعال نگه داشتن اتصال و تشخیص peer خاموش</span><span lang="en">Keeping a connection active and detecting a dead peer</span></td><td><span lang="fa">جایگزین تمام timeoutهای شبکه</span><span lang="en">A replacement for every network timeout</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa">timeoutهای proxy معمولاً فاصلهٔ بی‌فعالیت بین عملیات‌های پیاپی را محدود می‌کنند، نه کل مدت اتصال را. عدد ۷۵ ثانیه اینجا نمونهٔ آزمایش است، نه نسخهٔ همگانی. heartbeat برنامه، timeout load balancer بالادست و رفتار client را کنار هم بررسی کن؛ timeout طولانی به‌تنهایی connection مرده را تشخیص نمی‌دهد.</p>
+  <p lang="en">Proxy timeouts generally limit the idle gap between successive operations, not the connection’s total lifetime. The 75-second value here is a lab example, not a universal recommendation. Check the app heartbeat, any upstream load-balancer timeout, and client behavior together; a longer timeout alone cannot detect a dead connection.</p>
+</section>
+
+<section id="upload-gate">
+  <h2><span lang="fa">آپلود پیش از رسیدن به برنامه هم ممکن است رد شود</span><span lang="en">An upload can be rejected before reaching the app</span></h2>
+  <p lang="fa">در درخواست POST، کلاینت بدنه را به Nginx می‌دهد و Nginx آن را به برنامه proxy می‌کند. <code>client_max_body_size</code> سقف بدنهٔ درخواست client است و می‌تواند در <code>http</code>، <code>server</code> یا <code>location</code> تنظیم شود. اگر بدنه از سقف بگذرد، Nginx پاسخ 413 می‌دهد؛ برنامه لازم نیست اصلاً درخواست را ببیند.</p>
+  <p lang="en">For a POST, the client sends a body to Nginx, which proxies it to the app. <code>client_max_body_size</code> limits the client request body and can be set in <code>http</code>, <code>server</code>, or <code>location</code>. If the body exceeds the limit, Nginx returns 413; the app may never see the request.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 1080 430" role="img" aria-labelledby="upload-flow-title" xmlns="http://www.w3.org/2000/svg">
+      <title id="upload-flow-title">Nginx checks request body size before forwarding; oversized body gets 413 / Nginx پیش از ارسال بدنه اندازه را می‌سنجد؛ بدنهٔ بزرگ 413 می‌گیرد</title>
+      <defs><marker id="upload-flow-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow-b"/></marker><marker id="upload-flow-bad" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" fill="var(--warn)"/></marker></defs>
+      <rect x="38" y="152" width="205" height="112" rx="18" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/>
+      <text x="140" y="194" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Client</text>
+      <text x="140" y="228" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">request body</text>
+      <rect x="368" y="126" width="270" height="164" rx="20" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/>
+      <text x="503" y="169" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Nginx body gate</text>
+      <text x="503" y="207" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">client_max_body_size</text>
+      <text x="503" y="246" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">e.g. 64 KiB in this lab</text>
+      <rect x="838" y="66" width="204" height="104" rx="18" class="dg-fill-w" stroke="var(--warn)" stroke-width="2"/>
+      <text x="940" y="109" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">413 response</text>
+      <text x="940" y="141" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">app not reached</text>
+      <rect x="838" y="264" width="204" height="104" rx="18" class="dg-fill-g" stroke="var(--safe)" stroke-width="2"/>
+      <text x="940" y="307" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Application</text>
+      <text x="940" y="339" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">has its own limit</text>
+      <path d="M243 207H368" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#upload-flow-arrow)"/>
+      <text x="305" y="190" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">upload</text>
+      <path d="M638 165L838 118" class="dg-stroke-w" stroke-width="2.5" marker-end="url(#upload-flow-bad)"/>
+      <text x="735" y="126" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">too large</text>
+      <path d="M638 252L838 312" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#upload-flow-arrow)"/>
+      <text x="735" y="258" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">within proxy limit</text>
+      <rect x="250" y="354" width="470" height="48" rx="13" class="dg-fill" stroke="var(--line-strong)" stroke-width="1.5"/>
+      <text x="485" y="384" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">Buffering may read/spool body before proxying it</text>
+    </svg>
+    <p class="diagram-cap" lang="fa">شاخهٔ قرمز پیش از برنامه با 413 برمی‌گردد؛ شاخهٔ آبی اجازهٔ عبور از سقف Nginx را می‌گیرد اما هنوز باید از محدودیت خود برنامه رد شود. نوار پایین یادآوری می‌کند buffering می‌تواند دیسک موقت Nginx را درگیر کند.</p>
+    <p class="diagram-cap" lang="en">The red branch returns 413 before the app; the blue branch passes Nginx’s gate but must still satisfy the app’s own limit. The lower note reminds us that buffering may use Nginx temporary disk space.</p>
+  </div>
+  <p lang="fa">در آزمایش، سقف را 64 KiB می‌گذاریم و بدنه‌ای 128 KiB می‌فرستیم. چون خود برنامه درخواست‌های رسیده را در <code>app.log</code> ثبت می‌کند، سه چیز را می‌سنجیم: پاسخ client، status در access log و حضور یا نبود خط upload در app log.</p>
+  <p lang="en">In the lab we set a 64 KiB limit and send a 128 KiB body. Because the app logs requests that reach it, we check three things: the client response, Nginx access status, and whether an upload line appears in the app log.</p>
+  <p lang="fa">تنظیم نمونه برای endpoint آپلود این است؛ سقف واقعی باید از نیاز محصول، فضای دیسک موقت و سقف برنامه به دست بیاید. عدد را صرفاً برای ساکت‌کردن 413 بی‌نهایت نکن.</p>
+  <p lang="en">This is a sample setting for an upload endpoint; choose a real limit from product needs, temporary disk capacity, and the application’s own limit. Do not make it infinite just to silence a 413.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">scope the body-size policy only to the upload route</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">location = /upload {
+    client_max_body_size 64k;
+    proxy_request_buffering on;
+    proxy_pass http://127.0.0.1:19111;
+}</span></pre></div>
+</section>
+
+<section id="upload-buffering">
+  <h2><span lang="fa">Buffering: چه کسی منتظر چه کسی می‌ماند؟</span><span lang="en">Buffering: who waits for whom?</span></h2>
+  <p lang="fa">به‌طور پیش‌فرض Nginx درخواست را buffer می‌کند: کل body را از client می‌خواند و بعد برای upstream می‌فرستد. بدنهٔ بزرگ می‌تواند از bufferهای حافظه به فایل موقت برود؛ پس دیسک موقت هم بخشی از مسیر است. وقتی buffering خاموش باشد، Nginx بدنه را هم‌زمان با رسیدنش به upstream می‌فرستد.</p>
+  <p lang="en">By default Nginx buffers a request: it reads the full body from the client before sending it upstream. A large body may spill from memory buffers to a temporary file, so temporary disk is part of the path too. With buffering off, Nginx streams the body upstream as it arrives.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">رفتار</span><span lang="en">Behavior</span></th><th><span lang="fa">فایده</span><span lang="en">Benefit</span></th><th><span lang="fa">هزینه/محدودیت</span><span lang="en">Cost / limitation</span></th></tr></thead><tbody>
+    <tr><td><code>proxy_request_buffering on</code></td><td><span lang="fa">upstream بعد از دریافت کامل body درخواست را می‌گیرد؛ retry پیش از شروع ارسال ساده‌تر می‌ماند.</span><span lang="en">The upstream receives the request after the body is read; retry is easier before forwarding starts.</span></td><td><span lang="fa">client و فضای موقت Nginx باید body را تحمل کنند.</span><span lang="en">The client transfer and Nginx temporary storage must accommodate the body.</span></td></tr>
+    <tr><td><code>proxy_request_buffering off</code></td><td><span lang="fa">بدنه می‌تواند زودتر به upstream برسد و فضای موقت کمتر درگیر شود.</span><span lang="en">The body can reach upstream sooner and use less temporary storage.</span></td><td><span lang="fa">پس از شروع ارسال body، عبور درخواست به upstream دیگری ممکن نیست؛ جزئیات chunked/version هم مهم‌اند.</span><span lang="en">Once body forwarding starts, the request cannot be passed to another upstream; chunked/version details also matter.</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa">خاموش‌کردن buffering درمان عمومی آپلود نیست. اگر Nginx بخشی از body را فرستاده باشد و upstream قطع شود، نمی‌تواند همان درخواست را بی‌خطر به سرور دیگری retry کند. در HTTP/1.1 chunked هم رفتار به نسخهٔ پروتکل proxyشده وابسته است؛ قبل از تغییر، جریان واقعی را اندازه بگیر.</p>
+  <p lang="en">Turning buffering off is not a universal upload fix. If Nginx has sent part of the body and the upstream fails, it cannot safely retry that same request to another server. Chunked HTTP/1.1 behavior also depends on the proxied protocol version; measure the real flow before changing it.</p>
+  <div class="note warn"><span lang="fa">سقف Nginx تنها سقف سامانه نیست. خود برنامه، framework، API gateway، فضای موقت و سیاست نگهداری فایل می‌توانند حدهای دیگری داشته باشند. درخواست از مسیر بیرونی و داخل lab جداگانه آزمایش می‌شود.</span><span lang="en">Nginx’s limit is not the system’s only limit. The app, framework, API gateway, temporary storage, and file-retention policy may impose others. Test the external path and the lab path separately.</span></div>
+</section>
+
+<section id="upload-failure">
+  <h2><span lang="fa">خرابی دوم: 413 را از روی شاهد به لایه‌اش نسبت بده</span><span lang="en">Failure two: attribute 413 to a layer using evidence</span></h2>
+  <p lang="fa">در محیط آزمایش یک فایل صفرپر و محدود می‌سازیم؛ دادهٔ واقعی یا فایل حساس نیست. با سقف 64 KiB، درخواست 128 KiB باید پیش از app رد شود. اگر status متفاوت بود، اول تنظیم مؤثر و اندازهٔ واقعی body را بررسی کن.</p>
+  <p lang="en">In the lab we create a small zero-filled file—not real or sensitive data. With a 64 KiB limit, a 128 KiB request should be rejected before the app. If the status differs, inspect effective configuration and actual body size first.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">send a small accepted body, then a bounded body above the proxy limit</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">head -c 32768 /dev/zero &gt; "$WS_LAB/small.bin"
+head -c 131072 /dev/zero &gt; "$WS_LAB/large.bin"
+curl -sS -o /dev/null -w 'small status=%{http_code}\n' \
+  --data-binary @"$WS_LAB/small.bin" http://127.0.0.1:18111/upload
+curl -sS -o /dev/null -w 'large status=%{http_code}\n' \
+  --data-binary @"$WS_LAB/large.bin" http://127.0.0.1:18111/upload
+tail -n 2 "$WS_LAB/logs/access.log"
+tail -n 5 "$WS_LAB/app.log"</span>
+<span class="s">small status=200
+large status=413
+... "POST /upload HTTP/1.1" status=200 ...
+... "POST /upload HTTP/1.1" status=413 ...
+UPLOAD accepted bytes=32768</span></pre></div>
+  <p lang="fa">در app log فقط 32,768 بایت دیده می‌شود؛ خطی برای 128 KiB نیست. همراه با access status=413 این شاهد با رد در Nginx سازگار است. برای اینکه app را مستقل از Nginx هم مطمئن کنیم، مسیر loopback خود برنامه را با body کوچک امتحان کن؛ در محیط واقعی، سقف‌های چندلایه را جدا ثبت کن.</p>
+  <p lang="en">The app log shows only 32,768 bytes; there is no line for the 128 KiB request. Together with access status 413, this is consistent with rejection at Nginx. To test the app independently, try its loopback path with a small body; in a real environment, record limits at each layer separately.</p>
+  <p lang="fa">حالا همان درخواست را از سقف Nginx عبور می‌دهیم. یک تغییر محدود، آزمون syntax، reload و تکرار همان body؛ اگر نتیجه بهتر شد، علت نزدیک‌تری پیدا کرده‌ایم.</p>
+  <p lang="en">Now we let the same request pass the Nginx limit. One bounded change, a syntax test, reload, and the same body again; if the result changes, we have stronger evidence about the cause.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">raise only the Nginx test limit, validate, reload, and repeat</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">sed -i 's/client_max_body_size 64k;/client_max_body_size 1m;/' "$WS_LAB/nginx.conf"
+nginx -t -p "$WS_LAB/" -c nginx.conf &amp;&amp; \
+  nginx -s reload -p "$WS_LAB/" -c nginx.conf
+curl -sS -w ' status=%{http_code}\n' -o - \
+  --data-binary @"$WS_LAB/large.bin" http://127.0.0.1:18111/upload
+tail -n 2 "$WS_LAB/app.log"</span>
+<span class="s">received=131072 bytes; not stored
+ status=200
+UPLOAD accepted bytes=131072</span></pre></div>
+  <p lang="fa">حالا همان درخواست از Nginx پاسخ 200 می‌گیرد و app تعداد بایت را ثبت می‌کند؛ این بار هر دو لایه اجازه داده‌اند. تغییر config با <code>nginx -t</code> پیش از reload اعتبارسنجی شد. این آزمایش فقط مسیر و payload آزمایش‌شده را ثابت می‌کند؛ سقف‌های واقعی framework، gateway و filesystem باید جدا سنجیده شوند.</p>
+  <p lang="en">The same request now gets 200 through Nginx, and the app logs its byte count; both layers allowed it. We validated the config with <code>nginx -t</code> before reloading. This proves only the tested route and payload; real framework, gateway, and filesystem limits need separate checks.</p>
+</section>
+
+<section id="diagnosis">
+  <h2><span lang="fa">وقتی جواب فرق داشت، حدس نزن</span><span lang="en">When the result differs, do not guess</span></h2>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">شاهد</span><span lang="en">Evidence</span></th><th><span lang="fa">احتمال اول</span><span lang="en">First hypothesis</span></th><th><span lang="fa">قدم بعد</span><span lang="en">Next check</span></th></tr></thead><tbody>
+    <tr><td>WebSocket handshake status 400/426</td><td><span lang="fa">Upgrade/Connection عبور نکرده یا app handshake را نپذیرفته</span><span lang="en">Upgrade/Connection was not forwarded or the app rejected the handshake</span></td><td><span lang="fa">client response، app log و config مؤثر location</span><span lang="en">Client response, app log, and effective location config</span></td></tr>
+    <tr><td>101 سپس قطع در سکوت</td><td><span lang="fa">timeout بین readها، heartbeat یا peer خاموش</span><span lang="en">Idle read timeout, heartbeat, or dead peer</span></td><td><span lang="fa">زمان دقیق قطع، ping/pong و timeout لایه‌های دیگر</span><span lang="en">Exact disconnect time, ping/pong, and timeouts at other layers</span></td></tr>
+    <tr><td>413 و app چیزی ثبت نکرده</td><td><span lang="fa">بدنه پیش از upstream رد شده؛ ممکن است Nginx باشد</span><span lang="en">Body was rejected before upstream; Nginx is one possibility</span></td><td><span lang="fa">access/error log Nginx، بدنهٔ واقعی، config مؤثر</span><span lang="en">Nginx access/error logs, actual body, effective config</span></td></tr>
+    <tr><td>413 و app log هم درخواست را ثبت کرده</td><td><span lang="fa">احتمالاً app/framework یا لایهٔ بعدی رد کرده</span><span lang="en">The app/framework or a later layer may have rejected it</span></td><td><span lang="fa">status بدنهٔ پاسخ و log همان لایه</span><span lang="en">Response body/status and logs at that layer</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa">status به‌تنهایی محل تولید پاسخ را همیشه مشخص نمی‌کند؛ برنامه هم می‌تواند 413 برگرداند. کنار هم گذاشتن access log، app log، header پاسخ و بازهٔ زمانی تشخیص را قوی‌تر می‌کند. اگر Nginx چند upstream دارد، log همان route را با فیلدهای upstream فصل قبل مقایسه کن.</p>
+  <p lang="en">A status alone does not always identify which layer produced it; an application can also return 413. Correlating access logs, app logs, response headers, and timestamps strengthens the diagnosis. If Nginx has multiple upstreams, compare this route with the upstream fields from the previous chapter.</p>
+</section>
+
+<section id="exercises">
+  <h2><span lang="fa">تمرین؛ اول بگو کجا متوقف شد</span><span lang="en">Exercises: first say where it stopped</span></h2>
+  <p lang="fa">برای پاسخ، نام directive را حدس نزن. بگو کدام لایه شاهد تولید می‌کند، چه چیزی را از آن نتیجه می‌گیری و چه چیزی هنوز نامعلوم است.</p>
+  <p lang="en">Do not guess a directive as your answer. Say which layer produced the evidence, what you infer from it, and what remains unknown.</p>
+
+  <div class="ex" id="ex-01"><h3>۱. <span lang="fa">101 یعنی چه؟</span><span lang="en">What does 101 mean?</span></h3><p lang="fa">Nginx access log برای <code>/ws</code> مقدار 101 دارد، اما client هنوز پیام echo ندیده. چه چیزی ثابت شد؟</p><p lang="en">The Nginx access log shows 101 for <code>/ws</code>, but the client has not received an echo yet. What is proven?</p><details class="ex-sol"><summary><span lang="fa">تفسیر</span><span lang="en">Interpretation</span></summary><p lang="fa">Handshake پذیرفته شده و تغییر پروتکل رخ داده؛ دریافت و پردازش پیام بعدی هنوز ثابت نیست. app log، رخداد message و اتصال پس از handshake را بررسی کن.</p><p lang="en">The handshake was accepted and the protocol switch occurred; later message delivery is not proven. Check app logs, the message event, and the connection after the handshake.</p></details></div>
+  <div class="ex" id="ex-02"><h3>۲. <span lang="fa">200 به جای 101</span><span lang="en">200 instead of 101</span></h3><p lang="fa">client انتظار WebSocket دارد ولی پاسخ HTTP 200 می‌گیرد. یک فرضیهٔ اول چیست؟</p><p lang="en">The client expects WebSocket but gets HTTP 200. What is one first hypothesis?</p><details class="ex-sol"><summary><span lang="fa">پاسخ و قدم بعد</span><span lang="en">Answer and next step</span></summary><p lang="fa">ممکن است درخواست به route عادی رسیده یا Upgrade به upstream نرسیده باشد. response headers و app log را بخوان؛ بعد config location و <code>proxy_set_header Upgrade</code> را بررسی کن، نه اینکه فوراً timeout را زیاد کنی.</p><p lang="en">It may have reached an ordinary route or Upgrade may not have reached the upstream. Inspect response headers and app logs, then the location config and <code>proxy_set_header Upgrade</code> before increasing timeouts.</p></details></div>
+  <div class="ex" id="ex-03"><h3>۳. <span lang="fa">header گم‌شده</span><span lang="en">A missing header</span></h3><p lang="fa">چرا Nginx header <code>Upgrade</code> را بی‌تنظیم به upstream نمی‌فرستد؟</p><p lang="en">Why does Nginx not forward <code>Upgrade</code> to the upstream automatically?</p><details class="ex-sol"><summary><span lang="fa">دلیل</span><span lang="en">Reason</span></summary><p lang="fa">Upgrade و Connection از headerهای hop-by-hop هستند و proxy آن‌ها را خودکار عبور نمی‌دهد. باید قصد تغییر پروتکل را صریح به upstream منتقل کرد.</p><p lang="en">Upgrade and Connection are hop-by-hop headers and the proxy does not automatically pass them through. The protocol-switch intent must be explicitly sent upstream.</p></details></div>
+  <div class="ex" id="ex-04"><h3>۴. <span lang="fa">map کجا تعریف می‌شود؟</span><span lang="en">Where does map belong?</span></h3><p lang="fa">Nginx می‌گوید <code>map directive is not allowed here</code>. احتمالاً چه چیزی جابه‌جا است؟</p><p lang="en">Nginx says <code>map directive is not allowed here</code>. What is probably misplaced?</p><details class="ex-sol"><summary><span lang="fa">اصلاح مفهومی</span><span lang="en">Conceptual fix</span></summary><p lang="fa"><code>map</code> باید در context سطح <code>http</code> باشد، نه در <code>server</code> یا <code>location</code>. جای directive را اصلاح کن و پیش از reload دوباره <code>nginx -t</code> بزن.</p><p lang="en"><code>map</code> belongs at <code>http</code> scope, not in <code>server</code> or <code>location</code>. Move it and rerun <code>nginx -t</code> before reloading.</p></details></div>
+  <div class="ex" id="ex-05"><h3>۵. <span lang="fa">Connection همیشه upgrade؟</span><span lang="en">Connection always upgrade?</span></h3><p lang="fa">چرا برای server دارای HTTP عادی و WebSocket، <code>map</code> از مقدار ثابت بهتر است؟</p><p lang="en">Why is a <code>map</code> better than a fixed value when one server handles HTTP and WebSocket?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">فقط درخواست دارای Upgrade مقدار upgrade می‌گیرد؛ باقی درخواست‌ها Connection معمولی/بسته دارند. این الگو نیت هر درخواست را متناسب با header ورودی تنظیم می‌کند.</p><p lang="en">Only a request carrying Upgrade gets the upgrade value; ordinary requests get a non-upgrade/close value. The map adapts the header to each incoming request.</p></details></div>
+  <div class="ex" id="ex-06"><h3>۶. <span lang="fa">timeout گذشت و اتصال بسته شد</span><span lang="en">The connection closed after the timeout</span></h3><p lang="fa">Nginx اتصال 101 را پس از ۷۵ ثانیه سکوت بست. آیا این ثابت می‌کند کل عمر WebSocket سقف ۷۵ ثانیه دارد؟</p><p lang="en">Nginx closed a 101 connection after 75 seconds of silence. Does this prove the WebSocket’s total lifetime is capped at 75 seconds?</p><details class="ex-sol"><summary><span lang="fa">تفسیر</span><span lang="en">Interpretation</span></summary><p lang="fa">خیر؛ <code>proxy_read_timeout</code> فاصلهٔ بی‌داده بین readهای upstream را محدود می‌کند. heartbeat، زمان آخرین پیام و timeout لایه‌های دیگر را هم بررسی کن.</p><p lang="en">No. <code>proxy_read_timeout</code> limits the idle gap between upstream reads. Check heartbeats, the last-message time, and timeouts at other layers too.</p></details></div>
+  <div class="ex" id="ex-07"><h3>۷. <span lang="fa">فقط proxy_http_version</span><span lang="en">Only proxy_http_version</span></h3><p lang="fa">نسخهٔ proxy را 1.1 گذاشتی ولی هنوز 426 می‌گیری. چرا این کافی نیست؟</p><p lang="en">You set the proxy version to 1.1 but still get 426. Why is that insufficient?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">HTTP/1.1 به‌تنهایی Upgrade را عبور نمی‌دهد. headerهای <code>Upgrade</code> و <code>Connection</code> باید صریح تنظیم و app log برای نوع درخواست بررسی شود.</p><p lang="en">HTTP/1.1 alone does not forward Upgrade. Explicitly set <code>Upgrade</code> and <code>Connection</code>, then inspect the app log to see what kind of request arrived.</p></details></div>
+  <div class="ex" id="ex-08"><h3>۸. <span lang="fa">413 با 128 KiB</span><span lang="en">413 for 128 KiB</span></h3><p lang="fa">Nginx برای body برابر 128 KiB و سقف 64 KiB پاسخ 413 داده. app log خطی ندارد. نتیجهٔ محتمل چیست؟</p><p lang="en">Nginx returned 413 for a 128 KiB body with a 64 KiB limit; the app has no log line. What is the likely conclusion?</p><details class="ex-sol"><summary><span lang="fa">تفسیر</span><span lang="en">Interpretation</span></summary><p lang="fa">درخواست احتمالاً در Nginx، پیش از رسیدن به app، رد شده. برای تقویت تشخیص، access/error log، اندازهٔ body و پیکربندی مؤثر همان location را کنار هم ببین.</p><p lang="en">The request was likely rejected at Nginx before reaching the app. Correlate access/error logs, body size, and effective config for that location to strengthen the diagnosis.</p></details></div>
+  <div class="ex" id="ex-09"><h3>۹. <span lang="fa">app هم 413 می‌دهد</span><span lang="en">The app also returns 413</span></h3><p lang="fa">app log همان درخواست را ثبت کرده و response 413 است. آیا <code>client_max_body_size</code> قطعاً منشأ خطاست؟</p><p lang="en">The app logged the request and the response is 413. Is <code>client_max_body_size</code> definitely the source?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">نه؛ برنامه یا framework می‌تواند 413 برگرداند. متن پاسخ، headerها و log برنامه را بررسی کن. یک status کد لزوماً لایهٔ تولیدکننده را مشخص نمی‌کند.</p><p lang="en">No. The app or framework can return 413. Inspect the response body, headers, and app logs. A status code alone does not identify which layer generated it.</p></details></div>
+  <div class="ex" id="ex-10"><h3>۱۰. <span lang="fa">بزرگ‌کردن تا بی‌نهایت</span><span lang="en">Increase it without limit</span></h3><p lang="fa">تیم برای رفع 413 می‌خواهد سقف را 0 بگذارد. چه نکته‌ای باید بداند؟</p><p lang="en">The team wants to set the limit to 0 to fix 413. What must they know?</p><details class="ex-sol"><summary><span lang="fa">هشدار</span><span lang="en">Caution</span></summary><p lang="fa">در Nginx مقدار 0 بررسی اندازهٔ body را غیرفعال می‌کند؛ این ظرفیت نامحدود واقعی نمی‌سازد و می‌تواند مصرف منابع را باز بگذارد. نیاز محصول و سقف app/disk را مشخص کن و حد محدود بگذار.</p><p lang="en">In Nginx, zero disables request-body size checking; it does not create truly unlimited capacity and can expose resource consumption. Define the product, app, and disk needs, then set a bounded limit.</p></details></div>
+  <div class="ex" id="ex-11"><h3>۱۱. <span lang="fa">multipart چقدر است؟</span><span lang="en">How large is multipart?</span></h3><p lang="fa">فایل دقیقاً 64 KiB است و سقف هم 64 KiB؛ آیا باید حتماً پذیرفته شود؟</p><p lang="en">The file is exactly 64 KiB and the limit is 64 KiB. Must it be accepted?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">نه؛ <code>client_max_body_size</code> کل request body را می‌سنجد، نه فقط بایت فایل. multipart boundary و metadata هم به body اضافه می‌شوند. کمی سربار را در طراحی حد لحاظ کن.</p><p lang="en">No. <code>client_max_body_size</code> limits the whole request body, not just file bytes. Multipart boundaries and metadata add overhead; account for that when choosing a limit.</p></details></div>
+  <div class="ex" id="ex-12"><h3>۱۲. <span lang="fa">buffering خاموش، failover هم خاموش؟</span><span lang="en">Buffering off, failover off too?</span></h3><p lang="fa">با <code>proxy_request_buffering off</code> بخشی از body ارسال شده و upstream از دسترس خارج می‌شود. آیا Nginx می‌تواند بی‌خطر body را به backend دیگری بفرستد؟</p><p lang="en">With <code>proxy_request_buffering off</code>, part of the body has been sent and the upstream fails. Can Nginx safely send it to another backend?</p><details class="ex-sol"><summary><span lang="fa">توضیح</span><span lang="en">Explanation</span></summary><p lang="fa">پس از شروع ارسال body، retry به upstream بعدی ممکن نیست؛ Nginx نمی‌تواند درخواست ناقص را از ابتدا تکرار کند. این هزینه را پیش از خاموش‌کردن buffering بپذیر.</p><p lang="en">Once body forwarding starts, retrying another upstream is not possible; Nginx cannot safely replay the incomplete request from the beginning. Understand this tradeoff before disabling buffering.</p></details></div>
+  <div class="ex" id="ex-13"><h3>۱۳. <span lang="fa">فایل موقت پر شد</span><span lang="en">Temporary storage filled</span></h3><p lang="fa">بعد از آپلودهای بزرگ، disk مربوط به temp پر شده ولی سقف body بالاتر نرفته. کجا را بررسی می‌کنی؟</p><p lang="en">After large uploads, temporary disk fills even though the body limit did not change. What do you inspect?</p><details class="ex-sol"><summary><span lang="fa">قدم بعد</span><span lang="en">Next step</span></summary><p lang="fa">فضای filesystem و مسیرهای client-body temp Nginx، اندازه و تعداد uploadهای هم‌زمان و buffering را بررسی کن. بالا بردن limit ممکن است فشار دیسک را بیشتر کند.</p><p lang="en">Inspect filesystem capacity, Nginx client-body temp paths, upload size/concurrency, and buffering. Raising the limit may increase disk pressure.</p></details></div>
+  <div class="ex" id="ex-14"><h3>۱۴. <span lang="fa">ورودی chunked</span><span lang="en">A chunked request</span></h3><p lang="fa">در proxy buffering خاموش است ولی بدنهٔ chunked همچنان buffer می‌شود. چه چیزی را بررسی می‌کنی؟</p><p lang="en">Proxy buffering is off, yet a chunked body is still buffered. What do you check?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">نسخهٔ protocol بین Nginx و upstream و رفتار مستند همان نسخه را بررسی کن. برای HTTP/1.1 chunked، مستند Nginx استثناهایی دارد؛ فقط یک directive را با نتیجهٔ فرضی تفسیر نکن.</p><p lang="en">Check the protocol version between Nginx and upstream and its documented behavior. Nginx documents exceptions for HTTP/1.1 chunked requests; do not infer behavior from one directive alone.</p></details></div>
+  <div class="ex" id="ex-15"><h3>۱۵. <span lang="fa">محدودیت در سه لایه</span><span lang="en">Limits at three layers</span></h3><p lang="fa">Nginx مجاز می‌داند، app رد می‌کند و gateway هم سقف جدا دارد. «حد واقعی آپلود» را چطور گزارش می‌کنی؟</p><p lang="en">Nginx allows the request, the app rejects it, and the gateway has another limit. How do you report the “real upload limit”?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">به‌صورت کوچک‌ترین سقف مسیر واقعی درخواست، با ذکر هر لایه و مسیر آزموده‌شده. client ممکن است از gateway دیگری عبور کند؛ policy را در کل مسیر مستند و end-to-end آزمایش کن.</p><p lang="en">As the smallest limit along the actual request path, naming each layer and tested route. Clients may traverse another gateway; document the end-to-end policy and test the full path.</p></details></div>
+  <div class="ex" id="ex-16"><h3>۱۶. <span lang="fa">Upgrade در HTTP/2</span><span lang="en">Upgrade with HTTP/2</span></h3><p lang="fa">مستند یا config سادهٔ این درس را برای HTTP/2 client عیناً به کار می‌بری؟</p><p lang="en">Would you apply this lesson’s simple config unchanged to an HTTP/2 client?</p><details class="ex-sol"><summary><span lang="fa">پاسخ دقیق</span><span lang="en">Precise answer</span></summary><p lang="fa">نه بدون بررسی. الگوی این درس WebSocket روی HTTP/1.1 با headerهای Upgrade/Connection است. WebSocket over HTTP/2 سازوکار متفاوتی دارد و به نسخه و زنجیرهٔ proxy وابسته است؛ scope فعلی را با آن یکی نکن.</p><p lang="en">Not without checking. This lesson’s pattern is WebSocket over HTTP/1.1 using Upgrade/Connection headers. WebSocket over HTTP/2 uses a different mechanism and depends on versions and the proxy chain; do not conflate the scopes.</p></details></div>
+  <div class="ex" id="ex-17"><h3>۱۷. <span lang="fa">timeout را کجا زیاد کنیم؟</span><span lang="en">Where should we increase a timeout?</span></h3><p lang="fa">اتصال هر ۵۹ ثانیه قطع می‌شود، هیچ 101 ثبت نشده. آیا افزایش <code>proxy_read_timeout</code> قدم اول است؟</p><p lang="en">Connections drop after 59 seconds, but no 101 appears. Is increasing <code>proxy_read_timeout</code> the first step?</p><details class="ex-sol"><summary><span lang="fa">استدلال</span><span lang="en">Reasoning</span></summary><p lang="fa">نه؛ بدون handshake 101 هنوز tunnel ساخته نشده. اول route، headerها، پاسخ app و access/error log را درست کن؛ timeout را فقط وقتی 101 و سکوت پس از آن را دیدی بررسی کن.</p><p lang="en">No. Without a 101, the tunnel was never established. First check route, headers, app response, and access/error logs; investigate timeout only after observing 101 followed by silence.</p></details></div>
+  <div class="ex" id="ex-18"><h3>۱۸. <span lang="fa">گزارش کوتاه حادثه</span><span lang="en">A short incident report</span></h3><p lang="fa">client یک 413 می‌بیند؛ access log Nginx آن را ثبت کرده ولی app هیچ خطی ندارد. چه چیزی را با اطمینان می‌نویسی و قدم بعدی چیست؟</p><p lang="en">A client sees 413; Nginx access logs it, but the app has no line. What can you state confidently, and what is your next check?</p><details class="ex-sol"><summary><span lang="fa">یک پاسخ قابل دفاع</span><span lang="en">A defensible answer</span></summary><p lang="fa">درخواست از Nginx عبور کرده اما در app log نشانه‌ای از رسیدنش نیست؛ این با رد در proxy سازگار است، ولی نبود log به‌تنهایی اثبات مطلق نیست. اندازهٔ request، config مؤثر <code>client_max_body_size</code>، error log و مسیر مستقیم app را بررسی می‌کنم، سپس همان request را پس از تغییر محدود تکرار می‌کنم.</p><p lang="en">The request reached Nginx, but the app has no evidence of receiving it; that is consistent with proxy rejection, though a missing log alone is not absolute proof. I would check request size, effective <code>client_max_body_size</code>, error logs, and the direct app path, then repeat the same request after a bounded change.</p></details></div>
+</section>
+
+<section id="mission">
+  <h2><span lang="fa">ماموریت: دو قابلیت، دو شاهد جدا</span><span lang="en">Mission: two features, two separate proofs</span></h2>
+  <p lang="fa">یک مسیر چت باید پیام را echo کند و endpoint آپلود باید تا ۱ MiB را بپذیرد. شرط تیم این است که Nginx WebSocket را proxy کند، درخواست بزرگ‌تر را در سقف مشخص رد کند، و گزارش نشان دهد رد از کدام لایه بوده. از همان lab موقت استفاده کن؛ فایلی را روی میزبان پر نکن.</p>
+  <p lang="en">A chat route must echo a message, and the upload endpoint must accept up to 1 MiB. The team requires Nginx to proxy WebSocket, reject larger requests at a defined limit, and report which layer rejected them. Use the disposable lab; do not fill host storage.</p>
+  <ol lang="fa"><li>نسخهٔ خراب را ثبت کن: WebSocket را اجرا کن و پاسخ 426 و خط app را نگه دار.</li><li>headerهای درست را اضافه کن، <code>nginx -t</code> و reload بزن؛ پیام echo و 101 را نگه دار.</li><li>یک body کوچک و بعد 128 KiB بفرست؛ پاسخ و دو log را مقایسه کن.</li><li>سقف route را محدود به مقدار موردنیاز کن، نه <code>0</code>؛ درخواست 128 KiB را از مسیر proxy بپذیر.</li><li>عمداً سقف Nginx را موقتاً پایین بیاور، 413 و نبود خط app را ثابت کن، بعد تنظیم را برگردان و همان تست را تکرار کن.</li><li>گزارش بنویس: نشانه، شاهد هر لایه، علت، تعمیر و همان آزمون پس از تعمیر.</li></ol>
+  <ol lang="en"><li>Record the broken baseline: run WebSocket and capture 426 plus the app log.</li><li>Add the correct headers, run <code>nginx -t</code>, reload, and capture the echo and 101.</li><li>Send a small body, then 128 KiB; compare the response and both logs.</li><li>Set a bounded route limit appropriate to the need, not <code>0</code>; allow the 128 KiB request through the proxy.</li><li>Temporarily lower Nginx’s limit, prove the 413 and missing app line, then restore the config and repeat the same test.</li><li>Write a report: symptom, evidence at each layer, cause, repair, and the same verification after repair.</li></ol>
+  <details class="capsule"><summary><span lang="fa">راهنمایی؛ یک بار فقط header را تغییر بده</span><span lang="en">Hint: change only the headers first</span></summary><p lang="fa">اگر app می‌گوید <code>HTTP /ws without Upgrade</code>، به timeout دست نزن. برای 413، نبود خط app را با access log و پاسخ همان درخواست کنار هم بخوان.</p><p lang="en">If the app says <code>HTTP /ws without Upgrade</code>, do not touch the timeout. For 413, correlate the missing app line with the access log and that request’s response.</p></details>
+  <details class="capsule"><summary><span lang="fa">راه‌حل نمونه؛ فقط چیزی را نتیجه بگیر که تکرار کردی</span><span lang="en">Sample resolution: claim only what you repeated</span></summary><p lang="fa">در نسخهٔ خراب، 426 و خط HTTP عادی در app، نبود Upgrade را نشان می‌دهند. پس از map و ارسال دو header، client پیام echo می‌گیرد و access log 101 ثبت می‌کند. برای آپلود، body کوچک 200 می‌گیرد؛ body بزرگ با سقف پایین 413 است و app خطی ندارد. پس از تنظیم محدود 1 MiB، همان body از proxy عبور می‌کند و app بایت‌ها را می‌شمارد. این نتیجه فقط برای مسیر و payloadهای آزمایش‌شده است؛ سقف framework، gateway و filesystem production باید جدا سنجیده شوند.</p><p lang="en">In the broken version, 426 plus the app’s ordinary-HTTP log shows Upgrade was missing. After the map and both forwarded headers, the client receives an echo and access logs 101. With a low upload limit, the small body gets 200 while the large one gets 413 and no app line. After setting a bounded 1 MiB limit, the same body passes the proxy and the app counts the bytes. This conclusion applies only to the tested path and payloads; production framework, gateway, and filesystem limits must be checked separately.</p></details>
+</section>
+
+<section id="cleanup">
+  <h2><span lang="fa">آزمایش را امن جمع کن</span><span lang="en">Clean up the lab safely</span></h2>
+  <p lang="fa">لاگ‌ها را تا پایان گزارش نگه دار. Nginx را با prefix همین آزمایش متوقف کن؛ برنامه را فقط وقتی بکش که command line آن به فایل <code>server.js</code> همین پوشه اشاره می‌کند. اگر بررسی هویت شکست خورد، PID را دست نزن و پوشه را هم حذف نکن.</p>
+  <p lang="en">Keep logs until the report is complete. Stop Nginx using this lab’s prefix; kill the app only if its command line points to <code>server.js</code> in this exact directory. If the identity check fails, do not touch the PID or remove the directory.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">stop only matching processes; remove only the verified lab directory</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">nginx -s quit -p "$WS_LAB/" -c nginx.conf || true
+MASTER_PID_FILE="$WS_LAB/run/nginx.pid"
+for _ in $(seq 1 50); do
+  [ -s "$MASTER_PID_FILE" ] || break
+  kill -0 "$(cat "$MASTER_PID_FILE")" 2&gt;/dev/null || break
+  sleep 0.1
+done
+APP_PID=$(cat "$WS_LAB/pids/app.pid")
+APP_ARGS=$(ps -p "$APP_PID" -o args= 2&gt;/dev/null || true)
+case "$APP_ARGS" in
+  *"$WS_LAB/server.js"*) kill "$APP_PID" ;;
+  *) echo 'App PID does not match this lab; leaving it untouched.' ;;
+esac
+if { [ -s "$MASTER_PID_FILE" &amp;&amp; kill -0 "$(cat "$MASTER_PID_FILE")" 2&gt;/dev/null; } || \
+   { [ -n "$APP_ARGS" &amp;&amp; kill -0 "$APP_PID" 2&gt;/dev/null; }; then
+  echo 'A lab process is still alive; keep the directory and inspect.'
+else
+  case "$WS_LAB" in
+    /tmp/nginx-ws.*)
+      printf 'Verified disposable directory: %s\n' "$WS_LAB"
+      read -r -p 'Type REMOVE to delete it: ' CONFIRM
+      [ "$CONFIRM" = REMOVE ] &amp;&amp; rm -rf -- "$WS_LAB"
+      ;;
+    *) echo 'Unexpected path; nothing removed.' ;;
+  esac
+fi</span></pre></div>
+  <p lang="fa">حذف فقط در مسیر <code>/tmp/nginx-ws.*</code> مجاز است و تأیید متنی می‌خواهد. این آزمایش هیچ volume یا دادهٔ کاربر ندارد؛ همین مرز را حفظ کن و فرمان را برای پوشهٔ دیگری تغییر نده.</p>
+  <p lang="en">Removal is allowed only under <code>/tmp/nginx-ws.*</code> and requires typed confirmation. This lab has no user data or persistent volume; keep that boundary and do not adapt the command to another directory.</p>
+</section>
+
+<section id="quick-reference">
+  <h2><span lang="fa">چند نشانه برای دفعهٔ بعد</span><span lang="en">A few signals for next time</span></h2>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">می‌خواهی بفهمی</span><span lang="en">Question</span></th><th><span lang="fa">اول این را ببین</span><span lang="en">First check</span></th><th><span lang="fa">از آن نتیجه نگیر</span><span lang="en">Do not infer</span></th></tr></thead><tbody>
+    <tr><td><span lang="fa">WebSocket بالا آمد؟</span><span lang="en">Did WebSocket connect?</span></td><td><span lang="fa">handshake پاسخ 101، پیام echo و log هر دو طرف</span><span lang="en">101 handshake, echoed message, and logs on both sides</span></td><td><span lang="fa">101 به معنی سلامت همهٔ پیام‌های بعدی نیست.</span><span lang="en">101 does not prove every later message works.</span></td></tr>
+    <tr><td><span lang="fa">اتصال چرا قطع شد؟</span><span lang="en">Why did the connection close?</span></td><td><span lang="fa">زمان سکوت، ping/pong، proxy_read_timeout و log لایه‌ها</span><span lang="en">Idle duration, ping/pong, proxy_read_timeout, and layer logs</span></td><td><span lang="fa">timeout سقف کل عمر اتصال نیست.</span><span lang="en">A timeout is not the total connection lifetime.</span></td></tr>
+    <tr><td><span lang="fa">413 را چه کسی داد؟</span><span lang="en">Which layer returned 413?</span></td><td><span lang="fa">access/error log، app log، response و config مؤثر</span><span lang="en">Access/error logs, app log, response, and effective config</span></td><td><span lang="fa">status 413 به‌تنهایی نام لایه را نمی‌گوید.</span><span lang="en">413 alone does not identify the layer.</span></td></tr>
+    <tr><td><span lang="fa">چرا upload کند/پرریسک است؟</span><span lang="en">Why is upload slow or risky?</span></td><td><span lang="fa">buffering، temp disk، اندازه و هم‌زمانی</span><span lang="en">Buffering, temp disk, body size, and concurrency</span></td><td><span lang="fa">خاموش‌کردن buffering درمان بی‌هزینه نیست.</span><span lang="en">Disabling buffering is not a cost-free fix.</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa">وقتی این سؤال‌ها را با شاهد جدا جواب بدهی، انتخاب directive بعدی روشن‌تر می‌شود. اگر علت از مسیر handshake یا سقف body نبود، لاگ‌های برنامه و proxy را هم‌بسته کن؛ تنظیم را برای کم‌کردن علامت تغییر نده.</p>
+  <p lang="en">Once you answer these questions with separate evidence, the next directive is easier to choose. If the cause is not the handshake path or body limit, correlate app and proxy logs; do not tune merely to make a symptom disappear.</p>
+</section>
+
+<section id="next">
+  <h2><span lang="fa">در فصل بعد: وقتی شواهد گفتند وقت تنظیم‌کردن است</span><span lang="en">Next: when evidence says it is time to tune</span></h2>
+  <p lang="fa">حالا می‌دانیم connection WebSocket چرا ممکن است در سکوت بسته شود، و 413 در کدام مرز می‌تواند تولید شود. قدم بعد سراغ workerها، bufferها و timeoutها می‌رود—اما نه با نسخهٔ «همه‌چیز را دو برابر کن». اول از اندازه‌گیری می‌فهمیم کدام منبع یا انتظار واقعاً تنگ است، بعد فقط همان را عوض می‌کنیم.</p>
+  <p lang="en">We can now reason about why a quiet WebSocket may close and where a 413 can be generated. Next we will examine workers, buffers, and timeouts—but not with a “double everything” recipe. We will measure which resource or wait is actually constrained, then change only that.</p>
+</section>
+
+<section id="official-refs">
+  <h2><span lang="fa">برای وقتی که می‌خواهی رفتار نسخهٔ خودت را بسنجی</span><span lang="en">When you need to check your exact version</span></h2>
+  <ul lang="fa">
+    <li><a href="https://nginx.org/en/docs/http/websocket.html">مستند رسمی Nginx برای WebSocket proxying</a></li>
+    <li><a href="https://nginx.org/en/docs/http/ngx_http_core_module.html#client_max_body_size">مستند رسمی <code>client_max_body_size</code></a></li>
+    <li><a href="https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_request_buffering">مستند رسمی request buffering و timeoutهای proxy</a></li>
+  </ul>
+  <ul lang="en">
+    <li><a href="https://nginx.org/en/docs/http/websocket.html">Official Nginx WebSocket proxying documentation</a></li>
+    <li><a href="https://nginx.org/en/docs/http/ngx_http_core_module.html#client_max_body_size">Official <code>client_max_body_size</code> documentation</a></li>
+    <li><a href="https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_request_buffering">Official request-buffering and proxy-timeout documentation</a></li>
+  </ul>
+</section>

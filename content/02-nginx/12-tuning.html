@@ -1,0 +1,422 @@
+<!--meta
+title: tuning: worker، buffer، timeout
+desc: تنظیم کارایی Nginx با baseline و سنجش کنترل‌شده؛ از worker و file descriptor تا buffer و timeout، بدون تغییر عددهای بی‌دلیل.
+-->
+
+<div class="masthead">
+  <span class="eyebrow"><span class="dot"></span><span lang="fa">Nginx · فصل ۱۲</span><span lang="en">Nginx · Chapter 12</span></span>
+  <h1 lang="fa">tuning: worker، buffer، timeout</h1>
+  <h1 lang="en">Tuning: workers, buffers, timeouts</h1>
+  <p class="sub" lang="fa">سایت زیر بار کند شده و همکار پیشنهاد داده worker را چهار برابر و buffer را خیلی بزرگ کنیم. قبل از دست‌زدن به config، باید بفهمیم کدام صف یا منبع واقعاً تنگ است؛ اگر اندازه نگیریم، شاید فقط فشار را از یک جا به جای دیگر منتقل کنیم.</p>
+  <p class="sub" lang="en">The site slows under load, and a teammate suggests quadrupling workers and making buffers huge. Before touching the config, we need to find which queue or resource is actually constrained; without measurement we may only move pressure elsewhere.</p>
+  <div class="facts">
+    <div class="fact"><b>۷۵</b><span lang="fa">دقیقهٔ مطالعه</span><span lang="en">minutes</span></div>
+    <div class="fact"><b>۱۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></div>
+    <div class="fact"><b>۲</b><span lang="fa">نمودار تشخیصی</span><span lang="en">diagnostic diagrams</span></div>
+    <div class="fact"><b>۱</b><span lang="fa">آزمایش کنترل‌شده</span><span lang="en">controlled experiment</span></div>
+  </div>
+</div>
+
+<section id="incident">
+  <h2><span lang="fa">قبل از تنظیم، سؤال را دقیق کنیم</span><span lang="en">Make the question precise before tuning</span></h2>
+  <p class="lede" lang="fa">تیم می‌گوید «با ۳۰ کاربر هم‌زمان کند می‌شود». این جمله هنوز نمی‌گوید Nginx کم آورده، upstream دیر جواب داده، benchmark client توانش را ندارد یا ماشین CPU/دیسک محدودی دارد. فصل قبل WebSocket و bodyهای بزرگ را دیدیم؛ آن اتصال‌ها هم worker connection و file descriptor مصرف می‌کنند و در نتیجهٔ ظرفیت مهم‌اند.</p>
+  <p class="lede" lang="en">The team says, “It slows down with 30 concurrent users.” That does not tell us whether Nginx is constrained, the upstream is slow, the benchmark client is saturated, or the machine has limited CPU/disk. Last chapter we saw WebSockets and large bodies; those connections also consume worker connection slots and file descriptors, so they matter to capacity.</p>
+  <p lang="fa">این‌بار اول یک baseline می‌گیریم: همان مسیر، همان تعداد درخواست، همان concurrency، همان upstream و همان ماشین. یک عدد را تغییر می‌دهیم و دوباره همان آزمون را اجرا می‌کنیم. نتیجه را با خطای درخواست، throughput و latency می‌سنجیم؛ «عدد requests/sec بالاتر شد» به‌تنهایی پیروزی نیست اگر خطا یا latency بدتر شده باشد.</p>
+  <p lang="en">This time we first establish a baseline: same route, request count, concurrency, upstream, and machine. We change one value and repeat the same test. We compare failures, throughput, and latency; a higher requests-per-second number is not a win if errors or latency got worse.</p>
+  <div class="note safe"><span lang="fa">هدف tuning «زیاد کردن عددها» نیست. هدف این است که محدودیت اندازه‌گیری‌شده را پیدا کنیم، کوچک‌ترین تغییر مرتبط را بدهیم و همان شواهد را دوباره بسنجیم. اگر baseline گلوگاهی نشان نداد، دست‌نزدن تصمیم مهندسی معتبری است.</span><span lang="en">Tuning is not about increasing numbers. Find a measured constraint, make the smallest relevant change, and measure the same evidence again. If the baseline shows no bottleneck, leaving the config alone is a valid engineering decision.</span></div>
+</section>
+
+<section id="bottleneck-map">
+  <h2><span lang="fa">درخواست از چند مرز عبور می‌کند</span><span lang="en">A request crosses several boundaries</span></h2>
+  <p lang="fa">در proxy، هر درخواست از benchmark client می‌آید، یک اتصال client به Nginx می‌گیرد، worker آن را پردازش می‌کند و معمولاً یک اتصال دیگر به upstream باز می‌شود. بعد CPU، حافظه، شبکه و دیسک هم می‌توانند سقف بسازند. اندازه‌گیری را در چند نقطه می‌گذاریم تا صف را با کندی برنامه اشتباه نگیریم.</p>
+  <p lang="en">With a proxy, each request comes from a benchmark client, uses a client-to-Nginx connection, is handled by a worker, and usually opens another connection to the upstream. CPU, memory, network, and disk can impose further limits. We measure at several points so we do not confuse a queue with a slow app.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 1120 470" role="img" aria-labelledby="bottleneck-title" xmlns="http://www.w3.org/2000/svg">
+      <title id="bottleneck-title">Measure the client, connection slots, workers, upstream, and host resources before changing configuration / پیش از تغییر config، client، اتصال‌ها، workerها، upstream و منابع میزبان را بسنج</title>
+      <defs>
+        <marker id="tune-flow-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow-b"/></marker>
+        <marker id="tune-flow-back" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow"/></marker>
+      </defs>
+      <rect x="34" y="120" width="188" height="112" rx="18" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/>
+      <text x="128" y="164" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Load client</text>
+      <text x="128" y="197" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">ab / wrk</text>
+      <rect x="302" y="120" width="204" height="112" rx="18" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/>
+      <text x="404" y="164" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Nginx workers</text>
+      <text x="404" y="197" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">slots + file descriptors</text>
+      <rect x="586" y="120" width="204" height="112" rx="18" class="dg-fill-g" stroke="var(--safe)" stroke-width="2"/>
+      <text x="688" y="164" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Upstream app</text>
+      <text x="688" y="197" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">queue + response time</text>
+      <rect x="870" y="120" width="216" height="112" rx="18" class="dg-fill-w" stroke="var(--warn)" stroke-width="2"/>
+      <text x="978" y="164" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Host resources</text>
+      <text x="978" y="197" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">CPU · memory · disk</text>
+      <path d="M222 158H302" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#tune-flow-arrow)"/>
+      <text x="262" y="142" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">requests</text>
+      <path d="M506 158H586" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#tune-flow-arrow)"/>
+      <text x="546" y="142" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">proxy</text>
+      <path d="M586 210H506" class="dg-stroke" stroke-width="2.5" marker-end="url(#tune-flow-back)"/>
+      <text x="546" y="251" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">response</text>
+      <path d="M790 158H870" class="dg-stroke-v" stroke-width="2.5" marker-end="url(#tune-flow-arrow)"/>
+      <text x="830" y="142" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">uses</text>
+      <rect x="76" y="316" width="276" height="92" rx="16" class="dg-fill" stroke="var(--line-strong)" stroke-width="1.5"/>
+      <text x="214" y="353" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">Measure: latency + errors</text>
+      <text x="214" y="382" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">same test, same client</text>
+      <rect x="422" y="316" width="276" height="92" rx="16" class="dg-fill" stroke="var(--line-strong)" stroke-width="1.5"/>
+      <text x="560" y="353" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">Measure: active sockets + logs</text>
+      <text x="560" y="382" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">connections are not requests</text>
+      <rect x="768" y="316" width="276" height="92" rx="16" class="dg-fill" stroke="var(--line-strong)" stroke-width="1.5"/>
+      <text x="906" y="353" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">Measure: CPU + memory + disk</text>
+      <text x="906" y="382" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">host and upstream both count</text>
+    </svg>
+    <p class="diagram-cap" lang="fa">فلش‌های بالا مسیر درخواست، proxy و پاسخ‌اند؛ کارت‌های پایین نقطه‌های مشاهده‌اند، نه سرویس جدید. اگر upstream کند باشد، بزرگ‌کردن workerهای Nginx فقط درخواست‌های بیشتری را منتظر همان upstream نگه می‌دارد.</p>
+    <p class="diagram-cap" lang="en">Top arrows show the request, proxy, and response paths; lower cards are observation points, not extra services. If the upstream is slow, more Nginx workers may only queue more requests behind it.</p>
+  </div>
+</section>
+
+<section id="workers">
+  <h2><span lang="fa">worker بیشتر همیشه سریع‌تر نیست</span><span lang="en">More workers are not always faster</span></h2>
+  <p lang="fa">در بیشتر نصب‌ها <code>worker_processes auto;</code> نقطهٔ شروع معقولی است: Nginx تعداد CPUهای در دسترس را تشخیص می‌دهد. اما هر worker پردازش جداست و worker اضافه هزینهٔ حافظه و زمان‌بندی دارد؛ اگر کار CPU-bound یا upstream-bound است، عدد بزرگ‌تر لزوماً ظرفیت مفید نمی‌سازد.</p>
+  <p lang="en">On many installations, <code>worker_processes auto;</code> is a reasonable starting point: Nginx detects available CPUs. Each worker is a separate process and adds memory/scheduling cost; when work is CPU-bound or upstream-bound, a larger number does not necessarily add useful capacity.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">inspect the running build and effective configuration before tuning</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">nginx -V 2&gt;&amp;1
+nginx -T 2&gt;&amp;1 | less
+ps -o pid,ppid,stat,%cpu,%mem,cmd -C nginx</span>
+<span class="s">nginx version: nginx/1.x.x
+configure arguments: ...
+worker_processes auto;
+events { worker_connections 512; }
+... process rows (values vary)</span></pre></div>
+  <p lang="fa">برای <code>nginx -V</code> نسخه و build options مهم‌اند؛ <code>nginx -T</code> تنظیم مؤثر را چاپ می‌کند و ممکن است مسیرها یا secretهای config را لو بدهد، پس خروجی را عمومی نکن. فهرست processها هم فقط وضعیت یک لحظه است. اگر CPU workerها بیکارند ولی upstream کند است، worker بیشتر سراغ علت نمی‌رود.</p>
+  <p lang="en">For <code>nginx -V</code>, build options and version matter; <code>nginx -T</code> prints effective config and may reveal paths or secrets, so do not publish its output. Process rows are only a point-in-time view. If Nginx workers are idle while the upstream is slow, adding workers does not address the cause.</p>
+</section>
+
+<section id="connections-and-fds">
+  <h2><span lang="fa">worker_connections تعداد کاربر نیست</span><span lang="en">worker_connections is not a user count</span></h2>
+  <p lang="fa">هر worker حداکثر تعداد connection هم‌زمانی را می‌پذیرد که در <code>worker_connections</code> آمده؛ این مقدار، تعداد request در ثانیه نیست. در reverse proxy معمولاً یک درخواست هم‌زمان دست‌کم یک socket از client و یکی از upstream می‌خواهد. connectionهای idle، WebSocket و socketهای داخلی هم در ظرفیت سهم دارند.</p>
+  <p lang="en">Each worker can open up to the configured number of simultaneous connections; that is not a requests-per-second limit. A proxied active request commonly needs at least one client socket and one upstream socket. Idle keep-alive connections, WebSockets, and internal sockets consume capacity too.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 1040 340" role="img" aria-labelledby="slots-title" xmlns="http://www.w3.org/2000/svg">
+      <title id="slots-title">A proxied request uses a client connection and an upstream connection from the worker connection budget / درخواست proxyشده از بودجهٔ connectionهای worker هم socket client می‌گیرد هم socket upstream</title>
+      <defs><marker id="slots-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow-b"/></marker></defs>
+      <rect x="45" y="104" width="220" height="104" rx="16" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/>
+      <text x="155" y="146" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Client socket</text>
+      <text x="155" y="178" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">slot 1</text>
+      <rect x="410" y="74" width="220" height="164" rx="18" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/>
+      <text x="520" y="118" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">One Nginx worker</text>
+      <rect x="442" y="143" width="156" height="34" rx="9" class="dg-fill-b" stroke="var(--blue)"/>
+      <text x="520" y="166" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">client connection</text>
+      <rect x="442" y="188" width="156" height="34" rx="9" class="dg-fill-g" stroke="var(--safe)"/>
+      <text x="520" y="211" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">upstream connection</text>
+      <rect x="775" y="104" width="220" height="104" rx="16" class="dg-fill-g" stroke="var(--safe)" stroke-width="2"/>
+      <text x="885" y="146" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Upstream socket</text>
+      <text x="885" y="178" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">slot 2</text>
+      <path d="M265 155H410" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#slots-arrow)"/>
+      <path d="M630 205H775" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#slots-arrow)"/>
+      <rect x="165" y="273" width="710" height="42" rx="12" class="dg-fill" stroke="var(--line-strong)" stroke-width="1.5"/>
+      <text x="520" y="300" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">worker_connections counts sockets; OS file-descriptor limits can cap it sooner</text>
+    </svg>
+    <p class="diagram-cap" lang="fa">دو فلش socketهای یک درخواست proxyشده را نشان می‌دهند. برای یک worker با ۱۰۰ connection، نمی‌توان ۱۰۰ client فعال proxyشده را تضمین کرد؛ حد واقعی با FDها، listenerها و سایر اتصال‌ها کمتر می‌شود.</p>
+    <p class="diagram-cap" lang="en">The two arrows show sockets for one proxied request. A worker configured for 100 connections cannot guarantee 100 active proxied clients; file-descriptor limits, listeners, and other sockets reduce the real ceiling.</p>
+  </div>
+  <p lang="fa">حاصل‌ضرب workerها در connectionها فقط سقف نظری شروع بحث است. هر worker هم حد file descriptor دارد؛ اگر <code>worker_connections</code> را بالا ببری ولی <code>RLIMIT_NOFILE</code> پایین بماند، ظرفیت مؤثر همان حد پایین‌تر است. تنظیم بی‌دلیل هر دو عدد را بالا نبر.</p>
+  <p lang="en">Workers multiplied by connections is only a theoretical starting ceiling. Each worker also has a file-descriptor limit; raising <code>worker_connections</code> while <code>RLIMIT_NOFILE</code> stays low leaves the lower limit in effect. Do not raise both numbers without evidence.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">شاهد</span><span lang="en">Evidence</span></th><th><span lang="fa">چه چیزی را می‌گوید؟</span><span lang="en">What it tells you</span></th><th><span lang="fa">چه چیزی را نمی‌گوید؟</span><span lang="en">What it does not tell you</span></th></tr></thead><tbody>
+    <tr><td><code>worker_connections</code></td><td><span lang="fa">سقف socketهای هر worker</span><span lang="en">Per-worker connection ceiling</span></td><td><span lang="fa">تعداد user یا throughput تضمین‌شده</span><span lang="en">A user count or guaranteed throughput</span></td></tr>
+    <tr><td><code>worker_rlimit_nofile</code></td><td><span lang="fa">حد file descriptor برای workerها در Nginx</span><span lang="en">Nginx worker file-descriptor limit</span></td><td><span lang="fa">سقف کل سیستم‌عامل یا container</span><span lang="en">The host or container’s total limit</span></td></tr>
+    <tr><td><code>ulimit -n</code></td><td><span lang="fa">حد shell فعلی و فرایندهای فرزندش</span><span lang="en">Current shell and child-process limit</span></td><td><span lang="fa">حد serviceای که systemd جدا اجرا کرده</span><span lang="en">The limit of a service launched separately by systemd</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa">برای Nginx آزمایشگاهی که از همین shell اجرا می‌کنی، <code>ulimit -n</code> را ببین. روی service نصب‌شده، حد unit می‌تواند جدا باشد؛ مثلاً <code>systemctl show nginx -p LimitNOFILE</code> فقط مقدار unit را نشان می‌دهد، نه اینکه حتماً worker فعال تا آن حد استفاده می‌کند.</p>
+  <p lang="en">For lab Nginx started from this shell, inspect <code>ulimit -n</code>. A packaged service can have a separate unit limit; for example, <code>systemctl show nginx -p LimitNOFILE</code> reports the unit setting, not proof that active workers can use every descriptor up to that number.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">inspect limits and build before deciding what to change</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">ulimit -n
+systemctl show nginx -p LimitNOFILE
+nginx -V 2&gt;&amp;1 | tail -n 2</span>
+<span class="s">1024
+LimitNOFILE=65535
+configure arguments: ...</span></pre></div>
+  <p lang="fa">عددهای نمونه از یک میزبان فرضی‌اند. اگر Nginx در کانتینر است، limit میزبان، runtime و سرویس را با هم بررسی کن؛ فقط عدد shell فعلی را به همه نسبت نده.</p>
+  <p lang="en">These values are illustrative. If Nginx runs in a container, inspect host, runtime, and service limits together; do not apply the current shell’s value to every process.</p>
+</section>
+
+<section id="keepalive">
+  <h2><span lang="fa">دو جور keepalive را قاطی نکن</span><span lang="en">Do not confuse the two kinds of keepalive</span></h2>
+  <p lang="fa"><code>keepalive_timeout</code> می‌گوید Nginx چقدر یک اتصال idle سمت client را برای درخواست بعدی نگه دارد. مقدار طولانی‌تر می‌تواند handshakeهای تازه را کم کند، اما connection idle هم جای worker و FD می‌گیرد. keepalive به upstream تنظیم جدا دارد؛ این دو مقصد را یکی حساب نکن.</p>
+  <p lang="en"><code>keepalive_timeout</code> controls how long Nginx keeps an idle client-side connection available for another request. A longer value may avoid new handshakes, but idle connections still occupy worker and file-descriptor capacity. Upstream keepalive is configured separately; do not treat the two sides as one setting.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">upstream keepalive is a per-worker cache of idle connections</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">upstream app_pool {
+    server 127.0.0.1:19200;
+    keepalive 16;
+}
+server {
+    location / {
+        proxy_pass http://app_pool;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+    }
+}</span></pre></div>
+  <p lang="fa">در این مثال اتصال‌های idle upstream برای استفادهٔ دوباره cache می‌شوند؛ عدد 16 به‌ازای هر worker است، نه سقف اتصال‌های فعال کل app. قبل از افزودنش، بررسی کن backend واقعاً از reuse سود می‌برد و protocol/headerها برایش درست‌اند. تا وقتی داده دلیل دیگری ندهد، default ساده معمولاً بهتر است.</p>
+  <p lang="en">This example caches idle upstream connections for reuse; 16 is per worker, not a global cap on active app connections. Before enabling it, verify the backend benefits from reuse and the protocol/headers are correct. Until measurements say otherwise, the simpler default is often preferable.</p>
+</section>
+
+<section id="buffers">
+  <h2><span lang="fa">bufferها سرعت‌ساز جادویی نیستند</span><span lang="en">Buffers are not magic speed knobs</span></h2>
+  <p lang="fa">در پاسخ proxyشده، <code>proxy_buffer_size</code> فضای خواندن بخش اول پاسخ upstream را مشخص می‌کند که معمولاً headerها هستند؛ <code>proxy_buffers</code> bufferهای بدنهٔ پاسخ را برای هر connection تعریف می‌کند. اگر پاسخ از آن‌ها جا نشود و buffering روشن باشد، بخشی از پاسخ می‌تواند به فایل موقت برود. اندازهٔ پیش‌فرض به نسخه و صفحهٔ سیستم وابسته است؛ اول header یا هشدار واقعی را پیدا کن.</p>
+  <p lang="en">For a proxied response, <code>proxy_buffer_size</code> holds the first part read from upstream, usually its headers; <code>proxy_buffers</code> defines response-body buffers per connection. If a response does not fit and buffering is enabled, part may spill to a temporary file. Defaults depend on version and system page size; first find an actual header-size issue or warning.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">مفهوم</span><span lang="en">Setting/model</span></th><th><span lang="fa">در کدام مسیر است؟</span><span lang="en">Which path?</span></th><th><span lang="fa">هزینه‌ای که باید بسنجی</span><span lang="en">Cost to measure</span></th></tr></thead><tbody>
+    <tr><td><code>proxy_buffer_size</code></td><td><span lang="fa">ابتدای پاسخ upstream، معمولاً response header</span><span lang="en">Beginning of upstream response, usually its headers</span></td><td><span lang="fa">حد نیاز header و حافظهٔ connection</span><span lang="en">Header needs and per-connection memory</span></td></tr>
+    <tr><td><code>proxy_buffers</code></td><td><span lang="fa">بدنهٔ پاسخ upstream</span><span lang="en">Upstream response body</span></td><td><span lang="fa">بودجهٔ بالقوه به‌ازای connection هم‌زمان</span><span lang="en">Potential budget per concurrent connection</span></td></tr>
+    <tr><td><code>proxy_request_buffering</code></td><td><span lang="fa">بدنهٔ ورودی client؛ موضوع فصل قبل</span><span lang="en">Incoming client request body; covered last chapter</span></td><td><span lang="fa">فایل موقت، disk و رفتار retry</span><span lang="en">Temporary files, disk, and retry behavior</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa">این سه را یکی نکن: buffer پاسخ با body آپلود client فرق دارد. برای پاسخ‌های بزرگ، تنظیمات cache و temp file هم در داستان‌اند؛ buffer بزرگ‌تر به معنی کمترشدن زمان اجرای upstream یا CPU کمتر نیست.</p>
+  <p lang="en">Do not conflate these: response buffers are different from an uploaded client body. For large responses, cache and temporary-file behavior may matter too; larger buffers do not make the upstream execute faster or use less CPU.</p>
+</section>
+
+<section id="timeouts">
+  <h2><span lang="fa">timeout را به رخداد موردنظر وصل کن</span><span lang="en">Tie each timeout to the event it measures</span></h2>
+  <p lang="fa">timeout یک مهلت برای همهٔ request نیست؛ هر کدام روی انتظار متفاوتی می‌نشیند. افزایش یک timeout ممکن است فقط connection بیشتری را طولانی‌تر نگه دارد و صف upstream را بزرگ‌تر کند.</p>
+  <p lang="en">A timeout is not one deadline for every request; each directive governs a different wait. Increasing one may simply keep more connections open longer and grow the upstream queue.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">تنظیم</span><span lang="en">Directive</span></th><th><span lang="fa">منتظر چه چیزی؟</span><span lang="en">Waiting for what?</span></th><th><span lang="fa">نکتهٔ تشخیصی</span><span lang="en">Diagnostic note</span></th></tr></thead><tbody>
+    <tr><td><code>proxy_connect_timeout</code></td><td><span lang="fa">برقراری اتصال به upstream</span><span lang="en">Establishing an upstream connection</span></td><td><span lang="fa">بالا بودنش upstream خاموش را زنده نمی‌کند.</span><span lang="en">A larger value cannot revive a down upstream.</span></td></tr>
+    <tr><td><code>proxy_send_timeout</code></td><td><span lang="fa">فاصلهٔ بی‌پیشرفت هنگام نوشتن به upstream</span><span lang="en">Idle gap while writing to upstream</span></td><td><span lang="fa">مهلت کل ارسال نیست.</span><span lang="en">Not the total send duration.</span></td></tr>
+    <tr><td><code>proxy_read_timeout</code></td><td><span lang="fa">فاصلهٔ بی‌پاسخ بین readهای متوالی upstream</span><span lang="en">Idle gap between successive upstream reads</span></td><td><span lang="fa">مهلت کل پاسخ نیست.</span><span lang="en">Not a total response deadline.</span></td></tr>
+    <tr><td><code>client_body_timeout</code></td><td><span lang="fa">فاصلهٔ بی‌داده هنگام خواندن body از client</span><span lang="en">Idle gap while reading a client body</span></td><td><span lang="fa">مهلت کل آپلود نیست.</span><span lang="en">Not the total upload duration.</span></td></tr>
+    <tr><td><code>send_timeout</code></td><td><span lang="fa">فاصلهٔ بی‌پیشرفت در فرستادن پاسخ به client</span><span lang="en">Idle gap while sending a response to the client</span></td><td><span lang="fa">از client کند محافظت می‌کند؛ latency را جادو نمی‌کند.</span><span lang="en">Protects against stalled clients; it does not improve latency magically.</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa">timeoutهای I/O در Nginx معمولاً فاصلهٔ بی‌فعالیت بین دو عملیات را می‌سنجند، نه مجموع مدت انتقال. قبل از تغییر، timestamp و مرحلهٔ شروع/پایان را از log جمع کن؛ اگر فقط یک upstream دیر پاسخ می‌دهد، worker یا timeout client را بی‌دلیل تغییر نده.</p>
+  <p lang="en">Nginx I/O timeouts generally measure inactivity between operations, not total transfer duration. Before changing them, collect timestamps and the start/end stage from logs; if one upstream is merely slow to answer, do not change worker or client timeouts without evidence.</p>
+</section>
+
+<section id="cargo-cult">
+  <h2><span lang="fa">خرابی عمدی: «بزرگش کن که دیگر خطا ندهد»</span><span lang="en">Deliberate bad idea: “Make it huge so errors stop”</span></h2>
+  <p lang="fa">این config را اجرا نمی‌کنیم؛ فقط هزینه‌اش را حساب می‌کنیم. فرض کن کسی برای یک header بزرگ این‌ها را گذاشته:</p>
+  <p lang="en">We will not run this config; we will calculate its cost instead. Imagine someone set these values to silence one large-header symptom:</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">intentionally excessive example — do not copy into production</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">proxy_buffer_size 1m;
+proxy_buffers 256 1m;
+proxy_read_timeout 24h;</span></pre></div>
+  <p lang="fa">اگر همهٔ bufferهای تعریف‌شده برای یک connection پر شوند، بودجهٔ بالقوه نزدیک 257 MiB برای هر connection می‌شود؛ ۱۰۰ connection هم‌زمان می‌توانند ده‌ها GiB تقاضای حافظه بسازند. Nginx همهٔ bufferها را از همان اول برای همهٔ اتصال‌ها یک‌جا تخصیص نمی‌دهد؛ این سقف بدترین‌حالت است، اما باز هم ضرب در هم‌زمانی واقعی مهم است. timeout یک‌روزه هم socketهای منتظر را بی‌دلیل طولانی نگه می‌دارد.</p>
+  <p lang="en">If every configured buffer for one connection is filled, the potential budget is about 257 MiB per connection; 100 concurrent connections could demand tens of GiB. Nginx does not eagerly allocate every buffer for every connection, so this is a worst-case budget—not an immediate reservation—but real concurrency still multiplies the risk. A one-day timeout also keeps waiting sockets around unnecessarily.</p>
+  <p lang="fa">اگر header upstream بزرگ است، اول اندازه و منبعش را اندازه بگیر و فقط header buffer لازم را تغییر بده؛ اگر upstream گیر می‌کند، timeout را با latency واقعی و هدف سرویس تنظیم کن. رفع علامت با عدد غول‌آسا ممکن است تبدیل به پرشدن حافظه یا connectionهای معطل شود.</p>
+  <p lang="en">If an upstream header is large, measure its size and source first, then adjust only the required header buffer. If the upstream stalls, choose a timeout from observed latency and service goals. Hiding a symptom with huge numbers can turn it into memory pressure or long-lived stalled connections.</p>
+  <div class="note warn"><span lang="fa">در این فصل benchmark فقط روی loopback خودت است. به سرویس عمومی، VPS یا سامانه‌ای که مالک/مسئولش نیستی بار آزمایشی نفرست؛ حتی تست کوتاه می‌تواند rate limit یا اختلال بسازد.</span><span lang="en">All benchmarks in this chapter target your own loopback. Do not load-test a public service, VPS, or system you do not own or administer; even a short test can trigger rate limits or disruption.</span></div>
+</section>
+
+<section id="lab-setup">
+  <h2><span lang="fa">آزمایش کنترل‌شده را روی loopback آماده کنیم</span><span lang="en">Prepare a controlled loopback experiment</span></h2>
+  <p lang="fa">برای جداکردن Nginx از برنامه، یک upstream مصنوعی روی loopback می‌سازیم که پاسخ کوچکی با تأخیر ثابت ۲۰ میلی‌ثانیه می‌دهد. آزمون فقط ۱۲۰ درخواست و حداکثر ۸ اتصال هم‌زمان دارد. این بارگذاری کوچک برای دیدن تفاوت config آزمایشگاهی است، نه پیش‌بینی ظرفیت production.</p>
+  <p lang="en">To separate Nginx from the app, we will create a synthetic loopback upstream that returns a small response after a fixed 20 ms delay. The test is limited to 120 requests and at most eight concurrent connections. This small load illustrates lab configuration behavior; it does not predict production capacity.</p>
+  <p lang="fa">اول پورت‌های آزمایش را بررسی کن و limit فایل را بخوان. اگر پورت اشغال است، سرویسش را نکش؛ شمارهٔ آزاد دیگری انتخاب کن و در همهٔ فرمان‌ها عوضش کن. اگر <code>ulimit -n</code> از 128 کمتر است، benchmark را اجرا نکن تا limit آزمایشگاه را متناسب و امن انتخاب کنی.</p>
+  <p lang="en">First inspect the test ports and file limit. If a port is occupied, do not kill its service; choose another free port and change it consistently. If <code>ulimit -n</code> is below 128, do not run the benchmark until you choose a suitable safe lab limit.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">inspect first, then create an isolated temporary directory</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">ulimit -n
+ss -ltn | grep -E ':(18200|19200)([[:space:]]|$)' || true
+TUNE_LAB=$(mktemp -d /tmp/nginx-tune.XXXXXX)
+chmod 700 "$TUNE_LAB"
+mkdir -p "$TUNE_LAB/logs" "$TUNE_LAB/run" "$TUNE_LAB/pids"
+printf 'Lab: %s\n' "$TUNE_LAB"</span>
+<span class="s">1024
+Lab: /tmp/nginx-tune.xxxxxx</span></pre></div>
+  <p lang="fa">عدد limit و مسیر فقط نمونه‌اند؛ <code>ss</code> اگر خروجی نداد، یعنی در آن لحظه listenerی با آن پورت‌ها دیده نشده، نه اینکه حتماً هر دو آزادند در تمام عمر آزمایش. برنامه و Nginx را در همان shell زنده نگه دار تا متغیر و PIDها در دسترس بمانند.</p>
+  <p lang="en">The limit and path are illustrative. If <code>ss</code> prints no listener, it only means none was observed at that moment—not that the ports are guaranteed free for the whole experiment. Keep using the same shell so the variable and PIDs remain available.</p>
+  <p lang="fa">upstream این پاسخ کوتاه و مشخص را می‌دهد و بدنه را روی دیسک نمی‌نویسد. Python فقط برای شبیه‌سازی پاسخ است؛ اگر پورت یا dependency خطا داشت، پیش از آزمون Nginx آن را جدا رفع کن.</p>
+  <p lang="en">The upstream returns a small predictable response and writes no body to disk. Python is only used to simulate the response; resolve any port or dependency problem before testing Nginx.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">create and start a tiny delayed upstream on loopback</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cat &gt; "$TUNE_LAB/app.py" &lt;&lt;'PY'
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import time
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        time.sleep(0.02)
+        body = b"controlled upstream response\n"
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+ThreadingHTTPServer(("127.0.0.1", 19200), Handler).serve_forever()
+PY
+python3 -m py_compile "$TUNE_LAB/app.py"
+python3 -u "$TUNE_LAB/app.py" &gt; "$TUNE_LAB/app.log" 2&gt;&amp;1 &amp;
+echo $! &gt; "$TUNE_LAB/pids/app.pid"
+sleep 0.3
+curl -i http://127.0.0.1:19200/</span>
+<span class="s">HTTP/1.0 200 OK
+...
+controlled upstream response</span></pre></div>
+  <p lang="fa">این پاسخ مستقیم baseline برنامه است؛ پس اگر Nginx بعداً 502 داد، اول مطمئن می‌شویم app هنوز روی loopback پاسخ می‌دهد. تأخیر ۲۰ ms ساختگی و ثابت است؛ نتایج واقعی هر سیستم متفاوت‌اند.</p>
+  <p lang="en">This direct response is the app baseline, so if Nginx later returns 502, we can first verify that the loopback app still responds. The 20 ms delay is synthetic and fixed; real results vary by machine.</p>
+</section>
+
+<section id="baseline">
+  <h2><span lang="fa">قبل از tuning، baseline را ثبت کن</span><span lang="en">Record a baseline before tuning</span></h2>
+  <p lang="fa">Nginx آزمایش را با یک worker و ۶۴ connection بالا می‌آوریم. log زمان کل و upstream را می‌گیرد تا اگر benchmark کند شد، بدانیم زمان در کدام بازه است. تنظیم‌ها در فایل موقت‌اند و به service اصلی دست نمی‌زنند.</p>
+  <p lang="en">We start lab Nginx with one worker and 64 connections. Its log records total and upstream time so we can tell where a slow benchmark spends its time. Settings live in a temporary file and do not touch the main service.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">write a disposable proxy config with a measurable baseline</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cat &gt; "$TUNE_LAB/nginx.conf" &lt;&lt;'NGINX'
+worker_processes 1;
+pid run/nginx.pid;
+error_log logs/error.log warn;
+events { worker_connections 64; }
+http {
+    log_format timing 'status=$status rt=$request_time urt=$upstream_response_time';
+    access_log logs/access.log timing;
+    server {
+        listen 127.0.0.1:18200;
+        location / {
+            proxy_pass http://127.0.0.1:19200;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+        }
+    }
+}
+NGINX
+nginx -t -p "$TUNE_LAB/" -c nginx.conf
+nginx -p "$TUNE_LAB/" -c nginx.conf
+curl -sS -o /dev/null -w 'status=%{http_code}\n' http://127.0.0.1:18200/
+tail -n 1 "$TUNE_LAB/logs/access.log"</span>
+<span class="s">nginx: configuration file ... test is successful
+status=200
+status=200 rt=0.021 urt=0.021</span></pre></div>
+  <p lang="fa">زمان نمونه فقط تقریباً با تأخیر ساختگی upstream هم‌خوان است؛ این درخواست واحد benchmark نیست. برای بار کنترل‌شده از <code>ab</code> استفاده می‌کنیم: <code>-n</code> تعداد کل درخواست و <code>-c</code> concurrency است. ابزار را فقط روی localhost اجرا کن.</p>
+  <p lang="en">The sample timing merely reflects the synthetic upstream delay; one request is not a benchmark. For a bounded load we use <code>ab</code>: <code>-n</code> is total requests and <code>-c</code> is concurrency. Run it only against localhost.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">same route, request count, concurrency, and client for each comparison</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">ab -n 120 -c 8 -k http://127.0.0.1:18200/</span>
+<span class="s">Concurrency Level:      8
+Complete requests:      120
+Failed requests:        0
+Requests per second:    varies by machine
+Time per request:       varies by machine</span></pre></div>
+  <p lang="fa">اگر <code>ab</code> نصب نیست، <code>wrk</code> یا <code>hey</code> را هم می‌توانی جایگزین کنی، اما هر بار همان ابزار و مدت/تعداد را ثابت نگه دار. هر حالت را چند نوبت تکرار کن و median و صدک‌های latency را کنار failed requests و throughput بخوان؛ client خودش هم ممکن است CPU یا شبکه‌اش به سقف برسد.</p>
+  <p lang="en">If <code>ab</code> is unavailable, you may use <code>wrk</code> or <code>hey</code>, but keep the same tool and duration/request count for each run. Repeat each condition several times and compare the median and latency percentiles alongside failures and throughput; the client itself can saturate CPU or network.</p>
+</section>
+
+<section id="one-change">
+  <h2><span lang="fa">حالا یک عدد را کم کنیم تا گلوگاه دیده شود</span><span lang="en">Lower one value so the bottleneck becomes visible</span></h2>
+  <p lang="fa">در production این مقدار را بی‌دلیل کم نمی‌کردیم؛ در lab عمداً می‌گذاریمش روی ۴ تا محدودیت connection را ببینیم. تغییر فقط همین عدد است. اگر access/error log خطای connection بدهد و benchmark کندتر یا ناموفق شود، رابطهٔ علت و نشانه را داریم.</p>
+  <p lang="en">We would not lower this value arbitrarily in production; in the lab we set it to 4 deliberately to expose a connection ceiling. This changes only one value. If logs show connection pressure and the benchmark slows or fails, we have evidence linking cause and symptom.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">change one isolated limit, test, reload, and repeat the exact benchmark</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">sed -i 's/worker_connections 64;/worker_connections 4;/' "$TUNE_LAB/nginx.conf"
+nginx -t -p "$TUNE_LAB/" -c nginx.conf &amp;&amp; \
+  nginx -s reload -p "$TUNE_LAB/" -c nginx.conf
+ab -n 120 -c 8 -k http://127.0.0.1:18200/
+tail -n 10 "$TUNE_LAB/logs/error.log"</span>
+<span class="s">... Failed requests: (compare with baseline)
+... worker_connections are not enough ... (if the cap is reached)</span></pre></div>
+  <p lang="fa">پیام error log و افزایش latency/خطا شاهدهای مهم‌اند؛ عدد دقیق به زمان‌بندی سیستم بستگی دارد و ممکن است همهٔ اجراها دقیقاً یک خروجی ندهند. اگر warning ندیدی، نگو محدودیت را ثابت کرده‌ایم؛ احتمالاً بار به آن نرسیده یا benchmark client محدود بوده. concurrency را فقط در حد کوچک آزمایش بالا ببر و وضعیت CPU ماشین را ببین.</p>
+  <p lang="en">The error-log message and a rise in latency/failures are useful evidence; exact numbers depend on scheduling and may vary across runs. If no warning appears, do not claim the limit was proven; perhaps this load never reached it or the benchmark client was constrained. Increase concurrency only modestly and watch host CPU.</p>
+  <p lang="fa">حالا مقدار را به ۶۴ برمی‌گردانیم و دقیقاً همان آزمون را تکرار می‌کنیم. اگر خطاها کم شدند و latency/throughput هم بهتر شد، این تغییر در این lab کمک کرده؛ ولی هنوز ظرفیت production را پیش‌بینی نکرده‌ایم.</p>
+  <p lang="en">Now restore 64 and repeat the exact same test. If errors fall and latency/throughput improve, the change helped in this lab—but we still have not predicted production capacity.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">restore the baseline and compare the same measurements</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">sed -i 's/worker_connections 4;/worker_connections 64;/' "$TUNE_LAB/nginx.conf"
+nginx -t -p "$TUNE_LAB/" -c nginx.conf &amp;&amp; \
+  nginx -s reload -p "$TUNE_LAB/" -c nginx.conf
+ab -n 120 -c 8 -k http://127.0.0.1:18200/
+tail -n 5 "$TUNE_LAB/logs/access.log"</span></pre></div>
+  <p lang="fa">داده را در جدولی برای خودت ثبت کن: تنظیم، failed requests، requests/sec، latency، خطای Nginx و مصرف CPU. اگر فقط throughput بهتر شد اما p95 بدتر شد، نتیجه را «بهبود» اعلام نکن؛ بار از جایی به جای دیگر منتقل شده یا client آزمون تغییر رفتار داده است.</p>
+  <p lang="en">Record config, failed requests, requests/sec, latency, Nginx errors, and CPU. If throughput improves but p95 worsens, do not call it a win; pressure may have moved elsewhere or the benchmark client may have changed behavior.</p>
+</section>
+
+<section id="read-the-test">
+  <h2><span lang="fa">سه عدد را با هم بخوان</span><span lang="en">Read three measurements together</span></h2>
+  <p lang="fa">برای هر اجرا، شمار request موفق/ناموفق، throughput و latency را کنار هم بگذار. اگر throughput بالا رفت اما latency انتهایی بدتر شد، کاربرانی در صف مانده‌اند. اگر benchmark client CPU اشباع دارد، عددی که گرفته‌ای ظرفیت Nginx نیست.</p>
+  <p lang="en">For every run, compare successful/failed requests, throughput, and latency together. If throughput rises but tail latency gets worse, requests may be queueing. If the benchmark client saturates its CPU, the number you measured is not Nginx capacity.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">take a read-only host snapshot while the bounded test runs</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">free -h
+ss -s
+MASTER_PID=$(cat "$TUNE_LAB/run/nginx.pid")
+ps -o pid,ppid,stat,%cpu,%mem,cmd -p "$MASTER_PID" --ppid "$MASTER_PID"
+tail -n 5 "$TUNE_LAB/logs/error.log"
+tail -n 5 "$TUNE_LAB/logs/access.log"</span>
+<span class="s">... memory summary ...
+... TCP socket summary ...
+... Nginx worker rows ...
+status=200 rt=0.022 urt=0.021</span></pre></div>
+  <p lang="fa">این snapshot علت را به‌تنهایی ثابت نمی‌کند؛ مثلاً CPU کم در یک لحظه، CPU کم در کل آزمون را ثابت نمی‌کند. چند بار اندازه بگیر و timestamp را با benchmark یکی کن. اگر upstream time بالا و worker CPU پایین است، bottleneck را در upstream جست‌وجو کن، نه با زیادکردن Nginx.</p>
+  <p lang="en">A snapshot alone does not prove a cause; low CPU at one instant does not prove low CPU throughout the test. Measure repeatedly and align timestamps with the benchmark. If upstream time is high while worker CPU is low, investigate the upstream instead of adding Nginx capacity.</p>
+  <div class="note safe"><span lang="fa">یک tuning خوب باید سه چیز داشته باشد: baseline تکرارپذیر، فرضیه‌ای که با شاهد پشتیبانی شود، و آزمون یکسان پس از تغییر. اگر یکی از این‌ها نیست، هنوز نمی‌دانیم تغییر مفید بوده یا نه.</span><span lang="en">A sound tuning change needs three things: a repeatable baseline, an evidence-backed hypothesis, and the same test after the change. Without one of these, we do not yet know whether the change helped.</span></div>
+</section>
+
+<section id="exercises">
+  <h2><span lang="fa">تمرین؛ اول bottleneck را نام ببر</span><span lang="en">Exercises: identify the bottleneck before the setting</span></h2>
+  <p lang="fa">در سؤال‌های سناریویی، جواب خوب فقط اسم directive نیست؛ بگو کدام اندازه‌گیری تصمیم را عوض می‌کند و چه چیزی را هنوز نمی‌دانیم.</p>
+  <p lang="en">For scenario questions, a good answer is more than a directive name: say which measurement changes the decision and what remains unknown.</p>
+
+  <div class="ex" id="ex-01"><h3>۱. <span lang="fa">پیش‌بینی workerها</span><span lang="en">Predict the worker count</span></h3><p lang="fa">روی ماشینی با ۴ CPU در دسترس، <code>worker_processes auto;</code> را می‌بینی. چه عددی احتمالاً انتخاب می‌شود، و چرا نباید آن را ظرفیت تضمین‌شده فرض کرد؟</p><p lang="en">On a machine with four available CPUs you see <code>worker_processes auto;</code>. What count is likely selected, and why is that not a capacity guarantee?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">معمولاً تلاش می‌کند CPUهای در دسترس را تشخیص دهد، پس حدود چهار worker محتمل است. بار، دیسک، upstream، limitها و build هم اثر دارند؛ تعداد worker به‌تنهایی throughput را تضمین نمی‌کند.</p><p lang="en">It generally attempts to detect available CPUs, so about four workers is plausible. Load, disk, upstream, limits, and build also matter; worker count alone does not guarantee throughput.</p></details></div>
+  <div class="ex" id="ex-02"><h3>۲. <span lang="fa">چهار connection یا چهار request؟</span><span lang="en">Four connections or four requests?</span></h3><p lang="fa">یک worker با <code>worker_connections 4</code> دارد proxy می‌کند. آیا می‌تواند چهار client فعال را هم‌زمان سرویس دهد؟</p><p lang="en">One worker has <code>worker_connections 4</code> while proxying. Can it serve four active clients at once?</p><details class="ex-sol"><summary><span lang="fa">تفسیر</span><span lang="en">Interpretation</span></summary><p lang="fa">این را تضمین نکن؛ client و upstream socketها هر دو شمرده می‌شوند، listenerها و اتصال‌های دیگر هم جا می‌گیرند. یک درخواست proxyشده اغلب حداقل دو slot نیاز دارد.</p><p lang="en">Do not assume so: both client and upstream sockets count, as do listeners and other connections. One proxied request often needs at least two slots.</p></details></div>
+  <div class="ex" id="ex-03"><h3>۳. <span lang="fa">کدام limit تنگ‌تر است؟</span><span lang="en">Which limit is tighter?</span></h3><p lang="fa"><code>worker_connections 4096</code> است ولی worker فقط 512 file descriptor مجاز دارد. کدام عدد برای ظرفیت واقعی مهم‌تر است؟</p><p lang="en"><code>worker_connections</code> is 4096, but the worker may open only 512 file descriptors. Which value matters more for real capacity?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">حد پایین‌تر، همراه با descriptorهای مصرف‌شده برای listener و فایل‌های log. بالا بردن worker_connections بدون اصلاح و اثبات limit فایل کمکی نمی‌کند.</p><p lang="en">The lower limit, minus descriptors already used by listeners and log files. Raising worker_connections without verifying the file limit does not help.</p></details></div>
+  <div class="ex" id="ex-04"><h3>۴. <span lang="fa">ulimit کدام فرایند؟</span><span lang="en">Which process does ulimit describe?</span></h3><p lang="fa">shell تو <code>ulimit -n</code> برابر 2048 است؛ آیا همین limit حتماً برای Nginx systemd هم هست؟</p><p lang="en">Your shell reports <code>ulimit -n</code> as 2048. Does that necessarily apply to systemd’s Nginx service?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">نه؛ service می‌تواند limit متفاوتی از unit بگیرد. <code>systemctl show nginx -p LimitNOFILE</code> و در صورت نیاز اطلاعات فرایند فعال را بررسی کن.</p><p lang="en">No. The service may receive a different unit limit. Inspect <code>systemctl show nginx -p LimitNOFILE</code> and, if needed, the running process’s limits.</p></details></div>
+  <div class="ex" id="ex-05"><h3>۵. <span lang="fa">upstream idle pool</span><span lang="en">The upstream idle pool</span></h3><p lang="fa">در <code>keepalive 16</code> برای هر worker، چه چیزی ۱۶ تا است؟</p><p lang="en">In <code>keepalive 16</code> for each worker, what is capped at 16?</p><details class="ex-sol"><summary><span lang="fa">توضیح</span><span lang="en">Explanation</span></summary><p lang="fa">تعداد upstream connectionهای idle که pool آن worker نگه می‌دارد، نه مجموع connectionهای فعال برنامه. اگر backend reuse سودی نداشته باشد، این تنظیم ارزش خودکار ندارد.</p><p lang="en">It caps idle upstream connections cached by that worker, not all active app connections. If the backend does not benefit from reuse, the setting has no automatic value.</p></details></div>
+  <div class="ex" id="ex-06"><h3>۶. <span lang="fa">buffer header یا body؟</span><span lang="en">Header or body buffer?</span></h3><p lang="fa">error log می‌گوید header پاسخ upstream از buffer اول بزرگ‌تر است. کدام شاهد را پیش از تغییر جمع می‌کنی؟</p><p lang="en">The error log says an upstream response header is larger than the first buffer. What evidence do you collect before changing it?</p><details class="ex-sol"><summary><span lang="fa">قدم اول</span><span lang="en">First step</span></summary><p lang="fa">اندازه و منبع header، مسیر و تعداد درخواست‌های اثرپذیرفته را پیدا کن. سپس فقط <code>proxy_buffer_size</code> لازم را با concurrency واقعی بسنج؛ بزرگ‌کردن همهٔ <code>proxy_buffers</code> بدنه را هم متورم می‌کند.</p><p lang="en">Find header size/source, route, and affected request count. Then measure the required <code>proxy_buffer_size</code> against real concurrency; enlarging every <code>proxy_buffers</code> also expands body buffering.</p></details></div>
+  <div class="ex" id="ex-07"><h3>۷. <span lang="fa">client body buffer</span><span lang="en">Client body buffer</span></h3><p lang="fa">آپلود فایل از Nginx عبور می‌کند. آیا <code>proxy_buffers</code> تنظیم اصلی برای body ورودی است؟</p><p lang="en">An upload passes through Nginx. Are <code>proxy_buffers</code> the main setting for its incoming body?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">نه؛ proxy_buffers برای پاسخ upstream است. body ورودی، buffering و فایل موقت مسیر client را دارد؛ فصل قبل سقف body و <code>proxy_request_buffering</code> را دیدیم.</p><p lang="en">No. proxy_buffers apply to the upstream response. Incoming bodies have their own client-body buffering and temporary files; last chapter covered body limits and <code>proxy_request_buffering</code>.</p></details></div>
+  <div class="ex" id="ex-08"><h3>۸. <span lang="fa">timeout اتصال</span><span lang="en">Connect timeout</span></h3><p lang="fa">Nginx نمی‌تواند TCP connection به upstream بسازد. بالا بردن <code>proxy_read_timeout</code> چه اثری دارد؟</p><p lang="en">Nginx cannot establish a TCP connection to upstream. What does increasing <code>proxy_read_timeout</code> change?</p><details class="ex-sol"><summary><span lang="fa">دلیل</span><span lang="en">Reason</span></summary><p lang="fa">هیچ‌چیز دربارهٔ مرحلهٔ اتصال؛ read timeout بعد از برقراری connection روی انتظار داده اثر دارد. اتصال، آدرس و خطای error log را بررسی کن؛ directive درست را فقط پس از تشخیص انتخاب کن.</p><p lang="en">Nothing about connection establishment; read timeout governs waiting for data after a connection exists. Check reachability, address, and error log, then choose a directive based on the stage.</p></details></div>
+  <div class="ex" id="ex-09"><h3>۹. <span lang="fa">read timeout یعنی کل پاسخ؟</span><span lang="en">Does read timeout cover the whole response?</span></h3><p lang="fa"><code>proxy_read_timeout 30s</code> است. آیا پاسخ ۴۰ ثانیه‌ای حتماً قطع می‌شود؟</p><p lang="en"><code>proxy_read_timeout 30s</code> is set. Must a 40-second response be cut off?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">نه اگر upstream در فاصله‌های کمتر از ۳۰ ثانیه داده بفرستد؛ timeout فاصلهٔ بین readهای پیاپی را می‌سنجد، نه زمان کل پاسخ.</p><p lang="en">Not if upstream sends data at intervals under 30 seconds; the timeout measures the gap between successive reads, not total response duration.</p></details></div>
+  <div class="ex" id="ex-10"><h3>۱۰. <span lang="fa">keepalive در دو سمت</span><span lang="en">Keepalive on both sides</span></h3><p lang="fa">client keepalive فعال است. آیا این یعنی اتصال upstream هم reuse می‌شود؟</p><p lang="en">Client keepalive is enabled. Does that mean upstream connections are reused too?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">خیر؛ اتصال client و pool اتصال idle upstream تنظیم‌های جدا دارند. برای upstream reuse، block مربوط به upstream و headerهای proxy را هم بررسی کن.</p><p lang="en">No. Client connections and the upstream idle-connection pool are configured separately. For upstream reuse, inspect the upstream block and proxy headers too.</p></details></div>
+  <div class="ex" id="ex-11"><h3>۱۱. <span lang="fa">throughput بالاتر، latency بدتر</span><span lang="en">Higher throughput, worse latency</span></h3><p lang="fa">پس از تغییر، requests/sec بالا رفته اما p95 latency دو برابر شده. آیا tuning موفق است؟</p><p lang="en">After a change, requests/sec rises but p95 latency doubles. Is the tuning successful?</p><details class="ex-sol"><summary><span lang="fa">ارزیابی</span><span lang="en">Assessment</span></summary><p lang="fa">نه تا وقتی هدف سرویس و خطاها را مقایسه نکنی. ممکن است صف بزرگ‌تر شده یا درخواست‌ها در tail معطل باشند؛ throughput را جدا از latency قضاوت نکن.</p><p lang="en">Not until you compare service goals and errors. The queue may have grown or tail requests may be stalled; do not judge throughput separately from latency.</p></details></div>
+  <div class="ex" id="ex-12"><h3>۱۲. <span lang="fa">benchmark client محدود است</span><span lang="en">The benchmark client is constrained</span></h3><p lang="fa">benchmark روی همان ماشین اجرا می‌شود و CPU client به ۱۰۰٪ می‌رسد. عدد requests/sec چه مشکلی دارد؟</p><p lang="en">The benchmark runs on the same host and client CPU reaches 100%. What is wrong with the requests-per-second result?</p><details class="ex-sol"><summary><span lang="fa">تفسیر</span><span lang="en">Interpretation</span></summary><p lang="fa">client شاید قبل از Nginx اشباع شده؛ آزمون ظرفیت سرور را جدا نکرده. با concurrency پایین‌تر یا load generator مستقل در محیط مجاز تکرار کن و هم‌زمان CPU/latency را ثبت کن.</p><p lang="en">The client may saturate before Nginx, so the test does not isolate server capacity. Repeat at lower concurrency or with a separate authorized load generator, recording CPU and latency together.</p></details></div>
+  <div class="ex" id="ex-13"><h3>۱۳. <span lang="fa">دو اجرا قابل مقایسه‌اند؟</span><span lang="en">Are the two runs comparable?</span></h3><p lang="fa">run اول ۱۲۰ request با concurrency=8 روی route سریع است؛ run دوم ۱۲۰۰ درخواست با concurrency=80 روی route کند. می‌توانی سرعت configها را مقایسه کنی؟</p><p lang="en">Run one uses 120 requests at concurrency 8 on a fast route; run two uses 1,200 at concurrency 80 on a slow route. Can you compare the configs?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">نه؛ چند متغیر هم‌زمان فرق دارد. تعداد، concurrency، route، داده، ماشین و ابزار را ثابت کن و فقط config مورد بررسی را تغییر بده.</p><p lang="en">No; several variables changed at once. Hold request count, concurrency, route, data, machine, and tool constant; change only the config under test.</p></details></div>
+  <div class="ex" id="ex-14"><h3>۱۴. <span lang="fa">worker بیکار، upstream پرکار</span><span lang="en">Idle worker, busy upstream</span></h3><p lang="fa">Nginx CPU پایینی دارد، اما <code>$upstream_response_time</code> بالا و app CPU بالا است. چه چیزی را اول tune می‌کنی؟</p><p lang="en">Nginx CPU is low, but <code>$upstream_response_time</code> and app CPU are high. What do you tune first?</p><details class="ex-sol"><summary><span lang="fa">استدلال</span><span lang="en">Reasoning</span></summary><p lang="fa">اول ظرفیت و رفتار app را بررسی می‌کنم؛ worker بیشتر Nginx احتمالاً فقط صف upstream را بزرگ می‌کند. log و benchmark همان route را با app مستقل مقایسه کن.</p><p lang="en">I would investigate app capacity first; more Nginx workers may only enlarge the upstream queue. Compare route logs and the benchmark with the app path directly.</p></details></div>
+  <div class="ex" id="ex-15"><h3>۱۵. <span lang="fa">FD warning زیر بار</span><span lang="en">FD warning under load</span></h3><p lang="fa">Nginx error log از نبود connection slot می‌گوید و limit فایل worker از مقدار config پایین‌تر است. آیا فقط <code>worker_connections</code> را بالا می‌بری؟</p><p lang="en">Nginx logs a connection-slot warning, and the worker’s file limit is below the configured connection count. Would you only raise <code>worker_connections</code>?</p><details class="ex-sol"><summary><span lang="fa">پاسخ محتاطانه</span><span lang="en">Cautious answer</span></summary><p lang="fa">نه؛ هر دو سقف و descriptorهای مصرف‌شده را بسنج. limit service و سیستم‌عامل را هم با مجوز عملیاتی بررسی کن؛ افزایش یکی در حالی که دیگری پایین است، سقف را جابه‌جا نمی‌کند.</p><p lang="en">No; measure both ceilings and descriptors already in use. Check service and OS limits within operational authority; raising one while the other stays low does not move the effective cap.</p></details></div>
+  <div class="ex" id="ex-16"><h3>۱۶. <span lang="fa">صدای timeout بزرگ</span><span lang="en">The cost of a huge timeout</span></h3><p lang="fa">تیمی <code>proxy_read_timeout 24h</code> گذاشته تا هیچ clientی قطع نشود. چه منابعی را نگه می‌دارد و چه چیزی را حل نمی‌کند؟</p><p lang="en">A team sets <code>proxy_read_timeout 24h</code> so no client disconnects. What resources may it retain, and what does it not solve?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">socket، connection slot و FDهای منتظر می‌توانند طولانی‌تر نگه داشته شوند. این کار upstream خراب یا peer مرده را تعمیر نمی‌کند؛ heartbeat و الگوی واقعی سکوت را بسنج و timeout را محدود انتخاب کن.</p><p lang="en">Waiting sockets, connection slots, and file descriptors may be held longer. This does not repair a broken upstream or dead peer; measure heartbeat and real idle patterns, then choose a bounded timeout.</p></details></div>
+  <div class="ex" id="ex-17"><h3>۱۷. <span lang="fa">buffer عظیم برای یک خطا</span><span lang="en">Huge buffers for one warning</span></h3><p lang="fa">یک header بزرگ مشکل دارد و پیشنهاد شده <code>proxy_buffers 256 1m</code> تنظیم شود. چرا این تغییر نامرتبط و پرهزینه است؟</p><p lang="en">One large header causes trouble, and someone proposes <code>proxy_buffers 256 1m</code>. Why may this be irrelevant and costly?</p><details class="ex-sol"><summary><span lang="fa">توضیح</span><span lang="en">Explanation</span></summary><p lang="fa">proxy_buffers برای body پاسخ است؛ header اول با proxy_buffer_size مرتبط است. bufferهای بزرگ می‌توانند بودجهٔ بالقوهٔ هر connection و فشار حافظه را با concurrency بالا ببرند.</p><p lang="en">proxy_buffers serve the response body; the first response header relates to proxy_buffer_size. Large buffers can multiply the potential per-connection memory budget under concurrency.</p></details></div>
+  <div class="ex" id="ex-18"><h3>۱۸. <span lang="fa">یادداشت تغییر برای همکار</span><span lang="en">A change note for a teammate</span></h3><p lang="fa">یک run محلی نشان داده warning connectionها با ۴ slot می‌آید و پس از بازگشت به ۶۴ رفع می‌شود؛ چه چیزی را در handoff می‌نویسی؟</p><p lang="en">A local run shows connection warnings at 4 slots and none after restoring 64. What do you write in the handoff?</p><details class="ex-sol"><summary><span lang="fa">پاسخ قابل بازبینی</span><span lang="en">Reviewable answer</span></summary><p lang="fa">شرایط آزمون، تعداد/concurrency، تنظیم قبل/بعد، error log، failed requests، throughput/latency و CPU را می‌نویسم. نتیجه فقط دربارهٔ همان lab است؛ production را با بار و limit واقعی خودش می‌سنجم و اگر bottleneck دیگری است، این عدد را بی‌دلیل تغییر نمی‌دهم.</p><p lang="en">Record test conditions, count/concurrency, before/after settings, error logs, failures, throughput/latency, and CPU. The result applies only to this lab; measure production with its real load and limits, and do not change this value if another bottleneck dominates.</p></details></div>
+</section>
+
+<section id="cleanup">
+  <h2><span lang="fa">آزمایش را جمع کن؛ logها را اول نگه دار</span><span lang="en">Clean up, but preserve logs first</span></h2>
+  <p lang="fa">پیش از cleanup، خروجی benchmark و دو log را برای یادداشتت بردار. بعد Nginx را با prefix همین آزمایش متوقف کن و فقط برنامه‌ای را بکش که command line آن به <code>app.py</code> همین مسیر اشاره می‌کند. اگر PID یا مسیر غیرمنتظره بود، توقف و حذف نکن.</p>
+  <p lang="en">Before cleanup, capture benchmark output and both logs for your notes. Then stop only the Nginx instance using this lab prefix and kill only a process whose command line points to this directory’s <code>app.py</code>. If the PID or path is unexpected, do not stop or remove anything.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">verify both lab processes and ask before removing the disposable directory</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">nginx -s quit -p "$TUNE_LAB/" -c nginx.conf || true
+MASTER_PID_FILE="$TUNE_LAB/run/nginx.pid"
+for _ in $(seq 1 50); do
+  [ -s "$MASTER_PID_FILE" ] || break
+  kill -0 "$(cat "$MASTER_PID_FILE")" 2&gt;/dev/null || break
+  sleep 0.1
+done
+APP_PID=$(cat "$TUNE_LAB/pids/app.pid")
+APP_ARGS=$(ps -p "$APP_PID" -o args= 2&gt;/dev/null || true)
+case "$APP_ARGS" in
+  *"$TUNE_LAB/app.py"*) kill "$APP_PID" ;;
+  *) echo 'App PID does not match this lab; leaving it untouched.' ;;
+esac
+sleep 0.2
+if { [ -s "$MASTER_PID_FILE" &amp;&amp; kill -0 "$(cat "$MASTER_PID_FILE")" 2&gt;/dev/null; } || \
+   { [ -n "$APP_ARGS" &amp;&amp; kill -0 "$APP_PID" 2&gt;/dev/null; }; then
+  echo 'A lab process is still alive; keep the directory and inspect.'
+else
+  case "$TUNE_LAB" in
+    /tmp/nginx-tune.*)
+      printf 'Verified disposable directory: %s\n' "$TUNE_LAB"
+      read -r -p 'Type REMOVE to delete it: ' CONFIRM
+      [ "$CONFIRM" = REMOVE ] &amp;&amp; rm -rf -- "$TUNE_LAB"
+      ;;
+    *) echo 'Unexpected path; nothing removed.' ;;
+  esac
+fi</span></pre></div>
+  <p lang="fa">این فرمان فقط پوشهٔ موقت با پیشوند مشخص را هدف می‌گیرد و تأیید صریح می‌خواهد. اگر فرایندی هنوز فعال است، پوشه را نگه دار و اول علت را پیدا کن؛ لاگ‌ها شواهد مقایسهٔ تو هستند.</p>
+  <p lang="en">This command targets only the named temporary-directory prefix and requires explicit confirmation. If a process remains active, keep the directory and investigate first; the logs are your comparison evidence.</p>
+</section>
+
+<section id="quick-reference">
+  <h2><span lang="fa">پیش از تغییر، این پنج پرسش را جواب بده</span><span lang="en">Answer these five questions before changing anything</span></h2>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">پرسش</span><span lang="en">Question</span></th><th><span lang="fa">شاهد مناسب</span><span lang="en">Useful evidence</span></th><th><span lang="fa">از این پرهیز کن</span><span lang="en">Avoid</span></th></tr></thead><tbody>
+    <tr><td><span lang="fa">کدام مرحله کند است؟</span><span lang="en">Which stage is slow?</span></td><td><span lang="fa">request/upstream time، لاگ و direct check</span><span lang="en">Request/upstream time, logs, and direct checks</span></td><td><span lang="fa">worker اضافه بدون اندازه‌گیری</span><span lang="en">Adding workers without measurement</span></td></tr>
+    <tr><td><span lang="fa">socketها به سقف رسیده‌اند؟</span><span lang="en">Are sockets at their limit?</span></td><td><code>worker_connections</code>، error log، FD/service limit</td><td><span lang="fa">فرض‌کردن هر socket معادل یک user است</span><span lang="en">Assuming each socket equals one user</span></td></tr>
+    <tr><td><span lang="fa">کدام سمت buffer بزرگ می‌خواهد؟</span><span lang="en">Which side needs a larger buffer?</span></td><td><span lang="fa">خطای header، اندازهٔ body و مسیر فایل موقت</span><span lang="en">Header error, body size, and temp-file path</span></td><td><span lang="fa">بزرگ‌کردن همهٔ bufferها با هم</span><span lang="en">Enlarging every buffer together</span></td></tr>
+    <tr><td><span lang="fa">timeout کدام انتظار؟</span><span lang="en">Which wait does the timeout cover?</span></td><td><span lang="fa">مرحله و فاصلهٔ زمانی از لاگ</span><span lang="en">Stage and timing gap from logs</span></td><td><span lang="fa">timeout یک‌روزه برای پنهان‌کردن upstream گیرکرده</span><span lang="en">A one-day timeout to hide a stalled upstream</span></td></tr>
+    <tr><td><span lang="fa">تغییر واقعاً کمک کرد؟</span><span lang="en">Did the change actually help?</span></td><td><span lang="fa">همان آزمون، خطاها، latency، throughput و CPU</span><span lang="en">Same test, failures, latency, throughput, and CPU</span></td><td><span lang="fa">مقایسهٔ دو اجرای نامشابه</span><span lang="en">Comparing unlike runs</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa">مقادیر پیش‌فرض اغلب برای شروع بد نیستند، چون هزاران محیط پیش از تو روی آن‌ها کار کرده‌اند؛ این تضمین نمی‌کند با workload تو مناسب‌اند. اما تغییرشان هم پیش‌فرضِ درست نیست. تا وقتی اندازه‌گیری bottleneck مشخصی نشان نداده، config ساده‌تر را نگه دار.</p>
+  <p lang="en">Defaults are often reasonable starting points because they have served many environments; that does not guarantee they fit your workload. But changing them is not the default either. Keep the simpler config until measurement identifies a specific bottleneck.</p>
+</section>
+
+<section id="next">
+  <h2><span lang="fa">فصل بعد: از عدد به عیب‌یابی خطا</span><span lang="en">Next: move from numbers to error diagnosis</span></h2>
+  <p lang="fa">حالا می‌توانیم فرق ظرفیت connection، FD، upstream کند و buffer بزرگ را از هم جدا کنیم و تغییر را با آزمون تکرارپذیر بسنجیم. در فصل بعد، وقتی client 403، 502 یا 504 می‌گیرد، همین رویکرد را به مرزهای دسترسی و proxy می‌بریم: status فقط سرنخ است؛ مسیر و log می‌گویند کجا باید نگاه کرد.</p>
+  <p lang="en">We can now distinguish connection capacity, file descriptors, a slow upstream, and oversized buffers, then evaluate a change with a repeatable test. Next, when a client gets 403, 502, or 504, we will apply the same method to access and proxy boundaries: status is a clue; the path and logs tell us where to look.</p>
+</section>
+
+<section id="official-refs">
+  <h2><span lang="fa">مستندات اصلی برای نسخهٔ خودت</span><span lang="en">Primary documentation for your version</span></h2>
+  <ul lang="fa">
+    <li><a href="https://nginx.org/en/docs/ngx_core_module.html">مستند core: worker_processes، worker_connections و worker_rlimit_nofile</a></li>
+    <li><a href="https://nginx.org/en/docs/http/ngx_http_core_module.html">مستند core HTTP: keepalive و client-side buffering/timeouts</a></li>
+    <li><a href="https://nginx.org/en/docs/http/ngx_http_proxy_module.html">مستند proxy: bufferها، upstream keepalive و timeoutها</a></li>
+    <li><a href="https://httpd.apache.org/docs/current/en/programs/ab.html">راهنمای ApacheBench: تعداد درخواست و concurrency</a></li>
+  </ul>
+  <ul lang="en">
+    <li><a href="https://nginx.org/en/docs/ngx_core_module.html">Core directives: worker_processes, worker_connections, and worker_rlimit_nofile</a></li>
+    <li><a href="https://nginx.org/en/docs/http/ngx_http_core_module.html">HTTP core: keepalive, client buffering, and timeouts</a></li>
+    <li><a href="https://nginx.org/en/docs/http/ngx_http_proxy_module.html">Proxy module: buffers, upstream keepalive, and timeouts</a></li>
+    <li><a href="https://httpd.apache.org/docs/current/en/programs/ab.html">ApacheBench: request count and concurrency</a></li>
+  </ul>
+</section>

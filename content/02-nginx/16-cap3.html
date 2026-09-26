@@ -1,0 +1,358 @@
+<!--meta
+title: پروژهٔ ۳ — gateway کامل
+desc: سه مسیر سرویس را پشت یک Nginx جمع کن؛ TLS آزمایشگاهی، cache امن، توزیع بار، rate limit، log قابل‌تحلیل، عیب‌یابی و rollback را با آزمون ثابت کن.
+-->
+<div class="masthead">
+  <span class="eyebrow"><span class="dot"></span><span lang="fa">Nginx · پروژهٔ نهایی</span><span lang="en">Nginx · capstone</span></span>
+  <h1 lang="fa">پروژهٔ ۳ — gateway کامل</h1><h1 lang="en">Project 3 — a complete gateway</h1>
+  <p class="sub" lang="fa">امروز چند سرویس کوچک داریم که هرکدام جدا جواب می‌دهند؛ اما کاربر نباید پورت‌هایشان را بشناسد. تو باید یک gateway بسازی که درخواست را به مقصد درست ببرد، دادهٔ عمومی را بااحتیاط cache کند، بار یک سرویس را پخش کند و جلوی هجوم ساده به مسیر ورود را بگیرد. آخر کار هم باید بتوانی ثابت کنی چه اتفاقی افتاده و اگر کانفیگ خراب شد، چطور برمی‌گردی.</p>
+  <p class="sub" lang="en">Several small services respond on their own, but users should not need to know their ports. Build one gateway that routes each request, cautiously caches public data, distributes one service across instances, and slows a burst against a sensitive route. Then prove what happened—and how to recover if a config change is bad.</p>
+  <div class="facts"><div class="fact"><b>۱۵۰</b><span lang="fa">دقیقهٔ مأموریت</span><span lang="en">minutes</span></div><div class="fact"><b>۹</b><span lang="fa">نقطهٔ تحویل</span><span lang="en">checkpoints</span></div><div class="fact"><b>۳</b><span lang="fa">مسیر سرویس</span><span lang="en">service routes</span></div><div class="fact"><b>۱</b><span lang="fa">gateway عمومی</span><span lang="en">public gateway</span></div></div>
+</div>
+
+<section id="mission">
+  <h2><span lang="fa">مأموریت: سه سرویس، یک درِ ورودی</span><span lang="en">Mission: three services, one front door</span></h2>
+  <p class="lede" lang="fa">تیم محصول می‌گوید: «صفحهٔ catalog، API برنامه و ورود کاربر آماده‌اند. حالا همه را پشت یک آدرس امن بگذار.» سه مسیر داریم: <code>/catalog/</code> برای پاسخ عمومی و قابل‌cache، <code>/api/</code> برای برنامه‌ای که دو نمونه دارد، و <code>/login/</code> برای مسیری حساس که نباید بی‌مهار درخواست بگیرد. از بیرون فقط Nginx دیده می‌شود.</p>
+  <p class="lede" lang="en">The product team says: “The catalog page, application API, and sign-in endpoint are ready. Put them behind one secure address.” There are three paths: <code>/catalog/</code> for public cacheable data, <code>/api/</code> for an app with two instances, and <code>/login/</code> for a sensitive route that should not accept an unchecked burst. Only Nginx is reachable from outside.</p>
+  <div class="diagram"><svg viewBox="0 0 1040 590" role="img" aria-labelledby="ngcap-flow-title" xmlns="http://www.w3.org/2000/svg">
+    <title id="ngcap-flow-title">One HTTPS client enters Nginx; path branches lead to catalog cache, two balanced API instances, and rate-limited login. Backends remain inside the private network / یک کاربر HTTPS وارد Nginx می‌شود و مسیرها به catalog، دو نمونهٔ API و login محدودشده می‌روند؛ سرویس‌های پشت gateway در شبکهٔ خصوصی‌اند.</title>
+    <defs><marker id="ngcap-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow-b"/></marker></defs>
+    <rect x="28" y="240" width="170" height="92" rx="16" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/><text x="113" y="277" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">client</text><text x="113" y="306" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">HTTPS :443</text>
+    <rect x="258" y="186" width="245" height="202" rx="20" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/><text x="380" y="228" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Nginx edge</text><text x="380" y="263" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">TLS · routing</text><text x="380" y="294" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">cache · rate limit</text><text x="380" y="345" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">structured access log</text>
+    <path d="M198 286H258" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#ngcap-arrow)"/>
+    <rect x="564" y="52" width="245" height="104" rx="16" class="dg-fill-g" stroke="var(--safe)" stroke-width="2"/><text x="686" y="91" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">catalog</text><text x="686" y="123" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">public GET · cache</text>
+    <rect x="564" y="244" width="205" height="92" rx="16" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/><text x="666" y="281" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">api-1</text><text x="666" y="311" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">instance id: one</text>
+    <rect x="824" y="244" width="188" height="92" rx="16" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/><text x="918" y="281" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">api-2</text><text x="918" y="311" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">instance id: two</text>
+    <rect x="564" y="432" width="245" height="104" rx="16" class="dg-fill-y" stroke="var(--warn)" stroke-width="2"/><text x="686" y="471" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">login</text><text x="686" y="503" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">per-client rate limit</text>
+    <path d="M503 218L564 104" class="dg-stroke-g" stroke-width="2.5" marker-end="url(#ngcap-arrow)"/><path d="M503 284H564" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#ngcap-arrow)"/><path d="M769 290H824" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#ngcap-arrow)"/><path d="M503 354L564 484" class="dg-stroke-y" stroke-width="2.5" marker-end="url(#ngcap-arrow)"/>
+    <text x="528" y="148" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">/catalog/</text><text x="528" y="271" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">/api/</text><text x="528" y="425" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">/login/</text>
+    <rect x="253" y="444" width="250" height="94" rx="16" class="dg-fill" stroke="var(--line-strong)" stroke-width="1.5"/><text x="378" y="481" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">same private network</text><text x="378" y="511" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">only edge publishes 80/443</text>
+  </svg><p class="diagram-cap" lang="fa">فلش‌ها مسیر درخواست‌اند؛ شاخهٔ API دو مقصد هم‌نقش دارد و Nginx بینشان انتخاب می‌کند. کادر شبکه مرز دسترسی backendهاست؛ تنها پورت‌های Nginx روی host منتشر می‌شوند.</p><p class="diagram-cap" lang="en">Arrows show request paths. The API branch has two equivalent targets for Nginx to select between. The network boundary keeps backends private; only Nginx publishes host ports.</p></div>
+  <div class="note warn"><p lang="fa">برای اینکه روی لپ‌تاپ هم قابل تکرار باشد، در این مأموریت از TLS خودامضاشده استفاده می‌کنیم و در درخواست آزمایشگاهی از <code>curl -k</code> کمک می‌گیریم. این فقط رمزگذاری مسیر تا Nginx را برای آزمایش نشان می‌دهد؛ گواهی مورداعتماد مرورگر یا اثبات مالکیت دامنه نیست. برای HTTPS عمومی باید دامنه و گواهی معتبر پروژهٔ ۱ را جایگزین کنی.</p><p lang="en">For repeatable local work, this mission uses a self-signed certificate and <code>curl -k</code> for lab requests. That demonstrates encryption to Nginx, not browser trust or domain ownership. Public HTTPS requires a real domain and the trusted certificate from Project 1.</p></div>
+</section>
+
+<section id="contract">
+  <h2><span lang="fa">قرارداد پروژه</span><span lang="en">Project contract</span></h2>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">باید تحویل بدهی</span><span lang="en">Required outcome</span></th><th><span lang="fa">مدرکی که نشانش می‌دهد</span><span lang="en">Proof</span></th></tr></thead><tbody>
+    <tr><td><span lang="fa">سه مسیر به backend درست می‌رسند</span><span lang="en">Three paths reach the correct backends</span></td><td><span lang="fa">پاسخ endpoint و upstream در log</span><span lang="en">Endpoint response and logged upstream</span></td></tr>
+    <tr><td><span lang="fa">TLS فعال است و محدودیت گواهی آزمایشگاهی معلوم است</span><span lang="en">TLS works and the lab certificate limitation is explicit</span></td><td><span lang="fa">جزئیات <code>curl -k -v</code>؛ برای دامنه، curl بدون <code>-k</code></span><span lang="en"><code>curl -k -v</code> details; without <code>-k</code> for a real domain</span></td></tr>
+    <tr><td><span lang="fa">فقط دادهٔ عمومی cache می‌شود</span><span lang="en">Only public data is cached</span></td><td><span lang="fa">پاسخ اول MISS و بعدی HIT؛ login هرگز HIT نیست</span><span lang="en">First response MISS, next HIT; login is never a cache HIT</span></td></tr>
+    <tr><td><span lang="fa">توزیع API و تحمل قطع یک نمونه آزمایش شده</span><span lang="en">API distribution and one-instance failure are tested</span></td><td><span lang="fa">شناسهٔ هر دو نمونه، سپس پاسخ سالم با توقف یکی</span><span lang="en">Both instance IDs, then a response with one stopped</span></td></tr>
+    <tr><td><span lang="fa">مسیر ورود rate limit دارد</span><span lang="en">The sign-in route is rate-limited</span></td><td><span lang="fa">پاسخ‌های معمول و 429 همراه <code>$limit_req_status</code></span><span lang="en">Normal responses and 429 with <code>$limit_req_status</code></span></td></tr>
+    <tr><td><span lang="fa">کانفیگ خراب reload نمی‌شود و rollback معلوم است</span><span lang="en">Bad config is not reloaded and rollback is known</span></td><td><span lang="fa"><code>nginx -t</code> ناموفق، سرویس قبلی سالم، سپس بازیابی</span><span lang="en">Failing <code>nginx -t</code>, old service still works, then recovery</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa">این یک gateway برای محیط تمرین است، نه معماری production آمادهٔ کپی. با دو نمونه، اگر هر دو از کار بیفتند پاسخ سالم نداریم؛ cache هم فقط برای مسیر عمومی و پاسخ غیرشخصی تعریف می‌شود. rate limit بر اساس IP پشت NAT می‌تواند چند کاربر واقعی را یک مشتری حساب کند. این‌ها تصمیم‌هایی‌اند که در یادداشت تحویل باید ثبت کنی.</p><p lang="en">This is a learning gateway, not a production architecture to copy blindly. Two failed instances still mean no healthy API response; caching is limited to a public, non-personalized route. IP-based limits can group real users behind one NAT address. Record these trade-offs in the handoff.</p>
+</section>
+
+<section id="checkpoint-1">
+  <h2><span lang="fa">نقطهٔ ۱: سرویس‌ها را قبل از proxy بشناس</span><span lang="en">Checkpoint 1: know the services before proxying</span></h2>
+  <p lang="fa">سه backend بساز یا از starter همین پروژه استفاده کن. هرکدام باید نام خودش را در خروجی برگرداند؛ catalog علاوه بر آن یک مقدار ثابتِ قابل مشاهده مثل <code>catalog revision 1</code> بدهد. دو نمونهٔ API خروجی متفاوت <code>api-1</code> و <code>api-2</code> داشته باشند. login هم پاسخ سادهٔ موفق برگرداند. هیچ‌کدام را هنوز از host منتشر نکن.</p><p lang="en">Create the three backends or use this project’s starter. Each returns its own name; catalog also returns a visible fixed value such as <code>catalog revision 1</code>. The two API instances return distinct <code>api-1</code> and <code>api-2</code> identifiers. Login returns a simple success response. Do not publish any backend port to the host.</p>
+  <p lang="fa">قبل از نوشتن Nginx، از داخل شبکهٔ پروژه endpoint هر سرویس را بزن. این تست ثابت می‌کند سرویس و DNS داخلی کار می‌کنند؛ هنوز چیزی دربارهٔ TLS، مسیرهای Nginx یا دسترسی از اینترنت نمی‌گوید.</p><p lang="en">Before writing Nginx config, request each service from inside the project network. This proves the service and internal DNS work; it says nothing yet about TLS, Nginx routing, or internet reachability.</p>
+  <div class="term"><div class="term-bar"><span class="term-label">record one direct response from every backend</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">docker compose ps
+docker compose exec nginx wget -qO- http://catalog:8080/catalog/featured
+docker compose exec nginx wget -qO- http://api-1:8080/api/whoami
+docker compose exec nginx wget -qO- http://login:8080/login/</span>
+<span class="s">catalog revision 1
+api-1
+login ready</span></pre></div>
+  <p lang="fa">اگر Nginx image ابزار <code>wget</code> نداشت، اشکالی ندارد: از container آزمایش موقت متصل به همان network استفاده کن. ابزار تشخیصی را به image نهایی اضافه نکن فقط برای راحتی این مرحله.</p><p lang="en">If the Nginx image lacks <code>wget</code>, use a disposable diagnostic container attached to the same network. Do not add troubleshooting tools to the final image merely for this step.</p>
+</section>
+
+<section id="checkpoint-2">
+  <h2><span lang="fa">نقطهٔ ۲: فقط Nginx رو به بیرون</span><span lang="en">Checkpoint 2: expose only Nginx</span></h2>
+  <p lang="fa">در Compose فقط برای Nginx نگاشت <code>8080:80</code> و <code>8443:443</code> بگذار. سه backend و دو نمونهٔ API باید روی شبکهٔ داخلی باشند و <em>ports</em> نداشته باشند. پیش از ادامه، این را از پیکربندی مؤثر و از host بررسی کن؛ «من پورت را در مرورگر ندیدم» مدرک کافی نیست.</p><p lang="en">In Compose, publish <code>8080:80</code> and <code>8443:443</code> only for Nginx. The three backends and both API instances stay on the internal project network with no <em>ports</em>. Verify effective config and host listeners before continuing; “I did not see the port in a browser” is not enough proof.</p>
+  <div class="term"><div class="term-bar"><span class="term-label">inspect published bindings from both Docker and the host</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">docker compose ps
+docker compose port nginx 80
+docker compose port nginx 443
+docker compose port api-1 8080
+ss -lnt</span>
+<span class="s">127.0.0.1:8080
+127.0.0.1:8443
+no published port for api-1</span></pre></div>
+  <p lang="fa">برای آزمایش روی همان ماشین، پورت‌ها را به <code>127.0.0.1</code> bind کن تا از شبکهٔ بیرونی در دسترس نباشند. اگر با ماشین مجازی جدا کار می‌کنی، برای آزمون از host میزبان مسیر دسترسی را آگاهانه تنظیم کن؛ firewall جایگزین bind محدود نیست.</p><p lang="en">For a same-machine lab, bind published ports to <code>127.0.0.1</code> so they are not reachable from external interfaces. With a separate VM, deliberately arrange a path from the host for testing; a firewall is not a substitute for a narrow bind.</p>
+</section>
+
+<section id="checkpoint-3">
+  <h2><span lang="fa">نقطهٔ ۳: مسیرها و TLS را وصل کن</span><span lang="en">Checkpoint 3: wire routes and TLS</span></h2>
+  <p lang="fa">گواهی آزمایشگاهی بساز و سه location را به نام سرویس Compose وصل کن. برای هر مسیر URL یکتا و پاسخ backend را یادداشت کن؛ فعلاً cache و rate limit خاموش بمانند تا اگر مسیر اشتباه بود، علت‌ها را قاطی نکنی.</p><p lang="en">Create the lab certificate and connect three locations to Compose service names. Record one URL and backend response per route. Leave caching and rate limiting off for now so a routing mistake is not confused with another control.</p>
+  <div class="term"><div class="term-bar"><span class="term-label">self-signed certificate for local-only testing</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">mkdir -p ./lab-certs
+openssl req -x509 -nodes -newkey rsa:2048 -days 7 \
+  -keyout ./lab-certs/server.key \
+  -out ./lab-certs/server.crt \
+  -subj '/CN=localhost' \
+  -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1'
+chmod 600 ./lab-certs/server.key</span></pre></div>
+  <p lang="fa">حالا سه درخواست بزن و گواهی را صریحاً به‌عنوان خودامضاشده ببین. <code>-k</code> فقط اعتبارسنجی گواهی را دور می‌زند؛ آن را در دستور واقعی دامنه به کار نبر.</p><p lang="en">Now make three requests and inspect the certificate as self-signed. <code>-k</code> skips certificate verification; never use it for a real public-domain acceptance test.</p>
+  <div class="term"><div class="term-bar"><span class="term-label">verify TLS handshake and route response</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl -k -i https://localhost:8443/catalog/featured
+curl -k -i https://localhost:8443/api/whoami
+curl -k -i https://localhost:8443/login/</span>
+<span class="s">HTTP/1.1 200 OK
+catalog revision 1
+api-1
+login ready</span></pre></div>
+  <p lang="fa">اگر status، body و backend نامنتظره است، URL را از Nginx error log تا <code>proxy_pass</code> دنبال کن؛ با تغییر هم‌زمان چند location چیزی یاد نمی‌گیری. گواهی خودامضا ممکن است warning بدهد، اما handshake و نام سرویس route شده باید دیده شود.</p><p lang="en">If status, body, or backend is unexpected, trace that URL from the Nginx error log to <code>proxy_pass</code>; changing several locations at once obscures the lesson. A self-signed warning is expected, but the handshake and routed service should be visible.</p>
+</section>
+
+<section id="checkpoint-4">
+  <h2><span lang="fa">نقطهٔ ۴: cache را فقط روی پاسخ بی‌خطر امتحان کن</span><span lang="en">Checkpoint 4: cache only a safe response</span></h2>
+  <p lang="fa">catalog محتوای عمومی و ثابت دارد، پس برایش cache با عمر کوتاه و header نشانگر بگذار. اول همان URL را دوبار بزن؛ انتظار داریم بار اول <code>MISS</code> و بار دوم <code>HIT</code> باشد. تغییر پاسخ origin تا پایان TTL طبیعی است و باید در یادداشتت بیاید.</p><p lang="en">Catalog is public and stable, so give it a short-lived cache and a diagnostic header. Request the same URL twice: expect <code>MISS</code> then <code>HIT</code>. The origin may change while the cached response remains until its TTL expires; record that behavior.</p>
+  <div class="term"><div class="term-bar"><span class="term-label">compare the cache indicator across two identical GETs</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl -k -sS -D - -o /dev/null https://localhost:8443/catalog/featured
+curl -k -sS -D - -o /dev/null https://localhost:8443/catalog/featured</span>
+<span class="s">X-Cache-Status: MISS
+X-Cache-Status: HIT</span></pre></div>
+  <p lang="fa">در <code>/login/</code> و مسیرهای کاربرمحور cache نگذار. هیچ‌وقت response دارای نشست یا دادهٔ شخصی را به‌خاطر یک تست موفق cache نکن. اگر origin headerهای <code>Set-Cookie</code> یا <code>Cache-Control</code> می‌فرستد، رفتار cache را دوباره بررسی کن؛ این آزمایش ساده جای سیاست محصول را نمی‌گیرد.</p><p lang="en">Do not cache <code>/login/</code> or user-specific paths. Never cache a response containing session or personal data just because a test worked. If an origin emits <code>Set-Cookie</code> or <code>Cache-Control</code>, review the cache behavior; this small test is not a product policy.</p>
+</section>
+
+<section id="checkpoint-5">
+  <h2><span lang="fa">نقطهٔ ۵: توزیع بار را با مدرک ببین</span><span lang="en">Checkpoint 5: observe load distribution</span></h2>
+  <p lang="fa">گروه <code>api_pool</code> را با دو نمونه تعریف کن. درخواست‌های پشت‌سرهم باید هر دو شناسه را نشان دهند؛ برای این آزمایش round robin ساده کافی است. تعداد درخواست کم، آزمون آماریِ توازن بار نیست و دو درخواست هم تضمین نمی‌کند در production دقیقاً نصف‌نصف شود.</p><p lang="en">Define an <code>api_pool</code> with two instances. Repeated requests should reveal both IDs; simple round robin is enough for this lab. A small request count is not a statistical load test, and two requests do not guarantee a 50/50 production distribution.</p>
+  <div class="term"><div class="term-bar"><span class="term-label">send sequential requests and preserve the returned instance IDs</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">for i in $(seq 1 8); do
+  curl -k -sS https://localhost:8443/api/whoami
+done</span>
+<span class="s">api-1
+api-2
+api-1
+api-2
+...</span></pre></div>
+  <p lang="fa">برای آزمایش passive failure، فقط یک نمونه را متوقف کن، چند بار API را بخوان و سپس همان نمونه را برگردان. Nginx متن‌باز با خطاهای درخواست واقعی، برای مدتی backend خراب را از انتخاب کنار می‌گذارد؛ این active healthcheck دوره‌ایِ NGINX Plus نیست و تا رسیدن درخواست خطادار هم ممکن است خرابی را نداند.</p><p lang="en">For a passive-failure drill, stop exactly one instance, request the API several times, then restore that instance. Open-source Nginx uses failures from real requests to avoid a failed backend for a period; this is not NGINX Plus active health checking, and failure may remain unknown until a request encounters it.</p>
+  <div class="term"><div class="term-bar"><span class="term-label">stop one disposable API instance, observe, and bring it back</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">docker compose stop api-2
+for i in $(seq 1 5); do curl -k -sS -o /dev/null -w '%{http_code}\n' https://localhost:8443/api/whoami; done
+docker compose start api-2
+docker compose ps</span></pre></div>
+  <p lang="fa">بسته به زمان‌بندی انتخاب backend و نسخه، ممکن است نخستین درخواست بعد از توقف با ۵۰۲ روبه‌رو شود؛ error log و <code>$upstream_addr</code> را نگه دار. بعد از بالا آمدن backend هم Nginx معمولاً با درخواست واقعی دوباره موفقیت را می‌بیند؛ یک health endpoint تنها، تضمین فعال بودن backend در لحظهٔ بعد نیست.</p><p lang="en">Depending on selection timing and version, the first request after stopping a backend may get 502; keep the error log and <code>$upstream_addr</code>. After it returns, Nginx generally sees success again through a real request; one health endpoint is not a guarantee about the next instant.</p>
+</section>
+
+<section id="checkpoint-6">
+  <h2><span lang="fa">نقطهٔ ۶: مسیر حساس را آرام‌تر کن</span><span lang="en">Checkpoint 6: slow down the sensitive route</span></h2>
+  <p lang="fa">برای login یک zone بر اساس IP client تعریف کن؛ در این lab سقف را عمداً پایین می‌گذاریم تا نتیجه دیده شود. burst کوچک کمک می‌کند چند درخواست نزدیک به هم پذیرفته شود. status ردشده را 429 می‌کنیم، ولی این تنظیم نه احراز هویت است نه محافظت کامل از حملهٔ توزیع‌شده.</p><p lang="en">Define a per-client-IP zone for login. The lab rate is deliberately low so the behavior is visible; a small burst allows a few near-simultaneous requests. Set rejected requests to 429, but this is neither authentication nor complete protection against a distributed attack.</p>
+  <div class="term"><div class="term-bar"><span class="term-label">compare a normal request with a short burst</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">for i in $(seq 1 12); do
+  curl -k -sS -o /dev/null -w '%{http_code} ' https://localhost:8443/login/
+done
+printf '\n'
+docker compose logs --tail=20 nginx</span>
+<span class="s">200 200 200 200 429 429 ...
+... REJECTED ... status=429 ... uri="/login/"</span></pre></div>
+  <p lang="fa">تعداد دقیق پاسخ‌های ۲۰۰ ممکن است با فاصلهٔ درخواست، burst و IP دیده‌شده عوض شود. در log مقدار <code>$limit_req_status</code> را ببین؛ اگر پشت proxy دیگری هستی و Nginx همه را یک IP می‌بیند، پیش از اعتماد به limit باید real-IP فقط از proxyهای مورداعتماد تنظیم شود. هدر client قابل‌جعل را بی‌قیدوشرط مبنا نگذار.</p><p lang="en">The exact number of 200 responses varies with request spacing, burst, and the IP Nginx sees. Inspect <code>$limit_req_status</code> in logs. If another proxy sits in front and Nginx sees one shared IP, configure real-IP only for trusted proxies before relying on the limit. Do not blindly trust a spoofable client header.</p>
+</section>
+
+<section id="checkpoint-7">
+  <h2><span lang="fa">نقطهٔ ۷: log باید سؤال را جواب بدهد</span><span lang="en">Checkpoint 7: make logs answer questions</span></h2>
+  <p lang="fa">برای هر درخواست زمان، request id، مسیر، status، آدرس و status upstream، زمان upstream، وضعیت cache و نتیجهٔ rate limit را ثبت کن. این یک log متنیِ قابل‌جست‌وجوست، نه metrics سامانه‌ای آماده؛ با آن می‌توانی علت یک پاسخ را کنار backend انتخاب‌شده ببینی.</p><p lang="en">Log request time, request ID, path, status, upstream address/status/time, cache status, and rate-limit result. This is searchable text, not a ready-made metrics system; it lets you correlate a response with the selected backend.</p>
+  <div class="term"><div class="term-bar"><span class="term-label">follow a few requests and correlate fields from one line</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">docker compose logs --since=2m nginx
+curl -k -sS https://localhost:8443/api/whoami
+curl -k -sS https://localhost:8443/catalog/featured</span>
+<span class="s">... rid=... status=200 upstream=api-1:8080 upstream_status=200 upstream_time=0.002 cache=- limit=PASSED
+... rid=... status=200 upstream=catalog:8080 upstream_status=200 upstream_time=0.001 cache=HIT limit=PASSED</span></pre></div>
+  <p lang="fa">اگر client پاسخ خطا دید، همان زمان و request id را در access log پیدا کن؛ اگر درخواست اصلاً به backend نرسیده، journal سرویس‌های آزمایشی چیزی دربارهٔ خطای Nginx نمی‌گوید. اگر log می‌گوید upstream ناموجود است، DNS داخلی و وضعیت Compose را جدا بررسی کن. log سرنخ است، نه علت قطعی به‌تنهایی.</p><p lang="en">If a client sees an error, find its time and request ID in the access log. If the request never reached a backend, the demo service journal cannot explain an Nginx-side failure. If the log names an unavailable upstream, inspect internal DNS and Compose state separately. A log is a clue, not a definitive cause by itself.</p>
+</section>
+
+<section id="checkpoint-8">
+  <h2><span lang="fa">نقطهٔ ۸: خرابی را قبل از reload متوقف کن</span><span lang="en">Checkpoint 8: stop a bad config before reload</span></h2>
+  <p lang="fa">حالا دو خرابی متفاوت را تمرین کن. اول مسیر API را موقتاً به پورت نادرست بفرست: <code>nginx -t</code> باز هم ممکن است موفق شود، چون syntax درست است؛ درخواست واقعی باید ۵۰۲ و نشانی upstream اشتباه را نشان بدهد. تغییر را برگردان و همان درخواست را دوباره موفق کن.</p><p lang="en">Now practice two different failures. First point the API route at a wrong port: <code>nginx -t</code> may still pass because the syntax is valid; a real request should reveal 502 and the wrong upstream address. Revert and repeat the same request successfully.</p>
+  <p lang="fa">بعد در یک کپیِ config یک directive را عمداً غلط بنویس. قبل از reload باید <code>nginx -t</code> شکست بخورد؛ چون reload نکرده‌ای، workerهای قبلی باید همچنان پاسخ بدهند. فایل فعال را فقط پس از مقایسه با نسخهٔ پشتیبان جایگزین کن.</p><p lang="en">Next, misspell a directive in a config copy. <code>nginx -t</code> must fail before reload; because you did not reload, existing workers should continue serving. Replace the active file only after comparing it with the backup.</p>
+  <div class="term"><div class="term-bar"><span class="term-label">validate the candidate first; preserve the running config until it passes</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">docker compose exec nginx nginx -t
+curl -k -sS -o /dev/null -w '%{http_code}\n' https://localhost:8443/catalog/featured</span>
+<span class="s">nginx: [emerg] unknown directive "proxy_passs" ...
+200</span></pre></div>
+  <p lang="fa">این مدرک می‌گوید config فعال قبلی پاسخ داده و config خراب رد شده؛ دربارهٔ درست بودن همهٔ مسیرها یا سلامت backendها چیزی ثابت نمی‌کند. پس از repair، دوباره <code>nginx -t</code>، reload کنترل‌شده و همان آزمون‌های مسیر/TLS/cache/rate را اجرا کن.</p><p lang="en">This proves the old active config served a response while the invalid candidate was rejected; it does not prove every route or backend is healthy. After repair, rerun <code>nginx -t</code>, perform a controlled reload, and repeat the same route/TLS/cache/rate tests.</p>
+</section>
+
+<section id="checkpoint-9">
+  <h2><span lang="fa">نقطهٔ ۹: تحویل فنی، نه فقط «کار می‌کند»</span><span lang="en">Checkpoint 9: hand off evidence, not just “it works”</span></h2>
+  <p lang="fa">مأموریت وقتی تمام است که نفر بعدی بتواند مسیر و تصمیم‌ها را بفهمد. یک یادداشت کوتاه تحویل بده: کدام host port عمومی است، هر مسیر به کدام service می‌رود، چه پاسخی cache می‌شود و چند ثانیه، چطور دو نمونه را شناختی، چه IPی rate limit می‌بیند، کجا log را پیدا کند و rollback را چطور اجرا کند.</p><p lang="en">The mission is complete when the next operator can understand the routes and decisions. Hand off which host ports are published, where each path goes, which response is cached and for how long, how you identified both instances, which IP the limiter sees, where logs live, and how to roll back.</p>
+  <p lang="fa">کنار یادداشت، خروجی آزمون‌ها را نگه دار. فقط screenshot صفحهٔ اصلی کافی نیست: نتیجهٔ cache، هر دو شناسهٔ API، نرخ محدودشده، درخواست پس از توقف یک backend، گواهی TLS و رد شدن config غلط باید مدرک داشته باشند.</p><p lang="en">Keep test output with the note. A screenshot of the home page is not enough: preserve proof of cache behavior, both API IDs, throttling, a request during backend failure, the TLS certificate, and rejection of invalid config.</p>
+</section>
+
+<section id="hints">
+  <h2><span lang="fa">راهنمایی‌ها را به‌ترتیب باز کن</span><span lang="en">Open hints progressively</span></h2>
+  <details><summary><span lang="fa">۱. ۵۰۲ می‌بینی، اما کدام مرز خراب است؟</span><span lang="en">1. You see 502; which boundary failed?</span></summary><p lang="fa">اول مستقیم از شبکهٔ Compose به سرویس بزن. بعد Nginx error log و <code>$upstream_addr</code> را با نام و پورت واقعی مقایسه کن. reload بی‌دلیل کمکی نمی‌کند.</p><p lang="en">First request the service directly from the Compose network. Then compare the Nginx error log and <code>$upstream_addr</code> with the actual service name and port. A blind reload does not help.</p></details>
+  <details><summary><span lang="fa">۲. cache هیچ‌وقت HIT نمی‌شود</span><span lang="en">2. Cache never becomes HIT</span></summary><p lang="fa">مطمئن شو دو درخواست GET دقیقاً یک key دارند، origin پاسخ cacheable می‌دهد و cookie یا دستور منع cache در پاسخ نیست. cache را از URLهای login حذف کن.</p><p lang="en">Ensure both GETs use the same key, the origin response is cacheable, and no cookie or cache-prevention directive is present. Keep login URLs out of the cache.</p></details>
+  <details><summary><span lang="fa">۳. هر درخواست login از یک IP دیده می‌شود</span><span lang="en">3. Every login request appears to come from one IP</span></summary><p lang="fa">ممکن است همهٔ درخواست‌ها از یک proxy بیایند. real-IP را فقط با فهرست proxyهای مورداعتماد تنظیم کن؛ <code>X-Forwarded-For</code> دلخواه از اینترنت را معتبر فرض نکن.</p><p lang="en">A proxy may be the source of every request. Configure real-IP only with a trusted proxy list; never assume arbitrary internet-supplied <code>X-Forwarded-For</code> is trustworthy.</p></details>
+  <details><summary><span lang="fa">۴. دستور خراب از test گذشت</span><span lang="en">4. The bad change passed config test</span></summary><p lang="fa">اگر فقط شمارهٔ port یا مقصد منطقی اشتباه باشد، parser خطای syntax نمی‌بیند. درخواست واقعی، upstream address و اتصال backend این دو نوع خطا را از هم جدا می‌کنند.</p><p lang="en">A wrong port or logically wrong target can still be valid syntax. A real request, upstream address, and backend connectivity distinguish this from a parser error.</p></details>
+</section>
+
+<section id="reference-solution">
+  <h2><span lang="fa">راه‌حل مرجع — بعد از تلاش خودت مقایسه کن</span><span lang="en">Reference solution — compare after your attempt</span></h2>
+  <p lang="fa">این scaffold برای ماشین تمرینِ Linux با Docker Compose است. از imageهای رسمی Nginx و Python استفاده می‌کند؛ tag دقیق را در اجرای واقعی خودت ثبت و ثابت کن. گواهی self-signed فقط برای localhost است. نام فایل‌ها را مثل ساختار پایین بچین؛ backend عمدی کوچک است تا تمرکز روی gateway بماند.</p><p lang="en">This scaffold targets a Linux lab machine with Docker Compose. It uses the official Nginx and Python images; record and pin exact tags in your real run. The self-signed certificate is for localhost only. Use the file layout below; the backend is intentionally tiny so the gateway remains the focus.</p>
+  <h3><span lang="fa">چیدمان فایل‌ها</span><span lang="en">File layout</span></h3>
+  <div class="term"><div class="term-bar"><span class="term-label">keep generated certificate files local and out of version control</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">gateway-lab/
+├── compose.yaml
+├── .gitignore
+├── backend/
+│   └── server.py
+├── nginx/
+│   └── nginx.conf
+└── lab-certs/
+    ├── server.crt
+    └── server.key</span></pre></div>
+  <p lang="fa">پیش از اجرا، <code>.gitignore</code> را بساز تا کلید خصوصی آزمایشگاهی وارد Git نشود. خود certificate محرمانه نیست، ولی هر دو فایل ساخته‌شده را برای این تمرین محلی نگه می‌داریم.</p><p lang="en">Create <code>.gitignore</code> before running so the lab private key never enters Git. The certificate is public, but keep both generated files local for this exercise.</p>
+  <div class="term"><div class="term-bar"><span class="term-label">.gitignore</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">lab-certs/
+*.key</span></pre></div>
+  <h3><span lang="fa">backend آزمایشی</span><span lang="en">Demo backend</span></h3>
+  <div class="term"><div class="term-bar"><span class="term-label">backend/server.py — no data writes; distinguish each instance</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">from http.server import BaseHTTPRequestHandler, HTTPServer
+import os
+import json
+import time
+
+NAME = os.environ.get("SERVICE_NAME", "backend")
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == "/catalog/featured":
+            body = {"service": NAME, "item": "featured", "revision": "catalog revision 1"}
+        elif self.path == "/api/whoami":
+            body = {"service": NAME, "instance": NAME}
+        elif self.path == "/login/":
+            body = {"service": NAME, "result": "login ready"}
+        else:
+            self.send_error(404)
+            return
+        raw = json.dumps(body).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(raw)))
+        self.end_headers()
+        self.wfile.write(raw)
+        print(f"{time.time():.3f} {self.client_address[0]} GET {self.path} 200", flush=True)
+
+    def log_message(self, fmt, *args):
+        print(f"{time.time():.3f} {self.client_address[0]} {fmt % args}", flush=True)
+
+HTTPServer(("0.0.0.0", 8080), Handler).serve_forever()</span></pre></div>
+  <p lang="fa">این server تک‌ریسمانی برای آزمون ساده است، نه app production. backendها در Compose شبکهٔ جداگانه دارند؛ binding به همهٔ interfaceهای <em>داخل container</em> لازم است تا Nginx به آن‌ها وصل شود، اما چون host port منتشر نشده، این به‌تنهایی پورت عمومی host نمی‌سازد.</p><p lang="en">This single-threaded server is a test fixture, not a production app. It binds all interfaces inside its container so Nginx can connect on the private network; with no host port published, that does not by itself expose the host port publicly.</p>
+  <h3><span lang="fa">Compose: یک edge، سه مسیر منطقی</span><span lang="en">Compose: one edge, three logical routes</span></h3>
+  <div class="term"><div class="term-bar"><span class="term-label">compose.yaml — only Nginx publishes host ports</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "127.0.0.1:8080:80"
+      - "127.0.0.1:8443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./lab-certs:/etc/nginx/certs:ro
+    depends_on:
+      - catalog
+      - api-1
+      - api-2
+      - login
+    networks: [edge]
+    restart: unless-stopped
+
+  catalog:
+    image: python:3.12-alpine
+    command: ["python", "/app/server.py"]
+    environment: {SERVICE_NAME: catalog}
+    volumes: ["./backend/server.py:/app/server.py:ro"]
+    networks: [edge]
+    restart: unless-stopped
+
+  api-1:
+    image: python:3.12-alpine
+    command: ["python", "/app/server.py"]
+    environment: {SERVICE_NAME: api-1}
+    volumes: ["./backend/server.py:/app/server.py:ro"]
+    networks: [edge]
+    restart: unless-stopped
+
+  api-2:
+    image: python:3.12-alpine
+    command: ["python", "/app/server.py"]
+    environment: {SERVICE_NAME: api-2}
+    volumes: ["./backend/server.py:/app/server.py:ro"]
+    networks: [edge]
+    restart: unless-stopped
+
+  login:
+    image: python:3.12-alpine
+    command: ["python", "/app/server.py"]
+    environment: {SERVICE_NAME: login}
+    volumes: ["./backend/server.py:/app/server.py:ro"]
+    networks: [edge]
+    restart: unless-stopped
+
+networks:
+  edge: {driver: bridge}</span></pre></div>
+  <p lang="fa">سه <em>service role</em> پشت Nginx داریم: catalog، API و login؛ API برای نمایش load balancing دو نمونهٔ فیزیکی دارد. Nginx هم خود یک service جداست. <code>depends_on</code> در این scaffold فقط ترتیب ایجاد را کمک می‌کند؛ readiness را ثابت نمی‌کند و اینجا healthcheck برای backend ننوشته‌ایم. پورت‌های منتشرشده به loopback محدودند تا آزمایش عمومی تصادفی نشود.</p><p lang="en">There are three backend service roles behind Nginx: catalog, API, and login; the API has two physical instances to demonstrate balancing. Nginx is a separate service. In this scaffold, <code>depends_on</code> only helps creation order; it does not prove readiness, and these demo backends have no healthchecks. Published ports bind to loopback to avoid accidental public exposure.</p>
+  <h3><span lang="fa">Nginx: دروازه، نه یک مشت directive</span><span lang="en">Nginx: a gateway, not a pile of directives</span></h3>
+  <p lang="fa">در access log فیلدهای upstream و کنترل‌ها را کنار request id می‌گذاریم. log format و zoneها در <code>http</code> هستند؛ مسیرها در <code>server</code>/<code>location</code>. نام image را با نسخهٔ Nginx خودت ثابت کن و پیش از هر reload تست بگیر.</p><p lang="en">The access log places upstream and control fields beside a request ID. Log format and zones live in <code>http</code>; routes live in <code>server</code>/<code>location</code>. Pin the Nginx image version you actually use and test before every reload.</p>
+  <div class="term"><div class="term-bar"><span class="term-label">nginx/nginx.conf — local TLS, safe cache scope, passive upstream failure</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">events {}
+http {
+    log_format edge '$time_iso8601 rid=$request_id method=$request_method uri="$request_uri" '
+                    'status=$status upstream=$upstream_addr upstream_status=$upstream_status '
+                    'upstream_time=$upstream_response_time request_time=$request_time '
+                    'cache=$upstream_cache_status limit=$limit_req_status';
+    access_log /var/log/nginx/access.log edge;
+    error_log  /var/log/nginx/error.log warn;
+
+    proxy_cache_path /var/cache/nginx levels=1:2 keys_zone=public_catalog:10m
+                     max_size=32m inactive=1m use_temp_path=off;
+    limit_req_zone $binary_remote_addr zone=login_per_ip:1m rate=2r/s;
+    limit_req_status 429;
+
+    upstream api_pool {
+        server api-1:8080 max_fails=1 fail_timeout=5s;
+        server api-2:8080 max_fails=1 fail_timeout=5s;
+    }
+
+    server {
+        listen 80;
+        server_name localhost;
+        return 301 https://localhost:8443$request_uri;
+    }
+
+    server {
+        listen 443 ssl;
+        server_name localhost;
+        ssl_certificate     /etc/nginx/certs/server.crt;
+        ssl_certificate_key /etc/nginx/certs/server.key;
+
+        location /catalog/ {
+            proxy_pass http://catalog:8080;
+            proxy_set_header Host $host;
+            proxy_cache public_catalog;
+            proxy_cache_valid 200 20s;
+            proxy_cache_key "$scheme$proxy_host$request_uri";
+            add_header X-Cache-Status $upstream_cache_status always;
+        }
+
+        location /api/ {
+            proxy_pass http://api_pool;
+            proxy_set_header Host $host;
+            proxy_set_header X-Request-ID $request_id;
+        }
+
+        location /login/ {
+            limit_req zone=login_per_ip burst=3 nodelay;
+            proxy_pass http://login:8080;
+            proxy_set_header Host $host;
+            proxy_set_header X-Request-ID $request_id;
+        }
+    }
+}</span></pre></div>
+  <p lang="fa">عمداً پاسخ ۴۰۴ و ۵۰۲ را cache نمی‌کنیم؛ فقط status ۲۰۰ برای catalog و ۲۰ ثانیه. کلید شامل host و URI است. endpoint آزمایشی نه cookie دارد نه هویت کاربر. header <code>X-Cache-Status</code> روی پاسخ خطا هم برای تشخیص می‌آید؛ لاگ، دلیل را کامل‌تر نشان می‌دهد. <code>nodelay</code> burst را فوری می‌فرستد و فراتر از ظرفیت، رد می‌کند؛ rate limit ضدربات کامل نیست.</p><p lang="en">Only catalog 200 responses are cached, for 20 seconds; 404/502 are excluded. The key includes host and URI. The fixture has no cookies or user identity. <code>X-Cache-Status</code> is emitted even on errors for diagnosis; logs provide more context. <code>nodelay</code> sends the configured burst immediately and rejects excess; this is not complete bot protection.</p>
+  <p lang="fa">تنظیم passive failure در upstream با درخواست واقعی backend خراب را موقتاً کنار می‌گذارد؛ اگر فقط یک backend سالم باقی بماند، آن یکی پاسخ می‌دهد. وقتی تنها یک سرور در گروه باشد یا همه خراب باشند، نتیجه می‌تواند خطای ۵۰۲ باشد. Nginx Open Source اینجا probe دوره‌ای یا health endpoint خودکار انجام نمی‌دهد؛ مستندات NGINX Plus را با قابلیت رایگان اشتباه نگیر.</p><p lang="en">Passive upstream failure temporarily avoids a backend after real request failures; if one peer remains healthy, it can answer. With one peer or all peers failed, clients may get 502. This Open Source config does not perform periodic probes or automatically call a health endpoint; do not confuse NGINX Plus documentation with free-edition behavior.</p>
+  <h3><span lang="fa">اعمال امن، rollback، و آزمون دوباره</span><span lang="en">Safe apply, rollback, and retest</span></h3>
+  <p lang="fa">قبل از reload یک کپی از فایل config بگیر. در container آزمایش، <code>nginx -t</code> را اجرا کن؛ اگر موفق شد reload کن. اگر candidate رد شد، چیزی reload نکن و درخواست سالم قبلی را دوباره بزن. config syntax را می‌سنجد، نه دسترس‌پذیری همهٔ سرویس‌ها.</p><p lang="en">Back up the config before reload. Run <code>nginx -t</code> in the test container; reload only if it passes. If the candidate is rejected, do not reload and retest the previous working request. Config test checks syntax and referenced files, not reachability of every service.</p>
+  <div class="term"><div class="term-bar"><span class="term-label">keep a named known-good config, then test and reload</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cp nginx/nginx.conf nginx/nginx.conf.known-good
+docker compose exec nginx nginx -t
+docker compose exec nginx nginx -s reload
+curl -k -i https://localhost:8443/catalog/featured</span></pre></div>
+  <p lang="fa">برای rollback، فقط فایل Nginx را از نسخهٔ known-good برگردان، دوباره test و reload کن و همان مجموعهٔ acceptance test را اجرا کن. volume یا دادهٔ سرویس‌ها را پاک نکن؛ rollback یک تغییر proxy نباید lifecycle داده را دست‌کاری کند.</p><p lang="en">For rollback, restore only the known-good Nginx file, test and reload again, then repeat the same acceptance tests. Do not remove volumes or service data; rolling back a proxy change must not alter data lifecycle.</p>
+  <div class="note safe"><p lang="fa">این نمونه با Composeِ محلی برای تمرین است. مسیر `/var/cache/nginx` داخل container قرار دارد و پس از جایگزینی container ممکن است cache خالی شود؛ این برای cache قابل بازسازی قابل‌قبول است. logهای container را با <code>docker compose logs</code> می‌خوانی و رفتار نگهداری آن‌ها به logging driver میزبان بستگی دارد.</p><p lang="en">This is a local Compose lab. The cache under `/var/cache/nginx` is inside the container and may be empty after replacement; that is acceptable for rebuildable cache. Read container logs with <code>docker compose logs</code>; retention behavior depends on the host logging driver.</p></div>
+</section>
+
+<section id="incident-note">
+  <h2><span lang="fa">یادداشت incident: سیستم چه چیزی را ثابت کرد؟</span><span lang="en">Incident note: what did the system prove?</span></h2>
+  <p lang="fa">یک یادداشت نیم‌صفحه‌ای تحویل بده که برای هر سه خرابی بنویسد: نشانه چه بود، کدام خط log/فرمان مدرک داد، کدام فرضیه رد شد، repair چه بود و همان آزمون بعد از repair چه نتیجه‌ای داد. سه تمرین الزامی: قطع api-2، پورت اشتباه در یک مسیر، و directive خراب که باید پیش از reload گیر بیفتد.</p><p lang="en">Hand off a short incident note for all three faults: symptom, the log/command evidence, the hypothesis ruled out, the repair, and the repeated post-repair test. Required drills: stop api-2, point one route at the wrong port, and introduce an invalid directive that must be caught before reload.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">نشانه</span><span lang="en">Symptom</span></th><th><span lang="fa">مدرک بعدی</span><span lang="en">Next evidence</span></th><th><span lang="fa">چیزی که هنوز ثابت نشده</span><span lang="en">What remains unproven</span></th></tr></thead><tbody>
+    <tr><td><span lang="fa">۵۰۲ روی API</span><span lang="en">502 on API</span></td><td><span lang="fa">error log، upstream address، درخواست مستقیم</span><span lang="en">Error log, upstream address, direct request</span></td><td><span lang="fa">سلامت بقیهٔ locationها</span><span lang="en">Health of other locations</span></td></tr>
+    <tr><td><span lang="fa">همیشه MISS</span><span lang="en">Always MISS</span></td><td><span lang="fa">cache key، روش، status و response headers</span><span lang="en">Cache key, method, status, response headers</span></td><td><span lang="fa">بی‌خطر بودن cache برای دادهٔ کاربر</span><span lang="en">Safety of caching user-specific data</span></td></tr>
+    <tr><td><span lang="fa">همهٔ loginها محدود شدند</span><span lang="en">All login requests were limited</span></td><td><span lang="fa">IP دیده‌شده و مقدار limit status</span><span lang="en">Observed IP and limit status</span></td><td><span lang="fa">منصفانه بودن rate برای کاربران پشت NAT</span><span lang="en">Fairness for users behind NAT</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa">مأموریت را با بالا بودن containerها تمام نکن. نتیجه وقتی قابل تحویل است که مسیرهای بیرونی، مقصد واقعی، رفتار cache، نتیجهٔ limiter، یک backend قطع‌شده و مسیر rollback را با مدرک قابل تکرار توضیح بدهی.</p><p lang="en">Do not call the mission done just because containers are up. It is handoff-ready when you can explain external routes, actual targets, cache and limiter behavior, a stopped backend, and rollback with repeatable evidence.</p>
+</section>
+
+<section id="references">
+  <h2><span lang="fa">مستندات رسمی همین مأموریت</span><span lang="en">Official references for this mission</span></h2>
+  <ul lang="fa"><li><a href="https://nginx.org/en/docs/http/ngx_http_proxy_module.html">Nginx: proxy و cache responseها</a></li><li><a href="https://nginx.org/en/docs/http/ngx_http_upstream_module.html">Nginx: گروه upstream و انتخاب backend</a></li><li><a href="https://nginx.org/en/docs/http/load_balancing.html">Nginx: load balancing و passive health</a></li><li><a href="https://nginx.org/en/docs/http/ngx_http_limit_req_module.html">Nginx: rate limiting با limit_req</a></li><li><a href="https://nginx.org/en/docs/http/configuring_https_servers.html">Nginx: پیکربندی HTTPS</a></li><li><a href="https://docs.docker.com/compose/how-tos/networking/">Docker Compose: شبکه و DNS سرویس‌ها</a></li></ul>
+  <ul lang="en"><li><a href="https://nginx.org/en/docs/http/ngx_http_proxy_module.html">Nginx: proxying and response caching</a></li><li><a href="https://nginx.org/en/docs/http/ngx_http_upstream_module.html">Nginx: upstream groups and peer selection</a></li><li><a href="https://nginx.org/en/docs/http/load_balancing.html">Nginx: load balancing and passive health</a></li><li><a href="https://nginx.org/en/docs/http/ngx_http_limit_req_module.html">Nginx: request rate limiting</a></li><li><a href="https://nginx.org/en/docs/http/configuring_https_servers.html">Nginx: configuring HTTPS</a></li><li><a href="https://docs.docker.com/compose/how-tos/networking/">Docker Compose: service networking and DNS</a></li></ul>
+</section>

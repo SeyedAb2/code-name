@@ -1,0 +1,6 @@
+@use "../../styles/tokens" as *;
+
+.content { display: grid; justify-items: center; gap: 14px; text-align: center; }
+.icon { width: 54px; height: 54px; display: grid; place-items: center; border-radius: 18px; color: var(--blue); background: var(--tint-blue); }
+.content p { max-width: 44ch; margin: 0; color: var(--ink-soft); font-size: .95rem; }
+.action { min-height: 44px; width: 100%; border: 0; border-radius: 13px; color: #fff; background: var(--brand-grad); font: 700 .9rem var(--fa); cursor: pointer; box-shadow: var(--shadow-2); }

@@ -48,8 +48,8 @@ function systemTheme(): Theme {
 
 export function PrefsProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Lang>("fa");
-  const [themeChoice, setThemeChoice] = useState<ThemeChoice>("system");
-  const [sysTheme, setSysTheme] = useState<Theme>("light");
+  const [themeChoice, setThemeChoice] = useState<ThemeChoice>("dark");
+  const [sysTheme, setSysTheme] = useState<Theme>("dark");
   const [ready, setReady] = useState(false);
 
   /* خواندن اولیه — فقط روی کلاینت */
@@ -59,6 +59,7 @@ export function PrefsProvider({ children }: { children: React.ReactNode }) {
 
     const savedTheme = read(K_THEME);
     if (savedTheme === "dark" || savedTheme === "light") setThemeChoice(savedTheme);
+    else setThemeChoice("dark");
 
     setSysTheme(systemTheme());
     setReady(true);
@@ -132,7 +133,7 @@ export function usePrefs(): Prefs {
 export const themeScript = `
 (function(){try{
   var p='codenameh:';
-  var t=localStorage.getItem(p+'theme');
+  var t=localStorage.getItem(p+'theme')||'dark';
   var l=localStorage.getItem(p+'lang')||'fa';
   var e=document.documentElement;
   if(t==='dark'||t==='light')e.setAttribute('data-theme',t);

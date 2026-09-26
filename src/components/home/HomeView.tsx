@@ -67,7 +67,7 @@ export default function HomeView({ tracks, categories }: Props) {
         </div>
       </section>
 
-      <div style={{ maxWidth: 1320, margin: "0 auto", padding: "0 clamp(14px,3vw,28px) 90px" }}>
+      <div className={s.content}>
         <div className={s.toolbar}>
           <div className={s.filter}>
             <SearchIcon size={17} />

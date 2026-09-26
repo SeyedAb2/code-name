@@ -1,0 +1,22 @@
+{
+  "id": "/",
+  "name": "کدنامه | مرجع یادگیری مهندسی نرم‌افزار",
+  "short_name": "کدنامه",
+  "description": "مرجع‌های یادگیری فارسی برای مهندسی نرم‌افزار",
+  "lang": "fa",
+  "dir": "rtl",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "background_color": "#080C16",
+  "theme_color": "#080C16",
+  "categories": ["education", "books"],
+  "icons": [
+    { "src": "/assets/images/logo-128.png", "sizes": "128x128", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/images/logo-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/images/logo-256.png", "sizes": "256x256", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/images/logo-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

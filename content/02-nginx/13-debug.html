@@ -1,0 +1,286 @@
+<!--meta
+title: عیب‌یابی ۴۰۳/۵۰۲/۵۰۴
+desc: از پاسخ خطا تا مرز خراب: با لاگ، config، فایل، DNS و upstream علت را پیدا کن و همان مسیر را پس از اصلاح دوباره بسنج.
+-->
+
+<div class="masthead">
+  <span class="eyebrow"><span class="dot"></span><span lang="fa">Nginx · فصل ۱۳</span><span lang="en">Nginx · Chapter 13</span></span>
+  <h1 lang="fa">عیب‌یابی ۴۰۳/۵۰۲/۵۰۴</h1><h1 lang="en">Debugging 403/502/504</h1>
+  <p class="sub" lang="fa">«سایت خوابیده.» یکی می‌گوید Nginx خراب شده و دیگری می‌خواهد سرویس را restart کند. هنوز هیچ‌کدام تشخیص نیست. اول می‌فهمیم درخواست کجا گیر کرده، بعد همان مرز را بررسی می‌کنیم.</p>
+  <p class="sub" lang="en">“The site is down.” One person says Nginx is broken; another wants to restart it. Neither is a diagnosis yet. First we find where the request stopped, then inspect that boundary.</p>
+  <div class="facts"><div class="fact"><b>۷۵</b><span lang="fa">دقیقهٔ مطالعه</span><span lang="en">minutes</span></div><div class="fact"><b>۱۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></div><div class="fact"><b>۳</b><span lang="fa">خرابی بازسازی‌پذیر</span><span lang="en">reproducible incidents</span></div><div class="fact"><b>۱</b><span lang="fa">روش: مدرک، نه حدس</span><span lang="en">method: evidence, not guesses</span></div></div>
+</div>
+
+<section id="incident">
+<h2><span lang="fa">سایت بالا نمی‌آید؛ هنوز نمی‌دانیم چرا</span><span lang="en">The site is down; we do not know why yet</span></h2>
+<p class="lede" lang="fa">دیروز صفحه باز می‌شد؛ امروز مرورگر ۵۰۲ می‌دهد. «Nginx را restart کن» پیشنهاد سریعی است، اما اگر برنامه خاموش باشد، DNS اشتباه باشد یا فایل تنظیمات تازه خراب شده باشد، restart شاید مدرک را پاک کند یا وقفه را بیشتر کند.</p>
+<p class="lede" lang="en">The page worked yesterday; today the browser shows 502. “Restart Nginx” is quick advice, but if the app is stopped, DNS is wrong, or the new config is broken, a restart may erase evidence or extend the outage.</p>
+<p lang="fa">از فصل قبل می‌دانیم timeout فقط زمان انتظار یک مرز را محدود می‌کند. حالا همان نگاه را به incident می‌بریم: یک درخواست، status، زمان وقوع، log همان بازه، بعد آزمون مستقیم مرز مشکوک. خطای مرورگر به‌تنهایی نمی‌گوید Nginx مقصر است.</p>
+<p lang="en">From the previous chapter, we know a timeout only bounds waiting at one boundary. We bring that view to an incident: one request, status, timestamp, logs from that window, then a direct test of the suspected boundary. A browser error alone does not prove Nginx is at fault.</p>
+<div class="note safe"><span lang="fa">قبل از تغییر، خطا را یک بار بازتولید و ساعت دقیقش را یادداشت کن. بعد بپرس: چه مشاهده‌ای این فرضیه را از بقیه جدا می‌کند؟</span><span lang="en">Before changing anything, reproduce the error once and note its exact time. Then ask: what observation would distinguish this hypothesis from the others?</span></div>
+</section>
+
+<section id="status-clues">
+<h2><span lang="fa">کد پاسخ جهت می‌دهد، علت را امضا نمی‌کند</span><span lang="en">A status code points a direction; it does not certify a cause</span></h2>
+<p lang="fa">۴۰۳ یعنی دسترسی مجاز نشده؛ دلیل می‌تواند قانون access یا دسترسی فایل باشد. ۵۰۲ یعنی Nginx پاسخ قابل‌قبولی از gateway/upstream نگرفته؛ اتصال refused فقط یک احتمال است. ۵۰۴ یعنی upstream در بازهٔ انتظار پاسخ لازم را نداده؛ این به‌تنهایی نمی‌گوید برنامه از کار افتاده.</p>
+<p lang="en">403 means access was not allowed; an access rule or file permissions may be involved. 502 means Nginx did not receive an acceptable gateway/upstream response; connection refusal is one possibility. 504 means the upstream did not respond within the configured wait; that alone does not prove the app is dead.</p>
+<div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">نشانه</span><span lang="en">Clue</span></th><th><span lang="fa">مسیرهای محتمل</span><span lang="en">Possible causes</span></th><th><span lang="fa">مدرک بعدی</span><span lang="en">Next evidence</span></th></tr></thead><tbody>
+<tr><td>403</td><td><span lang="fa">deny، فایل/پوشهٔ غیرقابل‌خواندن، پوشهٔ بدون index، policy سیستم‌عامل</span><span lang="en">deny rule, unreadable path, missing index, OS security policy</span></td><td><span lang="fa">error log، config مؤثر، مسیر و user worker</span><span lang="en">error log, effective config, path, worker user</span></td></tr>
+<tr><td>502</td><td><span lang="fa">پورت خاموش، مقصد/نام اشتباه، پاسخ نامعتبر، protocol ناسازگار</span><span lang="en">closed port, wrong target/name, invalid response, protocol mismatch</span></td><td><span lang="fa">log، ss، DNS و curl مستقیم</span><span lang="en">log, sockets, DNS, direct curl</span></td></tr>
+<tr><td>504</td><td><span lang="fa">اپ کند، صف طولانی، شبکه یا dependency منتظر</span><span lang="en">slow app, long queue, network/dependency wait</span></td><td><span lang="fa">زمان upstream، log هم‌زمان و درخواست مستقیم محدودشده</span><span lang="en">upstream timing, matching logs, bounded direct request</span></td></tr>
+</tbody></table></div>
+<p lang="fa">خود اپ هم می‌تواند این statusها را برگرداند؛ پس status را کنار access log، error log و بدنهٔ پاسخ بخوان، نه تنها.</p>
+<p lang="en">The app itself can return these statuses, so read status alongside access/error logs and the response body, not alone.</p>
+</section>
+
+<section id="first-evidence">
+<h2><span lang="fa">مدرک‌ها را با یک درخواست هم‌زمان کن</span><span lang="en">Align the evidence to one request</span></h2>
+<p lang="fa">زمان و مسیر دقیق را ثبت کن. access log معمولاً درخواست و status را نشان می‌دهد؛ error log جزئیات دسترسی یا upstream را. محل log به package و config وابسته است؛ فرض نکن همه‌چیز زیر /var/log/nginx است.</p>
+<p lang="en">Record the exact time and path. The access log usually shows the request and status; the error log may reveal access or upstream details. Log locations depend on package/config; do not assume everything is under /var/log/nginx.</p>
+<div class="term"><div class="term-bar"><span class="term-label">inspect the active installation before changing it</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">sudo nginx -t
+sudo nginx -T 2&gt;&amp;1 | less
+sudo tail -n 80 /var/log/nginx/error.log
+sudo tail -n 80 /var/log/nginx/access.log</span></pre></div>
+<p lang="fa"><code>nginx -t</code> نحو و قابل‌بارگذاری بودن config را می‌سنجد؛ upstream را تست نمی‌کند. <code>nginx -T</code> config مؤثر و includeها را نشان می‌دهد؛ پیش از share کردن، secretها و نام‌های داخلی را پاک کن. مسیر log را از directiveهای <code>error_log</code>/<code>access_log</code> پیدا کن.</p>
+<p lang="en"><code>nginx -t</code> checks syntax/loadability, not upstream health. <code>nginx -T</code> shows effective config and includes; redact secrets/internal names before sharing. Find log paths in the <code>error_log</code>/<code>access_log</code> directives.</p>
+<div class="note warn"><span lang="fa">اگر <code>nginx -t</code> شکست خورد، reload/restart نکن. خطا و شمارهٔ فایل را نگه دار و اول همان را اصلاح کن.</span><span lang="en">If <code>nginx -t</code> fails, do not reload/restart. Keep the error and file/line, and fix that first.</span></div>
+<p lang="fa">روی systemd نصب، <code>systemctl status nginx</code> و <code>journalctl -u nginx --since '10 minutes ago' --no-pager</code> وضعیت process یا خطای startup/reload را نشان می‌دهند. Active بودن، سلامت HTTP یا upstream را ثابت نمی‌کند.</p>
+<p lang="en">On systemd installations, <code>systemctl status nginx</code> and <code>journalctl -u nginx --since '10 minutes ago' --no-pager</code> show process state or startup/reload errors. Active does not prove HTTP/upstream health.</p>
+</section>
+
+<section id="decision-tree">
+<h2><span lang="fa">از پاسخ شروع کن، اما همان‌جا متوقف نشو</span><span lang="en">Start with the response, but do not stop there</span></h2>
+<p lang="fa">این درخت آزمون بعدی را انتخاب می‌کند، نه علت را از روی status اعلام. فلش‌ها ترتیب پرسش‌اند؛ هر شاخه به مدرک نیاز دارد.</p><p lang="en">This tree chooses the next test; it does not declare a cause from status alone. Arrows show question order; every branch needs evidence.</p>
+<div class="diagram"><svg viewBox="0 0 1040 590" role="img" aria-labelledby="debug-tree-title" xmlns="http://www.w3.org/2000/svg">
+<title id="debug-tree-title">Correlate response status with Nginx logs, config, filesystem, DNS, sockets, and upstream / پاسخ را به لاگ، config، فایل، DNS، socket و upstream وصل کن</title>
+<defs><marker id="debug-tree-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow-b"/></marker></defs>
+<rect x="340" y="26" width="360" height="76" rx="16" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/><text x="520" y="58" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Request + timestamp</text><text x="520" y="82" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">status · path · Host</text>
+<rect x="340" y="140" width="360" height="76" rx="16" class="dg-fill" stroke="var(--line-strong)" stroke-width="2"/><text x="520" y="172" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Access log + error log</text><text x="520" y="196" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">same request and time</text><path d="M520 102V140" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#debug-tree-arrow)"/>
+<rect x="38" y="286" width="278" height="112" rx="16" class="dg-fill-w" stroke="var(--warn)" stroke-width="2"/><text x="177" y="320" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">403: access path</text><text x="177" y="350" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">config · root/index · mode</text><text x="177" y="376" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">worker · OS policy</text>
+<rect x="381" y="286" width="278" height="112" rx="16" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/><text x="520" y="320" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">502: connection/response</text><text x="520" y="350" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">resolve · inspect socket</text><text x="520" y="376" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">direct curl · protocol</text>
+<rect x="724" y="286" width="278" height="112" rx="16" class="dg-fill-g" stroke="var(--safe)" stroke-width="2"/><text x="863" y="320" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">504: wait expired</text><text x="863" y="350" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">time direct request</text><text x="863" y="376" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">app/dependency logs</text>
+<path d="M420 216L177 286" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#debug-tree-arrow)"/><path d="M520 216V286" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#debug-tree-arrow)"/><path d="M620 216L863 286" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#debug-tree-arrow)"/>
+<rect x="185" y="474" width="670" height="82" rx="16" class="dg-fill" stroke="var(--line-strong)" stroke-width="2"/><text x="520" y="508" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">One repair · repeat the same request</text><text x="520" y="536" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">verify status + logs + direct boundary</text>
+<path d="M177 398L330 474" class="dg-stroke" stroke-width="2.5" marker-end="url(#debug-tree-arrow)"/><path d="M520 398V474" class="dg-stroke" stroke-width="2.5" marker-end="url(#debug-tree-arrow)"/><path d="M863 398L710 474" class="dg-stroke" stroke-width="2.5" marker-end="url(#debug-tree-arrow)"/>
+</svg><p class="diagram-cap" lang="fa">هر شاخه به یک قاعده می‌رسد: اصلاح را با همان درخواست و مسیر دوباره بسنج. «دیگر خطا ندیدم» بدون آزمون تکراری مدرک بازیابی نیست.</p><p class="diagram-cap" lang="en">Every branch leads to one rule: retest the same request through the same path. “I have not seen another error” is not recovery evidence without a retest.</p></div>
+</section>
+
+<section id="incident-403">
+<h2><span lang="fa">حادثهٔ اول: ۴۰۳ از کجا می‌آید؟</span><span lang="en">Incident one: where does 403 come from?</span></h2>
+<p lang="fa">سایت استاتیک برای <code>/locked/</code>، ۴۰۳ می‌دهد. شاید مجوز فایل باشد، شاید index وجود نداشته باشد یا قانون <code>deny</code> درخواست را گرفته باشد. درخواست و error log را کنار هم می‌گذاریم.</p><p lang="en">A static site returns 403 for <code>/locked/</code>. It may be permissions, a missing index, or a <code>deny</code> rule. Align the request with the error log.</p>
+<div class="term"><div class="term-bar"><span class="term-label">reproduce once and inspect the matching log</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl -i http://127.0.0.1:18013/locked/
+tail -n 20 "$LAB/logs/error.log"</span>
+<span class="s">HTTP/1.1 403 Forbidden
+[error] ... directory index of ".../site/locked/" is forbidden</span></pre></div>
+<p lang="fa">این خط می‌گوید پوشه پیدا شده اما index قابل‌سرو ندارد و directory listing خاموش است. فایل گمشده معمولاً ۴۰۴ می‌دهد. در نصب واقعی مسیر را با <code>root</code>/<code>alias</code> مؤثر تطبیق بده؛ worker باید از parentها عبور کند و فایل را بخواند.</p><p lang="en">This says the directory exists but has no servable index, and listing is off. A missing file normally gives 404. Compare the real path with effective <code>root</code>/<code>alias</code>; the worker must traverse parents and read the file.</p>
+<div class="term"><div class="term-bar"><span class="term-label">inspect path and worker, not broad permissions</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">namei -l /path/from/error/log/index.html
+ps -eo user,pid,cmd | grep '[n]ginx: worker'
+stat /path/from/error/log/index.html</span></pre></div>
+<p lang="fa">اگر پوشه‌ای مجوز <code>x</code> برای عبور ندارد یا فایل خواندنی نیست، فقط مالکیت/گروه/مجوز لازم را اصلاح کن. <code>chmod -R 777</code> دسترسی بی‌دلیل می‌دهد و مالکیت را پنهان می‌کند. اگر مجوز Unix درست است اما سیستم enforcing است، SELinux/AppArmor و audit را ببین؛ policy را خاموش نکن. <code>root</code> اشتباه اغلب ۴۰۴ می‌سازد، پس از روی آن ۴۰۳ نتیجه نگیر.</p><p lang="en">If a directory lacks execute/traverse permission or the file is unreadable, fix only the needed owner/group/mode. <code>chmod -R 777</code> grants needless access and hides ownership. If Unix permissions look right on an enforcing host, inspect SELinux/AppArmor and audit; do not disable policy. A wrong root often yields 404, so do not infer 403 from it.</p>
+<p lang="fa">در لَب علت را پوشهٔ بدون index می‌گذاریم چون تکرارپذیر است. index را می‌سازیم و همان URL را دوباره می‌زنیم؛ ۲۰۰ فقط این مسیر را ثابت می‌کند.</p><p lang="en">The lab uses a directory without an index because it is reproducible. Add the index and retry the same URL; 200 proves only this path.</p>
+</section>
+
+<section id="incident-502">
+<h2><span lang="fa">حادثهٔ دوم: ۵۰۲ و upstreamی که گوش نمی‌دهد</span><span lang="en">Incident two: 502 and an upstream not listening</span></h2>
+<p lang="fa">درخواست <code>/api/</code> ۵۰۲ است. برنامه شاید خاموش باشد، port اشتباه باشد، نام resolve نشود یا پاسخ protocol دیگری داشته باشد. از error log شروع می‌کنیم و از همان میزبان به upstream درخواست می‌زنیم.</p><p lang="en">The <code>/api/</code> request returns 502. The app may be stopped, the port wrong, the name unresolved, or the response protocol unexpected. Start with the error log and request upstream from the same host.</p>
+<div class="term"><div class="term-bar"><span class="term-label">distinguish a closed upstream from a stopped proxy</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">tail -n 30 "$LAB/logs/error.log"
+ss -lntp | grep -E ':(18013|19013|19999)\b' || true
+curl -i --max-time 2 http://127.0.0.1:19013/</span>
+<span class="s">[error] ... connect() failed (111: Connection refused) while connecting to upstream
+LISTEN ... 127.0.0.1:18013 ... nginx
+curl: (7) Failed to connect to 127.0.0.1 port 19013</span></pre></div>
+<p lang="fa">اینجا proxy گوش می‌دهد اما upstream نه؛ فرضیهٔ خرابی خود Nginx ضعیف می‌شود. مقصد را از <code>proxy_pass</code> مؤثر بردار. <code>ss</code> فقط همین host/network namespace را می‌بیند، نه container یا میزبان دیگر را.</p><p lang="en">Here the proxy listens but upstream does not, weakening the Nginx-failure hypothesis. Take the target from effective <code>proxy_pass</code>. <code>ss</code> sees only its own host/network namespace, not another container or host.</p>
+<p lang="fa">اگر مقصد hostname است، در محیط Nginx با <code>getent hosts</code> بررسی کن. نام resolveنشده ممکن است هنگام startup بارگذاری config را fail کند؛ DNS پویا و <code>resolver</code> به config/نسخه وابسته است. اگر اتصال برقرار ولی پاسخ نامعتبر است، با <code>curl -v</code> scheme و protocol را بسنج؛ HTTP به port منتظر TLS هم می‌تواند ۵۰۲ بسازد.</p><p lang="en">If the target is a hostname, use <code>getent hosts</code> in Nginx’s environment. An unresolved name may fail config loading at startup; dynamic DNS and <code>resolver</code> depend on config/version. If connected but response is invalid, check scheme/protocol with <code>curl -v</code>; HTTP sent to a TLS port can also produce 502.</p>
+<p lang="fa">در آزمایش، proxy را به port خالی می‌بریم، log/socket را می‌خوانیم و مقصد را برمی‌گردانیم. فقط پس از <code>nginx -t</code> reload کن؛ direct upstream و همان مسیر proxy باید دوباره ۲۰۰ بدهند.</p><p lang="en">In the lab, point proxy at an unused port, inspect logs/sockets, then restore the target. Reload only after <code>nginx -t</code>; direct upstream and the same proxy path should return 200 again.</p>
+</section>
+
+<section id="incident-504">
+<h2><span lang="fa">حادثهٔ سوم: ۵۰۴؛ کند با قطع فرق دارد</span><span lang="en">Incident three: 504; slow is not unreachable</span></h2>
+<p lang="fa">برای <code>/slow</code>، error log از timeout می‌گوید. اتصال برقرار شده اما داده به‌موقع نرسیده. <code>proxy_read_timeout</code> فاصلهٔ مجاز بین خواندن‌های متوالی را محدود می‌کند، نه کل عمر پاسخ. علت می‌تواند کد کند، صف یا dependency باشد.</p><p lang="en">For <code>/slow</code>, the error log reports a timeout. A connection was made, but data did not arrive in time. <code>proxy_read_timeout</code> bounds the gap between successive reads, not total response lifetime. Slow code, a queue, or dependency may be responsible.</p>
+<div class="term"><div class="term-bar"><span class="term-label">compare a bounded direct request with the proxied request</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl -i --max-time 4 http://127.0.0.1:19013/slow
+time curl -i --max-time 4 http://127.0.0.1:18013/slow
+tail -n 20 "$LAB/logs/error.log"</span>
+<span class="s"># Direct: HTTP 200 after about 2 seconds
+# Proxy with 500ms timeout: HTTP 504
+[error] ... upstream timed out while reading response header</span></pre></div>
+<p lang="fa">اگر direct هم از deadline عبور کرد، اپ/dependency را بررسی کن؛ اگر direct سریع و proxy کند است، مسیر/config را. بالا بردن timeout شاید درخواست‌های بیشتری را باز نگه دارد. فقط پس از شناخت زمان قابل‌قبول تغییرش بده و همان دو درخواست را تکرار کن.</p><p lang="en">If direct also exceeds its deadline, investigate app/dependency; if direct is fast but proxy is slow, inspect path/config. Raising timeout may hold more requests open. Change it only after establishing acceptable latency, then repeat both requests.</p>
+</section>
+
+<section id="timestamp-correlation">
+<h2><span lang="fa">ساعت‌ها را هم‌تراز کن</span><span lang="en">Align the clocks</span></h2>
+<p lang="fa">خطای Nginx و برنامه فقط وقتی مرتبط‌اند که زمان و درخواستشان بخواند. timezone، ساعت سیستم و قالب timestamp را بررسی کن؛ اگر request ID داری، همان را دنبال کن.</p><p lang="en">Nginx and app errors correlate only when time and request align. Check timezone, system clock, timestamp formats, and follow a request ID if present.</p>
+<div class="term"><div class="term-bar"><span class="term-label">inspect a narrow time window</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">date -Is
+timedatectl status
+sudo journalctl -u nginx --since '10 minutes ago' --no-pager
+sudo grep '10:11:' /var/log/nginx/access.log | tail -n 20</span></pre></div>
+<p lang="fa">قالب و timezone فایل access می‌تواند فرق کند؛ journal هم الزاماً فایل access را ندارد. در نمونه، <code>10:11:</code> را با دقیقهٔ واقعی عوض کن. ساعت container/میزبان دیگر را جدا بسنج؛ timestamp نزدیک به‌تنهایی هویت درخواست را ثابت نمی‌کند.</p><p lang="en">Access-log format/timezone may differ, and the journal may not contain file access logs. Replace <code>10:11:</code> in the example with the actual minute. Check clocks in other containers/hosts separately; nearby timestamps alone do not identify a request.</p>
+</section>
+
+<section id="evidence-loop">
+<h2><span lang="fa">فرمان بعدی باید دو فرضیه را از هم جدا کند</span><span lang="en">The next command should distinguish hypotheses</span></h2>
+<p lang="fa">برای ۵۰۲، <code>ss</code> و curl مستقیم می‌پرسند آیا مقصد گوش می‌دهد و پاسخ درست می‌دهد. برای ۴۰۳، <code>namei -l</code> و config مسیر و دسترسی را روشن می‌کنند. برای ۵۰۴، direct request با deadline و زمان‌های log محل تأخیر را محدود می‌کنند.</p><p lang="en">For 502, <code>ss</code> and direct curl ask whether the target listens and responds correctly. For 403, <code>namei -l</code> and config clarify path/access. For 504, a direct request with deadline and log timing narrow where delay occurs.</p>
+<p lang="fa">آزمون مستقیم را از همان host/namespace بزن که Nginx از آن به upstream می‌رسد. موفقیت لپ‌تاپ DNS یا firewall سرور را ثابت نمی‌کند. پیش از share، token، cookie و header احراز هویت را پاک کن.</p><p lang="en">Test directly from the same host/namespace Nginx uses. Laptop success proves nothing about server DNS/firewall. Redact tokens, cookies, and authentication headers before sharing.</p>
+<div class="note safe"><span lang="fa">هر اصلاح یک فرضیه را هدف می‌گیرد؛ بعد همان درخواست را از ابتدا تا انتها اجرا کن. اگر علامت تغییر نکرد، تغییر بی‌اثر را برگردان و سراغ مرز بعدی برو.</span><span lang="en">Each repair targets one hypothesis; then repeat the same end-to-end request. If the symptom remains, revert the ineffective change and move to the next boundary.</span></div>
+</section>
+
+<section id="exercises">
+<h2><span lang="fa">تمرین‌ها: از کد خطا تا آزمون بعدی</span><span lang="en">Exercises: from status to the next test</span></h2>
+<p class="lede" lang="fa">در جواب بگو چه مدرکی فرضیه را تقویت می‌کند و بعد از اصلاح چه چیزی را دوباره می‌سنجی.</p><p class="lede" lang="en">State what evidence supports your hypothesis and what you will retest after repair.</p>
+<div class="ex" id="ex-13-1"><h3><span lang="fa">۱. ۴۰۳ و پوشهٔ خالی</span><span lang="en">1. 403 and an empty directory</span></h3><p lang="fa"><code>GET /docs/</code> برابر ۴۰۳ است و log می‌گوید directory index ممنوع است. اول چه می‌کنی؟</p><p lang="en"><code>GET /docs/</code> returns 403; log says directory index is forbidden. First?</p><details class="ex-sol"><summary>مسیر و index را ببین · Check path and index</summary><p lang="fa">root/alias مؤثر و index را بررسی می‌کنم. listing را بی‌فکر روشن نمی‌کنم؛ index موردنظر را می‌سازم و همان URL را تکرار می‌کنم.</p><p lang="en">I check effective root/alias and index. I do not casually enable listing; I add the intended index and repeat the URL.</p></details></div>
+<div class="ex" id="ex-13-2"><h3><span lang="fa">۲. status تنها</span><span lang="en">2. Status alone</span></h3><p lang="fa">«هر ۵۰۲ یعنی app خاموش است.» دو شاهدت چیست؟</p><p lang="en">“Every 502 means the app is down.” What two pieces of evidence?</p><details class="ex-sol"><summary>log و direct curl · Log and direct curl</summary><p lang="fa">error log هم‌زمان و curl به مقصد config؛ ss listener را نشان می‌دهد. ۵۰۲ از پاسخ نامعتبر، DNS یا protocol هم می‌آید.</p><p lang="en">Matching error log and curl to configured target; ss shows listeners. Invalid response, DNS, or protocol can also cause 502.</p></details></div>
+<div class="ex" id="ex-13-3"><h3><span lang="fa">۳. syntax خراب</span><span lang="en">3. Broken syntax</span></h3><p lang="fa"><code>nginx -t</code> unexpected brace می‌دهد؛ restart؟</p><p lang="en"><code>nginx -t</code> reports unexpected brace; restart?</p><details class="ex-sol"><summary>نه؛ اول خط گزارش‌شده · No; fix the reported line first</summary><p lang="fa">خط را اصلاح و test را تکرار می‌کنم تا موفق شود. restart config نامعتبر را درمان نمی‌کند.</p><p lang="en">I repair that line and rerun the test until it passes. Restart does not fix invalid config.</p></details></div>
+<div class="ex" id="ex-13-4"><h3><span lang="fa">۴. DNS دوگانه</span><span lang="en">4. Two DNS views</span></h3><p lang="fa">نام از لپ‌تاپ resolve می‌شود ولی سرور ۵۰۲ می‌دهد. کجا بررسی؟</p><p lang="en">The name resolves on your laptop but server returns 502. Where check?</p><details class="ex-sol"><summary>از محیط Nginx · From Nginx environment</summary><p lang="fa">از همان host/container با getent و curl تست می‌کنم. اگر resolve شد و وصل نشد، listener/firewall را جدا می‌سنجم.</p><p lang="en">I use getent and curl from that host/container. If resolution works but connection fails, inspect listener/firewall separately.</p></details></div>
+<div class="ex" id="ex-13-5"><h3><span lang="fa">۵. پورت خاموش</span><span lang="en">5. Closed port</span></h3><p lang="fa">log می‌گوید refused؛ ss proxy را نشان می‌دهد نه upstream. محتمل‌ترین فرضیه؟</p><p lang="en">Log says refused; ss shows proxy, not upstream. Strongest hypothesis?</p><details class="ex-sol"><summary>upstream listener ندارد · No upstream listener</summary><p lang="fa">اپ خاموش یا روی address/port دیگری است. config و وضعیت سرویس را می‌سنجم و port را فقط با مدرک عوض می‌کنم.</p><p lang="en">The app is stopped or bound elsewhere. I inspect config/service and change the port only with evidence.</p></details></div>
+<div class="ex" id="ex-13-6"><h3><span lang="fa">۶. deadline کلاینت</span><span lang="en">6. Client deadline</span></h3><p lang="fa"><code>curl --max-time 1</code> قطع می‌شود ولی proxy timeout شصت ثانیه است؛ Nginx حتماً ۵۰۴ داده؟</p><p lang="en">Curl times out at 1s but proxy timeout is 60s; did Nginx necessarily return 504?</p><details class="ex-sol"><summary>نه؛ client زودتر تمام شد · No; the client ended first</summary><p lang="fa">نه؛ log همان request را بیاب و direct test را با deadline مناسب تکرار کن.</p><p lang="en">No; find that request in logs and repeat direct test with a suitable deadline.</p></details></div>
+<div class="ex" id="ex-13-7"><h3><span lang="fa">۷. فایل ۶۴۴، هنوز ۴۰۳</span><span lang="en">7. Mode 644, still 403</span></h3><p lang="fa"><code>stat</code> فایل را ۶۴۴ می‌گوید. چه بررسی بعدی؟</p><p lang="en"><code>stat</code> shows mode 644. What next?</p><details class="ex-sol"><summary>parentها و user worker · Parents and worker user</summary><p lang="fa"><code>namei -l</code> را روی مسیر کامل بزن؛ worker باید از تمام پوشه‌ها عبور کند. بعد root/alias و policy سیستم‌عامل را بررسی کن.</p><p lang="en">Run <code>namei -l</code> on the full path; worker must traverse all parents. Then check root/alias and OS policy.</p></details></div>
+<div class="ex" id="ex-13-8"><h3><span lang="fa">۸. فایل config اشتباه</span><span lang="en">8. Wrong config file</span></h3><p lang="fa">ویرایش کردی اما رفتار عوض نشد. <code>nginx -T</code> چه می‌افزاید؟</p><p lang="en">You edited config but behavior did not change. What does <code>nginx -T</code> add?</p><details class="ex-sol"><summary>includeهای فعال را نشان می‌دهد · Shows active includes</summary><p lang="fa">می‌فهمم فایل دیگری load یا directive در context دیگری override شده. خروجی را redact می‌کنم؛ این فرمان upstream را آزمایش نمی‌کند.</p><p lang="en">It may reveal another file loaded or a directive overridden in another context. Redact output; this does not test upstream.</p></details></div>
+<div class="ex" id="ex-13-9"><h3><span lang="fa">۹. نام هنگام startup پیدا نیست</span><span lang="en">9. Name missing at startup</span></h3><p lang="fa"><code>nginx -t</code> host not found می‌دهد. قدم نخست؟</p><p lang="en"><code>nginx -t</code> reports host not found. First step?</p><details class="ex-sol"><summary>resolver همان میزبان · Resolver on that host</summary><p lang="fa">با getent از همان namespace نام را بررسی و سپس رفتار resolver را در مستند نسخه می‌سنجم؛ directive کورکورانه DNS را درست نمی‌کند.</p><p lang="en">I resolve the name from that namespace, then check version docs for resolver behavior; a blind directive cannot fix DNS.</p></details></div>
+<div class="ex" id="ex-13-10"><h3><span lang="fa">۱۰. port منتظر TLS</span><span lang="en">10. Port expects TLS</span></h3><p lang="fa">port باز است ولی HTTP پاسخ معتبر نمی‌گیرد. چه mismatch؟</p><p lang="en">Port is open but HTTP gets no valid response. What mismatch?</p><details class="ex-sol"><summary>scheme/protocol · Scheme/protocol</summary><p lang="fa">ممکن است backend TLS بخواهد؛ با scheme درست مستقیم تست کن. port باز نوع protocol را ثابت نمی‌کند.</p><p lang="en">The backend may expect TLS; test directly with the right scheme. An open port does not prove protocol.</p></details></div>
+<div class="ex" id="ex-13-11"><h3><span lang="fa">۱۱. فقط proxy کند؟</span><span lang="en">11. Only proxy is slow?</span></h3><p lang="fa">direct پاسخ ۰٫۲ثانیه‌ای می‌دهد، proxy ۵۰۴. سه مدرک بعدی؟</p><p lang="en">Direct responds in 0.2s, proxy gives 504. Three next evidence items?</p><details class="ex-sol"><summary>مقصد، log هم‌زمان، زمان upstream · Target, matching log, upstream timing</summary><p lang="fa">proxy_pass مؤثر، error log و timing را بخوان و از میزبان Nginx direct بزن؛ route/network دو آزمون شاید یکی نباشد.</p><p lang="en">Inspect effective proxy_pass, error log, timings, and curl from Nginx’s host; route/network may differ.</p></details></div>
+<div class="ex" id="ex-13-12"><h3><span lang="fa">۱۲. process فعال، درخواست خراب</span><span lang="en">12. Active process, broken request</span></h3><p lang="fa"><code>systemctl</code> Active است اما health request fail؛ تناقض؟</p><p lang="en"><code>systemctl</code> is Active but health request fails; contradiction?</p><details class="ex-sol"><summary>نه؛ دو مشاهده متفاوت · No; different observations</summary><p lang="fa">Active وضعیت process است؛ خطا ممکن است در config، فایل یا upstream باشد. curl و logها را بررسی کن.</p><p lang="en">Active is process state; failure may be config, filesystem, or upstream. Inspect curl and logs.</p></details></div>
+<div class="ex" id="ex-13-13"><h3><span lang="fa">۱۳. ساعت ناهماهنگ</span><span lang="en">13. Misaligned clocks</span></h3><p lang="fa">Nginx ساعت ۱۰:۰۲ و app ساعت ۱۰:۰۷ را برای یک خطا دارد. چه می‌کنی؟</p><p lang="en">Nginx says 10:02 and app says 10:07 for one error. What do you do?</p><details class="ex-sol"><summary>timezone و clock skew · Timezone and clock skew</summary><p lang="fa">ساعت میزبان، timezone و قالب log را مقایسه و request ID را دنبال می‌کنم؛ هنوز این دو خط را یکی فرض نمی‌کنم.</p><p lang="en">Compare host clocks, timezone, log formats, and request ID; do not yet assume the lines correlate.</p></details></div>
+<div class="ex" id="ex-13-14"><h3><span lang="fa">۱۴. چند تغییر هم‌زمان</span><span lang="en">14. Several simultaneous changes</span></h3><p lang="fa">timeout، DNS و permission با هم عوض و سرویس restart شده. چرا تشخیص سخت است؟</p><p lang="en">Timeout, DNS, and permissions changed together and service restarted. Why is diagnosis hard?</p><details class="ex-sol"><summary>علت دیگر جداشدنی نیست · Causality is lost</summary><p lang="fa">نمی‌دانیم کدام عامل اثر داشت و دسترسی شاید ناامن شده. تغییرها را ثبت کن و یک فرضیه را با آزمون مجدد بررسی کن.</p><p lang="en">We cannot tell which mattered, and access may be unsafe. Record changes and test one hypothesis at a time.</p></details></div>
+<div class="ex" id="ex-13-15"><h3><span lang="fa">۱۵. deploy و ۴۰۳</span><span lang="en">15. Deployment and 403</span></h3><p lang="fa">فایل ۶۴۴، config test موفق و index حاضر است؛ چه مدرکی کم است؟</p><p lang="en">File is 644, config test passes, and index exists; what is missing?</p><details class="ex-sol"><summary>مسیر و policy واقعی · Actual path and policy</summary><p lang="fa">root/alias، همهٔ parentها برای worker، symlink و SELinux/AppArmor را ببین. syntax سالم خوانایی فایل را ثابت نمی‌کند.</p><p lang="en">Inspect root/alias, parents for worker, symlink, and SELinux/AppArmor. Valid syntax does not prove readability.</p></details></div>
+<div class="ex" id="ex-13-16"><h3><span lang="fa">۱۶. app مستقیم کند است</span><span lang="en">16. App is slow directly</span></h3><p lang="fa">مستقیم و proxy دوازده ثانیه طول می‌کشند؛ timeout ده ثانیه است. قدم بعد؟</p><p lang="en">Direct and proxy take 12 seconds; timeout is 10 seconds. Next?</p><details class="ex-sol"><summary>منشأ تأخیر را پیدا کن · Find the delay</summary><p lang="fa">در log اپ/dependency دنبال درخواست می‌گردم؛ افزایش timeout کورکورانه فقط انتظار می‌سازد. اگر دوازده ثانیه موردانتظار است، timeoutها را هماهنگ و بار را دوباره بسنج.</p><p lang="en">I trace app/dependency logs; blindly raising timeout only prolongs waiting. If 12s is expected, align timeouts and remeasure load.</p></details></div>
+<div class="ex" id="ex-13-17"><h3><span lang="fa">۱۷. log خالی</span><span lang="en">17. Empty log</span></h3><p lang="fa">error.log خالی است ولی client خطا دارد. آیا مشکل بیرون Nginx است؟</p><p lang="en">error.log is empty but client fails. Is the issue outside Nginx?</p><details class="ex-sol"><summary>شاید مسیر log اشتباه است · Perhaps wrong log path</summary><p lang="fa">با <code>nginx -T</code> مسیر مؤثر و با journal پیام‌ها را می‌بینم و رسیدن درخواست به همین instance را ثابت می‌کنم. فایل خالی فقط همین فایل/بازه را توصیف می‌کند.</p><p lang="en">I inspect effective paths via <code>nginx -T</code>, journal messages, and whether the request reached this instance. Empty describes only this file/window.</p></details></div>
+<div class="ex" id="ex-13-18"><h3><span lang="fa">۱۸. handoff حادثه</span><span lang="en">18. Incident handoff</span></h3><p lang="fa">۵۰۲، log refused، بدون listener؛ پس از start اپ درخواست موفق شد. چه می‌نویسی؟</p><p lang="en">502, refused log, no listener; request succeeds after app starts. What do you record?</p><details class="ex-sol"><summary>نشانه، مدرک، علت، اصلاح و تأیید · Symptom, evidence, cause, repair, verification</summary><p lang="fa">زمان/URL/status، خط log، ss و curl مستقیم، علت، اصلاح و همان curl از proxy پس از اصلاح را ثبت می‌کنم. چیزهای آزمون‌نشده را هم می‌گویم.</p><p lang="en">Record time/URL/status, log, ss/direct curl, cause, repair, and the same curl through proxy afterward. Note what remains untested.</p></details></div>
+</section>
+
+<section id="lab">
+<h2><span lang="fa">لاب: سه خرابی در یک میز آزمایش</span><span lang="en">Lab: three failures at one disposable bench</span></h2>
+<p class="lede" lang="fa">یک Nginx و upstream کوچک روی loopback می‌سازیم. هیچ پورت عمومی باز نمی‌کنیم و فقط پوشهٔ همین لَب را پاک می‌کنیم. اگر Nginx نصب نیست یا port نمونه اشغال است، توقف کن و port آزادی انتخاب کن.</p><p class="lede" lang="en">We create Nginx and a tiny upstream on loopback. No public port is opened; cleanup targets only this lab directory. If Nginx is absent or a sample port is occupied, stop and choose a free port.</p>
+<h3><span lang="fa">راه‌اندازی و baseline</span><span lang="en">Setup and baseline</span></h3>
+<div class="term"><div class="term-bar"><span class="term-label">confirm free ports and create a disposable directory</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">nginx -v
+ss -lntp | grep -E ':(18013|19013)\b' || true
+LAB=$(mktemp -d /tmp/nginx-debug.XXXXXX)
+printf 'Lab: %s\n' "$LAB"
+mkdir -p "$LAB/site/locked" "$LAB/logs" "$LAB/run"
+printf 'Welcome\n' &gt; "$LAB/site/index.html"</span></pre></div>
+<p lang="fa">اگر port اشغال است سرویس ناشناس را دست نزن؛ port دیگری انتخاب و همهٔ ارجاع‌ها را هماهنگ کن. حالا upstream سریع و کند را داخل پوشهٔ موقت می‌سازیم.</p><p lang="en">If occupied, do not disturb an unknown service; choose another port and update every reference. Now create the fast/slow upstream in the temporary directory.</p>
+<div class="term"><div class="term-bar"><span class="term-label">create a small, bounded local app</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cat &gt; "$LAB/app.py" &lt;&lt;'PY'
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from time import sleep
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        print(f"request path={self.path}", flush=True)
+        if self.path == "/slow":
+            sleep(2)
+        body = b"upstream ready\n"
+        self.send_response(200)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+    def log_message(self, fmt, *args):
+        print(fmt % args, flush=True)
+ThreadingHTTPServer(("127.0.0.1", 19013), Handler).serve_forever()
+PY
+python3 -u "$LAB/app.py" &gt; "$LAB/app.log" 2&gt;&amp;1 &amp;
+echo $! &gt; "$LAB/app.pid"
+sleep 0.3
+curl -i --max-time 2 http://127.0.0.1:19013/</span>
+<span class="s">HTTP/1.0 200 OK
+...
+upstream ready</span></pre></div>
+<p lang="fa">تا direct curl موفق نشده، وارد عیب‌یابی proxy نشو. config را با prefix موقت می‌سازیم تا PID و log سرویس میزبان دست‌نخورده بمانند.</p><p lang="en">Do not debug the proxy until direct curl succeeds. A temporary prefix keeps the host service PID/log untouched.</p>
+<div class="term"><div class="term-bar"><span class="term-label">loopback-only proxy with a short timeout on the slow route</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cat &gt; "$LAB/nginx.conf" &lt;&lt;'NGINX'
+pid run/nginx.pid;
+error_log logs/error.log info;
+events { worker_connections 64; }
+http {
+    access_log logs/access.log;
+    server {
+        listen 127.0.0.1:18013;
+        root site;
+        index index.html;
+        location /slow {
+            proxy_read_timeout 500ms;
+            proxy_pass http://127.0.0.1:19013;
+        }
+        location /api/ {
+            proxy_pass http://127.0.0.1:19013/;
+        }
+    }
+}
+NGINX
+nginx -t -p "$LAB/" -c nginx.conf
+nginx -p "$LAB/" -c nginx.conf
+curl -i http://127.0.0.1:18013/
+curl -i http://127.0.0.1:18013/api/</span>
+<span class="s">nginx: configuration test is successful
+HTTP/1.1 200 OK
+...
+upstream ready</span></pre></div>
+<h3><span lang="fa">خرابی A: پوشهٔ بدون index</span><span lang="en">Failure A: directory without an index</span></h3>
+<p lang="fa">پیش از اصلاح، ۴۰۳ و خط directory index را ثبت کن؛ بعد index بساز و همان URL را تکرار کن.</p><p lang="en">Before repair, record 403 and the directory-index log; then add an index and repeat the same URL.</p>
+<div class="term"><div class="term-bar"><span class="term-label">observe, repair, verify</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl -i http://127.0.0.1:18013/locked/
+tail -n 10 "$LAB/logs/error.log"
+printf 'Locked page\n' &gt; "$LAB/site/locked/index.html"
+curl -i http://127.0.0.1:18013/locked/</span></pre></div>
+<p lang="fa">همان URL باید ۲۰۰ شود. این فقط index این پوشه را ثابت می‌کند؛ permission واقعی را با user worker و namei جدا بسنج.</p><p lang="en">The URL should return 200. This proves only this index; test real permissions separately using worker identity and namei.</p>
+<h3><span lang="fa">خرابی B: proxy به port خالی</span><span lang="en">Failure B: proxy points at an unused port</span></h3>
+<p lang="fa">فقط پس از اطمینان از خالی‌بودن ۱۹۹۹۹، مقصد proxy را موقتاً از ۱۹۰۱۳ به ۱۹۹۹۹ عوض کن. test، بعد reload؛ درخواست و log را بخوان.</p><p lang="en">Only after confirming 19999 is unused, change proxy target from 19013 to 19999. Test, then reload; inspect request and log.</p>
+<div class="term"><div class="term-bar"><span class="term-label">change both targets, then test, reload, request, inspect</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">sed -i 's/19013/19999/g' "$LAB/nginx.conf"
+nginx -t -p "$LAB/" -c nginx.conf &amp;&amp; nginx -s reload -p "$LAB/" -c nginx.conf
+curl -i --max-time 2 http://127.0.0.1:18013/api/
+tail -n 15 "$LAB/logs/error.log"
+ss -lntp | grep -E ':(18013|19013|19999)\b' || true</span>
+<span class="s">HTTP/1.1 502 Bad Gateway
+...
+connect() failed ... while connecting to upstream</span></pre></div>
+<p lang="fa">Nginx روی ۱۸۰۱۳ گوش می‌دهد، ۱۹۹۹۹ نه و log همان مقصد را می‌گوید. علت را ثبت کن؛ با <code>sed -i 's/19999/19013/g' "$LAB/nginx.conf"</code> مقصد را برگردان، config را تست و reload کن. direct به ۱۹۰۱۳ و proxied /api/ باید ۲۰۰ شوند.</p><p lang="en">Nginx listens on 18013, not 19999, and log names that target. Record cause; restore the port with <code>sed -i 's/19999/19013/g' "$LAB/nginx.conf"</code>, test config, then reload. Direct 19013 and proxied /api/ should return 200.</p>
+<h3><span lang="fa">خرابی C: upstream دیر پاسخ می‌دهد</span><span lang="en">Failure C: upstream responds too late</span></h3>
+<p lang="fa">اپ /slow را دو ثانیه نگه می‌دارد، proxy فقط ۵۰۰ms. با deadline چهارثانیه‌ای direct و proxy را مقایسه کن.</p><p lang="en">The app delays /slow for two seconds; proxy waits only 500ms. Compare direct and proxy with a four-second deadline.</p>
+<div class="term"><div class="term-bar"><span class="term-label">compare both paths and correlate the log</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">time curl -i --max-time 4 http://127.0.0.1:19013/slow
+time curl -i --max-time 4 http://127.0.0.1:18013/slow
+tail -n 15 "$LAB/logs/error.log"
+tail -n 10 "$LAB/app.log"</span>
+<span class="s"># Direct: HTTP 200 after about 2s
+# Proxy: HTTP 504 after about 0.5s
+# Error: upstream timed out while reading response header</span></pre></div>
+<p lang="fa">در این لَب timeout کوتاه‌تر از پاسخ است. فقط همان directive را با <code>sed -i 's/500ms/3s/' "$LAB/nginx.conf"</code> عوض کن، config را تست، reload و هر دو مسیر را تکرار کن. در تولید علت کندی را پیدا کن؛ timeout بی‌حساب درخواست‌های منتظر را زیاد می‌کند.</p><p lang="en">Here the timeout is shorter than the response. Change only that directive with <code>sed -i 's/500ms/3s/' "$LAB/nginx.conf"</code>, test config, reload, and repeat both paths. In production, find the delay; unbounded timeouts increase waiting requests.</p>
+<div class="note warn"><span lang="fa">خروجی به OS، نسخه و زمان‌بندی وابسته است. status و عبارت log را بخوان، نه errno یا PID نمونه را حفظ کن.</span><span lang="en">Output varies by OS, version, and timing. Read status and log text; do not memorize sample errno/PIDs.</span></div>
+</section>
+
+<section id="cleanup">
+<h2><span lang="fa">مدرک را نگه دار؛ فقط فرایند لَب را ببند</span><span lang="en">Keep evidence; stop only lab processes</span></h2>
+<p lang="fa">خروجی آزمون و logها را نگه دار. Nginx را با prefix خودش متوقف کن و فقط PIDای را متوقف کن که command line به app.py همین پوشه اشاره دارد. اگر مسیر یا PID جور نیست، حذف نکن.</p><p lang="en">Keep test output and logs. Stop Nginx with its prefix and stop only a PID whose command line points to this directory’s app.py. If path/PID does not match, do not delete anything.</p>
+<div class="term"><div class="term-bar"><span class="term-label">verify target and require explicit confirmation</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">nginx -s quit -p "$LAB/" -c nginx.conf || true
+APP_PID=$(cat "$LAB/app.pid")
+APP_ARGS=$(ps -p "$APP_PID" -o args= 2&gt;/dev/null || true)
+case "$APP_ARGS" in
+  *"$LAB/app.py"*) kill "$APP_PID" ;;
+  *) echo 'PID mismatch; leaving process untouched.' ;;
+esac
+case "$LAB" in
+  /tmp/nginx-debug.*)
+    printf 'Verified directory: %s\n' "$LAB"
+    read -r -p 'Type REMOVE to delete this lab: ' CONFIRM
+    [ "$CONFIRM" = REMOVE ] &amp;&amp; rm -rf -- "$LAB"
+    ;;
+  *) echo 'Unexpected path; nothing removed.' ;;
+esac</span></pre></div>
+<p lang="fa">حذف فقط مسیر mktemp همین فصل را می‌پذیرد و تأیید می‌خواهد. اگر process زنده است یا log را لازم داری، پوشه را نگه دار.</p><p lang="en">Deletion accepts only this chapter’s mktemp prefix and asks for confirmation. If a process is alive or logs are needed, keep the directory.</p>
+</section>
+
+<section id="quick-reference">
+<h2><span lang="fa">خلاصه: status را به آزمون بعدی وصل کن</span><span lang="en">Quick reference: connect status to the next test</span></h2>
+<div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">نشانه</span><span lang="en">Symptom</span></th><th><span lang="fa">مدرک</span><span lang="en">Evidence</span></th><th><span lang="fa">تأیید اصلاح</span><span lang="en">Verify repair</span></th></tr></thead><tbody>
+<tr><td>403</td><td><span lang="fa">log، مسیر، index، worker، مجوز والدها، policy</span><span lang="en">log, path, index, worker, parent permissions, policy</span></td><td><span lang="fa">همان URL</span><span lang="en">same URL</span></td></tr>
+<tr><td>502</td><td><span lang="fa">مقصد، DNS، listener، پاسخ مستقیم</span><span lang="en">target, DNS, listener, direct response</span></td><td><span lang="fa">direct و مسیر proxy</span><span lang="en">direct and proxy path</span></td></tr>
+<tr><td>504</td><td><span lang="fa">مهلت، زمان direct، log برنامه/dependency</span><span lang="en">timeout, direct timing, app/dependency logs</span></td><td><span lang="fa">هر دو مسیر با deadline معلوم</span><span lang="en">both paths with known deadline</span></td></tr>
+<tr><td><span lang="fa">هر خطا</span><span lang="en">Any error</span></td><td><span lang="fa">زمان، config مؤثر، log هم‌زمان، وضعیت سرویس</span><span lang="en">time, effective config, matching logs, service state</span></td><td><span lang="fa">یک تغییر و آزمون ثبت‌شده</span><span lang="en">one change and recorded retest</span></td></tr>
+</tbody></table></div>
+<p lang="fa"><code>systemctl</code> process را می‌سنجد؛ <code>curl</code> مسیر را؛ <code>ss</code> listener را؛ logها رویداد ثبت‌شده را. هیچ‌کدام جای دیگری نیست. تشخیص محکم وقتی است که چند شاهد مستقل روی یک مرز همگرا شوند.</p><p lang="en"><code>systemctl</code> checks process state; <code>curl</code> tests a path; <code>ss</code> shows listeners; logs show recorded events. None substitutes for another. A strong diagnosis has independent evidence converge on one boundary.</p>
+</section>
+
+<section id="next">
+<h2><span lang="fa">قدم بعد: همین دقت را در یک سایت کامل به کار ببر</span><span lang="en">Next: apply the same care to a complete site</span></h2>
+<p lang="fa">برای ۴۰۳ و ۵۰۲ دیگر با restart حدس نمی‌زنیم؛ درخواست، زمان، log و آزمون مرزی داریم. قدم بعد پروژه‌ای است: از فایل استاتیک به سایت قابل‌استقرار با HTTPS می‌رویم و عادت «قبل از اصلاح، مدرک» را نگه می‌داریم.</p><p lang="en">We no longer guess at 403/502 with restarts: we have a request, timestamp, logs, and a boundary test. Next is a project: we move from static files to a deployable HTTPS site, keeping the “evidence before repair” habit.</p>
+</section>
+
+<section id="official-refs">
+<h2><span lang="fa">مستندات رسمی برای نسخه و توزیع خودت</span><span lang="en">Official docs for your version and distribution</span></h2>
+<ul lang="fa"><li><a href="https://nginx.org/en/docs/switches.html">گزینه‌های command line: تفاوت <code>-t</code> و <code>-T</code></a></li><li><a href="https://nginx.org/en/docs/beginners_guide.html">راهنمای Nginx: root، فایل استاتیک و log</a></li><li><a href="https://nginx.org/en/docs/http/ngx_http_core_module.html">HTTP core: index و درخواست فایل/پوشه</a></li><li><a href="https://nginx.org/en/docs/http/ngx_http_proxy_module.html">proxy module: proxy_pass و proxy_read_timeout</a></li><li><a href="https://nginx.org/en/docs/ngx_core_module.html">core module: error_log و تنظیمات اصلی</a></li></ul>
+<ul lang="en"><li><a href="https://nginx.org/en/docs/switches.html">Command-line switches: <code>-t</code> and <code>-T</code></a></li><li><a href="https://nginx.org/en/docs/beginners_guide.html">Nginx guide: roots, static files, and logs</a></li><li><a href="https://nginx.org/en/docs/http/ngx_http_core_module.html">HTTP core: index and file/directory requests</a></li><li><a href="https://nginx.org/en/docs/http/ngx_http_proxy_module.html">Proxy module: proxy_pass and proxy_read_timeout</a></li><li><a href="https://nginx.org/en/docs/ngx_core_module.html">Core module: error_log and main settings</a></li></ul>
+<p lang="fa">نام unit سیستم، مسیر log و ابزار SELinux/AppArmor به توزیع و نصب وابسته‌اند؛ قبل از فرمان عملیاتی، میزبان واقعی را بررسی کن.</p><p lang="en">Systemd unit names, log paths, and SELinux/AppArmor tools vary by distribution/install; inspect the actual host before operational commands.</p>
+</section>

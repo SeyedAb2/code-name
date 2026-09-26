@@ -1,0 +1,455 @@
+<!--meta
+title: HTTPS، Let's Encrypt، تمدید خودکار
+desc: پایان TLS در Nginx، زنجیرهٔ اعتماد گواهی، چالش HTTP-01، راه‌اندازی Certbot و اثبات تمدید خودکار.
+-->
+
+<div class="masthead">
+  <span class="eyebrow"><span class="dot"></span><span lang="fa">Nginx · فصل ۸</span><span lang="en">Nginx · Chapter 8</span></span>
+  <h1 lang="fa">HTTPS، Let's Encrypt، تمدید خودکار</h1>
+  <h1 lang="en">HTTPS, Let's Encrypt, auto-renewal</h1>
+  <p class="sub" lang="fa">سایت باز می‌شود، اما مرورگر کنار نشانی هشدار می‌دهد. «قفل» فقط یعنی داده رمز شده؟ گواهی از کجا می‌فهماند به همان دامنه وصل شده‌ایم، و اگر چند ماه بعد تمدید نشود چه؟ این بار مسیر را از handshake تا تمدید دنبال می‌کنیم.</p>
+  <p class="sub" lang="en">The site opens, but the browser warns beside its address. Does the lock only mean the data is encrypted? How does a certificate show that we reached the intended hostname, and what happens if it is not renewed months later? We will follow the path from handshake to renewal.</p>
+  <div class="facts">
+    <div class="fact"><b>۸۰</b><span lang="fa">دقیقهٔ مطالعه</span><span lang="en">minutes</span></div>
+    <div class="fact"><b>۱۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></div>
+    <div class="fact"><b>۳</b><span lang="fa">نمودار</span><span lang="en">diagrams</span></div>
+    <div class="fact"><b>۲</b><span lang="fa">آزمایش امن</span><span lang="en">safe experiments</span></div>
+  </div>
+</div>
+
+<section id="warning">
+  <h2><span lang="fa">هشدار مرورگر را با یک دستور خاموش نکنیم</span><span lang="en">Do not silence the browser warning with one flag</span></h2>
+  <p class="lede" lang="fa">در فصل قبل درخواست را از Nginx به چند برنامه رساندیم. حالا کاربر از اینترنت به Nginx می‌رسد، اما مرورگر مطمئن نیست اتصال واقعاً به دامنهٔ موردنظر ختم شده باشد. شاید گواهی خودامضاست، نامش نمی‌خواند یا زنجیره ناقص است. هرکدام علت متفاوتی دارد.</p>
+  <p class="lede" lang="en">In the previous chapter, Nginx routed requests to several apps. Now a user reaches Nginx over the internet, but the browser cannot confirm that the connection belongs to the intended hostname. The certificate may be self-signed, its name may not match, or its chain may be incomplete. Each has a different cause.</p>
+  <p lang="fa">اول یک گواهی خودامضای محلی می‌سازیم تا Nginx را روی TLS تنظیم کنیم. این گواهی برای دامنهٔ عمومی اعتماد مرورگر نمی‌سازد؛ فقط آزمایش می‌کنیم وقتی خودمان گواهی را به ابزار اعتماد می‌دهیم، چه چیزی عوض می‌شود.</p>
+  <p lang="en">First we will make a local self-signed certificate and configure Nginx for TLS. It does not create browser trust for a public site; we will only see what changes when we explicitly tell a tool to trust this certificate.</p>
+  <div class="note warn"><div class="note-t"><span lang="fa">این گزینه راه‌حل HTTPS نیست</span><span lang="en">This flag is not an HTTPS fix</span></div><p lang="fa">در آزمایش‌ها گاهی <code>curl -k</code> می‌بینی. این گزینه بررسی گواهی را کنار می‌گذارد؛ پس فقط برای دیدن رفتار یک سرویس آزمایشی به کارش می‌بریم، نه برای اعلام «سایت امن شد». اگر بررسی نام و اعتماد برایت مهم است، درخواست معتبر را بدون <code>-k</code> بفرست.</p><p lang="en">Some tests use <code>curl -k</code>. It skips certificate verification, so we use it only to inspect a disposable test service—not to claim a site is secure. When hostname and trust matter, make a verified request without <code>-k</code>.</p></div>
+</section>
+
+<section id="tls-ends">
+  <h2><span lang="fa">TLS کجا تمام می‌شود؟</span><span lang="en">Where does TLS end?</span></h2>
+  <p class="lede" lang="fa">کاربر به Nginx وصل می‌شود و Nginx گواهی را ارائه می‌کند. اگر برنامه پشت آن HTTP باشد، رمزگشایی در Nginx تمام می‌شود و درخواست تا برنامه روی مسیر داخلی رمزگذاری نشده است. این معماری رایج است، اما باید بدانیم مرز رمزگذاری دقیقاً کجاست.</p>
+  <p class="lede" lang="en">The client connects to Nginx, which presents the certificate. If the upstream app uses HTTP, TLS ends at Nginx and the internal hop is not encrypted. This is common, but we should know exactly where the encryption boundary lies.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 1100 330" role="img" aria-labelledby="tls-path-title" xmlns="http://www.w3.org/2000/svg">
+      <title id="tls-path-title">Browser validates a certificate chain and establishes TLS to Nginx; upstream HTTP is a separate optional hop / مرورگر زنجیرهٔ گواهی را بررسی می‌کند و TLS تا Nginx برقرار می‌شود؛ مسیر تا برنامه جداست</title>
+      <defs>
+        <marker id="tls-path-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow-b"/></marker>
+        <marker id="tls-path-muted" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow"/></marker>
+      </defs>
+      <rect x="35" y="78" width="230" height="118" rx="16" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/>
+      <text x="150" y="115" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Browser</text>
+      <text x="150" y="147" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">trust store</text>
+      <text x="150" y="176" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">expects example.com</text>
+      <path d="M265 136H407" class="dg-stroke-b" stroke-width="3" marker-end="url(#tls-path-arrow)"/>
+      <text x="336" y="116" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">HTTPS · TLS</text>
+      <rect x="425" y="54" width="300" height="166" rx="18" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/>
+      <text x="575" y="91" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Nginx · TLS endpoint</text>
+      <text x="575" y="125" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">fullchain.pem</text>
+      <text x="575" y="155" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">privkey.pem · kept secret</text>
+      <text x="575" y="190" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">decrypts the client request</text>
+      <path d="M725 136H844" class="dg-stroke" stroke-width="2.5" marker-end="url(#tls-path-muted)"/>
+      <rect x="861" y="78" width="204" height="118" rx="16" class="dg-fill-g" stroke="var(--safe)" stroke-width="2"/>
+      <text x="963" y="115" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">upstream app</text>
+      <text x="963" y="148" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">HTTP in this lab</text>
+      <text x="963" y="177" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">inside the server network</text>
+      <rect x="321" y="258" width="458" height="48" rx="12" class="dg-fill" stroke="var(--line-strong)" stroke-width="1.5"/>
+      <text x="550" y="289" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">Optional: TLS can also be configured on the Nginx → upstream hop</text>
+    </svg>
+    <p class="diagram-cap" lang="fa">فلش آبی اتصال HTTPS مرورگر تا Nginx است؛ Nginx در این نقطه TLS را تمام می‌کند. فلش خاکستری مسیر جداگانه تا برنامه است و در آزمایش ما HTTP است. TLS روی مسیر داخلی انتخاب دیگری است، نه ادامهٔ خودکار اتصال اول.</p>
+    <p class="diagram-cap" lang="en">The blue arrow is the browser’s HTTPS connection to Nginx; TLS ends there. The gray arrow is a separate hop to the app and uses HTTP in this lab. TLS on the internal hop is a separate choice, not an automatic continuation of the first connection.</p>
+  </div>
+  <p lang="fa">در handshake، Nginx گواهی و مدرکی وابسته به کلید خصوصی ارائه می‌کند. مرورگر نام دامنه را با نام‌های ثبت‌شده در گواهی می‌سنجد و زنجیره را تا یک مرجع مورداعتماد دنبال می‌کند. کلید خصوصی باید فقط روی سرور بماند؛ گواهی عمومی را می‌شود منتشر کرد، اما کلید را نه.</p>
+  <p lang="en">During the handshake, Nginx presents a certificate and proves possession of the corresponding private key. The browser checks the hostname against names in the certificate and builds a chain to a trusted authority. The private key stays on the server; the public certificate may be shared, but the key must not.</p>
+  <div class="table-wrap"><table class="doc-table">
+    <thead><tr><th><span lang="fa">چیز</span><span lang="en">Item</span></th><th><span lang="fa">چه کاری می‌کند؟</span><span lang="en">What it does</span></th><th><span lang="fa">اگر مشکل داشته باشد…</span><span lang="en">If it is wrong…</span></th></tr></thead>
+    <tbody>
+      <tr><td><code>privkey.pem</code></td><td><span lang="fa">مدرک داشتن کلید خصوصی هنگام handshake</span><span lang="en">Proves possession of the private key during the handshake</span></td><td><span lang="fa">کلید مفقود یا جفت‌نشدن با گواهی، TLS را می‌شکند</span><span lang="en">Missing or mismatched key breaks TLS setup</span></td></tr>
+      <tr><td><code>fullchain.pem</code></td><td><span lang="fa">گواهی سرور همراه گواهی‌های میانی لازم</span><span lang="en">Server certificate plus required intermediate certificates</span></td><td><span lang="fa">زنجیرهٔ ناقص می‌تواند روی بعضی کلاینت‌ها خطا بدهد</span><span lang="en">An incomplete chain can fail on some clients</span></td></tr>
+      <tr><td>Hostname</td><td><span lang="fa">نامی که کاربر خواسته با SAN گواهی تطبیق می‌شود</span><span lang="en">The requested hostname is matched against certificate SANs</span></td><td><span lang="fa">گواهی درست برای دامنه‌ای دیگر همچنان نامعتبر است</span><span lang="en">A valid certificate for another name is still invalid here</span></td></tr>
+      <tr><td>Trust store</td><td><span lang="fa">مرجع‌های ریشهٔ شناخته‌شده نزد سیستم/مرورگر</span><span lang="en">Root authorities trusted by the system or browser</span></td><td><span lang="fa">گواهی خودامضا پیش‌فرض در این فهرست نیست</span><span lang="en">A self-signed certificate is not trusted by default</span></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="local-certificate">
+  <h2><span lang="fa">اول یک گواهی محلی بسازیم</span><span lang="en">First, make a local certificate</span></h2>
+  <p class="lede" lang="fa">گواهی عمومی نیازمند دامنه و دسترسی از اینترنت است؛ هنوز به آن مرحله نرسیده‌ایم. برای فهم تنظیم Nginx یک گواهی کوتاه‌عمر برای <code>localhost</code> می‌سازیم و همه‌چیز را داخل پوشهٔ موقت نگه می‌داریم.</p>
+  <p class="lede" lang="en">A public certificate requires a domain and internet reachability; we are not there yet. To understand the Nginx configuration, we will create a short-lived certificate for <code>localhost</code> and keep everything in a temporary directory.</p>
+  <p lang="fa">این آزمایش به Linux، OpenSSL و Nginx نیاز دارد. پیش از ساخت فایل‌ها نسخهٔ OpenSSL و آزادبودن دو پورت آزمایش را بررسی کن. اگر پورت اشغال است، آزمایش را متوقف کن و شماره‌های تازه را در همهٔ فرمان‌ها یکسان جایگزین کن.</p>
+  <p lang="en">This experiment needs Linux, OpenSSL, and Nginx. Before creating files, check the OpenSSL version and whether both test ports are free. If a port is occupied, stop and choose new numbers consistently throughout the commands.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">check local prerequisites and create an isolated directory</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">openssl version
+nginx -v
+if command -v ss &gt;/dev/null; then
+  ss -ltn | grep -E ':(18080|18443)([[:space:]]|$)' || true
+fi
+TLS_LAB=$(mktemp -d /tmp/nginx-tls.XXXXXX)
+chmod 700 "$TLS_LAB"
+mkdir -p "$TLS_LAB/logs" "$TLS_LAB/run"
+printf 'Temporary lab: %s\n' "$TLS_LAB"</span>
+<span class="s">OpenSSL 3.x.x ...
+nginx version: nginx/1.x.x
+Temporary lab: /tmp/nginx-tls.A1b2C3</span></pre></div>
+  <p lang="fa">عدد نسخه و نام پوشه برای هر سیستم فرق می‌کند. اگر پورت‌ها در خروجی <code>ss</code> بودند، سراغ kill کردن پردازه نرو؛ پورت‌های آزاد دیگری انتخاب کن. اگر Nginx یا OpenSSL در دسترس نیست، فعلاً فرمان نصب را از مستند رسمی همان توزیع پیدا کن، نه یک بستهٔ تصادفی.</p>
+  <p lang="en">The versions and directory name vary. If <code>ss</code> shows either port, do not kill the process; choose different free ports. If Nginx or OpenSSL is unavailable, consult the official instructions for your distribution rather than installing a random package.</p>
+  <p lang="fa">اکنون گواهی و کلید را می‌سازیم. نام <code>localhost</code> در Subject Alternative Name قرار می‌گیرد؛ مرورگرهای امروزی برای تطبیق نام به SAN نگاه می‌کنند، نه فقط Common Name قدیمی.</p>
+  <p lang="en">Now create the certificate and key. The name <code>localhost</code> goes into Subject Alternative Name (SAN); modern clients use SAN for hostname matching, not only the older Common Name field.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">create a short-lived self-signed test certificate</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">openssl req -x509 -newkey rsa:2048 -nodes \
+  -keyout "$TLS_LAB/localhost.key" \
+  -out "$TLS_LAB/localhost.crt" \
+  -days 2 -subj '/CN=localhost' \
+  -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1'
+chmod 600 "$TLS_LAB/localhost.key"
+openssl x509 -in "$TLS_LAB/localhost.crt" -noout \
+  -subject -issuer -dates -ext subjectAltName</span>
+<span class="s">subject=CN = localhost
+issuer=CN = localhost
+notBefore=...
+notAfter=...
+X509v3 Subject Alternative Name:
+    DNS:localhost, IP Address:127.0.0.1</span></pre></div>
+  <p lang="fa">یکسان بودن issuer و subject می‌گوید گواهی خودامضاست؛ تاریخ‌ها عمر کوتاهش را نشان می‌دهند و SAN نام‌هایی را که برایشان صادر شده مشخص می‌کند. این خروجی هنوز نمی‌گوید Nginx آن را ارائه می‌کند یا کلاینت به آن اعتماد دارد.</p>
+  <p lang="en">Matching issuer and subject indicate a self-signed certificate; the dates show its short lifetime, and SAN lists the names it covers. This output does not yet prove Nginx serves it or that a client trusts it.</p>
+  <p lang="fa">حالا Nginx را روی پورت‌های loopback تنظیم می‌کنیم. فرمان‌ها از prefix موقت استفاده می‌کنند تا فایل‌های تنظیم، PID و log در مسیر آزمایش بمانند؛ به تنظیم Nginx سیستم دست نمی‌زنیم.</p>
+  <p lang="en">Now configure Nginx on loopback ports. These commands use a temporary prefix so the config, PID, and logs stay in the lab; they do not modify the system Nginx configuration.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">configure a private local HTTP-to-HTTPS redirect and TLS endpoint</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cat &gt; "$TLS_LAB/nginx.conf" &lt;&lt;'NGINX'
+worker_processes 1;
+pid run/nginx.pid;
+error_log logs/error.log notice;
+events { worker_connections 64; }
+http {
+    access_log logs/access.log;
+    server {
+        listen 127.0.0.1:18080;
+        server_name localhost;
+        return 301 https://localhost:18443$request_uri;
+    }
+    server {
+        listen 127.0.0.1:18443 ssl;
+        server_name localhost;
+        ssl_certificate     localhost.crt;
+        ssl_certificate_key localhost.key;
+        ssl_protocols TLSv1.2 TLSv1.3;
+        location / { return 200 "TLS ends at Nginx\n"; }
+    }
+}
+NGINX
+nginx -t -p "$TLS_LAB/" -c nginx.conf</span>
+<span class="s">nginx: the configuration file .../nginx.conf syntax is ok
+nginx: configuration file .../nginx.conf test is successful</span></pre></div>
+  <p lang="fa">دو خط <code>ssl_certificate</code> فایل گواهی و کلید را می‌خوانند؛ چون مسیر نسبی است، Nginx آن‌ها را زیر prefix آزمایش پیدا می‌کند. <code>nginx -t</code> نحو و فایل‌ها را می‌سنجد، اما هنوز handshake یا نام دامنه را ثابت نمی‌کند. اگر خطا دیدی مسیر و دسترسی فایل کلید را بررسی کن.</p>
+  <p lang="en">The two <code>ssl_certificate</code> directives load the certificate and key; because the paths are relative, Nginx finds them under the lab prefix. <code>nginx -t</code> checks syntax and files, but proves neither a handshake nor hostname validation. If it fails, inspect paths and key-file permissions.</p>
+  <p lang="fa">قبل از start، test موفق را شرط می‌گذاریم. بعد درخواست را با CAای که همین حالا ساخته‌ایم می‌فرستیم. این بار اعتبارسنجی خاموش نمی‌شود: خودمان گواهی self-signed را به‌عنوان مرجع اعتماد همین درخواست معرفی می‌کنیم.</p>
+  <p lang="en">We require the successful config test before starting. Then we send a request using the certificate we just created as the trust anchor for this request. Verification stays enabled: we explicitly trust this self-signed certificate for this test.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">start, verify TLS and hostname, then inspect the redirect</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">nginx -p "$TLS_LAB/" -c nginx.conf
+curl --cacert "$TLS_LAB/localhost.crt" \
+  --resolve localhost:18443:127.0.0.1 \
+  https://localhost:18443/
+curl -sSI http://127.0.0.1:18080/hello</span>
+<span class="s">TLS ends at Nginx
+HTTP/1.1 301 Moved Permanently
+Location: https://localhost:18443/hello</span></pre></div>
+  <p lang="fa">درخواست HTTPS بدون خطای اعتبارسنجی و متن پاسخ، اتصال به همین گواهی و endpoint را ثابت می‌کند؛ درخواست HTTP هم Location مقصد را نشان می‌دهد. این هنوز گواهی مورداعتماد عمومی نیست، و redirect هم به‌تنهایی رمزگذاری را ثابت نمی‌کند.</p>
+  <p lang="en">The verified HTTPS request and response body prove this endpoint works with the explicitly trusted certificate; the HTTP request shows its redirect target. This is not a publicly trusted certificate, and a redirect alone does not prove encryption.</p>
+</section>
+
+
+<section id="hostname-mismatch">
+  <h2><span lang="fa">گواهی به یک نام می‌خورد، نه به هر نشانی</span><span lang="en">A certificate covers names, not every address</span></h2>
+  <p class="lede" lang="fa">TLS محلی جواب داد، اما آیا هر نامی که به همان IP برسد معتبر است؟ عمداً همان سرور را با نامی دیگر صدا می‌زنیم. پیش از دیدن خروجی حدس بزن: چون Nginx همان گواهی را می‌فرستد، کدام بررسی باید شکست بخورد؟</p>
+  <p class="lede" lang="en">Local TLS worked, but is the certificate valid for every name that reaches the same IP? We will deliberately contact the same server with another hostname. Predict before running it: since Nginx serves the same certificate, which check should fail?</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">keep trust verification on and deliberately use the wrong hostname</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl --cacert "$TLS_LAB/localhost.crt" \
+  --resolve other.test:18443:127.0.0.1 \
+  https://other.test:18443/</span>
+<span class="s">curl: (60) SSL: no alternative certificate subject name matches
+target hostname 'other.test'</span></pre></div>
+  <p lang="fa">اتصال شبکه برقرار شد، اما نام <code>other.test</code> در SAN گواهی نیست؛ به همین دلیل curl قبل از فرستادن درخواست HTTP آن را رد کرد. این مدرک می‌گوید نام با گواهی نمی‌خواند، نه اینکه کلید خراب است یا Nginx خاموش است. آدرس IP، <code>server_name</code> و SAN را از یک مسیر بررسی کن.</p>
+  <p lang="en">The network connection succeeded, but <code>other.test</code> is not in the certificate SAN, so curl rejected it before sending the HTTP request. This proves a hostname mismatch, not a broken key or a stopped Nginx process. Check the requested name, <code>server_name</code>, and SAN together.</p>
+  <p lang="fa">برای دیدن گواهی‌ای که واقعاً از سرور برگشته، SNI را هم مشخص می‌کنیم. اگر چند سایت روی یک IP باشند، مقدار <code>-servername</code> تعیین می‌کند Nginx کدام virtual server را برای handshake انتخاب کند.</p>
+  <p lang="en">To inspect the certificate actually returned by the server, set SNI too. When several sites share an IP, <code>-servername</code> helps Nginx select the virtual server during the handshake.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">inspect the served leaf certificate and its names</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">openssl s_client -connect 127.0.0.1:18443 \
+  -servername localhost -showcerts &lt;/dev/null 2&gt;/dev/null |
+  openssl x509 -noout -subject -issuer -dates -ext subjectAltName</span>
+<span class="s">subject=CN = localhost
+issuer=CN = localhost
+notBefore=...
+notAfter=...
+X509v3 Subject Alternative Name:
+    DNS:localhost, IP Address:127.0.0.1</span></pre></div>
+  <p lang="fa">این فرمان گواهی‌ای را که handshake تحویل داده می‌خواند؛ تاریخ‌ها، نام صادرکننده و SAN را می‌بینی. اگر خروجی خالی بود، ممکن است اتصال TLS اصلاً شکل نگرفته باشد یا چیزی جز گواهی موردانتظار پاسخ داده باشد؛ اول خطای <code>s_client</code> را جداگانه ببین.</p>
+  <p lang="en">This reads the certificate delivered by the handshake; inspect its dates, issuer, and SAN. If the output is empty, TLS may not have completed or the endpoint may have returned a different certificate. First inspect the <code>s_client</code> error on its own.</p>
+</section>
+
+<section id="certificate-chain">
+  <h2><span lang="fa">چرا یک گواهی تنها گاهی کافی نیست؟</span><span lang="en">Why is one certificate sometimes not enough?</span></h2>
+  <p class="lede" lang="fa">مرورگر معمولاً از قبل ریشه‌های مورداعتماد را دارد. گواهی سایت ممکن است با یک گواهی میانی امضا شده باشد؛ سرور باید زنجیرهٔ لازم را بفرستد تا کلاینت بتواند از گواهی دامنه به ریشهٔ شناخته‌شده برسد. کلید خصوصی عضو این زنجیرهٔ عمومی نیست.</p>
+  <p class="lede" lang="en">Browsers usually already have trusted roots. A site certificate may be signed by an intermediate certificate; the server needs to send the required chain so the client can link the domain certificate to a known root. The private key is not part of this public chain.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 980 270" role="img" aria-labelledby="chain-title" xmlns="http://www.w3.org/2000/svg">
+      <title id="chain-title">The browser validates a leaf certificate through intermediates to a trusted root; Nginx serves the leaf and needed chain / مرورگر گواهی سایت را از راه گواهی‌های میانی تا ریشهٔ مورداعتماد می‌سنجد</title>
+      <defs><marker id="chain-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow-b"/></marker></defs>
+      <rect x="35" y="56" width="225" height="102" rx="15" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/>
+      <text x="147" y="94" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Leaf certificate</text>
+      <text x="147" y="126" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">example.com · SAN</text>
+      <path d="M260 107H361" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#chain-arrow)"/>
+      <rect x="379" y="56" width="225" height="102" rx="15" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/>
+      <text x="491" y="94" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Intermediate CA</text>
+      <text x="491" y="126" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">sent in full chain</text>
+      <path d="M604 107H705" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#chain-arrow)"/>
+      <rect x="723" y="56" width="222" height="102" rx="15" class="dg-fill-g" stroke="var(--safe)" stroke-width="2"/>
+      <text x="834" y="94" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Trusted root</text>
+      <text x="834" y="126" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">already in client store</text>
+      <text x="490" y="207" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">Nginx serves leaf + required intermediates; it never sends the private key</text>
+      <text x="490" y="238" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">Client validates hostname, dates, signatures, and trust path</text>
+    </svg>
+    <p class="diagram-cap" lang="fa">فلش‌ها رابطهٔ امضا و بررسی زنجیره را نشان می‌دهند، نه اینکه کلید خصوصی میان این گواهی‌ها جابه‌جا شود. Nginx فایل full chain را می‌فرستد؛ کلاینت ریشه را از trust store خودش پیدا می‌کند.</p>
+    <p class="diagram-cap" lang="en">Arrows show the certificate-signing and validation path, not private-key transfer. Nginx serves the full chain; the client finds the root in its own trust store.</p>
+  </div>
+  <p lang="fa">در Nginx معمولاً <code>ssl_certificate</code> باید به <code>fullchain.pem</code> اشاره کند و <code>ssl_certificate_key</code> به <code>privkey.pem</code>. فرستادن فقط گواهی سایت می‌تواند روی دستگاهی که intermediate را cache ندارد خطای chain بسازد. نام فایل‌ها را از Certbot یا روش نصب خودت بخوان؛ مسیر یک توزیع را قانون همگانی فرض نکن.</p>
+  <p lang="en">In Nginx, <code>ssl_certificate</code> normally points to <code>fullchain.pem</code>, and <code>ssl_certificate_key</code> to <code>privkey.pem</code>. Serving only the leaf can break chain validation on clients that have not cached the intermediate. Read the paths from your Certbot or installation method; do not treat one distro’s paths as universal.</p>
+</section>
+
+<section id="acme-http01">
+  <h2><span lang="fa">Let’s Encrypt از کجا می‌فهمد دامنه دست توست؟</span><span lang="en">How does Let’s Encrypt know you control the domain?</span></h2>
+  <p class="lede" lang="fa">مرورگر به گواهی اعتماد می‌کند، اما مرجع صدور باید پیش از آن مطمئن شود درخواست‌کننده کنترل دامنه را دارد. ACME این رفت‌وبرگشت را خودکار می‌کند. در روش HTTP-01، کلاینت ACME یک پاسخ کوتاه زیر مسیر ویژه قرار می‌دهد و Let’s Encrypt آن را از اینترنت می‌خواند.</p>
+  <p class="lede" lang="en">The browser trusts the certificate, but the certificate authority first needs evidence that the requester controls the domain. ACME automates that exchange. With HTTP-01, the ACME client places a short response under a special path, and Let’s Encrypt fetches it from the internet.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 1040 310" role="img" aria-labelledby="acme-title" xmlns="http://www.w3.org/2000/svg">
+      <title id="acme-title">ACME HTTP-01 places a token at a public HTTP path on port 80, which Let's Encrypt fetches before issuing a certificate / در HTTP-01 پاسخ challenge روی پورت ۸۰ منتشر می‌شود و Let’s Encrypt آن را می‌خواند</title>
+      <defs>
+        <marker id="acme-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow-b"/></marker>
+        <marker id="acme-response" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow"/></marker>
+      </defs>
+      <rect x="34" y="78" width="236" height="114" rx="15" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/>
+      <text x="152" y="117" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">ACME client</text>
+      <text x="152" y="150" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">writes challenge token</text>
+      <path d="M270 135H405" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#acme-arrow)"/>
+      <text x="338" y="113" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">HTTP · port 80</text>
+      <rect x="423" y="58" width="264" height="154" rx="17" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/>
+      <text x="555" y="98" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Nginx / webroot</text>
+      <text x="555" y="132" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">/.well-known/acme-challenge/</text>
+      <text x="555" y="168" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">serves token file</text>
+      <path d="M687 135H806" class="dg-stroke" stroke-width="2.5" marker-end="url(#acme-response)"/>
+      <rect x="824" y="78" width="184" height="114" rx="15" class="dg-fill-g" stroke="var(--safe)" stroke-width="2"/>
+      <text x="916" y="117" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Let's Encrypt</text>
+      <text x="916" y="150" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">fetches and validates</text>
+      <rect x="171" y="243" width="698" height="43" rx="11" class="dg-fill" stroke="var(--line-strong)" stroke-width="1.5"/>
+      <text x="520" y="271" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">The public DNS name must reach this server; inbound TCP/80 must be reachable</text>
+    </svg>
+    <p class="diagram-cap" lang="fa">فلش آبی مسیر گذاشتن challenge است؛ فلش خاکستری درخواست اعتبارسنج از اینترنت به سرور را نشان می‌دهد. موفقیت فقط وقتی ممکن است که DNS و دسترسی عمومی واقعاً به همین Nginx برسند.</p>
+    <p class="diagram-cap" lang="en">The blue arrow is the challenge setup; the gray arrow is the validation fetch from the internet. Validation can succeed only when public DNS and network access reach this Nginx.</p>
+  </div>
+  <p lang="fa">HTTP-01 از اینترنت و پورت ۸۰ شروع می‌شود؛ بازبودن 443 جای آن را نمی‌گیرد. دامنه باید به IP همین سرور برسد و درخواست مسیر challenge را همین Nginx یا front end موردانتظار پاسخ دهد. اگر رکورد AAAA داری، آن مسیر IPv6 هم باید درست و قابل‌دسترسی باشد؛ رکورد قدیمی IPv6 می‌تواند اعتبارسنجی را به جای دیگری ببرد.</p>
+  <p lang="en">HTTP-01 starts from the internet on port 80; an open 443 does not replace it. The hostname must resolve to this server, and this Nginx or the intended frontend must serve the challenge path. If an AAAA record exists, its IPv6 route must also be correct and reachable; a stale IPv6 record can send validation elsewhere.</p>
+  <p lang="fa">پورت ۸۰ را برای همیشه نبند. HTTP می‌تواند فقط redirect بدهد، ولی لازم است درخواست challenge به شکل درست پاسخ بگیرد. Let’s Encrypt redirectهای محدود به HTTP/HTTPS روی پورت‌های ۸۰ و ۴۴۳ را دنبال می‌کند؛ روی redirect به پورت دلخواه تکیه نکن. اگر پورت ۸۰ واقعاً قابل‌استفاده نیست، به‌جای دستکاری فایروال از روش چالش مناسب مثل DNS-01 استفاده می‌شود.</p>
+  <p lang="en">Do not permanently close port 80. HTTP can serve only a redirect, but the challenge still needs a valid response. Let’s Encrypt follows a limited set of HTTP/HTTPS redirects on ports 80 and 443; do not rely on redirects to arbitrary ports. If port 80 is genuinely unavailable, use a suitable alternative such as DNS-01 instead of weakening the firewall.</p>
+</section>
+
+<section id="certbot-modes">
+  <h2><span lang="fa">Certbot چند جور می‌تواند challenge را انجام دهد</span><span lang="en">Certbot can answer the challenge in several ways</span></h2>
+  <p class="lede" lang="fa">اصل ماجرا یکی است—باید مدرک کنترل دامنه منتشر شود—اما جای نوشتن token فرق می‌کند. قبل از انتخاب، بپرس Nginx الان چطور فایل عمومی را جواب می‌دهد و چه کسی اجازه دارد تنظیم را reload کند.</p>
+  <p class="lede" lang="en">The requirement is the same—a proof of domain control must be published—but the token can be placed in different ways. Before choosing, ask how Nginx serves public files now and who is allowed to reload its configuration.</p>
+  <div class="table-wrap"><table class="doc-table">
+    <thead><tr><th><span lang="fa">روش</span><span lang="en">Mode</span></th><th><span lang="fa">چه می‌کند؟</span><span lang="en">What it does</span></th><th><span lang="fa">چه زمانی مناسب است؟</span><span lang="en">When it fits</span></th><th><span lang="fa">محدودیت مهم</span><span lang="en">Important limitation</span></th></tr></thead>
+    <tbody>
+      <tr><td><code>--nginx</code></td><td><span lang="fa">از Nginx برای challenge استفاده می‌کند و می‌تواند تنظیم HTTPS را هم ویرایش کند</span><span lang="en">Uses the Nginx plugin for validation and can edit the HTTPS configuration</span></td><td><span lang="fa">یک Nginx معمولی را خودت مدیریت می‌کنی</span><span lang="en">You manage a conventional Nginx installation</span></td><td><span lang="fa">باید config را پیدا کند؛ تغییر خودکار را بعداً بازبینی کن</span><span lang="en">It must find the config; review automatic edits afterward</span></td></tr>
+      <tr><td><code>certonly --webroot</code></td><td><span lang="fa">token را در webroot موجود می‌نویسد؛ خودت فایل Nginx را نگه می‌داری</span><span lang="en">Writes the token in an existing webroot; you keep ownership of Nginx config</span></td><td><span lang="fa">می‌خواهی تنظیم‌ها دستی و ثابت بمانند</span><span lang="en">You want to manage the config yourself</span></td><td><span lang="fa">مسیر <code>.well-known</code> باید واقعاً از اینترنت خوانده شود</span><span lang="en">The <code>.well-known</code> path must be publicly served correctly</span></td></tr>
+      <tr><td><code>certonly --standalone</code></td><td><span lang="fa">Certbot موقتاً خودش روی پورت challenge گوش می‌دهد</span><span lang="en">Certbot temporarily listens on the challenge port itself</span></td><td><span lang="fa">وب‌سرور دیگری روی پورت ۸۰ نیست یا کنترلش را موقتاً داری</span><span lang="en">No other web server owns port 80, or you can stop it temporarily</span></td><td><span lang="fa">پورت ۸۰ باید آزاد و از بیرون قابل‌دسترسی باشد</span><span lang="en">Port 80 must be free and reachable from outside</span></td></tr>
+      <tr><td>DNS-01</td><td><span lang="fa">یک رکورد DNS موقت منتشر می‌کند</span><span lang="en">Publishes a temporary DNS record</span></td><td><span lang="fa">wildcard یا محدودیت دسترسی HTTP داری</span><span lang="en">You need a wildcard or cannot use HTTP validation</span></td><td><span lang="fa">دسترسی امن به API یا تغییر دستی DNS لازم است</span><span lang="en">Secure DNS API access or manual DNS changes are required</span></td></tr>
+    </tbody>
+  </table></div>
+  <p lang="fa">در این فصل مسیر اصلی Linux با Nginx، plugin خود Nginx است. روش نصب Certbot بین توزیع‌ها فرق دارد؛ از راهنمای رسمی انتخاب‌شده برای سیستم خودت پیروی کن و package و snap را بی‌بررسی روی هم نصب نکن. فرمان صدور را فقط بعد از آن اجرا می‌کنیم که صفحهٔ HTTP دامنه واقعاً از بیرون باز شود.</p>
+  <p lang="en">Our main Linux-with-Nginx path uses Certbot’s Nginx plugin. Installation varies by distribution; follow Certbot’s current instructions for your system and do not mix package and snap installations without checking. We will request a certificate only after the domain’s HTTP site is reachable from outside.</p>
+  <p lang="fa">اگر انتخابت <code>webroot</code> یا <code>standalone</code> است، شکل فرمان را مستند همان نسخه بگیر؛ معمولاً باید مسیر webroot را با <code>-w</code> بدهی یا مطمئن شوی پورت ۸۰ برای standalone آزاد است. این‌ها روش‌های جایگزین‌اند، نه فرمان‌هایی که پشت‌سرهم برای یک دامنه اجرا شوند.</p>
+  <p lang="en">If you choose <code>webroot</code> or <code>standalone</code>, get the exact command shape from your installed version’s docs; webroot usually needs a <code>-w</code> path, while standalone needs port 80 free. These are alternatives, not commands to run one after another for the same hostname.</p>
+</section>
+
+
+<section id="public-certificate">
+  <h2><span lang="fa">حالا دامنهٔ واقعی را از بیرون بررسی کنیم</span><span lang="en">Now check the real domain from outside</span></h2>
+  <p class="lede" lang="fa">گواهی عمومی با نام دلخواه صادر نمی‌شود؛ باید کنترل نام دامنه ثابت شود. این بخش برای سرور Linux دارای دامنهٔ واقعی است. اگر فقط روی لپ‌تاپ یا VM محلی کار می‌کنی، آزمایش خودامضا کافی است و این فرمان‌های عمومی را اجرا نکن.</p>
+  <p class="lede" lang="en">A public certificate is not issued for an arbitrary name; control of the hostname must be proven. This section is for a Linux server with a real domain. If you are working only on a laptop or local VM, the self-signed experiment is enough—do not run these public commands.</p>
+  <p lang="fa">اول DNS و مسیر HTTP را بسنج. به‌جای اینکه حدس بزنی دامنه به سرور رسیده، رکوردها و پاسخ را ببین. نام دامنه را با دامنهٔ خودت جایگزین کن؛ <code>example.com</code> در این صفحه فقط نمونه است.</p>
+  <p lang="en">First test DNS and the HTTP path. Inspect records and responses instead of assuming the domain reaches the server. Replace the example name with your own; <code>example.com</code> on this page is only a placeholder.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">verify public DNS, port 80 listener, and HTTP reachability</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">DOMAIN=www.example.com
+dig +short A "$DOMAIN"
+dig +short AAAA "$DOMAIN"
+sudo ss -ltnp | grep -E ':(80|443)([[:space:]]|$)' || true
+curl -sSI --max-time 5 "http://$DOMAIN/"</span>
+<span class="s">203.0.113.10
+HTTP/1.1 200 OK
+Server: nginx</span></pre></div>
+  <p lang="fa">نشانی <code>203.0.113.10</code> در نمونه برای مستندسازی است و IP واقعی تو نیست. رکورد A باید به IP عمومی سرور برسد؛ اگر AAAA داری، آن هم باید درست باشد. Nginx باید روی 80 گوش بدهد و firewall سرور و firewall شرکت میزبان راه HTTP را باز گذاشته باشند. اگر یکی از این‌ها غلط است، فعلاً Certbot را اجرا نکن.</p>
+  <p lang="en">The <code>203.0.113.10</code> value is documentation-only, not your server’s IP. The A record must reach the public server; any AAAA record must be correct too. Nginx must listen on port 80, and both the host and provider firewalls must allow HTTP. If any check is wrong, do not run Certbot yet.</p>
+  <p lang="fa">وقتی HTTP از اینترنت جواب می‌دهد، Certbot می‌تواند challenge را با Nginx انجام دهد و تنظیم TLS را هم تغییر دهد. ابتدا از تنظیم‌ها نسخهٔ پشتیبان بگیر و آماده باش diff فایل را بخوانی؛ plugin کار را ساده می‌کند، اما جای بازبینی تنظیم تولیدی را نمی‌گیرد.</p>
+  <p lang="en">Once HTTP responds from the internet, Certbot can use Nginx for the challenge and edit the TLS configuration. Back up the relevant config and be ready to review the diff; the plugin simplifies the work but does not replace production review.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">request and install a certificate for names you control</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">sudo certbot --nginx -d www.example.com</span>
+<span class="s">Congratulations! Your certificate and chain have been saved ...
+Successfully deployed certificate for www.example.com to ...</span></pre></div>
+  <p lang="fa">در خروجی واقعی مسیرها و تاریخ‌ها فرق می‌کنند. گواهی فقط برای نام‌هایی صادر می‌شود که با <code>-d</code> آورده‌ای؛ اگر دامنهٔ اصلی و <code>www</code> هر دو لازم‌اند، هر دو را صریح اضافه کن. Certbot ممکن است برای redirect کردن HTTP به HTTPS سؤال کند؛ فقط بعد از اطمینان از پاسخ درست HTTPS گزینهٔ redirect را انتخاب کن. پیام موفقیت پایان کار نیست: تنظیم Nginx و پاسخ هر دو نشانی را بررسی می‌کنیم.</p>
+  <p lang="en">Paths and dates differ in real output. A certificate covers only the names passed with <code>-d</code>; list both the apex and <code>www</code> if you need both. Certbot may ask whether to redirect HTTP to HTTPS; choose that only after confirming HTTPS works. The success message is not the finish: inspect Nginx’s config and both URL responses.</p>
+  <p lang="fa">برای دیدن نام‌ها و زمان انقضا از خود Certbot بپرس، بعد config و handshake عمومی را بررسی کن. <code>verify return code: 0</code> نشانهٔ موفقیت بررسی OpenSSL است؛ به‌تنهایی درست‌بودن محتوای برنامه یا redirect را ثابت نمی‌کند.</p>
+  <p lang="en">Ask Certbot for the managed names and expiry, then check the config and public handshake. <code>verify return code: 0</code> shows OpenSSL verification succeeded; it does not prove the app content or redirect is correct.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">inspect the installed certificate and verify the public TLS endpoint</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">sudo certbot certificates
+sudo nginx -t
+curl -sSI "http://$DOMAIN/"
+curl -sSI "https://$DOMAIN/"
+openssl s_client -connect "$DOMAIN:443" \
+  -servername "$DOMAIN" -verify_return_error &lt;/dev/null 2&gt;&amp;1 |
+  grep -E 'subject=|issuer=|Verify return code'</span>
+<span class="s">HTTP/1.1 301 Moved Permanently
+Location: https://www.example.com/...
+HTTP/1.1 200 OK
+Verify return code: 0 (ok)</span></pre></div>
+  <p lang="fa">این سه مدرک را جدا بخوان: 301 یعنی مسیر HTTP redirect می‌دهد؛ پاسخ 200 روی HTTPS یعنی همان URL با TLS جواب داده؛ verify code صفر یعنی زنجیره برای این OpenSSL قابل‌اعتبارسنجی است. اگر redirect مقصد دیگری داشت، پاسخ برنامه نبود یا گواهی نامناسب بود، همان مرز را جدا عیب‌یابی کن.</p>
+  <p lang="en">Read these as separate evidence: 301 means HTTP redirects; 200 over HTTPS means that URL answered with TLS; verify code zero means this OpenSSL instance could validate the chain. If the redirect target, app response, or certificate is wrong, debug that boundary separately.</p>
+</section>
+
+<section id="renewal">
+  <h2><span lang="fa">گواهی صادر شد؛ حالا چه کسی مراقب انقضایش است؟</span><span lang="en">The certificate is issued; who watches its expiry?</span></h2>
+  <p class="lede" lang="fa">صدور یک‌بارِ گواهی آسان‌ترین قسمت است. چند ماه بعد ممکن است سرور عوض شده، DNS تغییر کرده یا تمدیدکننده خاموش باشد. تمدید خودکار یک فرمان جادویی نیست؛ یک زمان‌بند باید Certbot را اجرا کند و مسیر challenge همچنان باید کار کند.</p>
+  <p class="lede" lang="en">One-time issuance is the easy part. Months later, the server may have changed, DNS may have moved, or the renewer may be disabled. Automatic renewal is not magic: a scheduler must run Certbot, and the challenge path must still work.</p>
+  <p lang="fa">راهنمای رسمی Certbot برای بستهٔ انتخابی تو cron یا systemd timer معرفی می‌کند. اسم timer و روش نصب می‌تواند با توزیع و snap/package فرق داشته باشد؛ وجودش را از خروجی سیستم خودت ثابت کن، نه از حفظ‌کردن نام یک سرویس.</p>
+  <p lang="en">Certbot’s official instructions identify the cron job or systemd timer for your chosen package. Timer names and installation methods can differ between distributions and snap/package installs; prove what exists on your system rather than memorizing one service name.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">find the renewal scheduler and rehearse renewal safely</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">systemctl list-timers --all | grep -i certbot || true
+sudo certbot renew --dry-run</span>
+<span class="s">... certbot ... timer ...
+Congratulations, all simulated renewals succeeded</span></pre></div>
+  <p lang="fa">خروجی timer نشان می‌دهد چه زمانی اجرا خواهد شد؛ <code>--dry-run</code> تمرین را با محیط آزمایشی انجام می‌دهد و گواهی production را عوض نمی‌کند. اگر timer پیدا نشد، cron و روش نصب را مطابق مستند Certbot همان سیستم بررسی کن. dry-run موفق، دسترسی ماه‌های آینده به DNS یا پورت ۸۰ را تضمین نمی‌کند؛ فقط تنظیم فعلی را تمرین می‌کند.</p>
+  <p lang="en">The timer output shows when the scheduler is expected to run; <code>--dry-run</code> rehearses against the staging environment without replacing the production certificate. If no timer appears, check cron and the installation method using Certbot’s instructions for that system. A successful dry run cannot guarantee future DNS or port-80 reachability; it tests the current setup.</p>
+  <p lang="fa">روش نصب روی renewal هم اثر دارد. اگر Certbot با نصب‌کنندهٔ Nginx certificate را deploy می‌کند، رفتار همان renewal configuration را بررسی کن. اگر <code>certonly</code> داری، خودت باید بعد از صدور موفق Nginx را طوری reload کنی که گواهی تازه را بخواند؛ deploy hook یا روش مدیریت سرویس را مشخص و آزمایش کن. بدون reload، فایل تازه روی دیسک است ولی پردازه ممکن است هنوز گواهی قبلی را ارائه کند.</p>
+  <p lang="en">The installation mode also affects renewal. If Certbot’s Nginx installer deploys the certificate, inspect that renewal configuration. With <code>certonly</code>, arrange for Nginx to reload after a successful renewal—using a tested deploy hook or service-management method. Without a reload, the new file may be on disk while the running process still serves the old certificate.</p>
+  <div class="note safe"><div class="note-t"><span lang="fa">«فایل تازه» با «گواهی تازه در حال سرو» فرق دارد</span><span lang="en">“New file” is not the same as “new certificate served”</span></div><p lang="fa">بعد از تغییر certificate، <code>nginx -t</code> و reload موفق را بررسی کن؛ سپس از بیرون دوباره تاریخ گواهی‌ای را که سرور ارائه می‌دهد بخوان. تمدید روی دیسک، پاسخ TLS پردازهٔ زنده را به‌تنهایی ثابت نمی‌کند.</p><p lang="en">After certificate changes, verify <code>nginx -t</code> and a successful reload, then inspect the dates on the certificate served externally. A renewed file on disk alone does not prove what the running TLS endpoint presents.</p></div>
+  <p lang="fa">اگر تمرین renewal شکست خورد، پیش از restart کردن سرور چهار چیز را جدا کن: نام‌هایی که گواهی برایشان صادر شده، پاسخ DNS فعلی، دسترسی HTTP-01 از بیرون، و تنظیم renewal ذخیره‌شده. یک پیام timeout بیشتر به مسیر شبکه/DNS اشاره می‌کند؛ خطای config به Nginx؛ و خطای دسترسی فایل به کاربری که Certbot یا Nginx با آن اجرا می‌شود.</p>
+  <p lang="en">If the renewal rehearsal fails, separate four checks before restarting anything: names on the certificate, current DNS answers, external HTTP-01 reachability, and the saved renewal configuration. A timeout points toward network/DNS; a config error toward Nginx; and a file-access error toward the account running Certbot or Nginx.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">inspect renewal configuration and recent Certbot evidence</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">sudo certbot certificates
+sudo certbot renew --dry-run -v
+sudo nginx -t
+sudo journalctl --since '24 hours ago' --no-pager |
+  grep -i certbot || true
+sudo tail -n 30 /var/log/letsencrypt/letsencrypt.log</span>
+<span class="s">... simulated renewals succeeded ...
+... certificate name and expiry ...
+... inspect only logs that exist on this installation ...</span></pre></div>
+  <p lang="fa">ممکن است مسیر log یا جزئیات journal با بسته فرق کند؛ اگر فایل گفته‌شده وجود ندارد، مسیر نصب واقعی را پیدا کن، نه اینکه خروجی نمونه را عیناً انتظار داشته باشی. خطای dry-run و خطای روزمره را کنار هم بگذار و همان مرحلهٔ شکست‌خورده را پس از اصلاح تکرار کن.</p>
+  <p lang="en">Log paths and journal details can vary by package. If the shown file does not exist, find the path used by your installation rather than expecting sample output literally. Compare the dry-run error with the normal scheduler evidence, fix that boundary, and repeat the failed check.</p>
+</section>
+
+<section id="hsts">
+  <h2><span lang="fa">HSTS را زودتر از آمادگی همهٔ دامنه فعال نکن</span><span lang="en">Do not enable HSTS before every covered name is ready</span></h2>
+  <p class="lede" lang="fa">redirect می‌گوید «این درخواست را به HTTPS بفرست». HSTS به مرورگر می‌گوید «دفعه‌های بعد خودت HTTPS را اجباری کن و هشدار گواهی را دور نزن». این دو یکی نیستند؛ مرورگر ممکن است دستور HSTS را مدتی به خاطر بسپارد.</p>
+  <p class="lede" lang="en">A redirect says, “Send this request to HTTPS.” HSTS tells the browser, “Use HTTPS yourself next time and do not bypass certificate warnings.” They are different; the browser can remember an HSTS policy for a while.</p>
+  <p lang="fa">قبل از افزودنش، دامنهٔ اصلی، renewal، redirect و همهٔ مسیرهای مورد استفاده را با HTTPS درست کن. اول فقط روی server مربوط به 443 و با زمان آزمایشی کوتاه شروع کن؛ <code>includeSubDomains</code> و <code>preload</code> را تا وقتی تک‌تک زیر‌دامنه‌ها آماده نیستند اضافه نکن.</p>
+  <p lang="en">Before adding it, make HTTPS work for the main hostname, renewal, redirects, and every required path. Start only on the 443 server with a short test duration; do not add <code>includeSubDomains</code> or <code>preload</code> until every subdomain is ready.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">start with a short HSTS policy only after HTTPS works</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k"># Inside the TLS (listen 443 ssl) server only:
+add_header Strict-Transport-Security "max-age=300" always;</span></pre></div>
+  <p lang="fa">این مقدار پنج‌دقیقه‌ای فقط برای آزمایش است. اگر مرورگر آن را دریافت کرد، تا پایان max-age درخواست HTTP همان host را خودکار ارتقا می‌دهد؛ خطای گواهی هم دیگر راه دورزدن معمول ندارد. مقدار بلندمدت و مخصوصاً سیاست زیر‌دامنه‌ها یا preload می‌تواند دسترسی را تا رفع HTTPS در همهٔ دامنه‌های پوشش‌داده‌شده مختل کند.</p>
+  <p lang="en">This five-minute value is only for testing. Once a browser receives it, HTTP requests to that host are upgraded until max-age expires, and the usual certificate-error bypass is unavailable. A long-lived policy—especially subdomains or preload—can disrupt access until HTTPS is fixed for every covered hostname.</p>
+  <p lang="fa">برای حذف سیاست، سرور باید روی HTTPS هدر <code>max-age=0</code> بفرستد و مرورگر آن را دریافت کند؛ خاموش‌کردن header در config از راه HTTP به‌تنهایی سیاست ذخیره‌شده را پاک نمی‌کند. پس اول HSTS کوتاه، بعد مشاهده، و فقط پس از آمادگی کامل زمان بیشتر.</p>
+  <p lang="en">To clear a remembered policy, the server must send <code>max-age=0</code> over HTTPS and the browser must receive it; merely removing the header from config cannot clear stored state over HTTP. Start short, observe, and lengthen it only when every covered name is ready.</p>
+</section>
+
+
+<section id="exercises">
+  <h2><span lang="fa">تمرین‌ها: از هشدار تا تمدید</span><span lang="en">Exercises: from browser warning to renewal</span></h2>
+  <p class="lede" lang="fa">جواب را فقط از روی برچسب خطا حدس نزن. بگو کدام بررسی شکست خورده، چه مدرکی لازم داری و قدم بعدی چه چیزی را ثابت می‌کند.</p>
+  <p class="lede" lang="en">Do not guess from an error label alone. State which check failed, what evidence you need, and what the next step would prove.</p>
+
+  <div class="ex" id="ex01"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱ · قفل مرورگر</span><span class="ex-n" lang="en">Exercise 1 · The browser lock</span></div><p lang="fa">HTTPS برقرار است و داده رمز می‌شود، اما گواهی self-signed هشدار می‌دهد. چه چیزی هنوز ثابت نشده؟</p><p lang="en">HTTPS is established and data is encrypted, but a self-signed certificate triggers a warning. What remains unproven?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">رمزگذاری، هویت دامنه را به‌تنهایی تأیید نمی‌کند. کلاینت باید زنجیره را تا مرجع مورداعتماد بسازد و نام درخواستی را با SAN تطبیق دهد؛ گواهی خودامضا پیش‌فرض مورداعتماد عمومی نیست.</p><p lang="en">Encryption alone does not authenticate the hostname. The client must build a chain to a trusted authority and match the requested name against SAN; a self-signed certificate is not publicly trusted by default.</p></details></div>
+
+  <div class="ex" id="ex02"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۲ · کلید گم‌شده</span><span class="ex-n" lang="en">Exercise 2 · Missing key</span></div><p lang="fa">Nginx می‌گوید نمی‌تواند فایل <code>privkey.pem</code> را بخواند. آیا گرفتن دوبارهٔ گواهی اولین قدم است؟</p><p lang="en">Nginx says it cannot read <code>privkey.pem</code>. Is requesting another certificate the first step?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه؛ اول مسیر و permission را در config و خروجی <code>nginx -t</code> بررسی کن. صدور دوباره کلید موجود را magically برنمی‌گرداند و ممکن است سهمیهٔ صدور را بی‌دلیل مصرف کند.</p><p lang="en">No. First check the configured path, permissions, and <code>nginx -t</code> output. Reissuing does not magically restore the existing key and may consume issuance limits unnecessarily.</p></details></div>
+
+  <div class="ex" id="ex03"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۳ · IP درست، نام غلط</span><span class="ex-n" lang="en">Exercise 3 · Right IP, wrong name</span></div><p lang="fa">DNS به سرور درست می‌رسد ولی curl خطای نام می‌دهد. کدام سه چیز را کنار هم می‌گذاری؟</p><p lang="en">DNS reaches the right server, but curl reports a hostname error. Which three things do you compare?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">URL درخواستی، SAN گواهی ارائه‌شده و virtual server انتخاب‌شده با SNI. یک IP درست تضمین نمی‌کند Nginx گواهی مربوط به همان hostname را فرستاده باشد.</p><p lang="en">Compare the requested URL, the served certificate’s SAN, and the virtual server selected through SNI. A correct IP does not guarantee Nginx served the certificate for that hostname.</p></details></div>
+
+  <div class="ex" id="ex04"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۴ · فقط leaf فرستاده شده</span><span class="ex-n" lang="en">Exercise 4 · Only the leaf was served</span></div><p lang="fa">روی یک لپ‌تاپ سایت باز می‌شود ولی روی کلاینت تازه خطای chain می‌گیری. چه تفاوتی می‌تواند علت باشد؟</p><p lang="en">The site works on one laptop but a fresh client reports a chain error. What difference could explain it?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">لپ‌تاپ قدیمی ممکن است intermediate را cache کرده باشد. پیکربندی Nginx را برای ارائهٔ full chain بررسی کن و با <code>openssl s_client -showcerts</code> ببین سرور واقعاً چه گواهی‌هایی می‌فرستد.</p><p lang="en">The older laptop may have cached an intermediate. Check that Nginx serves the full chain and use <code>openssl s_client -showcerts</code> to inspect what the server actually sends.</p></details></div>
+
+  <div class="ex" id="ex05"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۵ · دو اتصال</span><span class="ex-n" lang="en">Exercise 5 · Two connections</span></div><p lang="fa">TLS روی Nginx تمام می‌شود و upstream با HTTP است. کدام مسیر رمزگذاری نشده؟</p><p lang="en">TLS ends at Nginx and the upstream uses HTTP. Which hop is not encrypted?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">مسیر جداگانهٔ Nginx تا برنامه. مرورگر تا Nginx HTTPS دارد، اما TLS خودبه‌خود از آن اتصال به upstream منتقل نمی‌شود؛ اگر threat model مسیر داخلی را لازم می‌داند، آن hop هم باید جداگانه امن شود.</p><p lang="en">The separate Nginx-to-app hop. The browser-to-Nginx connection uses HTTPS, but TLS does not automatically continue to the upstream; secure that hop separately if the threat model requires it.</p></details></div>
+
+  <div class="ex" id="ex06"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۶ · redirect کجا می‌رود؟</span><span class="ex-n" lang="en">Exercise 6 · Where does the redirect go?</span></div><p lang="fa">پاسخ HTTP برابر 301 است، اما مقصد <code>https://old.example</code> است. آیا تنظیم آماده است؟</p><p lang="en">HTTP returns 301, but the target is <code>https://old.example</code>. Is the setup ready?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه؛ مقصد redirect را بررسی کن و ببین نام درست و گواهی معتبر دارد. 301 فقط مقصد را گزارش می‌کند و سلامت TLS آن مقصد را ثابت نمی‌کند.</p><p lang="en">No. Inspect the redirect target and verify its hostname and certificate. A 301 reveals the destination; it does not validate TLS there.</p></details></div>
+
+  <div class="ex" id="ex07"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۷ · 443 باز است</span><span class="ex-n" lang="en">Exercise 7 · Port 443 is open</span></div><p lang="fa">Certbot با HTTP-01 timeout می‌شود؛ مدیر می‌گوید پورت 443 باز است. کدام مسیر را باید بررسی کنی؟</p><p lang="en">Certbot times out with HTTP-01; an administrator says port 443 is open. Which path should you check?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">HTTP-01 از پورت 80 می‌آید. رکورد A/AAAA، listener پورت 80، هر دو firewall و پاسخ مسیر challenge را بررسی کن؛ 443 جای پورت 80 را نمی‌گیرد.</p><p lang="en">HTTP-01 uses port 80. Check A/AAAA records, the port-80 listener, both firewalls, and the challenge path; 443 does not replace port 80.</p></details></div>
+
+  <div class="ex" id="ex08"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۸ · A درست، AAAA قدیمی</span><span class="ex-n" lang="en">Exercise 8 · Correct A, stale AAAA</span></div><p lang="fa">IPv4 به VPS جدید می‌رود و IPv6 به سرور قدیمی. چرا صدور ممکن است ناپایدار شود؟</p><p lang="en">IPv4 reaches the new VPS while IPv6 points to an old server. Why might issuance be unreliable?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">اعتبارسنجی ممکن است از مسیر IPv6 به سرور دیگری برسد که challenge را ندارد. رکورد نادرست AAAA را اصلاح یا حذف کن و از چند resolver و مسیر بیرونی دوباره بررسی کن.</p><p lang="en">Validation may reach a different server over IPv6, where the challenge is absent. Fix or remove the stale AAAA record, then check again through external resolvers and paths.</p></details></div>
+
+  <div class="ex" id="ex09"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۹ · تنظیم‌ها دست خودم باشد</span><span class="ex-n" lang="en">Exercise 9 · Keep config under my control</span></div><p lang="fa">نمی‌خواهی Certbot فایل Nginx را ویرایش کند و webroot در دسترس عمومی است. کدام روش را بررسی می‌کنی؟</p><p lang="en">You do not want Certbot to edit Nginx config, and a public webroot is available. Which mode would you consider?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">روش <code>certonly --webroot</code> را بررسی می‌کنم؛ token باید از مسیر <code>.well-known/acme-challenge</code> قابل‌خواندن باشد. مسیر webroot را حدس نمی‌زنم؛ با درخواست بیرونی ثابتش می‌کنم.</p><p lang="en">Consider <code>certonly --webroot</code>; the token must be reachable under <code>.well-known/acme-challenge</code>. Do not guess the webroot path—prove it with an external request.</p></details></div>
+
+  <div class="ex" id="ex10"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۰ · پورت ۸۰ اشغال است</span><span class="ex-n" lang="en">Exercise 10 · Port 80 is busy</span></div><p lang="fa">روش standalone انتخاب شده اما Nginx همین حالا روی پورت ۸۰ گوش می‌دهد. چرا شکست می‌خورد؟</p><p lang="en">Standalone mode is selected, but Nginx already listens on port 80. Why does it fail?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">Certbot می‌خواهد موقتاً خودش همان پورت را بگیرد و نمی‌تواند تا وقتی Nginx مالک آن است bind کند. از Nginx/webroot plugin استفاده کن یا توقف برنامه‌ریزی‌شده و بازراه‌اندازی امن را طراحی کن؛ سرویس را ناگهانی متوقف نکن.</p><p lang="en">Certbot needs to bind that port temporarily and cannot while Nginx owns it. Use the Nginx/webroot plugin or plan a controlled stop and restart; do not interrupt the service blindly.</p></details></div>
+
+  <div class="ex" id="ex11"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۱ · dry-run موفق</span><span lang="en" class="ex-n">Exercise 11 · Dry run succeeded</span></div><p lang="fa">چه چیزی را ثابت می‌کند و چه چیزی را تضمین نمی‌کند؟</p><p lang="en">What does a successful dry run prove, and what does it not guarantee?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">تنظیم فعلی renewal در محیط آزمایشی توانسته فرایند را طی کند. آیندهٔ DNS، firewall، دسترسی به حساب یا زنده‌بودن timer را تضمین نمی‌کند؛ آن‌ها را جدا بررسی کن.</p><p lang="en">The current renewal setup completed a rehearsal against the staging service. It does not guarantee future DNS, firewall, account access, or scheduler operation; verify those separately.</p></details></div>
+
+  <div class="ex" id="ex12"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۲ · timer پیدا نشد</span><span class="ex-n" lang="en">Exercise 12 · No timer found</span></div><p lang="fa">دستور <code>systemctl list-timers | grep certbot</code> چیزی نشان نمی‌دهد. آیا قطعاً تمدید خودکار نداریم؟</p><p lang="en">The timer search shows nothing. Does that prove automatic renewal is absent?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه؛ شاید cron یا سازوکار بستهٔ snap/package استفاده شود، یا grep نام را پیدا نکرده باشد. نصب واقعی Certbot، cron و مستند همان سیستم را بررسی کن و بعد dry-run را اجرا کن.</p><p lang="en">Not necessarily; a cron job or package-specific scheduler may be used, or the search may miss its name. Inspect the actual Certbot installation, cron, and system-specific instructions, then run a dry run.</p></details></div>
+
+  <div class="ex" id="ex13"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۳ · گواهی تمدید شد ولی تاریخ بیرونی قدیمی است</span><span class="ex-n" lang="en">Exercise 13 · Renewed file, old served date</span></div><p lang="fa">روی دیسک تاریخ تازه می‌بینی ولی <code>openssl s_client</code> تاریخ قبلی را نشان می‌دهد. قدم بعدی؟</p><p lang="en">The disk file has a new expiry, but <code>openssl s_client</code> shows the old date. What next?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">بررسی کن renewal مسیر deploy/reload دارد یا نه؛ بعد <code>nginx -t</code> و reload موفق را از journal ببین و دوباره endpoint بیرونی را inspect کن. فایل تازه به معنی خوانده‌شدن آن توسط پردازه نیست.</p><p lang="en">Check whether renewal has a deploy/reload step, then verify <code>nginx -t</code> and the reload in logs before inspecting the external endpoint again. A fresh file does not mean the running process loaded it.</p></details></div>
+
+  <div class="ex" id="ex14"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۴ · تاریخ انقضا</span><span class="ex-n" lang="en">Exercise 14 · Expiry date</span></div><p lang="fa">برای دیدن تاریخ گواهی‌ای که همین حالا سرور ارائه می‌کند چه ابزاری می‌زنی؟</p><p lang="en">Which tool can show the dates on the certificate currently served by the endpoint?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">با <code>openssl s_client</code> به hostname و پورت وصل می‌شوم، SNI را می‌فرستم و گواهی برگشتی را به <code>openssl x509 -noout -dates</code> می‌دهم. این گواهی زنده را می‌سنجد، نه فقط فایل روی دیسک.</p><p lang="en">Connect with <code>openssl s_client</code> to the hostname and port, send SNI, and pipe the returned certificate to <code>openssl x509 -noout -dates</code>. This checks the live certificate, not merely a disk file.</p></details></div>
+
+  <div class="ex" id="ex15"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۵ · HSTS کوتاه</span><span class="ex-n" lang="en">Exercise 15 · Short HSTS</span></div><p lang="fa">چرا شروع با <code>max-age=300</code> از یک‌سال کم‌ریسک‌تر است؟</p><p lang="en">Why is starting with <code>max-age=300</code> lower risk than one year?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">اگر redirect یا گواهی مشکل داشته باشد، مدت اجبار کوتاه‌تر در مرورگر ذخیره می‌شود و آزمایش برگشت‌پذیرتر است. این تضمین رفع فوری مشکل نیست؛ مرورگر باید زمان یا هدر پاک‌سازی را دریافت کند.</p><p lang="en">If the redirect or certificate is wrong, the browser remembers the policy for less time, making the test more reversible. It does not guarantee immediate recovery; the browser must wait or receive a clearing header.</p></details></div>
+
+  <div class="ex" id="ex16"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۶ · زیر‌دامنه‌های ناآماده</span><span class="ex-n" lang="en">Exercise 16 · Unready subdomains</span></div><p lang="fa">دامنهٔ اصلی HTTPS دارد اما <code>legacy.example.com</code> فقط HTTP است. چه گزینه‌ای را فعلاً اضافه نمی‌کنی؟</p><p lang="en">The apex has HTTPS, but <code>legacy.example.com</code> is HTTP-only. Which option should you avoid for now?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa"><code>includeSubDomains</code> و در پی آن preload را اضافه نکن؛ ممکن است مرورگر legacy را هم مجبور به HTTPS کند. اول همهٔ زیر‌دامنه‌های مشمول را آماده و بررسی کن.</p><p lang="en">Do not add <code>includeSubDomains</code> or preload; browsers may force HTTPS on the legacy host too. Prepare and verify every covered subdomain first.</p></details></div>
+
+  <div class="ex" id="ex17"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۷ · گواهی صادر نمی‌شود</span><span lang="en">Exercise 17 · Issuance fails</span></div><p lang="fa">خروجی challenge خطای 404 می‌دهد. به‌ترتیب چه مدرکی جمع می‌کنی؟</p><p lang="en">The challenge request returns 404. What evidence do you collect, in order?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نام و DNS resolve شده را ثبت کن؛ بعد از بیرون همان challenge URL را بخوان، listener و virtual server انتخاب‌شده را بررسی کن و در access/error log مسیر واقعی را پیدا کن. 404 بیشتر می‌گوید درخواست به server رسیده ولی مسیر فایل/route درست سرو نشده؛ هنوز مسئلهٔ TLS نیست.</p><p lang="en">Record the hostname and resolved DNS, fetch the same challenge URL externally, check the listener and selected virtual host, then inspect the actual path in access/error logs. A 404 suggests the request reached a server but the path was not served correctly; this is not yet a TLS failure.</p></details></div>
+
+  <div class="ex" id="ex18"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۸ · «یک بار کار کرد»</span><span lang="en" class="ex-n">Exercise 18 · “It worked once”</span></div><p lang="fa">صدور موفق بوده، dry-run هم هفتهٔ قبل پاس شده، اما امروز موعد تمدید گذشته. سه بررسی جدا برای تشخیص؟</p><p lang="en">Issuance succeeded and last week’s dry run passed, but renewal is now overdue. What three separate checks help diagnose it?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">زمان‌بند واقعاً اجرا شده؟ journal/cron و زمان آخرین اجرا را ببین. چالش امروز از اینترنت می‌رسد؟ DNS A/AAAA و port 80/path را دوباره بسنج. پس از تمدید احتمالی، Nginx گواهی جدید را سرو می‌کند؟ تاریخ endpoint بیرونی و reload را بررسی کن.</p><p lang="en">Did the scheduler actually run? Check cron/journal and its last execution. Can today’s challenge reach the server? Recheck A/AAAA, port 80, and the path. If renewal occurred, is Nginx serving the new certificate? Inspect the external expiry and reload evidence.</p></details></div>
+</section>
+
+<section id="mission">
+  <h2><span lang="fa">ماموریت: هشدار فردا صبح</span><span lang="en">Mission: tomorrow morning’s expiry warning</span></h2>
+  <p class="lede" lang="fa">صبح تیم هشدار گرفته که HTTPS یکی از سایت‌ها به‌زودی منقضی می‌شود. یکی می‌گوید «Certbot خودش تمدید می‌کند»، دیگری می‌خواهد HSTS طولانی فعال کند. تو باید با مدرک بفهمی چه چیزی سرو می‌شود، تمدید خودکار واقعاً کار می‌کند یا نه، و بدون ریسک بی‌دلیل سرویس را به حالت سالم برگردانی.</p>
+  <p class="lede" lang="en">The team receives a warning that a site’s HTTPS certificate will expire soon. One person says “Certbot renews automatically”; another wants long-lived HSTS. Use evidence to determine what is being served, whether renewal really works, and how to restore a healthy state without unnecessary risk.</p>
+  <ol>
+    <li><span lang="fa">نام دامنه و تاریخ گواهی endpoint بیرونی را ثبت کن؛ آن را با <code>certbot certificates</code> مقایسه کن.</span><span lang="en">Record the hostname and the external certificate dates; compare them with <code>certbot certificates</code>.</span></li>
+    <li><span lang="fa">DNS، listener و پاسخ HTTP-01 را از بیرون بررسی کن. در این مرحله config یا firewall را حدسی تغییر نده.</span><span lang="en">Check DNS, listeners, and the HTTP-01 response externally. Do not change config or firewall by guesswork.</span></li>
+    <li><span lang="fa">زمان‌بند واقعی و renewal configuration را پیدا کن؛ <code>certbot renew --dry-run</code> را اجرا و خطای دقیق را ثبت کن.</span><span lang="en">Find the actual scheduler and renewal configuration; run <code>certbot renew --dry-run</code> and record the exact failure.</span></li>
+    <li><span lang="fa">فقط مرز خراب را اصلاح کن؛ <code>nginx -t</code>، renewal rehearsal و پاسخ HTTPS را دوباره بگیر.</span><span lang="en">Fix only the failed boundary; repeat <code>nginx -t</code>, the renewal rehearsal, and the HTTPS request.</span></li>
+    <li><span lang="fa">تا وقتی HTTPS و زیر‌دامنه‌های لازم آماده نیستند، HSTS بلندمدت یا <code>includeSubDomains</code> فعال نکن.</span><span lang="en">Until HTTPS and required subdomains are ready, do not enable long-lived HSTS or <code>includeSubDomains</code>.</span></li>
+  </ol>
+  <details class="capsule"><summary><span lang="fa">سرنخ‌ها را به‌ترتیب باز کن</span><span lang="en">Reveal hints in order</span></summary><p lang="fa">گواهی فایل‌سیستم با گواهی ارائه‌شده از 443 یکی نیست. اگر چالش 404 است، مسیر و virtual host را ببین؛ اگر timeout است، DNS، firewall و listener را بسنج. اگر dry-run موفق است ولی تاریخ بیرونی کهنه مانده، مسیر deploy/reload را دنبال کن.</p><p lang="en">A certificate on disk is not necessarily the one served on 443. For a 404 challenge, inspect the path and virtual host; for a timeout, check DNS, firewalls, and listeners. If dry-run succeeds but the external date is old, trace deployment and reload.</p></details>
+  <details class="ex-sol"><summary><span lang="fa">نمونهٔ گزارش و معیار قبولی</span><span lang="en">Sample report and acceptance criteria</span></summary><p lang="fa">گزارش باید hostname، issuer/SAN و تاریخ endpoint بیرونی را ثبت کند؛ مدرک DNS و پاسخ HTTP-01 را نشان دهد؛ نام timer یا cron واقعی و نتیجهٔ dry-run را بیاورد؛ و پس از اصلاح، پاسخ HTTPS معتبر و reload/config آزموده‌شده را ثابت کند. پیام «Certbot نصب است» یا دیدن فایل جدید به‌تنهایی قبولی نیست.</p><p lang="en">The report records the hostname, issuer/SAN, and external certificate dates; shows DNS and HTTP-01 evidence; names the actual timer or cron and dry-run result; and proves a valid HTTPS response plus tested config/reload after repair. “Certbot is installed” or a new file alone does not pass.</p></details>
+</section>
+
+<section id="cleanup">
+  <h2><span lang="fa">آزمایش محلی را امن جمع کنیم</span><span lang="en">Clean up the local lab safely</span></h2>
+  <p class="lede" lang="fa">اگر Nginx محلی را بالا آوردی، اول فقط همان نمونهٔ دارای prefix آزمایش را متوقف کن. مسیر کلید و گواهی را از <code>TLS_LAB</code> جدا نکن و هرگز پوشهٔ واقعی <code>/etc/letsencrypt</code> را برای پاک‌سازی این آزمایش هدف نگیر.</p>
+  <p class="lede" lang="en">If you started the local Nginx instance, stop only that instance using the lab prefix. Keep the key and certificate inside <code>TLS_LAB</code>, and never target the real <code>/etc/letsencrypt</code> directory while cleaning this experiment.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">verify the lab path, stop its Nginx, then confirm before deletion</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">printf 'Lab path: %s\n' "$TLS_LAB"
+if [ -f "$TLS_LAB/run/nginx.pid" ]; then
+  nginx -s quit -p "$TLS_LAB/" -c nginx.conf
+fi
+sleep 0.3
+if [ -e "$TLS_LAB/run/nginx.pid" ]; then
+  echo 'Nginx PID file still exists; inspect before cleanup.'
+else
+  read -r -p 'Type REMOVE to delete only this temporary lab: ' confirm
+  if [ "$confirm" = REMOVE ] &amp;&amp;
+     [[ "$TLS_LAB" =~ ^/tmp/nginx-tls\.[A-Za-z0-9]{6}$ ]] &amp;&amp;
+     [ ! -L "$TLS_LAB" ]; then
+    rm -r -- "$TLS_LAB"
+  else
+    echo 'Confirmation/path check failed; nothing removed.'
+  fi
+fi</span></pre></div>
+  <p lang="fa">پیش از واردکردن REMOVE، مسیر چاپ‌شده را بخوان و مطمئن شو همان پوشهٔ موقت است. اگر Nginx هنوز زنده است یا PID file پاک نشده، چیزی را حذف نکن؛ اول علت را پیدا کن. این cleanup فقط برای آزمایش محلی است.</p>
+  <p lang="en">Before typing REMOVE, read the printed path and confirm it is the temporary lab. If Nginx is still alive or its PID file remains, delete nothing; investigate first. This cleanup is only for the local experiment.</p>
+</section>
+
+<section id="quick-reference">
+  <h2><span lang="fa">مرجع سریع: کدام نشانه را بخوانم؟</span><span lang="en">Quick reference: which signal should I inspect?</span></h2>
+  <div class="table-wrap"><table class="doc-table">
+    <thead><tr><th><span lang="fa">نشانه</span><span lang="en">Signal</span></th><th><span lang="fa">پرسش</span><span lang="en">Question</span></th><th><span lang="fa">حد دانسته</span><span lang="en">What it cannot prove</span></th></tr></thead>
+    <tbody>
+      <tr><td><code>openssl x509 -noout -dates</code></td><td><span lang="fa">این فایل از چه زمانی تا چه زمانی معتبر است؟</span><span lang="en">When is this certificate file valid?</span></td><td><span lang="fa">نمی‌گوید Nginx همین فایل را ارائه می‌کند</span><span lang="en">Does not prove Nginx serves this file</span></td></tr>
+      <tr><td><code>openssl s_client -servername</code></td><td><span lang="fa">از این endpoint چه گواهی می‌آید؟</span><span lang="en">Which certificate does this endpoint serve?</span></td><td><span lang="fa">پاسخ درست برنامه را ثابت نمی‌کند</span><span lang="en">Does not prove the app response is correct</span></td></tr>
+      <tr><td><code>certbot renew --dry-run</code></td><td><span lang="fa">renewal config فعلی در محیط آزمایشی کار می‌کند؟</span><span lang="en">Does the current renewal config work in staging?</span></td><td><span lang="fa">فعال‌بودن timer در آینده را تضمین نمی‌کند</span><span lang="en">Does not guarantee a future scheduler run</span></td></tr>
+      <tr><td>HTTP-01</td><td><span lang="fa">DNS و پورت ۸۰ به challenge درست می‌رسند؟</span><span lang="en">Do DNS and port 80 reach the challenge?</span></td><td><span lang="fa">بازبودن 443 به‌تنهایی کافی نیست</span><span lang="en">An open 443 alone is insufficient</span></td></tr>
+      <tr><td>HSTS</td><td><span lang="fa">مرورگر باید دفعات بعد HTTPS را اجباری کند؟</span><span lang="en">Should the browser force HTTPS on future visits?</span></td><td><span lang="fa">گواهی را صادر یا تمدید نمی‌کند</span><span lang="en">Does not issue or renew certificates</span></td></tr>
+    </tbody>
+  </table></div>
+  <p lang="fa">برای جزییات جاری، از مستندات رسمی همان ابزار استفاده کن: <a href="https://nginx.org/en/docs/http/configuring_https_servers.html">پیکربندی HTTPS در Nginx</a> برای chain و virtual server؛ <a href="https://nginx.org/en/docs/http/ngx_http_ssl_module.html">ماژول SSL</a> برای directiveها؛ <a href="https://letsencrypt.org/docs/challenge-types/">نوع challengeهای Let’s Encrypt</a> برای HTTP-01؛ و <a href="https://certbot.eff.org/instructions?os=snap&amp;ws=nginx">راهنمای جاری Certbot برای Nginx</a> برای نصب و dry-run. رفتار HSTS را هم در <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Strict-Transport-Security">مرجع Strict-Transport-Security</a> بخوان.</p>
+  <p lang="en">For current details, use the tools’ official docs: Nginx’s <a href="https://nginx.org/en/docs/http/configuring_https_servers.html">HTTPS configuration guide</a> for chains and virtual servers; its <a href="https://nginx.org/en/docs/http/ngx_http_ssl_module.html">SSL module</a> for directives; Let’s Encrypt’s <a href="https://letsencrypt.org/docs/challenge-types/">challenge types</a> for HTTP-01; and <a href="https://certbot.eff.org/instructions?os=snap&amp;ws=nginx">Certbot’s current Nginx instructions</a> for installation and dry runs. See the <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Strict-Transport-Security">Strict-Transport-Security reference</a> for HSTS behavior.</p>
+</section>
+
+<section id="next">
+  <h2><span lang="fa">اتصال امن شد؛ حالا با درخواست‌های انبوه چه کنیم؟</span><span lang="en">The connection is secure; what about request bursts?</span></h2>
+  <p class="lede" lang="fa">حالا می‌دانیم درخواست HTTPS کجا رمزگشایی می‌شود، گواهی چه نامی را پوشش می‌دهد و چه مدرکی تمدید را ثابت می‌کند. اما ممکن است یک client در چند ثانیه صدها بار endpoint را صدا بزند. فصل بعد بررسی می‌کند Nginx چطور درخواست‌ها را محدود می‌کند—و چرا محدودیت هم باید با شناخت رفتار برنامه تنظیم شود.</p>
+  <p class="lede" lang="en">We now know where HTTPS is decrypted, which name the certificate covers, and what evidence proves renewal. But one client might call an endpoint hundreds of times in seconds. Next we will see how Nginx limits requests—and why those limits must match application behavior.</p>
+</section>

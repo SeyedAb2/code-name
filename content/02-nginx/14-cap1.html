@@ -1,0 +1,235 @@
+<!--meta
+title: پروژهٔ ۱ — یک سایت استاتیک با HTTPS
+desc: یک سایت دو‌زبانه را با Nginx روی دامنهٔ واقعی منتشر کن؛ HTTPS، فشرده‌سازی، سیاست cache، log، آزمون و rollback را با مدرک تحویل بده.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">Nginx · پروژهٔ ۱</span><span lang="en">Nginx · Project 1</span></span>
+<h1 lang="fa">پروژهٔ ۱ — یک سایت استاتیک با HTTPS</h1><h1 lang="en">Project 1 — a static site with HTTPS</h1>
+<p class="sub" lang="fa">فایل‌های صفحه آماده‌اند، ولی فقط روی لپ‌تاپ دیده می‌شوند. تیم یک آدرس واقعی می‌خواهد که از اینترنت باز شود، امن باشد و پس از تغییر محتوا نسخهٔ کهنه تحویل ندهد. مأموریت تو: همین سایت کوچک را با Nginx قابل‌اتکا منتشر کن.</p><p class="sub" lang="en">The page files are ready, but visible only on a laptop. The team wants a real address that is reachable, secure, and does not serve stale content after updates. Your mission: publish this small site reliably with Nginx.</p>
+<div class="facts"><div class="fact"><b>۶۰</b><span lang="fa">دقیقهٔ مأموریت</span><span lang="en">minutes</span></div><div class="fact"><b>۵</b><span lang="fa">نقطهٔ تحویل</span><span lang="en">checkpoints</span></div><div class="fact"><b>۱</b><span lang="fa">خرابی عمدی</span><span lang="en">deliberate fault</span></div><div class="fact"><b>۰</b><span lang="fa">دستور حفظی</span><span lang="en">commands to memorize</span></div></div>
+</div>
+
+<section id="mission">
+<h2><span lang="fa">مأموریت: از پوشه تا آدرس عمومی</span><span lang="en">Mission: from a folder to a public address</span></h2>
+<p class="lede" lang="fa">تیم «آبی» یک صفحهٔ دو‌زبانهٔ معرفی دارد. فایل‌ها روی Ubuntu هستند و Nginx نصب است، اما سایت هنوز یا از مسیر اشتباه سرو می‌شود یا فقط HTTP دارد. باید دامنه را به همین ماشین وصل کنی، فایل‌ها را در ریشهٔ درست بگذاری و تحویل قابل‌بررسی بسازی.</p><p class="lede" lang="en">Team Blue has a bilingual landing page. Files are on Ubuntu and Nginx is installed, but the site is served from the wrong path or only over HTTP. Point the domain to this machine, deploy the files to the right root, and produce a verifiable handoff.</p>
+<p lang="fa">در فصل‌های قبلی فایل استاتیک، TLS، log و عیب‌یابی را جدا دیده‌ای. حالا قرار نیست درسشان را تکرار کنیم؛ باید در یک سیستم واقعی کنار هم درست کار کنند.</p><p lang="en">Earlier chapters covered static files, TLS, logs, and diagnosis separately. We will not repeat those lessons; now you must make them work together on a real system.</p>
+<div class="diagram"><svg viewBox="0 0 920 400" role="img" aria-labelledby="cap1-arch-title" xmlns="http://www.w3.org/2000/svg">
+<title id="cap1-arch-title">A browser resolves DNS to the VPS; Nginx serves static files. HTTP redirects to HTTPS after certificate setup / مرورگر از DNS به VPS می‌رسد و Nginx فایل استاتیک می‌دهد؛ HTTP به HTTPS هدایت می‌شود.</title>
+<defs><marker id="cap1-arch-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow-b"/></marker></defs>
+<rect x="32" y="138" width="170" height="92" rx="16" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/><text x="117" y="176" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Browser</text><text x="117" y="204" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">HTTP / HTTPS</text>
+<rect x="260" y="138" width="170" height="92" rx="16" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/><text x="345" y="176" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">DNS</text><text x="345" y="204" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">A / AAAA → VPS</text><path d="M202 184H260" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#cap1-arch-arrow)"/>
+<rect x="488" y="40" width="402" height="320" rx="22" class="dg-fill" stroke="var(--line-strong)" stroke-width="2"/><text x="689" y="76" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Ubuntu VPS</text>
+<rect x="538" y="110" width="302" height="86" rx="16" class="dg-fill-g" stroke="var(--safe)" stroke-width="2"/><text x="689" y="145" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Nginx · :80 / :443</text><text x="689" y="174" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">redirect · TLS · logs</text>
+<rect x="538" y="244" width="302" height="78" rx="16" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/><text x="689" y="276" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">/var/www/codenames</text><text x="689" y="302" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">HTML · CSS · assets</text>
+<path d="M430 184H488" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#cap1-arch-arrow)"/><path d="M689 196V244" class="dg-stroke" stroke-width="2.5" marker-end="url(#cap1-arch-arrow)"/><text x="459" y="162" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">resolve</text>
+</svg><p class="diagram-cap" lang="fa">فلش افقی یعنی resolve دامنه و رسیدن درخواست؛ فلش عمودی یعنی خواندن فایل از root. کلید خصوصی TLS جزو محتوا یا Git نیست.</p><p class="diagram-cap" lang="en">The horizontal arrow is DNS resolution and the request arriving; the vertical arrow is Nginx reading from the document root. The TLS private key is not site content or a Git artifact.</p></div>
+</section>
+
+<section id="constraints">
+<h2><span lang="fa">محدوده و شرط‌های واقعی</span><span lang="en">Scope and real prerequisites</span></h2>
+<div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">لازم است</span><span lang="en">Required</span></th><th><span lang="fa">بیرون از مأموریت</span><span lang="en">Out of scope</span></th></tr></thead><tbody>
+<tr><td><span lang="fa">Ubuntu VPS یا VM، SSH و sudo</span><span lang="en">Ubuntu VPS or VM, SSH, and sudo</span></td><td><span lang="fa">برنامهٔ پویا، database یا reverse proxy چندسرویسی</span><span lang="en">Dynamic app, database, or multi-service proxy</span></td></tr>
+<tr><td><span lang="fa">دامنه با A و در صورت وجود AAAA درست</span><span lang="en">A domain with correct A and, if present, AAAA records</span></td><td><span lang="fa">گواهی ساختگی یا HTTPS معتبر روی IP محلی</span><span lang="en">Fake certificate or claimed public HTTPS on a local IP</span></td></tr>
+<tr><td><span lang="fa">دسترسی ورودی ۸۰/۴۴۳ از firewall سرور و ارائه‌دهنده</span><span lang="en">Inbound 80/443 through host and provider firewalls</span></td><td><span lang="fa">خاموش‌کردن بی‌فکر firewall یا بازکردن پورت‌های بی‌ربط</span><span lang="en">Disabling the firewall or opening unrelated ports</span></td></tr>
+<tr><td><span lang="fa">فایل HTML/CSS و تغییرهای ثبت‌شده</span><span lang="en">HTML/CSS and versioned changes</span></td><td><span lang="fa">کلید خصوصی داخل repository</span><span lang="en">Private key in the repository</span></td></tr>
+</tbody></table></div>
+<p lang="fa">گواهی عمومی با HTTP-01 از port 80 اعتبارسنجی می‌شود. DNS باید از اینترنت به همین سرور برسد؛ اگر AAAA ثبت شده، IPv6 هم باید درست کار کند. VM محلی برای config و فایل مناسب است، اما بی‌دامنه و مسیر عمومی checkpoint گواهی انجام نشده است؛ آن را موفق علامت نزن.</p><p lang="en">A public certificate is validated with HTTP-01 on port 80. Public DNS must reach this server; if an AAAA record exists, IPv6 must work too. A local VM is fine for config/static files, but without a real domain and public path the certificate checkpoint is incomplete—do not mark it passed.</p>
+<div class="note warn"><span lang="fa">پیش از فعال‌کردن UFW مطمئن شو SSH مجاز است. firewall ارائه‌دهنده جداست. پورت‌های سرویس‌های دیگر را جابه‌جا نکن.</span><span lang="en">Before enabling UFW, make sure SSH is allowed. The provider firewall is separate. Do not disturb ports used by other services.</span></div>
+</section>
+
+<section id="checkpoint-one">
+<h2><span lang="fa">نقطهٔ ۱: سایت را پیش از Nginx بشناس</span><span lang="en">Checkpoint 1: understand the site before Nginx</span></h2>
+<p lang="fa">این starter کافی است؛ مأموریت طراحی نیست، مأموریت سرو درست و قابل‌بررسی محتواست.</p><p lang="en">This starter is enough; the mission is not design, but correct and verifiable delivery.</p>
+<div class="term"><div class="term-bar"><span class="term-label">one bilingual page and a versioned stylesheet</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">mkdir -p site/assets
+cat &gt; site/index.html &lt;&lt;'HTML'
+&lt;!doctype html&gt;
+&lt;html lang="fa" dir="rtl"&gt;
+&lt;meta charset="utf-8"&gt;
+&lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;
+&lt;title&gt;تیم آبی&lt;/title&gt;
+&lt;link rel="stylesheet" href="/assets/site.1.css"&gt;
+&lt;main&gt;
+  &lt;h1&gt;تیم آبی&lt;/h1&gt;
+  &lt;p&gt;یک سایت کوچک، از فایل تا HTTPS.&lt;/p&gt;
+  &lt;p lang="en" dir="ltr"&gt;A small site, from files to HTTPS.&lt;/p&gt;
+&lt;/main&gt;
+&lt;/html&gt;
+HTML
+cat &gt; site/assets/site.1.css &lt;&lt;'CSS'
+body { max-width: 48rem; margin: 4rem auto; padding: 0 1rem;
+       font: 1.1rem/1.8 system-ui, sans-serif; }
+CSS</span></pre></div>
+<p lang="fa">صفحه را محلی باز کن و لینک CSS را بررسی کن. فایل نسخه‌دار را با نام تازه مثل <code>site.2.css</code> منتشر می‌کنیم تا URL asset عوض شود و cache بتواند مطمئن‌تر عمل کند.</p><p lang="en">Open the page locally and check its CSS link. Publish changed versioned files under a new name such as <code>site.2.css</code>, so the asset URL changes and caches can behave predictably.</p>
+<p lang="fa">مدرک این نقطه: فایل‌های starter و تغییرهای ثبت‌شده؛ هنوز ادعای HTTPS نداریم.</p><p lang="en">Evidence: starter files and recorded changes; no HTTPS claim yet.</p>
+</section>
+
+<section id="checkpoint-two">
+<h2><span lang="fa">نقطهٔ ۲: ریشهٔ فایل و پاسخ HTTP</span><span lang="en">Checkpoint 2: document root and HTTP response</span></h2>
+<p lang="fa">مسیر روشن انتخاب کن، مثلاً <code>/var/www/codenames</code>. deploy user باید بنویسد و worker Nginx باید بخواند/از parentها عبور کند؛ پوشه را world-writable نکن. پیش از کپی، vhostهای فعال را ببین تا default site را ناخواسته overwrite نکنی.</p><p lang="en">Choose a clear path such as <code>/var/www/codenames</code>. The deploy user must write, and the Nginx worker must read/traverse; do not make it world-writable. Inspect active vhosts before copying so you do not overwrite the default site accidentally.</p>
+<div class="term"><div class="term-bar"><span class="term-label">inspect first; adapt group and layout to this host</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">sudo nginx -t
+sudo nginx -T 2&gt;&amp;1 | less
+sudo ls -la /etc/nginx/sites-enabled/
+sudo install -d -o "$USER" -g www-data -m 0755 /var/www/codenames
+sudo install -d -o "$USER" -g www-data -m 0755 /var/www/codenames/assets
+install -m 0644 site/index.html /var/www/codenames/index.html
+install -m 0644 site/assets/site.1.css /var/www/codenames/assets/site.1.css</span></pre></div>
+<p lang="fa"><code>install -d</code> مالکیت و mode پوشه‌های جدید را مشخص می‌کند و فایل‌ها ۰۶۴۴ می‌شوند. اگر group میزبان فرق دارد، user worker را از config/process واقعی پیدا کن؛ ۷۷۷ راه‌حل نیست.</p><p lang="en"><code>install -d</code> sets ownership/mode on new directories; files are 0644. If the host uses another group, identify the actual worker from config/processes; 777 is not a fix.</p>
+<p lang="fa">از host مستقل <code>curl -i http://DOMAIN/</code> را بزن و asset را هم جدا بگیر. ۲۰۰ و متن صفحه رسیدن به فایل را ثابت می‌کند، نه درست‌بودن CSS.</p><p lang="en">From another host, run <code>curl -i http://DOMAIN/</code> and fetch the asset separately. A 200 and page text prove the file was reached, not that CSS works.</p>
+<p lang="fa">برای اینکه مرحلهٔ بعد بازتولیدپذیر باشد، پیش از گواهی یک vhost سادهٔ HTTP با همان root و مسیر challenge بساز؛ فعلاً redirect نگذار تا پاسخ عادی را از بیرون ببینی.</p><p lang="en">For a reproducible next step, create a simple HTTP vhost with the same root and challenge path before requesting a certificate; do not redirect yet, so you can verify normal content externally.</p>
+<div class="term"><div class="term-bar"><span class="term-label">bootstrap HTTP vhost; replace domain, test, then reload</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">server {
+    listen 80;
+    server_name example.org www.example.org;
+    root /var/www/codenames;
+    index index.html;
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/codenames;
+        default_type text/plain;
+    }
+    location / { try_files $uri $uri/ =404; }
+}
+sudo nginx -t &amp;&amp; sudo systemctl reload nginx
+curl -i http://example.org/</span></pre></div>
+</section>
+
+<section id="checkpoint-three">
+<h2><span lang="fa">نقطهٔ ۳: دامنه و گواهی واقعی</span><span lang="en">Checkpoint 3: real domain and certificate</span></h2>
+<p lang="fa">پیش از Certbot، DNS را از resolver عمومی ببین و از بیرون مطمئن شو port 80 به Nginx می‌رسد. A و AAAA را جدا بسنج؛ AAAA قدیمی می‌تواند بخشی از کاربران را به میزبان اشتباه بفرستد.</p><p lang="en">Before Certbot, inspect DNS through a public resolver and confirm from outside that port 80 reaches Nginx. Check A and AAAA separately; a stale AAAA can send some users elsewhere.</p>
+<div class="term"><div class="term-bar"><span class="term-label">replace the hostname with a domain you control</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">DOMAIN=example.org
+dig +short A "$DOMAIN"
+dig +short AAAA "$DOMAIN"
+curl -i --max-time 5 "http://$DOMAIN/"
+sudo certbot --version</span></pre></div>
+<p lang="fa">دستور نصب Certbot را از راهنمای رسمی همان OS و روش نصب بگیر؛ packageها و renewal timer ممکن است فرق کنند. وقتی DNS، HTTP و firewall آماده‌اند، webroot روش صدور را با فایل challenge در همان document root انجام می‌دهد.</p><p lang="en">Get Certbot installation steps from the official instructions for your OS/install method; packages and renewal timers vary. Once DNS, HTTP, and firewalls are ready, the webroot authenticator validates using a challenge file in that document root.</p>
+<p lang="fa">اگر نمی‌خواهی نام www هم داشته باشی، آن را از هر دو جا حذف کن؛ هر نامی که در cert می‌آید باید DNS و HTTP درست داشته باشد.</p><p lang="en">If you do not want a www name, remove it from both places; every name on the certificate needs working DNS and HTTP reachability.</p>
+<div class="term"><div class="term-bar"><span class="term-label">issue only for real domains; Certbot may ask for email and consent</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">sudo certbot certonly --webroot -w /var/www/codenames -d "$DOMAIN" -d "www.$DOMAIN"</span></pre></div>
+<p lang="fa">پس از موفقیت مسیر fullchain و privkey را در TLS server block بگذار. کلید خصوصی معمولاً root-readable است؛ permission آن را باز نکن و به Git نفرست. مدرک: hostname واقعی در فهرست گواهی و challenge قابل‌دسترسی. self-signed در VM فقط TLS محلی را نشان می‌دهد، نه اعتماد عمومی.</p><p lang="en">After issuance, use the fullchain/private-key paths in the TLS server block. The private key is normally root-readable; do not loosen access or commit it. Evidence: the real hostname appears in the certificate listing and the challenge is reachable. A self-signed VM cert demonstrates local TLS, not public trust.</p>
+</section>
+
+<section id="checkpoint-four">
+<h2><span lang="fa">نقطهٔ ۴: HTTPS، gzip و cache</span><span lang="en">Checkpoint 4: HTTPS, gzip, and caching</span></h2>
+<p lang="fa">HTTP را به HTTPS هدایت کن، اما مسیر <code>/.well-known/acme-challenge/</code> را برای اعتبارسنجی/تمدید سروشدنی نگه دار. حالا عمداً یک قانون cache بد وارد کن: همهٔ فایل‌ها، حتی HTML، یک سال <code>immutable</code> باشند. با header پاسخ توضیح بده چرا صفحهٔ اصلی بعد از deploy ممکن است کهنه بماند.</p><p lang="en">Redirect HTTP to HTTPS, but keep <code>/.well-known/acme-challenge/</code> available for validation/renewal. Now deliberately add a bad cache rule: every file, including HTML, is immutable for a year. Use response headers to explain why the homepage may remain stale after deployment.</p>
+<div class="term"><div class="term-bar"><span class="term-label">observe headers before repairing the cache rule</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl -sSI "https://$DOMAIN/" | grep -iE '^(HTTP/|cache-control:|location:)'
+curl -sSI "https://$DOMAIN/assets/site.1.css" | grep -iE '^(HTTP/|cache-control:)'
+sudo nginx -t</span></pre></div>
+<p lang="fa">HTML باید دوباره بررسی شود؛ asset نسخه‌دار می‌تواند cache طولانی بگیرد. config خوب را بیرون web root backup کن، فقط rule را جدا کن، test و reload بگیر، بعد همان headerها را دوباره ببین. برای gzip از CSS starter که از حداقل نمونه بزرگ‌تر است با <code>Accept-Encoding: gzip</code> درخواست کن و <code>Content-Encoding</code>/<code>Vary</code> را بخوان. gzip روی فایل کوچک هم ممکن است سربار اضافه کند؛ نبود header برای پاسخ زیر <code>gzip_min_length</code> الزاماً خطا نیست.</p><p lang="en">HTML should revalidate; versioned assets can use longer caching. Back up known-good config outside the web root, change only that rule, test/reload, and inspect the same headers again. Request the starter CSS, which exceeds the sample minimum, with <code>Accept-Encoding: gzip</code> and inspect <code>Content-Encoding</code>/<code>Vary</code>. Gzip can add overhead to tiny files; a missing header below <code>gzip_min_length</code> is not automatically a fault.</p>
+<div class="term"><div class="term-bar"><span class="term-label">verify redirect, normal certificate validation, gzip, and renewal path</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl -sSI "http://$DOMAIN/"
+curl -sSI "https://$DOMAIN/"
+curl -sD - -o /dev/null -H 'Accept-Encoding: gzip' "https://$DOMAIN/assets/site.1.css"
+sudo certbot renew --dry-run</span></pre></div>
+<p lang="fa">از HTTP باید <code>Location: https://...</code> ببینی؛ curl بدون گزینهٔ دورزدن گواهی، hostname/chain را بررسی می‌کند. dry-run تمدید، مسیر آزمایشی را می‌سنجد نه تمدید فوری cert تولیدی را. exit code و timer واقعی package را ثبت کن.</p><p lang="en">HTTP should show a <code>Location: https://...</code>. Curl without certificate-bypass options validates hostname/chain. Renewal dry-run tests the staging renewal path; it does not renew the production certificate now. Record exit status and the package’s actual timer.</p>
+</section>
+
+<section id="checkpoint-five">
+<h2><span lang="fa">نقطهٔ ۵: log، خرابی عمدی و rollback</span><span lang="en">Checkpoint 5: logs, deliberate fault, and rollback</span></h2>
+<p lang="fa">یک config شناخته‌شدهٔ سالم را خارج از document root نگه دار. سپس فقط سیاست cache صفحه را عمداً به یک‌سال immutable تغییر بده. با curl header بد را ببین، زمان درخواست را با access/error log تطبیق بده، و ثابت کن مشکل cache policy است نه certificate یا فایل گمشده.</p><p lang="en">Keep a known-good config outside the document root. Then change only the page’s cache policy to one-year immutable. Observe the bad header with curl, correlate request time with access/error logs, and show the fault is cache policy—not certificate or missing content.</p>
+<div class="term"><div class="term-bar"><span class="term-label">save the known-good config and inspect this vhost’s logs</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">sudo cp /etc/nginx/sites-available/codenames.conf \
+  "$HOME/codenames.conf.known-good"
+sudo tail -n 30 /var/log/nginx/codenames.access.log
+sudo tail -n 30 /var/log/nginx/codenames.error.log</span></pre></div>
+<p lang="fa">پس از تشخیص، config سالم را برگردان، <code>nginx -t</code> بگیر و فقط در صورت موفقیت reload کن. اگر test fail شد، reload نکن. همان curl HTTPS و header را تکرار کن و خروجی را ثبت کن. rollback هم باید مدرک داشته باشد.</p><p lang="en">After diagnosis, restore the known-good config, run <code>nginx -t</code>, and reload only if it passes. If the test fails, do not reload. Repeat the same HTTPS/header curl and record it. Rollback needs evidence too.</p>
+</section>
+
+<section id="acceptance">
+<h2><span lang="fa">معیار تحویل: هر ادعا یک شاهد می‌خواهد</span><span lang="en">Acceptance: every claim needs evidence</span></h2>
+<p lang="fa">عکس صفحه کافی نیست. reviewer باید بفهمد فایل کجاست، Nginx کدام config را بار کرده و HTTPS/cache واقعاً چه headerهایی می‌دهند.</p><p lang="en">A screenshot is not enough. A reviewer should see where files live, which config Nginx loaded, and what HTTPS/cache headers return.</p>
+<div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">ادعا</span><span lang="en">Claim</span></th><th><span lang="fa">مدرک تحویل</span><span lang="en">Proof</span></th></tr></thead><tbody>
+<tr><td><span lang="fa">دامنه به همین سرور می‌رسد</span><span lang="en">Domain reaches this server</span></td><td><span lang="fa">A/AAAA و درخواست از host مستقل</span><span lang="en">A/AAAA and request from an external host</span></td></tr>
+<tr><td><span lang="fa">HTTP به HTTPS می‌رود</span><span lang="en">HTTP redirects to HTTPS</span></td><td><span lang="fa">۳۰۱ و Location؛ challenge همچنان قابل‌دسترسی</span><span lang="en">301 and Location; challenge remains reachable</span></td></tr>
+<tr><td><span lang="fa">گواهی معتبر است</span><span lang="en">Certificate is valid</span></td><td><span lang="fa">curl عادی، hostname مطابق، فهرست certbot</span><span lang="en">Normal curl, matching hostname, Certbot listing</span></td></tr>
+<tr><td><span lang="fa">محتوا و asset درست‌اند</span><span lang="en">Content and asset work</span></td><td><span lang="fa">GET صفحه و CSS؛ URL نسخهٔ تازه پس از تغییر</span><span lang="en">GET page/CSS; new versioned URL after change</span></td></tr>
+<tr><td><span lang="fa">gzip و cache معقول‌اند</span><span lang="en">Compression/cache are appropriate</span></td><td><span lang="fa">headerهای gzip/Vary و تفاوت cache HTML/asset</span><span lang="en">gzip/Vary headers and distinct HTML/asset caching</span></td></tr>
+<tr><td><span lang="fa">rollback کار می‌کند</span><span lang="en">Rollback works</span></td><td><span lang="fa">config سالم، test، reload و تکرار HTTPS</span><span lang="en">known-good config, test, reload, repeated HTTPS</span></td></tr>
+</tbody></table></div>
+</section>
+
+<section id="hints">
+<h2><span lang="fa">راهنمایی‌ها را یکی‌یکی باز کن</span><span lang="en">Reveal hints one at a time</span></h2>
+<details><summary><span lang="fa">۱. دامنه به IP نمی‌رسد</span><span lang="en">1. Domain does not reach the IP</span></summary><p lang="fa">A و AAAA را جدا ببین. firewall میزبان و ارائه‌دهنده دو مرزند. پیش از UFW، SSH را مجاز بگذار.</p><p lang="en">Inspect A and AAAA separately. Host/provider firewalls are distinct. Allow SSH before enabling UFW.</p></details>
+<details><summary><span lang="fa">۲. ۴۰۳ یا ۴۰۴</span><span lang="en">2. 403 or 404</span></summary><p lang="fa">همان URL را با error log تطبیق بده؛ root، وجود index و دسترسی worker به parentها را بررسی کن. این دو status را یکی فرض نکن.</p><p lang="en">Correlate the URL with error logs; check root, index, and worker traversal of parents. Do not treat the statuses as the same.</p></details>
+<details><summary><span lang="fa">۳. Certbot شکست می‌خورد</span><span lang="en">3. Certbot fails</span></summary><p lang="fa">challenge باید از اینترنت روی port 80 به webroot درست برسد. DNS، location challenge و هر دو firewall را بررسی کن. اگر کنترل دامنه نداری، محدودیت را ثبت کن.</p><p lang="en">The challenge must reach the correct webroot from the internet on port 80. Check DNS, challenge location, and both firewalls. If you lack domain control, document the limit.</p></details>
+<details><summary><span lang="fa">۴. CSS قدیمی است</span><span lang="en">4. CSS is stale</span></summary><p lang="fa">header صفحه و asset را جدا ببین. فایل immutable را با overwrite همان نام تازه نمی‌کنی؛ filename نسخه‌دار جدید بده و HTML را revalidate کن.</p><p lang="en">Inspect page and asset headers separately. Overwriting an immutable filename does not refresh it; publish a new versioned name and revalidate HTML.</p></details>
+</section>
+
+<section id="reference">
+<h2><span lang="fa">مرجع پیاده‌سازی: پس از ساخت خودت مقایسه کن</span><span lang="en">Reference implementation: compare after your build</span></h2>
+<p lang="fa">این نمونه را اول کپی نکن. فرض: دامنهٔ واقعی جای example.org نشسته، Certbot گواهی گرفته و Ubuntu از sites-enabled استفاده می‌کند. مسیرها و includeهای نصب خودت را تأیید کن.</p><p lang="en">Do not copy this first. Assumptions: a real domain replaces example.org, Certbot issued a certificate, and Ubuntu uses sites-enabled. Verify paths/includes on your installation.</p>
+<div class="term"><div class="term-bar"><span class="term-label">vhost reference; use the actual domain/cert paths</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">server {
+    listen 80;
+    server_name example.org www.example.org;
+    root /var/www/codenames;
+    index index.html;
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/codenames;
+        default_type text/plain;
+    }
+    location / { return 301 https://example.org$request_uri; }
+}
+
+server {
+    listen 443 ssl;
+    server_name example.org www.example.org;
+    root /var/www/codenames;
+    index index.html;
+    ssl_certificate     /etc/letsencrypt/live/example.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/example.org/privkey.pem;
+    access_log /var/log/nginx/codenames.access.log;
+    error_log  /var/log/nginx/codenames.error.log warn;
+
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 20;
+    gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/codenames;
+        default_type text/plain;
+    }
+    location = / {
+        add_header Cache-Control "no-cache";
+        try_files /index.html =404;
+    }
+    # Use immutable only while filenames are versioned and never overwritten.
+    location /assets/ {
+        try_files $uri =404;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+    location / {
+        try_files $uri $uri/ =404;
+        add_header Cache-Control "no-cache";
+    }
+    location ~ /\.(?!well-known) { deny all; }
+}</span></pre></div>
+<p lang="fa"><code>add_header</code> وراثتش به directiveهای location والد/فرزند وابسته است؛ به همین دلیل هر location اینجا header موردنظرش را می‌گوید. MIME types را از include سراسری نصب تأمین کن. config را بیرون web root backup بگیر؛ اگر symlink از قبل هست، مقصدش را بررسی کن و دوباره نساز.</p><p lang="en"><code>add_header</code> inheritance depends on parent/child location directives, so each location states its intended header. Use the installation’s global MIME types include. Back up config outside the web root; if a symlink already exists, inspect its target rather than recreating it.</p>
+<p lang="fa">فایل را در <code>sites-available</code> بگذار. اگر symlink فعال وجود ندارد بساز؛ اگر هست، مقصدش را اول بررسی کن. بعد test باید پیش از reload موفق شود.</p><p lang="en">Place the file in <code>sites-available</code>. Create the enabled symlink only if it is absent; inspect an existing target first. Config test must pass before reload.</p>
+<div class="term"><div class="term-bar"><span class="term-label">enable only when the expected link is absent</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">sudo install -m 0644 codenames.conf /etc/nginx/sites-available/codenames.conf
+if [ ! -e /etc/nginx/sites-enabled/codenames.conf ]; then
+  sudo ln -s /etc/nginx/sites-available/codenames.conf /etc/nginx/sites-enabled/codenames.conf
+else
+  sudo readlink -f /etc/nginx/sites-enabled/codenames.conf
+fi
+sudo nginx -t &amp;&amp; sudo systemctl reload nginx</span></pre></div>
+<div class="term"><div class="term-bar"><span class="term-label">test before reload; rollback only the named config file</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">sudo cp /etc/nginx/sites-available/codenames.conf \
+  "$HOME/codenames.conf.before-change"
+sudo nginx -T 2&gt;&amp;1 | less
+sudo nginx -t &amp;&amp; sudo systemctl reload nginx
+curl -sSI "http://$DOMAIN/"
+curl -sSI "https://$DOMAIN/"
+curl -sD - -o /dev/null -H 'Accept-Encoding: gzip' "https://$DOMAIN/assets/site.1.css"
+sudo certbot renew --dry-run</span></pre></div>
+<div class="term"><div class="term-bar"><span class="term-label">rollback the one named config file, then repeat verification</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">sudo cp "$HOME/codenames.conf.before-change" /etc/nginx/sites-available/codenames.conf
+sudo nginx -t &amp;&amp; sudo systemctl reload nginx
+curl -sSI "http://$DOMAIN/"
+curl -sSI "https://$DOMAIN/"</span></pre></div>
+<p lang="fa">در handoff نام دامنه، IPها، document root، vhost، وضعیت گواهی و renewal، مسیر log، cache policy و محدودیت DNS/firewall را بنویس؛ یادداشت باید نشان دهد rollback و آزمون بیرونی واقعاً انجام شده‌اند.</p><p lang="en">In the handoff, record domain/IPs, document root, vhost, certificate/renewal status, log paths, cache policy, and DNS/firewall limits. State that rollback and external retesting actually happened.</p>
+</section>
+
+<section id="next">
+<h2><span lang="fa">پروژهٔ بعد: وقتی سایت فقط فایل نیست</span><span lang="en">Next: when the site is more than files</span></h2>
+<p lang="fa">سایت استاتیک حالا از اینترنت می‌آید و cache با نام نسخه‌دار مدیریت می‌شود. قدم بعد Nginx را جلوی یک برنامه می‌گذارد؛ آنجا باید header، مسیر درخواست، WebSocket و upload را هم درست تحویل بدهیم.</p><p lang="en">The static site is reachable and versioned filenames guide caching. Next, Nginx sits in front of an app, so headers, routing, WebSockets, and uploads join the deployment.</p>
+</section>
+
+<section id="official-refs">
+<h2><span lang="fa">مستندات رسمی برای اجرای همین مأموریت</span><span lang="en">Official references for this mission</span></h2>
+<ul lang="fa"><li><a href="https://nginx.org/en/docs/http/ngx_http_headers_module.html">Nginx: add_header و expires و وراثت header</a></li><li><a href="https://nginx.org/en/docs/http/ngx_http_gzip_module.html">Nginx: gzip، MIME type و Vary</a></li><li><a href="https://letsencrypt.org/docs/challenge-types/">Let’s Encrypt: HTTP-01 و محدودیت port 80</a></li><li><a href="https://eff-certbot.readthedocs.io/en/stable/using.html">Certbot: webroot، renewal و dry-run</a></li><li><a href="https://eff-certbot.eff.org/instructions">Certbot: دستور نصب متناسب با OS و web server</a></li></ul>
+<ul lang="en"><li><a href="https://nginx.org/en/docs/http/ngx_http_headers_module.html">Nginx: add_header, expires, and header inheritance</a></li><li><a href="https://nginx.org/en/docs/http/ngx_http_gzip_module.html">Nginx: gzip, MIME types, and Vary</a></li><li><a href="https://letsencrypt.org/docs/challenge-types/">Let’s Encrypt: HTTP-01 and port 80 requirement</a></li><li><a href="https://eff-certbot.readthedocs.io/en/stable/using.html">Certbot: webroot, renewal, and dry-run</a></li><li><a href="https://eff-certbot.eff.org/instructions">Certbot installation by OS and web server</a></li></ul>
+</section>
