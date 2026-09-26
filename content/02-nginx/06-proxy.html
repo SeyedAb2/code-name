@@ -1,0 +1,517 @@
+<!--meta
+title: reverse proxy و هدرها
+desc: درخواست از Nginx تا برنامه، تفاوت اتصال TCP با هویت فرستاده‌شده در headerها، نگاشت URI در proxy_pass و مرز اعتماد به X-Forwarded-For.
+-->
+
+<div class="masthead">
+  <span class="eyebrow"><span class="dot"></span><span lang="fa">Nginx · فصل ۶</span><span lang="en">Nginx · Chapter 6</span></span>
+  <h1 lang="fa">reverse proxy و هدرها</h1>
+  <h1 lang="en">Reverse proxy and headers</h1>
+  <p class="sub" lang="fa">برنامه جواب می‌دهد، اما بعد از گذاشتن Nginx جلویش، همهٔ کاربران را با IP خود Nginx می‌بیند؛ بعضی مسیرها هم انگار تکه‌ای از نشانی‌شان گم شده. خود برنامه از پشت پروکسی چه چیزی را هنوز می‌فهمد، و چه چیزی را باید آگاهانه برایش بفرستیم؟</p>
+  <p class="sub" lang="en">The application responds, but after Nginx is placed in front, it sees every user as Nginx; some paths also seem to lose part of their URL. What can the application still know behind a proxy, and what must we deliberately forward?</p>
+  <div class="facts">
+    <div class="fact"><b>۸۰</b><span lang="fa">دقیقهٔ مطالعه</span><span lang="en">minutes</span></div>
+    <div class="fact"><b>۱۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></div>
+    <div class="fact"><b>۴</b><span lang="fa">نمودار</span><span lang="en">diagrams</span></div>
+    <div class="fact"><b>۱</b><span lang="fa">برنامهٔ بازتاب‌دهنده</span><span lang="en">echo app</span></div>
+  </div>
+</div>
+
+<section id="application-view">
+  <h2><span lang="fa">از چشم برنامه، کاربر یک‌دفعه عوض شد</span><span lang="en">From the app’s view, the user suddenly changed</span></h2>
+  <p class="lede" lang="fa">تا فصل قبل، Nginx فایل روی دیسک را پیدا می‌کرد و همان را جواب می‌داد. این بار پشت <code>location</code> یک برنامهٔ زنده داریم. کاربر به Nginx وصل می‌شود و Nginx یک اتصال تازه به برنامه باز می‌کند؛ دو اتصال داریم، نه یک اتصال که فقط از یک لوله رد شده باشد.</p>
+  <p class="lede" lang="en">In the previous chapter, Nginx found a file and returned it. This time, a live application sits behind the <code>location</code>. The client connects to Nginx, and Nginx opens a separate connection to the app: two connections, not one connection passing through a transparent tube.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 1080 390" role="img" aria-labelledby="proxy-identity-title" xmlns="http://www.w3.org/2000/svg">
+      <title id="proxy-identity-title">Two TCP connections; forwarding headers carry selected HTTP identity across the second hop / دو اتصال TCP جدا و headerهایی که بخشی از اطلاعات درخواست را به hop دوم می‌برند</title>
+      <defs>
+        <marker id="proxy-hop-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow-b"/></marker>
+        <marker id="proxy-info-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow"/></marker>
+      </defs>
+      <rect x="30" y="70" width="260" height="124" rx="16" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/>
+      <text x="160" y="105" text-anchor="middle" class="dg-t">Client</text>
+      <text x="160" y="136" text-anchor="middle" class="dg-tm">TCP peer: 203.0.113.24</text>
+      <text x="160" y="165" text-anchor="middle" class="dg-ts">Host + HTTPS request</text>
+      <rect x="410" y="70" width="260" height="124" rx="16" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/>
+      <text x="540" y="105" text-anchor="middle" class="dg-t">Nginx</text>
+      <text x="540" y="136" text-anchor="middle" class="dg-tm">remote_addr = client peer</text>
+      <text x="540" y="165" text-anchor="middle" class="dg-ts">terminates one request</text>
+      <rect x="790" y="70" width="260" height="124" rx="16" class="dg-fill-g" stroke="var(--safe)" stroke-width="2"/>
+      <text x="920" y="105" text-anchor="middle" class="dg-t">Application</text>
+      <text x="920" y="136" text-anchor="middle" class="dg-tm">TCP peer: Nginx</text>
+      <text x="920" y="165" text-anchor="middle" class="dg-ts">reads request headers</text>
+      <path d="M290 105H400" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#proxy-hop-arrow)"/>
+      <text x="345" y="91" text-anchor="middle" class="dg-ts">connection A</text>
+      <path d="M670 105H780" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#proxy-hop-arrow)"/>
+      <text x="725" y="91" text-anchor="middle" class="dg-ts">connection B</text>
+      <rect x="378" y="238" width="324" height="105" rx="14" class="dg-fill" stroke="var(--line-strong)" stroke-width="1.5"/>
+      <text x="540" y="270" text-anchor="middle" class="dg-t">Forwarded HTTP context</text>
+      <text x="540" y="300" text-anchor="middle" class="dg-tm">Host · X-Real-IP · X-Forwarded-For</text>
+      <text x="540" y="326" text-anchor="middle" class="dg-tm">X-Forwarded-Proto</text>
+      <path d="M670 194V224" class="dg-stroke" stroke-width="2" marker-end="url(#proxy-info-arrow)"/>
+      <text x="690" y="216" class="dg-ts">set by config</text>
+      <path d="M702 290H760V194" class="dg-stroke" stroke-width="2" marker-end="url(#proxy-info-arrow)"/>
+    </svg>
+    <p class="diagram-cap" lang="fa">فلش‌های افقی دو اتصال TCP جدا را نشان می‌دهند. برنامه در اتصال دوم، همتای TCP خود را Nginx می‌بیند؛ headerهای پایین راهی‌اند که Nginx می‌تواند بخشی از زمینهٔ درخواست اول را منتقل کند. این headerها به‌خودی‌خود مدرک هویت نیستند؛ فرستنده‌شان باید قابل‌اعتماد باشد.</p>
+    <p class="diagram-cap" lang="en">The horizontal arrows are two separate TCP connections. On the second connection, the app’s TCP peer is Nginx; the lower headers are a way for Nginx to forward selected context from the first request. These headers are not identity proof by themselves—the sender must be trusted.</p>
+  </div>
+  <p lang="fa">پیش‌بینی کن: اگر برنامه IP اتصال را log کند، بعد از پروکسی چه می‌نویسد؟ برای اینکه حدس نزنیم، یک برنامهٔ بازتاب‌دهندهٔ کوچک می‌سازیم. این برنامه فقط path، چند header و آدرس TCP peer را پس می‌دهد؛ اطلاعاتی که می‌فرستیم عمداً ساختگی است و نباید هیچ راز واقعی‌ای در درخواست بگذاریم.</p>
+  <p lang="en">Predict what the app will log as the connection address after proxying. To replace guessing with evidence, we will run a tiny echo app. It returns only the path, selected headers, and TCP peer address; all values we send are intentionally fake, and no real secret belongs in these requests.</p>
+</section>
+
+<section id="echo-lab">
+  <h2><span lang="fa">یک برنامهٔ کوچک که حرف‌های رسیده را پس می‌دهد</span><span lang="en">A tiny app that repeats what arrived</span></h2>
+  <p class="lede" lang="fa">آزمایش در یک پوشهٔ موقت و روی loopback می‌ماند. برنامه روی پورت <code>19090</code> و Nginx روی <code>18083</code> گوش می‌دهد؛ هیچ‌کدام را روی شبکهٔ عمومی باز نمی‌کنیم. اگر این پورت‌ها قبلاً استفاده می‌شوند، همهٔ نمونه‌های همان عدد را با پورت آزاد عوض کن.</p>
+  <p class="lede" lang="en">The lab stays in a temporary directory and on loopback. The app listens on port <code>19090</code> and Nginx on <code>18083</code>; neither is exposed publicly. If either port is already in use, replace every occurrence of that port with a free one.</p>
+  <p lang="fa">پیش از فرستادن درخواست، مطمئن شو این سه پورت listener دیگری ندارند؛ این‌طوری آزمایش ناخواسته به سرویس دیگری وصل نمی‌شود. در Linux/WSL از <code>ss</code> و در macOS معمولاً از <code>lsof</code> کمک بگیر. اگر پورت اشغال است، آن را در تمام دستورها و config یکسان عوض کن.</p>
+  <p lang="en">Before sending requests, check that no other listener owns these three ports, so the lab cannot accidentally talk to another service. Use <code>ss</code> on Linux/WSL or usually <code>lsof</code> on macOS. If a port is occupied, change it consistently in every command and config.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">check before using loopback ports</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">if command -v ss &gt;/dev/null; then
+  ss -ltn | grep -E ':(18083|19090|19091)([[:space:]]|$)' || true
+elif command -v lsof &gt;/dev/null; then
+  lsof -nP -iTCP:18083 -iTCP:19090 -iTCP:19091 -sTCP:LISTEN
+else
+  echo 'Check ports 18083, 19090, and 19091 with your OS network tool.'
+fi</span></pre></div>
+  <p lang="fa">اگر خروجی شامل هرکدام از این پورت‌ها بود، آن پورت را برای آزمایش انتخاب نکن. خالی‌بودن خروجی فقط می‌گوید در لحظهٔ بررسی listener دیده نشده؛ پیش از start دوباره خطا را جدی بگیر و اگر سرویس دیگری بالا آمد، به آن درخواست نفرست.</p>
+  <p lang="en">If output lists any of these ports, do not use that port for the lab. Empty output means only that no listener was visible at check time; if startup later reveals a conflict, do not send requests to the other service.</p>
+  <p lang="fa">اول برنامه را می‌سازیم. چرا؟ چون قبل از دیدن پیکربندی پروکسی باید بدانیم خود مقصد چه چیزی دریافت و ثبت می‌کند. پاسخ JSON شامل مسیر، <code>Host</code>، سه header انتقالی و آدرس peer است؛ خود برنامه هم هر درخواست را در stdout می‌نویسد و سرور HTTP روش و مسیر را در stderr ثبت می‌کند.</p>
+  <p lang="en">First we create the app. Why? Before studying proxy configuration, we need to know what the destination receives and records. Its JSON response contains the path, <code>Host</code>, three forwarding headers, and the peer address; the app writes each request to stdout, while the HTTP server records the method and path to stderr.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">create an isolated Bash lab and echo app</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">LAB_DIR=$(mktemp -d /tmp/nginx-proxy.XXXXXX)
+printf 'Lab directory: %s\n' "$LAB_DIR"
+mkdir -p "$LAB_DIR/logs"
+
+cat &gt; "$LAB_DIR/echo.py" &lt;&lt;'PY'
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import json
+
+class Echo(BaseHTTPRequestHandler):
+    def do_GET(self):
+        data = {
+            "path": self.path,
+            "host": self.headers.get("Host"),
+            "x_real_ip": self.headers.get("X-Real-IP"),
+            "x_forwarded_for": self.headers.get("X-Forwarded-For"),
+            "x_forwarded_proto": self.headers.get("X-Forwarded-Proto"),
+            "tcp_peer": self.client_address[0],
+        }
+        print(json.dumps(data), flush=True)
+        body = (json.dumps(data, indent=2) + "\n").encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+ThreadingHTTPServer(("127.0.0.1", 19090), Echo).serve_forever()
+PY</span></pre></div>
+  <p lang="fa">این برنامه کتابخانه یا وابستگی بیرونی ندارد؛ فقط برای دیدن مرز شبکه است، نه استفادهٔ واقعی. هر درخواست را به‌صورت یک خط JSON در stdout هم می‌نویسد و پاسخ می‌دهد. حالا آن را در پس‌زمینه بالا می‌آوریم و یک درخواست مستقیم می‌فرستیم. <code>tcp_peer</code> آدرس اتصال همین درخواست است، نه ادعایی دربارهٔ IP عمومی کاربر.</p>
+  <p lang="en">This app has no framework or external dependency; it exists to expose the network boundary, not to serve production traffic. Each request is returned as JSON and written to stdout; the standard HTTP server also logs requests to stderr. Start it in the background and send one direct request. In the response, <code>tcp_peer</code> is the address on this connection—not a claim about a user’s public IP.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">start the app and ask it directly</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">python3 -u "$LAB_DIR/echo.py" &gt; "$LAB_DIR/app.log" 2&gt;&amp;1 &amp;
+APP_PID=$!
+printf '%s\n' "$APP_PID" &gt; "$LAB_DIR/app.pid"
+for i in {1..20}; do
+  if curl -sS --max-time 1 -H 'Host: shop.example.test' \
+    'http://127.0.0.1:19090/direct?item=7' &gt; "$LAB_DIR/direct.json"; then
+    break
+  fi
+  sleep 0.25
+done
+if [ -s "$LAB_DIR/direct.json" ]; then
+  cat "$LAB_DIR/direct.json"
+else
+  echo 'Echo app did not answer; inspect the saved PID and app.log.'
+  tail -n 10 "$LAB_DIR/app.log"
+fi</span>
+<span class="s">{
+  "path": "/direct?item=7",
+  "host": "shop.example.test",
+  "x_real_ip": null,
+  "x_forwarded_for": null,
+  "x_forwarded_proto": null,
+  "tcp_peer": "127.0.0.1"
+}</span></pre></div>
+  <p lang="fa">در اجرای loopback، peer برابر <code>127.0.0.1</code> است. اگر روی میزبان دیگری اجرا کنی، مقدار فرق می‌کند؛ خود مدل فرق نمی‌کند: برنامه فقط peer اتصال مستقیم خودش را می‌شناسد. هنوز دربارهٔ مسیر، headerها یا رفتار Nginx چیزی ثابت نکرده‌ایم.</p>
+  <p lang="en">On loopback, the peer is <code>127.0.0.1</code>. On another host, the value differs; the model does not: the app knows only the peer of its own direct connection. We have not yet established anything about Nginx, forwarded headers, or proxied paths.</p>
+</section>
+
+<section id="first-proxy">
+  <h2><span lang="fa">Nginx وصل می‌شود؛ چه چیزهایی را با خودش می‌برد؟</span><span lang="en">Nginx connects—but what context does it carry?</span></h2>
+  <p class="lede" lang="fa">حالا Nginx را با یک <code>location</code> ساده جلو برنامه می‌گذاریم. هنوز header سفارشی نمی‌فرستیم؛ خروجی همین حالت پایه نشان می‌دهد چه چیزی به‌طور پیش‌فرض می‌رسد و چه چیزی را باید خودمان تنظیم کنیم.</p>
+  <p class="lede" lang="en">Now place Nginx in front of the app with one simple <code>location</code>. We will not add custom headers yet; the baseline response will show what arrives by default and what we must configure ourselves.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">baseline reverse-proxy configuration</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cat &gt; "$LAB_DIR/nginx.conf" &lt;&lt;'NGINX'
+worker_processes 1;
+pid logs/nginx.pid;
+error_log logs/error.log notice;
+events { worker_connections 64; }
+
+http {
+    access_log logs/access.log;
+    server {
+        listen 127.0.0.1:18083;
+        server_name _;
+
+        location /api/ {
+            proxy_connect_timeout 2s;
+            proxy_send_timeout 10s;
+            proxy_read_timeout 30s;
+            proxy_pass http://127.0.0.1:19090;
+        }
+    }
+}
+NGINX
+
+nginx -t -p "$LAB_DIR/" -c nginx.conf</span>
+<span class="s">nginx: the configuration file .../nginx.conf syntax is ok
+nginx: configuration file .../nginx.conf test is successful</span></pre></div>
+  <p lang="fa">آزمون <code>-t</code> فقط می‌گوید syntax و فایل‌های config قابل‌قبول‌اند؛ نه اینکه برنامه بالا باشد یا درخواست درست برسد. پیش از start پورت <code>18083</code> را بررسی کن؛ اگر اشغال است، پورت را در config و همهٔ درخواست‌های بعدی یکسان عوض کن. بعد Nginx را با همان prefix و config اجرا می‌کنیم.</p>
+  <p lang="en">The <code>-t</code> check proves only that the syntax and config files are acceptable; it does not prove the app is up or that a request will work. Check that port <code>18083</code> is free before starting; if occupied, change it consistently in the config and later requests. Then start Nginx with the same prefix and config.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">start Nginx and compare one proxied request</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">nginx -p "$LAB_DIR/" -c nginx.conf
+curl -sS -H 'Host: shop.example.test' \
+  http://127.0.0.1:18083/api/orders?day=1</span>
+<span class="s">{
+  "path": "/api/orders?day=1",
+  "host": "127.0.0.1:19090",
+  "x_real_ip": null,
+  "x_forwarded_for": null,
+  "x_forwarded_proto": null,
+  "tcp_peer": "127.0.0.1"
+}</span></pre></div>
+  <p lang="fa">دو خط را کنار هم بخوان: <code>host</code> حالا آدرس upstream است، نه <code>shop.example.test</code> که کاربر فرستاد؛ و headerهای IP و scheme خالی‌اند. <code>tcp_peer</code> هم peer اتصال تازهٔ Nginx به برنامه را نشان می‌دهد. در loopback هر دو peer ممکن است یک عدد دیده شوند، اما از نظر معماری همچنان دو اتصال جدا داریم. خود Nginx headerهای درخواست ورودی را عموماً عبور می‌دهد، ولی headerهای انتقالی استاندارد را خودش از هیچ نمی‌سازد.</p>
+  <p lang="en">Read the fields side by side: <code>host</code> is now the upstream address, not the client’s <code>shop.example.test</code>; the IP and scheme headers are absent. <code>tcp_peer</code> is the peer of Nginx’s new connection to the app. On loopback both peers may display the same number, but architecturally they remain separate connections. Nginx generally passes incoming request headers, but it does not invent the forwarding headers for you.</p>
+  <div class="note safe"><div class="note-t"><span lang="fa">پروکسی آدرس شبکه را جعل نمی‌کند</span><span lang="en">A proxy does not fake the network peer</span></div><p lang="fa">بعد از proxying، برنامه آدرس اتصال TCP خودش را می‌بیند: آدرس Nginx یا واسطه‌ای که مستقیم به آن وصل شده. اگر می‌خواهیم context درخواست قبلی را به برنامه بدهیم، باید در HTTP header بفرستیم؛ header جای TCP را نمی‌گیرد و برعکس.</p><p lang="en">After proxying, the app sees the TCP peer of its own connection: Nginx or whichever intermediary connected directly to it. To pass context from the earlier request, we must send HTTP headers; a header does not replace the TCP connection address, nor vice versa.</p></div>
+</section>
+
+<section id="forward-headers">
+  <h2><span lang="fa">Host، IP و scheme را با قصد روشن بفرست</span><span lang="en">Forward Host, address, and scheme deliberately</span></h2>
+  <p class="lede" lang="fa">کاربر به <code>https://shop.example.test</code> وصل شده، اما برنامه شاید فقط upstream را ببیند و فکر کند درخواست HTTP بوده. این سه پرسش را جدا نگه داریم: کدام نام میزبان درخواست شده؟ اتصال قبلی از کدام peer آمده؟ و کاربر از HTTP آمده یا HTTPS؟</p>
+  <p class="lede" lang="en">A user reached <code>https://shop.example.test</code>, but the app may see only the upstream and assume the request used HTTP. Keep three questions separate: which host was requested, which peer opened the previous connection, and did the client use HTTP or HTTPS?</p>
+  <div class="diagram">
+    <svg viewBox="0 0 1040 350" role="img" aria-labelledby="header-map-title" xmlns="http://www.w3.org/2000/svg">
+      <title id="header-map-title">Nginx variables mapped to headers received by the app / نگاشت متغیرهای Nginx به headerهای رسیده به برنامه</title>
+      <defs><marker id="header-map-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow-b"/></marker></defs>
+      <rect x="35" y="45" width="305" height="244" rx="16" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/>
+      <text x="187" y="82" text-anchor="middle" class="dg-t">Nginx variables</text>
+      <text x="66" y="125" class="dg-tm">$host</text><text x="210" y="125" class="dg-ts">request host</text>
+      <text x="66" y="169" class="dg-tm">$remote_addr</text><text x="210" y="169" class="dg-ts">TCP client peer</text>
+      <text x="66" y="213" class="dg-tm">$scheme</text><text x="210" y="213" class="dg-ts">scheme at Nginx</text>
+      <text x="66" y="257" class="dg-tm">$proxy_add_x_forwarded_for</text>
+      <rect x="690" y="45" width="315" height="244" rx="16" class="dg-fill-g" stroke="var(--safe)" stroke-width="2"/>
+      <text x="847" y="82" text-anchor="middle" class="dg-t">Application request</text>
+      <text x="730" y="125" class="dg-tm">Host</text><text x="825" y="125" class="dg-ts">virtual host / URL</text>
+      <text x="730" y="169" class="dg-tm">X-Real-IP</text><text x="825" y="169" class="dg-ts">one forwarded peer</text>
+      <text x="730" y="213" class="dg-tm">X-Forwarded-For</text><text x="865" y="213" class="dg-ts">address chain</text>
+      <text x="730" y="257" class="dg-tm">X-Forwarded-Proto</text><text x="885" y="257" class="dg-ts">original scheme</text>
+      <path d="M350 125H678" class="dg-stroke-b" stroke-width="2" marker-end="url(#header-map-arrow)"/>
+      <path d="M350 169H678" class="dg-stroke-b" stroke-width="2" marker-end="url(#header-map-arrow)"/>
+      <path d="M350 213H678" class="dg-stroke-b" stroke-width="2" marker-end="url(#header-map-arrow)"/>
+      <path d="M350 257H678" class="dg-stroke-b" stroke-width="2" marker-end="url(#header-map-arrow)"/>
+      <text x="520" y="319" text-anchor="middle" class="dg-ts">configuration chooses each mapping; trust is a separate decision</text>
+    </svg>
+    <p class="diagram-cap" lang="fa">هر ردیف یک نگاشت پیکربندی‌شده است، نه چیزی که پروتکل خودکار تضمین کند. به‌ویژه آدرس داخل <code>X-Forwarded-For</code> فقط وقتی قابل‌اتکاست که زنجیرهٔ proxyها و برنامه بدانند کدام hop مجاز به نوشتن آن است.</p>
+    <p class="diagram-cap" lang="en">Each row is a configured mapping, not something the protocol automatically guarantees. In particular, an address in <code>X-Forwarded-For</code> is usable only when the proxy chain and app agree on which hops are allowed to write it.</p>
+  </div>
+  <p lang="fa">در این آزمایش، Nginx مستقیم لبهٔ ورودی است؛ پس برای نشانی کلاینت مقدار <code>$remote_addr</code> را می‌فرستیم و header جعلی ورودی را جایگزین می‌کنیم. <code>$host</code> نام درخواست را می‌دهد؛ <code>$scheme</code> پروتکلی را که خود Nginx در این hop دیده گزارش می‌کند؛ و <code>X-Real-IP</code> یک مقدار تکی است.</p>
+  <p lang="en">In this lab, Nginx is the directly exposed edge, so we send <code>$remote_addr</code> as the client address and replace any client-supplied spoofed value. <code>$host</code> supplies the request host; <code>$scheme</code> reports the protocol Nginx saw on this hop; and <code>X-Real-IP</code> is a single value.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">add explicit request context at the proxy edge</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k"># add these lines inside location /api/ in nginx.conf
+proxy_set_header Host              $host;
+proxy_set_header X-Real-IP         $remote_addr;
+proxy_set_header X-Forwarded-For   $remote_addr;
+proxy_set_header X-Forwarded-Proto $scheme;
+
+nginx -t -p "$LAB_DIR/" -c nginx.conf &amp;&amp; \
+  nginx -s reload -p "$LAB_DIR/" -c nginx.conf
+curl -sS -H 'Host: shop.example.test' \
+  -H 'X-Forwarded-For: 198.51.100.77' \
+  http://127.0.0.1:18083/api/orders?day=1</span></pre></div>
+  <p lang="fa">اگر کاربر خودش <code>X-Forwarded-For: 198.51.100.77</code> بفرستد، config لبه آن مقدار را با <code>$remote_addr</code> عوض می‌کند. پاسخ مورد انتظار در loopback، <code>Host: shop.example.test</code>، headerهای تنظیم‌شده برای همین hop و <code>tcp_peer: 127.0.0.1</code> است؛ <code>X-Forwarded-Proto</code> هم <code>http</code> خواهد بود.</p>
+  <p lang="en">If a client supplies <code>X-Forwarded-For: 198.51.100.77</code>, the edge config replaces it with <code>$remote_addr</code>. On loopback, expect <code>Host: shop.example.test</code>, the headers set for this hop, and <code>tcp_peer: 127.0.0.1</code>; <code>X-Forwarded-Proto</code> will be <code>http</code>.</p>
+  <p lang="fa">برای درخواست همین‌جا از <code>http://127.0.0.1:18083/...</code> استفاده کن؛ در خروجی <code>x_forwarded_proto</code> باید <code>http</code> باشد. این مقدار ثابت نمی‌کند TLS در Nginx فعال است. اگر TLS در load balancer دیگری تمام شود، <code>$scheme</code> اینجا ممکن است همچنان <code>http</code> باشد و باید فقط از همان واسطهٔ مورداعتماد، scheme اصلی را بگیری.</p>
+  <p lang="en">For this lab request, use <code>http://127.0.0.1:18083/...</code>; <code>x_forwarded_proto</code> should be <code>http</code>. That does not prove TLS is enabled in Nginx. If another load balancer terminates TLS, <code>$scheme</code> here may still be <code>http</code>; obtain the original scheme only from that trusted intermediary.</p>
+</section>
+
+<section id="uri-mapping">
+  <h2><span lang="fa">یک slash در proxy_pass مسیر را عوض می‌کند</span><span lang="en">One slash in proxy_pass can change the path</span></h2>
+  <p class="lede" lang="fa">برنامه مسیر <code>/api/orders</code> را انتظار دارد، ولی گاهی در log فقط <code>/orders</code> می‌بیند. پیش از دست‌کاری routing برنامه، خود <code>proxy_pass</code> را بخوان: آیا URL آن فقط upstream را دارد یا URI جایگزین هم مشخص کرده؟</p>
+  <p class="lede" lang="en">The app expects <code>/api/orders</code>, but its log sometimes shows only <code>/orders</code>. Before changing application routing, inspect <code>proxy_pass</code>: does its URL contain only the upstream, or also a replacement URI?</p>
+  <div class="diagram">
+    <svg viewBox="0 0 1050 340" role="img" aria-labelledby="uri-map-title" xmlns="http://www.w3.org/2000/svg">
+      <title id="uri-map-title">How a proxy_pass URI changes the matching path prefix / تأثیر URI در proxy_pass بر پیشوند مسیر منطبق</title>
+      <defs><marker id="uri-map-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow-b"/></marker></defs>
+      <text x="40" y="65" class="dg-t">Request: /api/orders?day=1</text>
+      <rect x="45" y="88" width="260" height="72" rx="12" class="dg-fill-v" stroke="var(--violet)" stroke-width="1.5"/>
+      <text x="175" y="118" text-anchor="middle" class="dg-tm">location /api/</text>
+      <text x="175" y="142" text-anchor="middle" class="dg-ts">match prefix</text>
+      <path d="M305 124H400" class="dg-stroke-b" stroke-width="2" marker-end="url(#uri-map-arrow)"/>
+      <rect x="415" y="88" width="270" height="72" rx="12" class="dg-fill-b" stroke="var(--blue)" stroke-width="1.5"/>
+      <text x="550" y="118" text-anchor="middle" class="dg-tm">proxy_pass http://app;</text>
+      <text x="550" y="142" text-anchor="middle" class="dg-ts">no URI suffix</text>
+      <path d="M685 124H780" class="dg-stroke-b" stroke-width="2" marker-end="url(#uri-map-arrow)"/>
+      <rect x="795" y="88" width="220" height="72" rx="12" class="dg-fill-g" stroke="var(--safe)" stroke-width="1.5"/>
+      <text x="905" y="118" text-anchor="middle" class="dg-tm">/api/orders?day=1</text>
+      <text x="905" y="142" text-anchor="middle" class="dg-ts">path preserved</text>
+      <text x="40" y="222" class="dg-t">Same request, but proxy_pass ends with /</text>
+      <rect x="45" y="244" width="260" height="72" rx="12" class="dg-fill-v" stroke="var(--violet)" stroke-width="1.5"/>
+      <text x="175" y="274" text-anchor="middle" class="dg-tm">location /api/</text>
+      <text x="175" y="298" text-anchor="middle" class="dg-ts">matched prefix</text>
+      <path d="M305 280H400" class="dg-stroke-b" stroke-width="2" marker-end="url(#uri-map-arrow)"/>
+      <rect x="415" y="244" width="270" height="72" rx="12" class="dg-fill-b" stroke="var(--blue)" stroke-width="1.5"/>
+      <text x="550" y="274" text-anchor="middle" class="dg-tm">proxy_pass http://app/;</text>
+      <text x="550" y="298" text-anchor="middle" class="dg-ts">replacement URI: /</text>
+      <path d="M685 280H780" class="dg-stroke-b" stroke-width="2" marker-end="url(#uri-map-arrow)"/>
+      <rect x="795" y="244" width="220" height="72" rx="12" class="dg-fill-g" stroke="var(--safe)" stroke-width="1.5"/>
+      <text x="905" y="274" text-anchor="middle" class="dg-tm">/orders?day=1</text>
+      <text x="905" y="298" text-anchor="middle" class="dg-ts">prefix replaced</text>
+    </svg>
+    <p class="diagram-cap" lang="fa">در هر دو ردیف درخواست یکسان است. وقتی <code>proxy_pass</code> URI ندارد، مسیر اصلی به upstream می‌رود؛ وقتی <code>/</code> دارد، بخش منطبق با <code>/api/</code> با همان URI جایگزین می‌شود. این قاعده را برای locationهای prefix معمولی می‌خوانیم؛ regex و rewrite حالت‌های ویژه دارند.</p>
+    <p class="diagram-cap" lang="en">Both rows start with the same request. Without a URI in <code>proxy_pass</code>, the original path goes upstream; with <code>/</code>, the part matching <code>/api/</code> is replaced by that URI. This describes ordinary prefix locations; regex locations and rewrites have special cases.</p>
+  </div>
+  <p lang="fa">یک تفاوت ظاهراً کوچک را با خروجی خود برنامه می‌سنجیم: خطای نسخهٔ دوم عمداً در انتهای اسلش است. query string در مثال نگه داشته می‌شود؛ چیزی که جابه‌جا شده prefix مسیر است. پس قبل از تغییر config، مسیر لازم برنامه را از قرارداد API پیدا کن.</p>
+  <p lang="en">We will verify a deceptively small difference in the app’s own output: the second version deliberately changes the trailing slash. The query string remains in this example; the changed part is the path prefix. Before editing the config, establish the path required by the app’s API contract.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">درخواست</span><span lang="en">Request</span></th><th><code>proxy_pass</code></th><th><span lang="fa">مسیر رسیده به برنامه</span><span lang="en">Path received by app</span></th></tr></thead><tbody>
+    <tr><td><code>/api/orders?day=1</code></td><td><code>http://127.0.0.1:19090</code></td><td><code>/api/orders?day=1</code></td></tr>
+    <tr><td><code>/api/orders?day=1</code></td><td><code>http://127.0.0.1:19090/</code></td><td><code>/orders?day=1</code></td></tr>
+  </tbody></table></div>
+</section>
+
+<section id="deliberate-break">
+  <h2><span lang="fa">خرابی عمدی: برنامه مسیر را گم می‌کند</span><span lang="en">Deliberate failure: the app loses its route prefix</span></h2>
+  <p class="lede" lang="fa">API فقط زیر <code>/api/</code> مسیر دارد. حالا slash انتهایی را به <code>proxy_pass</code> اضافه کن و همان درخواست را بفرست. هنوز fix را نمی‌گوییم؛ بگذاریم برنامهٔ بازتاب‌دهنده نشان دهد دقیقاً چه چیزی عوض شد.</p>
+  <p class="lede" lang="en">The API serves routes only below <code>/api/</code>. Add a trailing slash to <code>proxy_pass</code> and send the same request. We will hold back the fix; let the echo app show exactly what changed.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">make one controlled URI change, test, and reload</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k"># change only this line in the disposable config
+proxy_pass http://127.0.0.1:19090/;
+
+nginx -t -p "$LAB_DIR/" -c nginx.conf &amp;&amp; \
+  nginx -s reload -p "$LAB_DIR/" -c nginx.conf
+curl -sS http://127.0.0.1:18083/api/orders?day=1</span>
+<span class="s">{
+  "path": "/orders?day=1",
+  ...
+}</span></pre></div>
+  <p lang="fa">syntax سالم است و Nginx reload شده، پس خطا از parse نیست. مدرک تعیین‌کننده <code>"path": "/orders?day=1"</code> است: برنامه درخواست را گرفته، اما با URI دیگری. این خروجی خطای API واقعی یا منطق برنامه را نمی‌آزماید؛ فقط مسیری را که proxy فرستاده ثابت می‌کند.</p>
+  <p lang="en">The syntax is valid and Nginx reloaded, so this is not a parse failure. The discriminating evidence is <code>"path": "/orders?day=1"</code>: the app received a request, but with a different URI. This does not test a real API response or application logic; it proves only the path sent by the proxy.</p>
+  <p lang="fa">برای تعمیر، قرارداد را انتخاب کن، نه اسلش را با حدس جابه‌جا کن: اگر برنامه انتظار دارد <code>/api/</code> حفظ شود، URI را از <code>proxy_pass</code> بردار. بعد همان URL را بفرست؛ باید <code>/api/orders?day=1</code> برگردد. اگر طراحی API می‌خواهد prefix حذف شود، برنامه باید مسیر کوتاه‌تر را بشناسد؛ proxy قرار نیست قرارداد برنامه را حدس بزند.</p>
+  <p lang="en">Repair according to the contract, not by randomly moving slashes: if the app expects <code>/api/</code> to remain, remove the URI from <code>proxy_pass</code>. Resend the same URL; it should return <code>/api/orders?day=1</code>. If the API is designed to omit the prefix, the app must recognize the shorter path—the proxy cannot guess the contract.</p>
+  <div class="note warn"><div class="note-t"><span lang="fa">localhost از کدام محیط؟</span><span lang="en">Which environment does localhost mean?</span></div><p lang="fa">در این آزمایش Nginx و برنامه روی یک میزبان‌اند، پس <code>127.0.0.1</code> مقصد معناداری است. اگر Nginx داخل container باشد و برنامه بیرون آن، یا هرکدام در container جدا باشند، <code>localhost</code> به همان network namespace اشاره می‌کند و ممکن است مقصد اشتباه باشد. آن‌وقت نام سرویس/میزبان و شبکهٔ درست لازم است؛ این همان بحث شبکهٔ Docker است و اینجا وارد جزئیاتش نمی‌شویم.</p><p lang="en">In this lab, Nginx and the app share a host, so <code>127.0.0.1</code> is meaningful. If Nginx runs in a container and the app outside it—or each runs in a separate container—<code>localhost</code> refers to that process’s own network namespace and may be the wrong destination. Then use the correct service/host name and network; Docker networking is outside this chapter.</p></div>
+</section>
+
+<section id="trust-boundary">
+  <h2><span lang="fa">هر کسی می‌تواند header را بنویسد؛ به کدام فرستنده اعتماد داری؟</span><span lang="en">Anyone can write a header—which sender do you trust?</span></h2>
+  <p class="lede" lang="fa">در آزمایش قبلی عمداً فرستادیم <code>X-Forwarded-For: 198.51.100.77</code>. اگر Nginx آن را بدون بازبینی به برنامه بدهد، برنامه شاید فکر کند این IP واقعی کاربر است. اما کاربر خودش header را نوشته؛ مقدار داخلش فقط متن ورودی است، نه هویت تأییدشده.</p>
+  <p class="lede" lang="en">In the previous test we deliberately sent <code>X-Forwarded-For: 198.51.100.77</code>. If Nginx passes it through unchecked, the app may mistake it for the user’s real IP. But the client wrote that header; its value is input text, not verified identity.</p>
+  <p lang="fa">وقتی Nginx مستقیماً از اینترنت درخواست می‌گیرد، اتصال peer را خودش می‌بیند؛ برای این hop می‌توانیم مقدار ورودی را کنار بگذاریم و <code>$remote_addr</code> را بنویسیم. اما اگر یک load balancer مورداعتماد پیش از Nginx است، <code>$remote_addr</code> آدرس همان load balancer خواهد بود. آن‌وقت زنجیره را فقط بر پایهٔ مستندات همان سرویس و محدوده‌های IP مورداعتماد تفسیر کن.</p>
+  <p lang="en">When Nginx receives traffic directly from the internet, it sees the connection peer; for this hop we can discard the supplied value and write <code>$remote_addr</code>. But if a trusted load balancer sits in front, <code>$remote_addr</code> is that load balancer. Interpret the chain only using that service’s documented behavior and explicitly trusted IP ranges.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">direct edge: replace, do not blindly preserve, client input</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">proxy_set_header X-Forwarded-For $remote_addr;
+
+# Only when a known, trusted proxy already supplied a validated chain:
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;</span></pre></div>
+  <p lang="fa">متغیر <code>$proxy_add_x_forwarded_for</code> مقدار header ورودی را نگه می‌دارد و <code>$remote_addr</code> را به انتهای زنجیره اضافه می‌کند. این کار برای زنجیرهٔ proxyهای شناخته‌شده می‌تواند لازم باشد؛ ولی اگر ورودی کلاینت را پاک‌سازی نکرده‌ای، ممکن است مقدار جعلی را هم با خودت عبور بدهی. «header را داریم» با «می‌توانیم برای کنترل دسترسی یا محدودیت درخواست به آن اعتماد کنیم» یکی نیست.</p>
+  <p lang="en">The <code>$proxy_add_x_forwarded_for</code> variable preserves the incoming header and appends <code>$remote_addr</code>. That can be needed across a known proxy chain, but if you have not sanitized client input, you may carry a spoofed value forward. “The header exists” is not the same as “we may trust it for access control or rate limiting.”</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">مقدار</span><span lang="en">Value</span></th><th><span lang="fa">چه چیزی را توصیف می‌کند؟</span><span lang="en">What it describes</span></th><th><span lang="fa">محدودیت</span><span lang="en">Limitation</span></th></tr></thead><tbody>
+    <tr><td><code>tcp_peer</code> / <code>$remote_addr</code></td><td><span lang="fa">همتای اتصال به همین hop</span><span lang="en">Peer on this hop</span></td><td><span lang="fa">در اپ پشت proxy، معمولاً خود proxy است.</span><span lang="en">Behind a proxy, it is usually the proxy.</span></td></tr>
+    <tr><td><code>X-Real-IP</code></td><td><span lang="fa">یک نشانی که proxy در header گذاشته</span><span lang="en">One address written by the proxy</span></td><td><span lang="fa">فقط وقتی قابل‌اتکاست که برنامه فقط proxy مجاز را بپذیرد.</span><span lang="en">Trust it only when the app accepts the authorized proxy.</span></td></tr>
+    <tr><td><code>X-Forwarded-For</code></td><td><span lang="fa">زنجیرهٔ نشانی‌های نوشته‌شده در مسیر</span><span lang="en">An address chain recorded along the route</span></td><td><span lang="fa">بخش‌های ورودی ممکن است جعلی یا بدفرمت باشند.</span><span lang="en">Incoming parts may be spoofed or malformed.</span></td></tr>
+    <tr><td><code>X-Forwarded-Proto</code></td><td><span lang="fa">schemeای که یک proxy ادعا می‌کند کاربر داشته</span><span lang="en">The scheme a proxy says the client used</span></td><td><span lang="fa">از proxy ناآشنا نپذیر؛ ممکن است redirect ناامن بسازد.</span><span lang="en">Do not accept it from an unknown proxy; it can affect redirects.</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa">نتیجهٔ عملی: اگر برنامه خودش روی اینترنت هم در دسترس است، یا هر کسی می‌تواند مستقیم به backend وصل شود، header انتقالی را مبنای احراز هویت یا مجوز نگذار. دسترسی شبکه به backend را محدود کن و در برنامه فهرست proxyهای مورداعتماد را درست تنظیم کن. تنظیم <code>real_ip_header</code> هم بی‌خطرِ خودکار نیست؛ Nginx باید فقط از peerهایی header بپذیرد که با <code>set_real_ip_from</code> مشخص کرده‌ای.</p>
+  <p lang="en">Practical consequence: if the app is also reachable from the internet, or anyone can connect directly to the backend, do not use a forwarded header as authentication or authorization. Restrict network access to the backend and configure the app’s trusted-proxy list correctly. <code>real_ip_header</code> is not automatically safe either; Nginx should accept such headers only from peers named by <code>set_real_ip_from</code>.</p>
+</section>
+
+<section id="timeouts-buffering">
+  <h2><span lang="fa">timeout یعنی فاصلهٔ سکوت؛ نه سقف کل زمان پاسخ</span><span lang="en">A timeout limits silence—not necessarily total response time</span></h2>
+  <p class="lede" lang="fa">اگر upstream وصل نشود یا بعد از شروع پاسخ ساکت بماند، کاربر منتظر می‌ماند. چند timeout در proxy داریم، اما هرکدام یک فاصلهٔ مشخص را کنترل می‌کنند. بالا بردن همه به یک عدد بزرگ، علت کندی را درمان نمی‌کند.</p>
+  <p class="lede" lang="en">If the upstream cannot be reached or goes silent after starting a response, the client waits. Proxying has several timeouts, each controlling a particular interval. Raising them all to a large number does not fix the cause of slowness.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 1040 300" role="img" aria-labelledby="timeout-title" xmlns="http://www.w3.org/2000/svg">
+      <title id="timeout-title">Upstream connection, write, and read timeout intervals / بازه‌های timeout اتصال، نوشتن و خواندن از upstream</title>
+      <defs><marker id="timeout-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow-b"/></marker></defs>
+      <text x="38" y="48" class="dg-t">Nginx → upstream timeline</text>
+      <path d="M100 105H940" class="dg-stroke" stroke-width="2"/>
+      <circle cx="120" cy="105" r="8" fill="var(--blue)"/><circle cx="360" cy="105" r="8" fill="var(--violet)"/><circle cx="620" cy="105" r="8" fill="var(--violet)"/><circle cx="900" cy="105" r="8" fill="var(--safe)"/>
+      <text x="120" y="83" text-anchor="middle" class="dg-ts">connect</text>
+      <text x="360" y="83" text-anchor="middle" class="dg-ts">send request</text>
+      <text x="620" y="83" text-anchor="middle" class="dg-ts">read chunk 1</text>
+      <text x="900" y="83" text-anchor="middle" class="dg-ts">read chunk 2</text>
+      <path d="M128 145H352" class="dg-stroke-b" stroke-width="2" marker-end="url(#timeout-arrow)"/>
+      <rect x="172" y="157" width="142" height="44" rx="10" class="dg-fill-b" stroke="var(--blue)"/>
+      <text x="243" y="184" text-anchor="middle" class="dg-ts">connect timeout</text>
+      <path d="M368 145H612" class="dg-stroke-b" stroke-width="2" marker-end="url(#timeout-arrow)"/>
+      <rect x="412" y="157" width="156" height="44" rx="10" class="dg-fill-v" stroke="var(--violet)"/>
+      <text x="490" y="184" text-anchor="middle" class="dg-ts">send timeout</text>
+      <path d="M628 145H892" class="dg-stroke-b" stroke-width="2" marker-end="url(#timeout-arrow)"/>
+      <rect x="684" y="157" width="166" height="44" rx="10" class="dg-fill-g" stroke="var(--safe)"/>
+      <text x="767" y="184" text-anchor="middle" class="dg-ts">read timeout</text>
+      <text x="520" y="248" text-anchor="middle" class="dg-tm">proxy_read_timeout: gap between successive reads</text>
+      <text x="520" y="274" text-anchor="middle" class="dg-ts">a stream can last longer if data keeps arriving</text>
+    </svg>
+    <p class="diagram-cap" lang="fa">پیکان‌های زمانی بازهٔ انتظار بین عملیات را نشان می‌دهند. مخصوصاً <code>proxy_read_timeout</code> برای سکوت بین دو خواندن پیاپی است؛ کل طول عمر پاسخ را سقف‌گذاری نمی‌کند.</p>
+    <p class="diagram-cap" lang="en">The timed arrows represent waiting intervals between operations. In particular, <code>proxy_read_timeout</code> measures silence between successive reads; it does not cap the total lifetime of a response.</p>
+  </div>
+  <p lang="fa">در config آزمایش، <code>proxy_connect_timeout 2s</code> برای برقرارشدن اتصال است؛ <code>proxy_send_timeout</code> فاصلهٔ بین دو عملیات نوشتن هنگام فرستادن درخواست به upstream را می‌سنجد؛ و <code>proxy_read_timeout</code> فاصلهٔ بین دو خواندن پاسخ را محدود می‌کند. مقدارها باید با رفتار واقعی برنامه جور باشند. خطای اتصال معمولاً 502 می‌دهد، ولی پایان مهلت انتظار در upstream می‌تواند 504 بدهد؛ برای علت دقیق، error log را کنار پاسخ بخوان.</p>
+  <p lang="en">In our config, <code>proxy_connect_timeout 2s</code> limits establishing the upstream connection; <code>proxy_send_timeout</code> measures the interval between successive write operations while sending the request upstream; and <code>proxy_read_timeout</code> limits the interval between successive response reads. Choose values to fit actual app behavior. A connection failure commonly yields 502, while an upstream wait expiring may yield 504; read the error log alongside the response to identify why.</p>
+  <p lang="fa">یک 502 را هم فقط در همین آزمایش بازتولید می‌کنیم. چون پیش‌تر بررسی کردیم listener پورت <code>19091</code> خالی است، موقتاً مقصد را اشتباه می‌گذاریم؛ اگر پورت در سیستم تو listener داشت، این آزمایش را انجام نده. اول انتظار داریم اتصال مستقیم به آن رد شود، بعد همان درخواست را از Nginx می‌فرستیم.</p>
+  <p lang="en">We will reproduce one 502 inside this lab only. Since we checked that port <code>19091</code> has no listener, we temporarily point to the wrong destination; skip this drill if your system has a listener there. First confirm a direct connection is refused, then send the same request through Nginx.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">a bounded upstream connection failure</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl --max-time 1 -i http://127.0.0.1:19091/ || true
+
+# In nginx.conf, change only the directive to:
+# proxy_pass http://127.0.0.1:19091;
+# Then run these shell commands:
+nginx -t -p "$LAB_DIR/" -c nginx.conf &amp;&amp; \
+  nginx -s reload -p "$LAB_DIR/" -c nginx.conf
+curl -i http://127.0.0.1:18083/api/check
+tail -n 5 "$LAB_DIR/logs/error.log"</span>
+<span class="s">HTTP/1.1 502 Bad Gateway
+...
+connect() failed (&lt;OS-specific code&gt;: Connection refused) while connecting to upstream</span></pre></div>
+  <p lang="fa">نشانهٔ مهم این است که خطا «while connecting to upstream» رخ داده: Nginx نتوانسته اتصال دوم را برقرار کند. این مدرک می‌گوید کدام hop شکست خورده، نه اینکه چرا برنامهٔ اصلی پاسخ نداده؛ ممکن است مقصد/پورت اشتباه یا برنامه خاموش باشد. خط را به <code>19090</code> برگردان، <code>nginx -t</code> و reload کن و همان URL را دوباره بگیر.</p>
+  <p lang="en">The useful phrase is “while connecting to upstream”: Nginx could not establish the second connection. This identifies the failed hop, not why the intended app was unavailable; the destination/port may be wrong or the app may be stopped. Restore <code>19090</code>, test and reload, then request the same URL again.</p>
+  <p lang="fa"><code>proxy_buffering</code> هم دربارهٔ پاسخ upstream است: به‌طور پیش‌فرض Nginx پاسخ را در buffer می‌خواند و بعد به client می‌فرستد؛ اگر لازم شود ممکن است از فایل موقت هم استفاده کند. خاموش‌کردنش برای streamهایی مثل SSE می‌تواند رفتار ارسال را تغییر دهد، اما تنظیم عمومیِ بهتر نیست. با آن <code>proxy_request_buffering</code> را قاطی نکن؛ آن یکی دربارهٔ بدنهٔ درخواست ورودی است.</p>
+  <p lang="en"><code>proxy_buffering</code> controls the upstream response: by default Nginx reads it into buffers before sending it to the client, and may use a temporary file if needed. Turning it off can change delivery behavior for streams such as SSE, but it is not a universally better setting. Do not confuse it with <code>proxy_request_buffering</code>, which controls the incoming request body.</p>
+  <p lang="fa">یک نکتهٔ کوچک برای قدم بعد: اتصال Nginx به upstream هم می‌تواند از اتصال‌های idle دوباره استفاده کند. دستور <code>keepalive</code> در گروه <code>upstream</code> اتصال‌های بیکارِ قابل‌استفاده را نگه می‌دارد؛ سقف تعداد کل اتصال‌ها نیست. چون این فصل یک مقصد مستقیم دارد، config کاملش را به فصل بعد و بحث گروه مقصدها می‌سپاریم.</p>
+  <p lang="en">One small preview for what comes next: Nginx can reuse idle connections to an upstream. The <code>keepalive</code> directive in an <code>upstream</code> group retains reusable idle connections; it is not a cap on the total connection count. This chapter has one direct destination, so we will leave the complete configuration for the next chapter on upstream groups.</p>
+</section>
+
+<section id="exercises">
+  <h2><span lang="fa">تمرین‌ها: از یک فیلد تا عیب‌یابی درخواست</span><span lang="en">Exercises: from one field to request diagnosis</span></h2>
+  <p class="lede" lang="fa">پیش از بازکردن پاسخ، بگو هر مدرک چه چیزی را ثابت می‌کند و چه چیزی را نه. بعضی پرسش‌ها پیش‌بینی‌اند، بعضی بلیت عیب‌یابی؛ در چندتایش هم باید قدم بعدی را انتخاب کنی، نه اینکه فقط directive حفظ‌شده را بنویسی.</p>
+  <p class="lede" lang="en">Before opening a solution, say what each piece of evidence proves—and what it does not. Some prompts ask for a prediction, others are debugging tickets; in several, choose the next discriminating check rather than reciting a directive.</p>
+
+  <div class="ex" id="ex01"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱ · دو اتصال</span><span class="ex-n" lang="en">Exercise 1 · Two connections</span></div><p lang="fa">Client به Nginx وصل شده و Nginx به برنامه وصل می‌شود. برنامه آدرس peer خودش را log می‌کند. قبل از دیدن پاسخ echo، انتظار داری کدام همتا را ببیند؟</p><p lang="en">A client connects to Nginx, which connects to the app. The app logs its peer address. Before seeing the echo response, which peer do you expect it to see?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">آدرس Nginx را، چون برنامه اتصال TCP جداگانه‌ای از Nginx می‌گیرد. header انتقالی می‌تواند context درخواست اول را حمل کند، اما peer اتصال دوم را عوض نمی‌کند. روی loopback ممکن است عدد peer همان 127.0.0.1 باشد؛ این برابری آزمایشگاهی دو اتصال را یکی نمی‌کند.</p><p lang="en">Nginx’s address, because the app receives a separate TCP connection from Nginx. A forwarded header can carry context from the first request, but it does not change the peer on the second connection. On loopback the value may also be 127.0.0.1; that lab coincidence does not merge the two connections.</p></details></div>
+
+  <div class="ex" id="ex02"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۲ · Host پیش‌فرض</span><span class="ex-n" lang="en">Exercise 2 · Default Host</span></div><p lang="fa">درخواست با <code>Host: shop.example.test</code> به Nginx رسیده؛ برنامه پشت upstream به‌جایش <code>127.0.0.1:19090</code> می‌بیند. یک علت محتمل و مدرک بعدی را بگو.</p><p lang="en">Nginx receives <code>Host: shop.example.test</code>, but the upstream app sees <code>127.0.0.1:19090</code>. Give one likely cause and the next evidence to collect.</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">Nginx به‌طور پیش‌فرض <code>Host</code> را با نام upstream می‌فرستد، مگر اینکه تنظیمش کنیم. body echo را ثبت می‌کنم و effective config همان location را می‌خوانم؛ وجود Host در درخواست client ثابت نمی‌کند upstream همان را گرفته است.</p><p lang="en">By default Nginx sends the upstream host unless configured otherwise. Capture the echo body and inspect the effective config for that location; a Host value at the client edge does not prove the upstream received it.</p></details></div>
+
+  <div class="ex" id="ex03"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۳ · scheme از کجا می‌آید؟</span><span class="ex-n" lang="en">Exercise 3 · Where does the scheme come from?</span></div><p lang="fa">TLS در load balancer بالادستی تمام می‌شود و تا Nginx درخواست HTTP می‌رسد. Nginx مقدار <code>$scheme</code> را در <code>X-Forwarded-Proto</code> می‌گذارد. چه چیزی ممکن است گم شود؟</p><p lang="en">TLS terminates at an upstream load balancer, and Nginx receives HTTP. Nginx puts <code>$scheme</code> into <code>X-Forwarded-Proto</code>. What information may be lost?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa"><code>$scheme</code> این hop را توصیف می‌کند، پس ممکن است <code>http</code> باشد، با اینکه کاربر HTTPS دیده است. باید رفتار header مستندِ load balancer را بشناسیم و فقط از آن peer مورداعتماد scheme اصلی را بگیریم؛ headerی که کاربر مستقیم می‌فرستد قابل‌اعتماد نیست.</p><p lang="en"><code>$scheme</code> describes this hop and may therefore be <code>http</code>, even though the user used HTTPS. Learn the load balancer’s documented header behavior and accept the original scheme only from that trusted peer; a header supplied directly by a client is not trustworthy.</p></details></div>
+
+  <div class="ex" id="ex04"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۴ · slash انتهایی</span><span class="ex-n" lang="en">Exercise 4 · Trailing slash</span></div><p lang="fa">با <code>location /api/</code> و <code>proxy_pass http://app/;</code> درخواست <code>/api/users</code> به چه pathی می‌رسد؟ query را هم در نظر بگیر.</p><p lang="en">With <code>location /api/</code> and <code>proxy_pass http://app/;</code>, what path does <code>/api/users</code> become? Include any query string.</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">prefix منطبق <code>/api/</code> با URI جایگزین <code>/</code> عوض می‌شود؛ برنامه <code>/users</code> می‌بیند و query موجود حفظ می‌شود. این برای prefix location عادی است؛ در regex location قاعده را بدون بررسی به کار نبر.</p><p lang="en">The matching <code>/api/</code> prefix is replaced by the <code>/</code> URI, so the app sees <code>/users</code> and the existing query is retained. This describes an ordinary prefix location; do not apply it blindly to regex locations.</p></details></div>
+
+  <div class="ex" id="ex05"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۵ · URI بدون پسوند</span><span class="ex-n" lang="en">Exercise 5 · No URI suffix</span></div><p lang="fa">همان درخواست و همان <code>location /api/</code>، اما <code>proxy_pass http://app;</code> است. چه مسیری انتظار داری و چه چیزی را با echo ثابت می‌کنی؟</p><p lang="en">Same request and <code>location /api/</code>, but now <code>proxy_pass http://app;</code> has no URI. What path do you expect, and what will the echo app prove?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نشانی درخواست با prefix اصلی، مثلاً <code>/api/users</code>، به upstream می‌رود. echo فقط URI رسیده را ثابت می‌کند؛ نمی‌گوید مسیر برنامه وجود دارد یا مجاز است. کد وضعیت و بدنهٔ پاسخ API واقعی را جدا بررسی کن.</p><p lang="en">The request URI, including the original prefix—for example <code>/api/users</code>—is sent upstream. Echo proves only the URI received; it does not prove the application route exists or is authorized. Check the real API status and body separately.</p></details></div>
+
+  <div class="ex" id="ex06"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۶ · client یا proxy؟</span><span class="ex-n" lang="en">Exercise 6 · Client or proxy?</span></div><p lang="fa">log برنامه فقط <code>10.0.0.8</code> را برای TCP peer نشان می‌دهد و می‌دانی این آدرس Nginx است. آیا می‌توانی بگویی کاربر عمومی همین IP را دارد؟</p><p lang="en">The app log shows only <code>10.0.0.8</code> as its TCP peer, and you know that is Nginx. Can you conclude the public user has that address?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه. این فقط peer اتصال برنامه به Nginx را ثابت می‌کند. برای context کاربر باید header انتقالی را از proxy مجاز بگیریم و زنجیرهٔ واسطه‌ها را درست بشناسیم؛ حتی آن header هم بدون مرز اعتماد، اثبات IP کاربر نیست.</p><p lang="en">No. It proves only the peer on the app-to-Nginx connection. To get client context, consume a forwarded header from an authorized proxy and understand the proxy chain; without that trust boundary, the header still does not prove the user’s IP.</p></details></div>
+
+  <div class="ex" id="ex07"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۷ · جعل XFF</span><span class="ex-n" lang="en">Exercise 7 · Spoofed XFF</span></div><p lang="fa">Nginx مستقیم روی اینترنت است و backend برای محدودیت درخواست اولین IP از چپ در <code>X-Forwarded-For</code> را می‌گیرد. کلاینت مقدار جعلی می‌فرستد. کدام مرز اعتماد خراب است؟</p><p lang="en">Nginx is directly exposed to the internet, and the backend uses the leftmost XFF address for rate limiting. A client supplies a forged value. Which trust boundary is broken?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">ورودی کلاینت به‌عنوان دادهٔ معتبر پذیرفته شده است. روی لبهٔ مستقیم، header را با peer واقعی همان hop یعنی <code>$remote_addr</code> جایگزین کن و backend را طوری ببند که فقط Nginx به آن برسد. بعد برنامه را برای پذیرش همین proxy پیکربندی کن؛ انتخاب یک خانه از زنجیره بدون شناخت proxyها کافی نیست.</p><p lang="en">Client input was treated as trusted data. At a directly exposed edge, replace the header with the peer of that hop, <code>$remote_addr</code>, and restrict backend access to Nginx. Then configure the app to trust that proxy; selecting one list element without understanding the chain is not enough.</p></details></div>
+
+  <div class="ex" id="ex08"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۸ · زنجیرهٔ مورداعتماد</span><span class="ex-n" lang="en">Exercise 8 · A trusted chain</span></div><p lang="fa">یک load balancer مورداعتماد جلو Nginx است. قبل از اینکه <code>$proxy_add_x_forwarded_for</code> را به کار ببری، چه دو مدرکی جمع می‌کنی؟</p><p lang="en">A trusted load balancer sits in front of Nginx. What two pieces of evidence do you collect before using <code>$proxy_add_x_forwarded_for</code>?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">مستندات load balancer دربارهٔ اینکه XFF را چطور می‌سازد و آدرس peerهای واقعی‌اش؛ و محدودهٔ شبکه‌ای که فقط همان واسطه‌ها در آن‌اند. بعد مشخص می‌کنم آیا header ورودی پاک‌سازی شده و ترتیب زنجیره چیست. اسم header به‌تنهایی گواهی قابل‌اعتمادبودن نیست.</p><p lang="en">Collect the load balancer’s documented XFF behavior and the actual peer addresses, plus the network ranges that contain only those intermediaries. Then establish whether incoming values are sanitized and what order the chain uses. A header’s name does not certify its trustworthiness.</p></details></div>
+
+  <div class="ex" id="ex09"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۹ · Host و پورت</span><span class="ex-n" lang="en">Exercise 9 · Host and port</span></div><p lang="fa">برنامه برای ساخت URL کامل نیاز دارد بداند کاربر با چه hostnameای آمده است. چرا <code>proxy_set_header Host $host;</code> معمولاً از Host پیش‌فرض مفیدتر است، و چه جزئیاتی ممکن است حفظ نشود؟</p><p lang="en">The app needs the user-facing hostname to build absolute URLs. Why is <code>proxy_set_header Host $host;</code> often more useful than the default, and what detail may not be preserved?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa"><code>$host</code> hostname درخواست را به برنامه می‌رساند، نه نام upstream را. اما اگر hostname همراه پورت غیراستاندارد لازم است، <code>$host</code> ممکن است آن پورت را نداشته باشد؛ مقدار ورودی <code>$http_host</code> پورت را حفظ می‌کند ولی ممکن است خالی باشد. بر اساس نیاز برنامه انتخاب و با درخواست واقعی آزمایش کن.</p><p lang="en"><code>$host</code> forwards the request hostname rather than the upstream name. But if a non-default port matters, <code>$host</code> may not include it; incoming <code>$http_host</code> can preserve the port but may be empty. Choose based on the app’s needs and test an actual request.</p></details></div>
+
+  <div class="ex" id="ex10"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۰ · upstream وصل نمی‌شود</span><span class="ex-n" lang="en">Exercise 10 · Upstream connection fails</span></div><p lang="fa">پاسخ <code>502</code> می‌گیری. پیش از تغییر timeout، یک بررسی که مرز شکست را مشخص کند چیست؟</p><p lang="en">You receive <code>502</code>. Before changing a timeout, name one check that identifies the failing boundary.</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">error log همان درخواست را با مقصد <code>proxy_pass</code> و دسترسی مستقیم به upstream مقایسه می‌کنم. پیام <code>connect() failed</code> یا <code>connection refused</code> با appای که هنوز گوش نمی‌دهد جور است؛ زیادکردن timeout چنین خطایی را تعمیر نمی‌کند. بعد از اصلاح همان URL را از Nginx تکرار می‌کنم.</p><p lang="en">Compare the error log for that request with the <code>proxy_pass</code> destination and a direct upstream check. A <code>connect() failed</code> or <code>connection refused</code> message fits an app that is not listening; a longer timeout does not repair it. Repeat the same URL through Nginx after fixing the cause.</p></details></div>
+
+  <div class="ex" id="ex11"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۱ · 504 یا پاسخ آهسته؟</span><span class="ex-n" lang="en">Exercise 11 · 504 or a slow response?</span></div><p lang="fa">یک stream هر ۲۰ ثانیه داده می‌فرستد و <code>proxy_read_timeout</code> روی ۳۰ ثانیه است. آیا بعد از ۳۰ ثانیه حتماً قطع می‌شود؟ دلیل را بگو.</p><p lang="en">A stream sends data every 20 seconds and <code>proxy_read_timeout</code> is 30 seconds. Must it be cut off after 30 seconds? Explain.</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه لزوماً؛ این timeout فاصلهٔ بین دو read پیاپی را می‌سنجد، نه کل عمر stream. اگر upstream در هر فاصله داده بفرستد ممکن است stream طولانی‌تر بماند. بااین‌حال buffering و کلاینت هم بر تجربه اثر دارند؛ زمان کل را از این directive تنها نتیجه نگیر.</p><p lang="en">Not necessarily; it measures the interval between successive reads, not the stream’s total lifetime. If the upstream sends data within each interval, the stream may continue longer. Buffering and the client also affect the experience, so this directive alone does not establish total duration.</p></details></div>
+
+  <div class="ex" id="ex12"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۲ · X-Forwarded-Proto اشتباه</span><span class="ex-n" lang="en">Exercise 12 · Wrong X-Forwarded-Proto</span></div><p lang="fa">کاربر HTTPS می‌بیند، ولی برنامه redirect به <code>http://</code> می‌سازد. TLS کجا تمام می‌شود و چه headerی را باید با چه منبعی بررسی کنی؟</p><p lang="en">The user uses HTTPS, but the app redirects to <code>http://</code>. Where might TLS terminate, and which header should you inspect—and trust from whom?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">ممکن است TLS در load balancer تمام شود و Nginx/برنامه HTTP ببینند. مقدار <code>X-Forwarded-Proto</code> را در پاسخ echo و config مسیر بررسی می‌کنم؛ فقط اگر load balancer مورداعتماد آن را مستند و درست تنظیم کرده، برنامه باید آن را بپذیرد. کاربر می‌تواند header خودش را جعل کند.</p><p lang="en">TLS may terminate at a load balancer while Nginx and the app see HTTP. Inspect <code>X-Forwarded-Proto</code> in the echo response and the config along that path; the app should accept it only from a trusted, documented load balancer. A client can forge its own header.</p></details></div>
+
+  <div class="ex" id="ex13"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۳ · buffering و SSE</span><span class="ex-n" lang="en">Exercise 13 · Buffering and SSE</span></div><p lang="fa">SSE از برنامه می‌رسد اما کاربر پیام‌ها را یک‌جا و با تأخیر می‌بیند. آیا خاموش‌کردن <code>proxy_buffering</code> قدم معقولی است؟ چه چیزی را باید اندازه بگیری؟</p><p lang="en">SSE events arrive from the app, but the client sees them in a delayed batch. Is disabling <code>proxy_buffering</code> a reasonable test? What should you measure?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">به‌عنوان آزمایش محدود، بله؛ ولی اول زمان ارسال app، headerها و رفتار خود client را ثبت می‌کنم و بعد فقط buffering همان location را تغییر می‌دهم. اگر پیام‌ها زودتر رسیدند، این تغییر علت را محدود می‌کند نه اینکه همهٔ پاسخ‌ها باید بدون buffer باشند. درخواست بزرگ و پاسخ بزرگ buffering جداگانه دارند.</p><p lang="en">As a scoped experiment, yes; first record app send times, headers, and client behavior, then change buffering only for that location. If events arrive sooner, the test narrows the cause; it does not mean every response should be unbuffered. Large request bodies involve separate request buffering.</p></details></div>
+
+  <div class="ex" id="ex14"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۴ · برنامه direct هم در دسترس است</span><span class="ex-n" lang="en">Exercise 14 · The app is also directly reachable</span></div><p lang="fa">Backend یک port عمومی دارد و برنامه بر اساس اولین IP در <code>X-Forwarded-For</code> دسترسی می‌دهد. چه تغییری در معماری و برنامه لازم است؟</p><p lang="en">The backend has a public port, and the app grants access based on the first XFF address. What should change in the architecture and app?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">port backend را از اینترنت ببند و فقط از proxy مجاز دسترس‌پذیر کن. بعد برنامه باید اعتماد به proxy را محدود کند و بخش قابل‌اعتماد زنجیره را بر اساس توپولوژی واقعی بخواند. headerی که اتصال مستقیم عمومی دارد، مبنای کنترل دسترسی نیست؛ فقط تعویض کد بدون بستن مسیر مستقیم کافی نیست.</p><p lang="en">Remove public access to the backend and allow only the authorized proxy. Then limit the app’s trust to that proxy and select the trustworthy chain portion according to the real topology. A header on a publicly reachable direct connection is not an access-control basis; changing code without closing that path is insufficient.</p></details></div>
+
+  <div class="ex" id="ex15"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۵ · localhost اشتباه</span><span class="ex-n" lang="en">Exercise 15 · The wrong localhost</span></div><p lang="fa">کانفیگ Nginx داخل container است، ولی <code>proxy_pass http://127.0.0.1:19090</code> به برنامه‌ای روی host اشاره می‌کند. چرا ممکن است اتصال رد شود؟</p><p lang="en">Nginx is inside a container, but <code>proxy_pass http://127.0.0.1:19090</code> is intended to reach an app on the host. Why might the connection be refused?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa"><code>127.0.0.1</code> داخل container به همان container اشاره می‌کند، نه host. مقصد و شبکهٔ واقعی را از محیط اجرا بررسی کن؛ اگر دو container جدا هستند، معمولاً نام سرویس روی شبکهٔ مشترک لازم است. این پاسخ به معنی این نیست که آدرس ویژه‌ای در همهٔ محیط‌های Docker یکسان است.</p><p lang="en">Inside the container, <code>127.0.0.1</code> refers to that container, not the host. Inspect the real runtime network and destination; for separate containers, a service name on a shared network is commonly used. This does not mean one special host address works identically in every Docker environment.</p></details></div>
+
+  <div class="ex" id="ex16"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۶ · دو نوع buffering</span><span class="ex-n" lang="en">Exercise 16 · Two kinds of buffering</span></div><p lang="fa">همکار برای کم‌کردن تأخیر پاسخ، <code>proxy_request_buffering off</code> را عوض می‌کند. آیا این directive همان buffering پاسخ upstream است؟</p><p lang="en">A teammate changes <code>proxy_request_buffering off</code> to reduce response latency. Is this the same as upstream response buffering?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa"><code>proxy_request_buffering</code> دربارهٔ بدنهٔ درخواستی است که client به Nginx می‌فرستد؛ <code>proxy_buffering</code> دربارهٔ پاسخ upstream به client است. اول اندازه بگیر تأخیر کدام جهت دارد و بعد directive همان جهت را بررسی کن.</p><p lang="en"><code>proxy_request_buffering</code> concerns the body sent from client to Nginx; <code>proxy_buffering</code> concerns the upstream response sent to the client. Measure which direction is delayed, then investigate the matching directive.</p></details></div>
+
+  <div class="ex" id="ex17"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۷ · timeout را بالا ببریم؟</span><span class="ex-n" lang="en">Exercise 17 · Should we increase the timeout?</span></div><p lang="fa">log می‌گوید اتصال به upstream با <code>connection refused</code> رد شده. تنظیم فعلی connect timeout دو ثانیه است. آیا افزایش آن به ۶۰ ثانیه احتمالاً درمان است؟</p><p lang="en">The log says the upstream connection was rejected with <code>connection refused</code>. The connect timeout is two seconds. Is raising it to 60 seconds likely to fix the issue?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه؛ refusal یعنی مقصد پاسخ رد کرده یا listener در آن نشانی/پورت نیست، نه اینکه فقط دیر پاسخ داده. برنامهٔ فعال، bind address، پورت و شبکه را بررسی کن. timeout مدت انتظار برای اتصال را تنظیم می‌کند، نه اینکه برنامه را روی پورت درست اجرا کند.</p><p lang="en">No. Refusal means the destination rejected the connection or no listener exists at that address/port; it is not merely slow to respond. Check app state, bind address, port, and network. A timeout sets how long to wait—it does not start the app on the right port.</p></details></div>
+
+  <div class="ex" id="ex18"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۸ · گزارش عیب‌یابی</span><span class="ex-n" lang="en">Exercise 18 · Debugging report</span></div><p lang="fa">برنامه redirect اشتباه می‌سازد، logها همه یک IP دارند و <code>/api/orders</code> گاهی 404 است. سه مدرک اولت را طوری انتخاب کن که scheme، peer/header و URI از هم جدا شوند.</p><p lang="en">The app creates a wrong redirect, all logs show one IP, and <code>/api/orders</code> sometimes returns 404. Choose your first three checks so scheme, peer/header, and URI are investigated separately.</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">برای redirect، مقدار <code>X-Forwarded-Proto</code> در هر hop و محل پایان TLS را ثبت می‌کنم؛ برای IP، TCP peer برنامه را با XFF/X-Real-IP و فهرست proxyهای مورداعتماد مقایسه می‌کنم؛ برای 404، path رسیده به echo یا log upstream و خط <code>proxy_pass</code> را می‌سنجم. هر سه را در یک تغییر جمع نمی‌کنم؛ یکی را اصلاح و همان درخواست را دوباره آزمایش می‌کنم.</p><p lang="en">For the redirect, record <code>X-Forwarded-Proto</code> at each hop and where TLS terminates. For the address, compare the app’s TCP peer with XFF/X-Real-IP and the trusted-proxy list. For the 404, inspect the upstream path in echo/logs and the <code>proxy_pass</code> line. Do not bundle all three into one change; fix one and repeat that request.</p></details></div>
+</section>
+
+<section id="mission">
+  <h2><span lang="fa">ماموریت کوتاه: از درخواست تا log برنامه را دنبال کن</span><span lang="en">Short mission: trace one request into the app log</span></h2>
+  <p class="lede" lang="fa">همکارت می‌گوید login بعد از تغییر پروکسی کاربر را به HTTP می‌فرستد، log برنامه IP یکسان دارد و یک API هم 404 می‌دهد. قرار نیست همه‌چیز را یک‌جا تغییر بدهی؛ یک گزارش بساز که سه مرز را جدا ثابت کند.</p>
+  <p class="lede" lang="en">A teammate reports that login redirects users to HTTP after a proxy change, the app logs one repeated IP, and an API returns 404. Do not change everything at once; create a report that proves each of the three boundaries separately.</p>
+  <ol>
+    <li><span lang="fa">از پاسخ مستقیم برنامهٔ بازتاب‌دهنده، مسیر، Host و peer را ثبت کن؛ بعد همان درخواست را از Nginx بفرست و تفاوت‌ها را کنار هم بنویس.</span><span lang="en">Record the baseline path, Host, and peer from a direct echo request; then send the same request through Nginx and compare the differences.</span></li>
+    <li><span lang="fa">header ورودی جعلی <code>X-Forwarded-For</code> بفرست. اگر backend آن را می‌بیند، مسیر عبورش را ثبت کن؛ هنوز آن را به‌عنوان IP کاربر نپذیر.</span><span lang="en">Send a forged incoming <code>X-Forwarded-For</code>. If the backend sees it, record how it passed through; do not accept it as the user’s IP yet.</span></li>
+    <li><span lang="fa">سه header را با منبع مشخص تنظیم کن: Host درخواست، peer واقعی همین hop و schemeای که Nginx واقعاً دیده است. اگر TLS جای دیگری تمام می‌شود، منبع مورداعتماد scheme را جدا مشخص کن.</span><span lang="en">Set each header from an explicit source: request Host, the actual peer on this hop, and the scheme Nginx really saw. If TLS terminates elsewhere, identify the trusted source of the original scheme separately.</span></li>
+    <li><span lang="fa">یک بار مسیر درست را بدون URI پسوند در <code>proxy_pass</code> آزمایش کن؛ بعد فقط slash را اضافه کن و مسیر رسیده را مقایسه کن. علت 404 را با پاسخ echo ثابت کن.</span><span lang="en">Test the intended path with no URI suffix in <code>proxy_pass</code>; then add only the slash and compare the received path. Use echo output to prove the cause of the 404.</span></li>
+    <li><span lang="fa">پس از تعمیر هر مورد، همان URL و همان headerهای آزمایش را دوباره بفرست. در گزارش بنویس چه چیزی را ثابت کردی و چه چیزی هنوز بیرون از این آزمایش است؛ سپس فقط فایل‌ها و پردازه‌های همین پوشهٔ موقت را جمع کن.</span><span lang="en">After each repair, resend the same URL with the same test headers. State what you proved and what remains outside this lab; then remove only the files and processes created in this temporary directory.</span></li>
+  </ol>
+  <details class="capsule"><summary><span lang="fa">اگر گیر کردی، سرنخ‌ها را به‌ترتیب باز کن</span><span lang="en">If stuck, reveal these hints in order</span></summary><p lang="fa">اول به body echo نگاه کن: path، Host و headerها کدام‌اند؟ بعد access/error log Nginx را برای همان درخواست پیدا کن. فقط بعد از تعیین اینکه درخواست به upstream رسیده یا نه، config را تغییر بده. برای XFF بپرس چه کسی آن را نوشته؛ برای scheme بپرس TLS کجا تمام شده؛ برای 404، URI و فایل/route مورد انتظار را مقایسه کن.</p><p lang="en">Start with the echo body: what are the path, Host, and headers? Find the matching Nginx access/error log next. Change config only after establishing whether the request reached the upstream. For XFF ask who wrote it; for scheme ask where TLS terminated; for 404 compare the URI with the expected file/route.</p></details>
+  <details class="ex-sol"><summary><span lang="fa">گزارش نمونه و معیار قبولی</span><span lang="en">Sample report and acceptance criteria</span></summary><p lang="fa">گزارش خوب می‌گوید: اتصال TCP برنامه از Nginx آمده؛ Host درخواست با header صریح منتقل شد؛ XFF جعلی در لبهٔ مستقیم با peer همان hop جایگزین شد؛ XFP در آزمایش HTTP برابر http بود و این آزمایش TLS واقعی را نسنجید؛ و slash انتهایی مسیر <code>/api/</code> را حذف کرد. برای قبولی، config با <code>nginx -t</code> معتبر باشد و همان درخواست پس از اصلاح path موردانتظار را در echo نشان دهد. هیچ headerای به‌تنهایی هویت کاربر را اثبات نمی‌کند.</p><p lang="en">A good report states: the app’s TCP connection came from Nginx; the request Host was forwarded explicitly; the forged XFF was replaced at the direct edge with that hop’s peer; XFP was <code>http</code> in this HTTP-only lab, which did not test real TLS; and the trailing slash removed the <code>/api/</code> path prefix. To pass, <code>nginx -t</code> succeeds and the same request shows the expected path in echo after repair. No header alone proves user identity.</p></details>
+</section>
+
+<section id="cleanup">
+  <h2><span lang="fa">اول پردازه، بعد پوشهٔ آزمایش</span><span lang="en">Stop the processes before removing the lab</span></h2>
+  <p class="lede" lang="fa">پیش از پاک‌سازی، گزارش و پاسخ‌ها را نگه دار. بعد Nginx را با همان پیشوند و پیکربندی متوقف کن، پردازهٔ Python را هم با شناسهٔ ذخیره‌شده پایان بده و مطمئن شو هر دو تمام شده‌اند. اگر شناسه یا مسیر با انتظار جور نیست، چیزی را حذف نکن.</p>
+  <p class="lede" lang="en">Save your report and responses first. Stop Nginx with the same prefix and config, stop Python using the saved PID, and confirm both have exited. If the PID or path differs from what you expect, remove nothing.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">targeted shutdown and guarded cleanup</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">APP_PID=
+APP_PID_SAFE=1
+if [ ! -s "$LAB_DIR/app.pid" ]; then
+  APP_PID_SAFE=0
+  echo 'Saved app PID file is missing; nothing will be removed.'
+else
+  APP_PID=$(cat "$LAB_DIR/app.pid")
+  case "$APP_PID" in
+    ''|*[!0-9]*) APP_PID_SAFE=0 ;;
+  esac
+  if [ "$APP_PID_SAFE" -eq 1 ]; then
+    APP_COMMAND=$(ps -p "$APP_PID" -o command= 2&gt;/dev/null || true)
+    case "$APP_COMMAND" in
+      *"$LAB_DIR/echo.py"*) kill -TERM "$APP_PID" ;;
+      '') echo 'Saved app PID is not running; inspect before cleanup.' ;;
+      *) echo 'PID does not match this lab app; do not stop or remove anything.'; APP_PID_SAFE=0 ;;
+    esac
+  fi
+fi
+
+if [ -e "$LAB_DIR/logs/nginx.pid" ]; then
+  nginx -s quit -p "$LAB_DIR/" -c nginx.conf || echo 'Nginx did not confirm shutdown; inspect its PID/log.'
+fi
+
+for i in {1..20}; do
+  NGINX_RUNNING=0
+  [ -e "$LAB_DIR/logs/nginx.pid" ] &amp;&amp; NGINX_RUNNING=1
+  APP_RUNNING=0
+  if [ "$APP_PID_SAFE" -eq 1 ] &amp;&amp; [ -n "$APP_PID" ] &amp;&amp; ps -p "$APP_PID" -o command= 2&gt;/dev/null | grep -F -- "$LAB_DIR/echo.py" &gt;/dev/null; then APP_RUNNING=1; fi
+  [ "$NGINX_RUNNING" -eq 0 ] &amp;&amp; [ "$APP_RUNNING" -eq 0 ] &amp;&amp; break
+  sleep 0.25
+done
+
+cleanup_lab() {
+  if [[ ! "$LAB_DIR" =~ ^/tmp/nginx-proxy\.[A-Za-z0-9]{6}$ ]]; then
+    echo "Unexpected path; nothing removed: $LAB_DIR"
+    return 1
+  fi
+  if [ "$APP_PID_SAFE" -ne 1 ] || [ -L "$LAB_DIR" ] ||
+     [ ! -f "$LAB_DIR/app.pid" ] || [ ! -f "$LAB_DIR/echo.py" ] ||
+     [ ! -f "$LAB_DIR/nginx.conf" ] || [ ! -d "$LAB_DIR/logs" ] ||
+     [ -e "$LAB_DIR/logs/nginx.pid" ]; then
+    echo 'Path, contents, or process check failed; nothing removed.'
+    return 1
+  fi
+  if [ "$APP_PID_SAFE" -eq 1 ] &amp;&amp; [ -n "$APP_PID" ] &amp;&amp; ps -p "$APP_PID" -o command= 2&gt;/dev/null | grep -F -- "$LAB_DIR/echo.py" &gt;/dev/null; then
+    echo 'The lab app is still running; nothing removed.'
+    return 1
+  fi
+  printf 'Review this exact temporary path before removal: %s\n' "$LAB_DIR"
+  read -r -p 'Type REMOVE to delete only this temporary lab: ' CONFIRM
+  if [ "$CONFIRM" != 'REMOVE' ]; then
+    echo 'Confirmation did not match; nothing removed.'
+    return 1
+  fi
+  rm -r -- "$LAB_DIR"
+}
+
+cleanup_lab</span></pre></div>
+  <p lang="fa">تابع پاک‌سازی اگر هر بررسی ایمنی شکست بخورد همان‌جا برمی‌گردد و چیزی را حذف نمی‌کند. بعد از بررسی مسیر دقیق، باید خودت عبارت <code>REMOVE</code> را وارد کنی. پیام را بخوان و علت را بررسی کن؛ شرط ایمنی را برندار. مسیرهای <code>/etc/nginx</code> یا فایل‌های سایت واقعی را هیچ‌وقت به <code>rm</code> نده.</p>
+  <p lang="en">The cleanup function returns without removing anything if a safety check fails. After reviewing the exact path, you must type <code>REMOVE</code> yourself. Read any warning and investigate; do not remove a guard. Never pass <code>/etc/nginx</code> or a real site path to <code>rm</code>.</p>
+</section>
+
+<section id="quick-reference">
+  <h2><span lang="fa">مرجع سریع: هر نشانی از کجا آمده؟</span><span lang="en">Quick reference: where did each value come from?</span></h2>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">مدرک</span><span lang="en">Evidence</span></th><th><span lang="fa">چه چیزی را می‌گوید؟</span><span lang="en">What it tells you</span></th><th><span lang="fa">پرسش بعدی</span><span lang="en">Next question</span></th></tr></thead><tbody>
+    <tr><td><code>tcp_peer</code></td><td><span lang="fa">چه همتایی این اتصال را باز کرده؟</span><span lang="en">Which peer opened this connection?</span></td><td><span lang="fa">برنامه مستقیم client را می‌بیند یا proxy را؟</span><span lang="en">Does the app connect directly to the client or a proxy?</span></td></tr>
+    <tr><td><code>Host</code></td><td><span lang="fa">درخواست برای کدام hostname است؟</span><span lang="en">Which hostname was requested?</span></td><td><span lang="fa">آیا proxy آن را به upstream منتقل می‌کند؟</span><span lang="en">Did the proxy forward it upstream?</span></td></tr>
+    <tr><td><code>X-Real-IP</code> / <code>X-Forwarded-For</code></td><td><span lang="fa">proxy چه نشانی/زنجیره‌ای را نوشته؟</span><span lang="en">What address or chain did a proxy write?</span></td><td><span lang="fa">کدام hop مجاز است و backend مستقیم در دسترس است؟</span><span lang="en">Which hop is authorized, and is the backend reachable directly?</span></td></tr>
+    <tr><td><code>X-Forwarded-Proto</code></td><td><span lang="fa">scheme اصلی را کدام واسطه گزارش کرده؟</span><span lang="en">Which intermediary reported the original scheme?</span></td><td><span lang="fa">TLS کجا تمام شد و به کدام منبع اعتماد داریم؟</span><span lang="en">Where did TLS terminate, and which source is trusted?</span></td></tr>
+    <tr><td><code>proxy_pass</code> URI</td><td><span lang="fa">کدام بخش مسیر به upstream می‌رود یا جایگزین می‌شود؟</span><span lang="en">Which path part is passed or replaced?</span></td><td><span lang="fa">body echo با قرارداد route برنامه جور است؟</span><span lang="en">Does the echo body match the app’s route contract?</span></td></tr>
+    <tr><td><code>proxy_read_timeout</code></td><td><span lang="fa">upstream بین دو read چقدر می‌تواند ساکت بماند؟</span><span lang="en">How long may the upstream stay silent between reads?</span></td><td><span lang="fa">کندی از کدام hop و چه زمانی شروع می‌شود؟</span><span lang="en">Which hop became slow, and when?</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa">این جدول جای log و config مؤثر را نمی‌گیرد. اگر response اشتباه است، اول همان URL را مستقیم و از مسیر proxy بگیر، بعد body و header و error log را با هم مقایسه کن. یک header تنها معمولاً علت یا هویت را ثابت نمی‌کند.</p>
+  <p lang="en">This table does not replace the effective config and logs. For a wrong response, request the same URL directly and through the proxy, then compare body, headers, and error log. A single header rarely proves the cause or identity.</p>
+  <p lang="fa">منابع رسمی: <a href="https://nginx.org/en/docs/http/ngx_http_proxy_module.html">ماژول proxy و directiveهای آن</a> برای <code>proxy_pass</code>، header، timeout و buffering؛ <a href="https://nginx.org/en/docs/http/ngx_http_realip_module.html">ماژول realip</a> برای مرز اعتماد و <code>set_real_ip_from</code>؛ و <a href="https://nginx.org/en/docs/http/ngx_http_upstream_module.html">ماژول upstream</a> برای گروه مقصدها و keepalive. برای خطرهای امنیتی XFF، <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-Forwarded-For">راهنمای MDN</a> را هم ببین.</p>
+  <p lang="en">Official references: the <a href="https://nginx.org/en/docs/http/ngx_http_proxy_module.html">proxy module</a> for <code>proxy_pass</code>, headers, timeouts, and buffering; the <a href="https://nginx.org/en/docs/http/ngx_http_realip_module.html">realip module</a> for trust boundaries and <code>set_real_ip_from</code>; and the <a href="https://nginx.org/en/docs/http/ngx_http_upstream_module.html">upstream module</a> for backend groups and keepalive. For XFF security risks, also see <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-Forwarded-For">MDN’s guide</a>.</p>
+</section>
+
+<section id="next">
+  <h2><span lang="fa">حالا یک برنامه داریم؛ اگر مقصدها چندتا باشند چه؟</span><span lang="en">Now there is an app—what if there are several backends?</span></h2>
+  <p class="lede" lang="fa">حالا می‌توانی بفهمی برنامه کدام درخواست را گرفته، peer اتصالش کیست و چه headerهایی از Nginx آمده‌اند. وقتی یک backend دیگر جواب‌گو نیست یا چند نمونه داریم، سؤال بعدی این است که Nginx مقصد را چطور انتخاب می‌کند و چه چیزی از سلامت مقصد می‌داند. فصل بعد سراغ <code>upstream</code> و load balancing می‌رود؛ این فصل فقط یک مقصد داشت.</p>
+  <p class="lede" lang="en">You can now tell which request reached the app, who its connection peer is, and which headers Nginx supplied. When one backend is no longer enough or several instances exist, the next question is how Nginx chooses a destination and what it knows about backend health. The next chapter introduces <code>upstream</code> groups and load balancing; this one used a single destination.</p>
+</section>

@@ -1,0 +1,427 @@
+<!--meta
+title: server block و virtual host
+desc: انتخاب server در Nginx با listen، Host و server_name؛ default server، IPv4/IPv6، ریشه و لاگ جدا، و آزمایش محلی دو سایت.
+-->
+
+<div class="masthead">
+  <span class="eyebrow"><span class="dot"></span><span lang="fa">Nginx · فصل ۳</span><span lang="en">Nginx · Chapter 3</span></span>
+  <h1 lang="fa">server block و virtual host</h1>
+  <h1 lang="en">Server blocks and virtual hosts</h1>
+  <p class="sub" lang="fa">دو دامنه، یک IP و یک پورت: Nginx از کجا می‌فهمد کدام سایت باید جواب بدهد؟ این فصل با فرستادن درخواست‌های واقعی پیدایش می‌کند؛ نه با حدس‌زدن از روی اسم فایل‌ها یا ترتیب پوشه‌ها.</p>
+  <p class="sub" lang="en">Two names, one IP, and one port: how does Nginx know which site should answer? We will find out by sending real requests—not by guessing from filenames or directory order.</p>
+  <div class="facts">
+    <div class="fact"><b>۷۰</b><span lang="fa">دقیقهٔ مطالعه</span><span lang="en">minutes</span></div>
+    <div class="fact"><b>۱۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></div>
+    <div class="fact"><b>۳</b><span lang="fa">نمودار مفهومی</span><span lang="en">concept diagrams</span></div>
+    <div class="fact"><b>۱</b><span lang="fa">آزمایش دو سایت</span><span lang="en">two-site experiment</span></div>
+  </div>
+</div>
+
+<section id="one-machine">
+  <h2><span lang="fa">یک ماشین، دو سایت؛ اولین پاسخ از کجا می‌آید؟</span><span lang="en">One machine, two sites—which one answers first?</span></h2>
+  <p class="lede" lang="fa">Nginx بالا است و صفحهٔ اولش هم باز می‌شود. همکارمان یک سایت دوم اضافه می‌کند؛ هر دو باید روی همان ماشین و پورت ۸۰ باشند. دامنهٔ دوم را هم هنوز در اینترنت تنظیم نکرده‌ایم. بااین‌حال، چطور همین‌جا روی لپ‌تاپ ثابت کنیم هر دو سایت قابل انتخاب‌اند؟</p>
+  <p class="lede" lang="en">Nginx is running and its first page opens. A teammate adds a second site; both must use the same machine and port 80. We have not configured the second domain in public DNS yet. How can we prove locally that either site can be selected?</p>
+  <p lang="fa">پیش از تغییر کانفیگ پیش‌بینی کن: اگر به IP وصل شویم، Nginx از کجا باید بفهمد منظورمان سایت «الف» است یا «ب»؟ اتصال TCP فقط ما را به یک آدرس و پورت می‌رساند؛ نام سایت هم باید راهی به درخواست پیدا کند.</p>
+  <p lang="en">Predict before changing the config: if we connect to an IP address, how can Nginx know whether we mean site A or site B? A TCP connection gets us to an address and port; the site name must also reach the request.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">first request: no explicit site name</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl</span> -i http://127.0.0.1/
+
+<span class="s">HTTP/1.1 200 OK
+Server: nginx
+...
+
+Welcome to nginx!</span></pre></div>
+  <p lang="fa">این پاسخ می‌گوید یک سرویس HTTP روی loopback جواب داده؛ هنوز نمی‌گوید درخواست کدام سایت را انتخاب کرده یا از اینترنت عمومی هم در دسترس است. اگر چند server برای همان listener داشته باشیم و نامی تطبیق نکند، یک server پیش‌فرض باید جواب دهد. حالا باید این انتخاب را آشکار کنیم.</p>
+  <p lang="en">This response tells us an HTTP service answered on loopback; it does not yet tell us which site was selected or whether it is publicly reachable. If several servers share a listener and no name matches, one default server must answer. Let us make that selection visible.</p>
+</section>
+
+<section id="selection-model">
+  <h2><span lang="fa">انتخاب در دو گام انجام می‌شود</span><span lang="en">Selection happens in two stages</span></h2>
+  <p class="lede" lang="fa">برای درخواست HTTP ساده، Nginx اول سراغ مقصد شبکه می‌رود: کدام address و port آن را پذیرفته؟ بعد بین serverهایی که همان listener را دارند، مقدار نام میزبان را بررسی می‌کند. در HTTP/1.1 این نام معمولاً در سرآیند <code>Host</code> است.</p>
+  <p class="lede" lang="en">For a plain HTTP request, Nginx first considers the network destination: which address and port accepted it? Then, among servers using that listener, it checks the requested host name. In HTTP/1.1, that name is normally carried in the <code>Host</code> header.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 900 430" role="img" aria-labelledby="vhost-flow-title" xmlns="http://www.w3.org/2000/svg">
+      <title id="vhost-flow-title">Nginx chooses a listening socket, then a server name / انتخاب listener و سپس نام server در Nginx</title>
+      <defs><marker id="vhost-flow-arrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9Z" class="dg-arrow-b"/></marker></defs>
+      <rect x="28" y="42" width="230" height="104" rx="16" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/>
+      <text x="143" y="78" text-anchor="middle" class="dg-t">HTTP request</text>
+      <text x="143" y="106" text-anchor="middle" class="dg-tm">IP:port + Host</text>
+      <path d="M258 94H334" class="dg-stroke-b" stroke-width="3" marker-end="url(#vhost-flow-arrow)"/>
+      <rect x="350" y="42" width="230" height="104" rx="16" class="dg-fill" stroke="var(--line-strong)" stroke-width="2"/>
+      <text x="465" y="78" text-anchor="middle" class="dg-t">listen match</text>
+      <text x="465" y="106" text-anchor="middle" class="dg-tm">127.0.0.1:18080</text>
+      <path d="M580 94H656" class="dg-stroke-b" stroke-width="3" marker-end="url(#vhost-flow-arrow)"/>
+      <rect x="672" y="42" width="200" height="104" rx="16" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/>
+      <text x="772" y="78" text-anchor="middle" class="dg-t">Host match</text>
+      <text x="772" y="106" text-anchor="middle" class="dg-tm">alpha.test</text>
+      <path d="M772 146V218M772 218H254V276M772 218V276" class="dg-stroke" stroke-width="2.5"/>
+      <path d="M254 246V270M772 246V270" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#vhost-flow-arrow)"/>
+      <rect x="104" y="290" width="300" height="90" rx="16" class="dg-fill-g" stroke="var(--safe)" stroke-width="2"/>
+      <text x="254" y="326" text-anchor="middle" class="dg-t">matched server block</text>
+      <text x="254" y="352" text-anchor="middle" class="dg-tm">server_name alpha.test</text>
+      <rect x="622" y="290" width="300" height="90" rx="16" class="dg-fill-w" stroke="var(--warn)" stroke-width="2"/>
+      <text x="772" y="326" text-anchor="middle" class="dg-t">no name match?</text>
+      <text x="772" y="352" text-anchor="middle" class="dg-tm">default for that listener</text>
+    </svg>
+    <p class="diagram-cap" lang="fa">اول آدرس و پورت، بعد نام درخواست: فلش‌ها ترتیب تصمیم را نشان می‌دهند. اگر نام پیدا نشود، مقصد به default server همان address:port می‌رود.</p>
+    <p class="diagram-cap" lang="en">First address and port, then the request name: arrows show the decision order. If no name matches, the request goes to the default server for that address:port.</p>
+  </div>
+  <p lang="fa">پس <code>listen</code> می‌گوید این server block روی کدام address و port درخواست می‌پذیرد؛ <code>server_name</code> نام‌هایی را معرفی می‌کند که می‌توانند آن block را انتخاب کنند. این دو یکی نیستند: چند block می‌توانند یک <code>listen</code> مشترک داشته باشند، اما نام‌های متفاوتی را پاسخ دهند.</p>
+  <p lang="en">So <code>listen</code> says which address and port this server block accepts requests on; <code>server_name</code> lists names that can select that block. They are not the same thing: several blocks can share a <code>listen</code> endpoint and answer different names.</p>
+  <div class="note safe"><div class="note-t"><span lang="fa">یک نکته برای امروز</span><span lang="en">One detail for today</span></div><p lang="fa">در این فصل، منظور از نام درخواست همان نام HTTP/1.1 در <code>Host</code> است. HTTPS مرحلهٔ انتخاب دیگری هم دارد: نام SNI در handshake مربوط به TLS می‌تواند پیش از دریافت درخواست HTTP روی انتخاب پیکربندی اثر بگذارد. آن موضوع را در فصل TLS بررسی می‌کنیم.</p><p lang="en">In this chapter, “request name” means the HTTP/1.1 name in <code>Host</code>. HTTPS adds another selection stage: the SNI name in the TLS handshake can influence configuration selection before the HTTP request arrives. We will study that in the TLS chapter.</p></div>
+</section>
+
+<section id="two-sites">
+  <h2><span lang="fa">دو سایت را روی یک پورت می‌گذاریم</span><span lang="en">Put two sites on one port</span></h2>
+  <p class="lede" lang="fa">به‌جای دست‌زدن به Nginx نصب‌شده، یک آزمایشگاه موقت می‌سازیم که فقط روی <code>127.0.0.1:18080</code> گوش می‌دهد. دو پوشهٔ ریشه و دو فایل متفاوت می‌سازیم تا پاسخ خودش انتخاب‌شدن هر سایت را نشان دهد. این config مستقل است؛ با config سرویس واقعی قاطی‌اش نکن.</p>
+  <p class="lede" lang="en">Instead of touching the installed Nginx, we will create a temporary lab that listens only on <code>127.0.0.1:18080</code>. Two root directories and two distinct files will make each selected site visible. This configuration is isolated; do not mix it with the live service config.</p>
+  <p lang="fa">این دو فایل HTML عمداً خیلی ساده‌اند. آنچه می‌آزماییم برنامهٔ سایت نیست؛ فقط می‌خواهیم بدانیم درخواست به کدام server block و root رسیده است.</p>
+  <p lang="en">These two HTML files are intentionally simple. We are not testing a website application; we only want to see which server block and root received each request.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">create isolated lab directories</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">LAB_DIR=$(mktemp -d "${TMPDIR:-/tmp}/nginx-vhosts.XXXXXX")
+mkdir -p "$LAB_DIR"/{logs,html/alpha,html/beta,html/default}
+printf '%s\n' 'ALPHA SITE' &gt; "$LAB_DIR/html/alpha/index.html"
+printf '%s\n' 'BETA SITE' &gt; "$LAB_DIR/html/beta/index.html"
+printf '%s\n' 'DEFAULT SITE' &gt; "$LAB_DIR/html/default/index.html"
+printf 'Lab directory: %s\n' "$LAB_DIR"</span></pre></div>
+  <p lang="fa">چرا مسیر را چاپ می‌کنیم؟ چون همهٔ فایل‌ها، logها و PID آزمایش همین‌جا خواهند بود و cleanup باید دقیقاً همین پوشه را هدف بگیرد. اگر دستور ساخت پوشه خطا داد، ادامه نده؛ اول همان خطا را حل کن.</p>
+  <p lang="en">Why print the path? All lab files, logs, and the process ID will live there, so cleanup must target exactly this directory. If directory creation fails, stop and fix that error before continuing.</p>
+  <p lang="fa">حالا سه server block می‌نویسیم. «default» را صریح انتخاب می‌کنیم؛ دو سایت دیگر همان listener را شریک می‌شوند. در گام اول عمداً نام BETA را اشتباه نمی‌نویسیم؛ خرابی را بعدتر، وقتی هر دو مسیر درست کار کردند، جداگانه می‌سازیم.</p>
+  <p lang="en">Now we define three server blocks. We choose the default explicitly; the two named sites share the same listener. We will not mistype BETA yet—we will introduce that failure separately, after both paths work.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">write the lab configuration</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cat &gt; "$LAB_DIR/nginx.conf" &lt;&lt;'NGINX'</span>
+worker_processes 1;
+pid logs/nginx.pid;
+error_log logs/error.log notice;
+
+events { worker_connections 64; }
+
+http {
+    default_type text/plain;
+
+    server {
+        listen 127.0.0.1:18080 default_server;
+        server_name _;
+        root html/default;
+        index index.html;
+        access_log logs/default.access.log;
+    }
+
+    server {
+        listen 127.0.0.1:18080;
+        server_name alpha.test;
+        root html/alpha;
+        index index.html;
+        access_log logs/alpha.access.log;
+    }
+
+    server {
+        listen 127.0.0.1:18080;
+        server_name beta.test;
+        root html/beta;
+        index index.html;
+        access_log logs/beta.access.log;
+    }
+}
+<span class="k">NGINX
+nginx -t -p "$LAB_DIR/" -c nginx.conf</span>
+<span class="s">nginx: the configuration file .../nginx.conf syntax is ok
+nginx: configuration file .../nginx.conf test is successful</span></pre></div>
+  <p lang="fa">مسیرهای <code>root</code> و log نسبی‌اند؛ گزینهٔ <code>-p</code> پیشوند آزمایشگاه را تعیین می‌کند. در نصب توزیعی معمولاً فایل‌ها جای دیگری‌اند، برای همین در این آزمایش <code>-p</code> و <code>-c</code> را صریح می‌زنیم. <code>nginx -t</code> فقط parse و بازشدن فایل‌های لازم را می‌سنجد؛ هنوز ثابت نکرده‌ایم port آزاد است یا درخواست درست پاسخ می‌گیرد.</p>
+  <p lang="en">The <code>root</code> and log paths are relative; <code>-p</code> sets the lab prefix. Packaged installations commonly use different paths, so this experiment passes <code>-p</code> and <code>-c</code> explicitly. <code>nginx -t</code> checks parsing and required files; it has not yet proved that the port is free or that requests receive the intended response.</p>
+  <p lang="fa">اگر آزمون موفق شد، Nginx آزمایشی را با همین prefix و config بالا می‌آوریم. پیش از آن بررسی می‌کنیم listener آزمایشی اشغال نباشد؛ چون فقط loopback است، به شبکهٔ بیرون bind نمی‌شود.</p>
+  <p lang="en">If the test passes, start the lab Nginx with the same prefix and config. First check that the lab listener is not already occupied. Because it binds only to loopback, it is not exposed on an external interface.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">check, then start the isolated server</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">if command -v ss &gt;/dev/null &amp;&amp; ss -ltn | grep -q ':18080 '; then
+  echo 'Port 18080 is occupied; choose another lab port before continuing.'
+else
+  nginx -p "$LAB_DIR/" -c nginx.conf
+fi</span>
+
+<span class="k">curl -i -H 'Host: alpha.test' http://127.0.0.1:18080/</span>
+<span class="s">HTTP/1.1 200 OK
+...
+
+ALPHA SITE</span>
+
+<span class="k">curl -i -H 'Host: beta.test' http://127.0.0.1:18080/</span>
+<span class="s">HTTP/1.1 200 OK
+...
+
+BETA SITE</span></pre></div>
+  <p lang="fa">در هر دو درخواست، مقصد شبکه یکی است؛ فرق تعیین‌کننده <code>Host</code> است و بدنهٔ پاسخ مدرک انتخاب سایت. اگر هر دو خروجی یکسان‌اند، همین حالا سراغ حدس نرو: مطمئن شو config آزمایش را با <code>-p/-c</code> اجرا کرده‌ای، پورت را process دیگری نگرفته و نامی که فرستادی دقیقاً با <code>server_name</code> جور است.</p>
+  <p lang="en">Both requests use the same network destination; the differing <code>Host</code> value selects the site, and the response body is our evidence. If both bodies are identical, do not guess: confirm the lab config was started with <code>-p/-c</code>, another process does not own the port, and the sent name exactly matches <code>server_name</code>.</p>
+</section>
+
+<section id="host-header">
+  <h2><span lang="fa">Host کجای درخواست است؟</span><span lang="en">Where does Host appear?</span></h2>
+  <p class="lede" lang="fa">در URL مرورگر، نام دامنه برای پیدا کردن IP استفاده می‌شود؛ اما بعد از اتصال، نام میزبان در درخواست HTTP هم فرستاده می‌شود. برای آزمایش، لازم نیست DNS واقعی یا حتی فایل hosts را تغییر بدهیم: می‌توانیم IP را مقصد اتصال نگه داریم و header را خودمان تعیین کنیم.</p>
+  <p class="lede" lang="en">In a browser URL, the domain name is used to find an IP address; after connecting, the host name is also sent in the HTTP request. For a test, we need neither public DNS nor a hosts-file edit: we can keep the IP as the connection target and set the header ourselves.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 840 330" role="img" aria-labelledby="host-wire-title" xmlns="http://www.w3.org/2000/svg">
+      <title id="host-wire-title">TCP destination and HTTP Host are distinct / مقصد TCP و سرآیند Host دو چیز جدا هستند</title>
+      <defs><marker id="host-wire-arrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9Z" class="dg-arrow"/></marker></defs>
+      <rect x="38" y="54" width="250" height="104" rx="16" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/>
+      <text x="163" y="88" text-anchor="middle" class="dg-t">curl / browser</text>
+      <text x="163" y="118" text-anchor="middle" class="dg-tm">URL: 127.0.0.1:18080</text>
+      <path d="M288 106H520" class="dg-stroke-b" stroke-width="3" marker-end="url(#host-wire-arrow)"/>
+      <text x="404" y="82" text-anchor="middle" class="dg-tm">TCP destination</text>
+      <rect x="538" y="54" width="264" height="104" rx="16" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/>
+      <text x="670" y="88" text-anchor="middle" class="dg-t">Nginx listener</text>
+      <text x="670" y="118" text-anchor="middle" class="dg-tm">127.0.0.1:18080</text>
+      <rect x="38" y="202" width="330" height="76" rx="14" class="dg-fill" stroke="var(--line-strong)" stroke-width="2"/>
+      <text x="203" y="233" text-anchor="middle" class="dg-tm">HTTP/1.1 request header</text>
+      <text x="203" y="258" text-anchor="middle" class="dg-t">Host: beta.test</text>
+      <path d="M368 240H520" class="dg-stroke-v" stroke-width="3" marker-end="url(#host-wire-arrow)"/>
+      <text x="445" y="218" text-anchor="middle" class="dg-tm">server-name choice</text>
+      <rect x="538" y="202" width="264" height="76" rx="14" class="dg-fill-g" stroke="var(--safe)" stroke-width="2"/>
+      <text x="670" y="234" text-anchor="middle" class="dg-t">beta.test server</text>
+      <text x="670" y="258" text-anchor="middle" class="dg-ts">same connection, chosen site</text>
+    </svg>
+    <p class="diagram-cap" lang="fa">URL یا `--resolve` مقصد اتصال را تعیین می‌کند؛ Host نامی را می‌دهد که Nginx برای انتخاب server می‌سنجد. این دو مسیر به هم مرتبط‌اند، اما یک داده نیستند.</p>
+    <p class="diagram-cap" lang="en">The URL or `--resolve` sets the connection destination; Host supplies the name Nginx checks to select a server. The two are related, but they are not the same piece of data.</p>
+  </div>
+  <p lang="fa">دو راه معادل برای تست داریم. راه اول header را صریح می‌فرستد؛ راه دوم به curl می‌گوید نام را برای اتصال به IP محلی resolve کند. در راه دوم URL هم نام درست را دارد و curl به‌طور طبیعی Host متناظر را می‌فرستد.</p>
+  <p lang="en">There are two equivalent test methods. The first sends the header explicitly; the second tells curl to resolve the name to a local IP. With the latter, the URL itself contains the intended name, so curl sends the matching Host header naturally.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">two local ways to select a site</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl -i -H 'Host: alpha.test' http://127.0.0.1:18080/
+curl -i --resolve beta.test:18080:127.0.0.1 http://beta.test:18080/</span></pre></div>
+  <p lang="fa">هر دو باید سایت متناظر را نشان دهند. اگر این دو روش با هم فرق دارند، request line و header واقعی را با <code>curl -v</code> ببین و مطمئن شو هر دو به همان IP و port می‌روند. این تست از DNS عمومی عبور نمی‌کند و دسترسی از اینترنت را هم نمی‌سنجد.</p>
+  <p lang="en">Each should return its matching site. If the methods disagree, inspect the actual request line and headers with <code>curl -v</code>, and confirm both target the same IP and port. This test bypasses public DNS and does not measure Internet reachability.</p>
+  <h3><span lang="fa">آزمایش با hosts محلی</span><span lang="en">Testing with a local hosts file</span></h3>
+  <p lang="fa">وقتی می‌خواهی URL را مثل مرورگر واقعی بنویسی، نام‌ها را موقتاً به loopback نگاشت کن. در Linux/macOS فایل <code>/etc/hosts</code> است؛ در Windows فایل <code>C:\Windows\System32\drivers\etc\hosts</code> است. فایل را با دسترسی لازم باز کن و این خط را اضافه کن؛ اگر خطی مشابه از قبل هست، تکراری نساز.</p>
+  <p lang="en">If you want to type the URL as a browser would, map the names to loopback temporarily. On Linux/macOS the file is <code>/etc/hosts</code>; on Windows it is <code>C:\Windows\System32\drivers\etc\hosts</code>. Open it with the required permissions and add the line below; do not create a duplicate if an equivalent line already exists.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">temporary hosts-file entry</span></div><pre dir="ltr">127.0.0.1 alpha.test beta.test</pre></div>
+  <p lang="fa">بعد <code>curl -i http://alpha.test:18080/</code> و <code>curl -i http://beta.test:18080/</code> را بزن. پس از آزمایش فقط همان نگاشت موقتی را از hosts پاک کن؛ فایل را با نسخهٔ قدیمی جایگزین نکن، چون ممکن است تغییرهای دیگری در همین فاصله ثبت شده باشند. hosts فقط ترجمهٔ نام به IP را محلی انجام می‌دهد؛ درخواست هنوز باید Host درست را بفرستد.</p>
+  <p lang="en">Then run <code>curl -i http://alpha.test:18080/</code> and <code>curl -i http://beta.test:18080/</code>. Afterwards, remove only the temporary mapping from the hosts file; do not replace the whole file with an old copy, because other edits may have happened meanwhile. hosts performs local name-to-IP mapping; the request must still send the right Host value.</p>
+</section>
+
+<section id="default-server">
+  <h2><span lang="fa">default server یعنی «برای این listener»، نه «یک دامنهٔ خاص»</span><span lang="en">The default belongs to the listener, not to a domain</span></h2>
+  <p class="lede" lang="fa">در کانفیگ آزمایش، یک درخواست با نام ناشناس بفرست. انتظار داری چه شود؟ چون نامی از سه <code>server_name</code> پیدا نمی‌شود، Nginx باید default همین listener را انتخاب کند.</p>
+  <p class="lede" lang="en">Send a request with an unknown name to the lab config. What do you expect? Since none of the three <code>server_name</code> values match, Nginx should choose this listener’s default.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">unknown host name</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl -i -H 'Host: not-configured.test' http://127.0.0.1:18080/</span>
+<span class="s">HTTP/1.1 200 OK
+...
+
+DEFAULT SITE</span></pre></div>
+  <p lang="fa">بدنهٔ <code>DEFAULT SITE</code> نشان می‌دهد درخواست به block دارای <code>default_server</code> رسیده. default بودن صفت پورت/آدرسِ listener است، نه چیزی که با <code>server_name _;</code> ساخته شود. نام <code>_</code> صرفاً یک نام قراردادیِ نامحتمل است؛ جادویی نیست و به‌تنهایی همهٔ دامنه‌های ناشناس را نمی‌گیرد.</p>
+  <p lang="en">The <code>DEFAULT SITE</code> body shows that the request reached the block marked <code>default_server</code>. Default status belongs to a listener address/port, not to a name created by <code>server_name _;</code>. The underscore is merely an unlikely conventional name; it is not magic and does not itself catch every unknown host.</p>
+  <p lang="fa">اگر برای یک address:port هیچ‌کدام <code>default_server</code> نداشته باشند، اولین server block تعریف‌شده برای همان listener پیش‌فرض می‌شود. بهتر است در configهایی که چند سایت دارند default را صریح کنی تا خواننده مجبور نباشد ترتیب includeها را حدس بزند. این ترتیب مربوط به انتخاب default است؛ ترتیب فایل‌ها را با الگوریتم <code>location</code> قاطی نکن.</p>
+  <p lang="en">If no block declares <code>default_server</code> for an address:port, the first server block defined for that listener becomes the default. In multi-site configs, declaring it explicitly saves readers from guessing the include order. This ordering concerns default selection; do not confuse it with the <code>location</code> matching algorithm.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">وضعیت درخواست</span><span lang="en">Request condition</span></th><th><span lang="fa">انتخاب Nginx</span><span lang="en">Nginx selection</span></th><th><span lang="fa">مدرکی که می‌بینیم</span><span lang="en">Evidence to inspect</span></th></tr></thead><tbody>
+    <tr><td><span lang="fa">address:port با یک نام موجود</span><span lang="en">address:port with a configured name</span></td><td><code>server_name</code> متناظر</td><td><span lang="fa">بدنه یا log مخصوص همان سایت</span><span lang="en">That site's body or access log</span></td></tr>
+    <tr><td><span lang="fa">address:port با نام ناشناس</span><span lang="en">address:port with an unknown name</span></td><td><code>default_server</code> همان listener</td><td><span lang="fa">بدنهٔ سایت پیش‌فرض</span><span lang="en">Default site's body</span></td></tr>
+    <tr><td><span lang="fa">چند آدرس یا چند پورت</span><span lang="en">Multiple addresses or ports</span></td><td><span lang="fa">default جدا برای هر address:port</span><span lang="en">A default per address:port</span></td><td><span lang="fa">مقدارهای <code>listen</code> مؤثر</span><span lang="en">The effective <code>listen</code> values</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa">اگر درخواست بدون <code>Host</code> برسد، رفتار پیش‌فرض نام خالی هم وارد ماجرا می‌شود؛ لازم نیست هر نصب را از اول با یک قاعدهٔ دست‌ساز برای این حالت پیکربندی کنیم. برای ردکردن نام ناشناس می‌شود default ویژه‌ای ساخت، اما کد غیرمعمول <code>444</code> پاسخ HTTP استاندارد نیست و اتصال را می‌بندد؛ این انتخاب را فقط با شناخت رفتار کلاینت انجام بده.</p>
+  <p lang="en">If a request arrives without <code>Host</code>, the default empty server name is also relevant; there is no need to invent a custom rule for every installation. A special default can reject unknown names, but Nginx’s non-standard <code>444</code> is not an HTTP response—it closes the connection. Use it only when you understand the client-visible behavior.</p>
+</section>
+
+<section id="deliberate-failure">
+  <h2><span lang="fa">نام BETA را خراب می‌کنیم؛ هنوز تعمیر نکن</span><span lang="en">Break BETA’s name—do not fix it yet</span></h2>
+  <p class="lede" lang="fa">تا اینجا هر نام به سایت خودش رسید. حالا می‌خواهیم ببینیم اشتباه کوچکی در <code>server_name</code> چه شکلی دیده می‌شود. در config آزمایش فقط <code>beta.test</code> را به <code>betta.test</code> تغییر بده. پیش از reload، syntax را بررسی کن؛ typo از نظر دستور زبان درست است و احتمالاً <code>nginx -t</code> آن را رد نمی‌کند.</p>
+  <p class="lede" lang="en">So far, each name reached its own site. Now we will see what a small <code>server_name</code> mistake looks like. In the lab config only, change <code>beta.test</code> to <code>betta.test</code>. Test syntax before reloading; the typo is valid syntax, so <code>nginx -t</code> will probably accept it.</p>
+  <p lang="fa">در این مرحله دنبال «خطای config» نگرد؛ می‌خواهیم یک config معتبر اما از نظر قصد اشتباه را آزمایش کنیم. بعد از آزمون موفق، همان config آزمایش را reload کن و همان درخواست قبلی را بفرست.</p>
+  <p lang="en">Do not look for a syntax error here; we are testing a valid configuration that does not match our intent. After the test passes, reload the lab config and send the same request as before.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">the symptom after the typo</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">nginx -t -p "$LAB_DIR/" -c nginx.conf
+nginx -p "$LAB_DIR/" -c nginx.conf -s reload
+curl -i -H 'Host: beta.test' http://127.0.0.1:18080/</span>
+<span class="s">HTTP/1.1 200 OK
+...
+
+DEFAULT SITE</span></pre></div>
+  <p lang="fa">درخواست موفق شده، پس ممکن است نتیجه را اشتباه «BETA سالم است» بخوانیم. اما body می‌گوید default جواب داده؛ این مدرک از status code مهم‌تر است. حالا دو فرض را جدا کن: آیا config بارشده همان فایلی است که ویرایش کردی؟ و آیا نام درخواست با نام تعریف‌شده در server block برابر است؟</p>
+  <p lang="en">The request succeeded, so it is easy to misread the result as “BETA works.” But the body says the default answered; that is more informative than the status code. Separate two hypotheses: did Nginx load the file you edited, and does the request name equal the name defined in the server block?</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">inspect the effective configuration</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">nginx -T -p "$LAB_DIR/" -c nginx.conf 2&gt;&amp;1 | grep -nE 'server_name|listen'</span>
+<span class="s">listen 127.0.0.1:18080 default_server;
+server_name _;
+listen 127.0.0.1:18080;
+server_name alpha.test;
+listen 127.0.0.1:18080;
+server_name betta.test;</span></pre></div>
+  <p lang="fa">این خروجی ثابت می‌کند config مؤثر typo را دارد؛ هنوز فقط نام را می‌دانیم، نه اینکه request واقعاً به کدام block رفته. body پاسخ و نام موجود را کنار هم بگذار: <code>beta.test</code> برابر <code>betta.test</code> نیست، بنابراین default جواب داده. حالا typo را اصلاح کن، دوباره <code>-t</code> بزن، reload کن و همان curl را تکرار کن. تأیید نهایی باید <code>BETA SITE</code> باشد.</p>
+  <p lang="en">This output proves the effective config contains the typo; it does not by itself show which block handled the request. Compare the response body with the configured name: <code>beta.test</code> is not <code>betta.test</code>, so the default answered. Fix the typo, run <code>-t</code> again, reload, and repeat the same curl. The final evidence should be <code>BETA SITE</code>.</p>
+  <div class="note warn"><div class="note-t"><span lang="fa">این آزمایش روی سرویس زنده نیست</span><span lang="en">This experiment is not on a live service</span></div><p lang="fa">فقط فایل داخل <code>$LAB_DIR</code> را ویرایش کن. برای Nginx واقعی، پیش از reload از پیکربندی نسخهٔ پشتیبان داشته باش، با باینری و گزینه‌های همان سرویس <code>-t</code> بگیر، و نشانی را طوری آزمایش کن که بازگشت امن داشته باشی.</p><p lang="en">Edit only the file under <code>$LAB_DIR</code>. For a live Nginx, keep a configuration backup before reloading, test with that service’s binary and options, and use a verification path that gives you a safe way back.</p></div>
+</section>
+
+<section id="duplicate-default">
+  <h2><span lang="fa">دو جور تکرار داریم؛ یکی اخطار است، یکی خطای شروع</span><span lang="en">Two kinds of duplication: one warns, one prevents startup</span></h2>
+  <p class="lede" lang="fa">یک همکار می‌گوید: «اگر دو block روی یک پورت‌اند، پس هر تکراری یعنی Nginx نمی‌تواند بالا بیاید.» این دو گزاره را یکی نکن. تکرار <code>default_server</code> برای یک listener و تکرار یک <code>server_name</code> وضعیت یکسانی ندارند.</p>
+  <p class="lede" lang="en">A teammate says, “If two blocks use the same port, any duplication means Nginx cannot start.” Do not conflate these cases. Repeating <code>default_server</code> for one listener and repeating a <code>server_name</code> do not have the same outcome.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">اشتباه</span><span lang="en">Mistake</span></th><th><span lang="fa">رفتار معمول Nginx</span><span lang="en">Typical Nginx behavior</span></th><th><span lang="fa">قدم تشخیصی</span><span lang="en">Diagnostic step</span></th></tr></thead><tbody>
+    <tr><td><span lang="fa">دو <code>default_server</code> برای همان address:port</span><span lang="en">Two <code>default_server</code> entries for one address:port</span></td><td><span lang="fa">پیکربندی رد می‌شود؛ duplicate default server خطای جدی است.</span><span lang="en">Configuration is rejected; a duplicate default server is a fatal error.</span></td><td><code>nginx -t</code> و بررسی همهٔ <code>listen</code>ها</td></tr>
+    <tr><td><span lang="fa">نام یکسان در blockهای هم‌پوشان</span><span lang="en">Same name in overlapping server blocks</span></td><td><span lang="fa">ممکن است warningِ conflicting server name ببینی و نام تکراری نادیده گرفته شود؛ config با این warning لزوماً fail نمی‌شود.</span><span lang="en">A conflicting server-name warning may appear and the duplicate name may be ignored; this warning does not necessarily fail the config test.</span></td><td><code>nginx -t</code> و log؛ سپس <code>-T</code> و درخواست واقعی</td></tr>
+    <tr><td><span lang="fa">چند <code>server</code> با همان listener و نام‌های متفاوت</span><span lang="en">Several servers on one listener with different names</span></td><td><span lang="fa">حالت عادی virtual hosting است.</span><span lang="en">This is ordinary virtual hosting.</span></td><td><span lang="fa">هر نام را جداگانه با <code>Host</code> آزمایش کن.</span><span lang="en">Test each name separately with <code>Host</code>.</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa">متن و سطح خطا را از خروجی نسخهٔ خودت بخوان؛ جمله‌بندی و شمارهٔ PID ممکن است فرق کند. مهم‌تر اینکه موفق‌شدن <code>nginx -t</code> را با موفقیت انتخاب همهٔ نام‌ها یکی نگیری. warning را نادیده نگیر، و برای هر نام، پاسخ واقعی را دوباره بسنج.</p>
+  <p lang="en">Read the severity and message from your own version; wording and process IDs can vary. Most importantly, do not equate a successful <code>nginx -t</code> with correct selection for every name. Do not ignore warnings, and verify each name with a real request.</p>
+</section>
+
+<section id="address-families">
+  <h2><span lang="fa">IPv4 و IPv6؛ دو ورودی‌اند، نه دو اسم</span><span lang="en">IPv4 and IPv6 are two endpoints, not two names</span></h2>
+  <p class="lede" lang="fa">تا اینجا فقط روی <code>127.0.0.1</code> گوش دادیم؛ یعنی loopback در IPv4. اگر کلاینت با IPv6 به <code>::1</code> وصل شود، ممکن است اصلاً به همان listener نرسد. این مسئله قبل از انتخاب <code>server_name</code> رخ می‌دهد.</p>
+  <p class="lede" lang="en">So far we have listened only on <code>127.0.0.1</code>, the IPv4 loopback. A client connecting to <code>::1</code> over IPv6 may not reach that listener at all. This happens before <code>server_name</code> selection.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 860 300" role="img" aria-labelledby="address-pairs-title" xmlns="http://www.w3.org/2000/svg">
+      <title id="address-pairs-title">Defaults are scoped to listening address and port / default به address و port شنونده محدود است</title>
+      <defs><marker id="address-pairs-arrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9Z" class="dg-arrow-b"/></marker></defs>
+      <rect x="36" y="54" width="214" height="82" rx="14" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/>
+      <text x="143" y="87" text-anchor="middle" class="dg-tm">IPv4 127.0.0.1:80</text><text x="143" y="113" text-anchor="middle" class="dg-t">listener A</text>
+      <path d="M250 95H370" class="dg-stroke-b" stroke-width="3" marker-end="url(#address-pairs-arrow)"/>
+      <rect x="386" y="54" width="204" height="82" rx="14" class="dg-fill-g" stroke="var(--safe)" stroke-width="2"/>
+      <text x="488" y="87" text-anchor="middle" class="dg-t">default A</text><text x="488" y="113" text-anchor="middle" class="dg-tm">for this pair</text>
+      <rect x="36" y="174" width="214" height="82" rx="14" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/>
+      <text x="143" y="207" text-anchor="middle" class="dg-tm">IPv6 [::]:80</text><text x="143" y="233" text-anchor="middle" class="dg-t">listener B</text>
+      <path d="M250 215H370" class="dg-stroke-v" stroke-width="3" marker-end="url(#address-pairs-arrow)"/>
+      <rect x="386" y="174" width="204" height="82" rx="14" class="dg-fill-w" stroke="var(--warn)" stroke-width="2"/>
+      <text x="488" y="207" text-anchor="middle" class="dg-t">default B</text><text x="488" y="233" text-anchor="middle" class="dg-tm">separate pair</text>
+      <rect x="636" y="90" width="190" height="130" rx="16" class="dg-fill" stroke="var(--line-strong)" stroke-width="2"/>
+      <text x="731" y="128" text-anchor="middle" class="dg-t">same server names</text><text x="731" y="157" text-anchor="middle" class="dg-ts">may serve both,</text><text x="731" y="180" text-anchor="middle" class="dg-ts">if both listen</text>
+      <path d="M590 95H620M590 215H620" class="dg-stroke" stroke-width="2"/>
+    </svg>
+    <p class="diagram-cap" lang="fa">برای هر address:port، انتخاب default جداست. هر server block باید روی endpoint موردنظر listen داشته باشد؛ یک تعریف IPv4 به‌تنهایی حضور روی IPv6 را تضمین نمی‌کند.</p>
+    <p class="diagram-cap" lang="en">Each address:port pair has its own default. A server block must listen on the intended endpoint; an IPv4 listener alone does not guarantee IPv6 reachability.</p>
+  </div>
+  <p lang="fa">نمونهٔ صریح برای یک سایت می‌تواند دو خط داشته باشد: <code>listen 80;</code> برای IPv4 و <code>listen [::]:80;</code> برای IPv6. نشانی IPv6 در config داخل براکت نوشته می‌شود. پیکربندی دقیق به این بستگی دارد که Nginx روی کدام interfaceها bind می‌کند و سیستم‌عامل socket دوگانه را چطور تنظیم کرده است.</p>
+  <p lang="en">An explicit example for one site may contain two lines: <code>listen 80;</code> for IPv4 and <code>listen [::]:80;</code> for IPv6. IPv6 addresses are bracketed in the config. The exact setup depends on which interfaces Nginx binds and how the operating system configures dual-stack sockets.</p>
+  <p lang="fa">در Nginx، پارامتر <code>ipv6only=on|off</code> روی رفتار IPv4-mapped اتصال‌های socket wildcard IPv6 اثر دارد و پیش‌فرض رسمی‌اش <code>on</code> است؛ این مقدار فقط هنگام start قابل تعیین است. بااین‌حال از روی یک خط config فرض نکن IPv6 در محیطت آماده است: وجود آدرس و listener را جدا بررسی کن. وقتی هر دو endpoint را تعریف می‌کنی، default را برای هر زوج address:port درست و بدون تکرار تعیین کن.</p>
+  <p lang="en">Nginx’s <code>ipv6only=on|off</code> parameter controls whether an IPv6 wildcard socket also accepts IPv4-mapped connections; its documented default is <code>on</code>, and it can only be set at startup. Still, do not infer IPv6 availability from one config line: verify that the address and listener exist. If you define both endpoints, assign a valid, non-duplicate default for each address:port pair.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">inspect listeners before blaming server_name</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">ss -ltnp | grep -E ':(80|18080)\b'
+curl -4 -i --resolve alpha.test:18080:127.0.0.1 http://alpha.test:18080/
+curl -6 -i --resolve "alpha.test:18080:[::1]" http://alpha.test:18080/</span></pre></div>
+  <p lang="fa">اگر <code>curl -6</code> شکست خورد، این به‌تنهایی typo در <code>server_name</code> را ثابت نمی‌کند؛ شاید listener یا IPv6 سیستم فعال نیست. اول خروجی <code>ss</code> و آدرس‌های میزبان را بخوان؛ بعد از رسیدن درخواست به listener سراغ نام برو. هر دستور را فقط وقتی اجرا کن که سرویس آزمایشی واقعاً روی آن port فعال است.</p>
+  <p lang="en">If <code>curl -6</code> fails, that alone does not prove a <code>server_name</code> typo; the listener or host IPv6 may be unavailable. Read <code>ss</code> and the host addresses first, then inspect names only after the request reaches a listener. Run these requests only while the lab service is actually bound to that port.</p>
+</section>
+
+<section id="roots-logs">
+  <h2><span lang="fa">هر سایت ریشه و گزارش خودش را داشته باشد</span><span lang="en">Give each site its own root and access log</span></h2>
+  <p class="lede" lang="fa">وقتی انتخاب block را دیدیم، یک سؤال عملی می‌ماند: از کجا بفهمیم پاسخ واقعاً از فایل‌های سایت درست آمده؟ برای هر server، <code>root</code> و <code>access_log</code> مستقل می‌گذاریم. این جداسازی هم پیدا کردن صفحهٔ اشتباه را آسان می‌کند، هم نشان می‌دهد هر درخواست کجا ثبت شده است.</p>
+  <p class="lede" lang="en">Now that we have seen block selection, one practical question remains: how do we know the response came from the intended site’s files? Give each server its own <code>root</code> and <code>access_log</code>. This makes wrong-page diagnosis easier and shows where each request was recorded.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">server name</span><span lang="en">server name</span></th><th><span lang="fa">root آزمایش</span><span lang="en">Lab root</span></th><th><span lang="fa">فایل log</span><span lang="en">Log file</span></th><th><span lang="fa">نشانهٔ پاسخ</span><span lang="en">Response marker</span></th></tr></thead><tbody>
+    <tr><td><code>alpha.test</code></td><td><code>html/alpha</code></td><td><code>logs/alpha.access.log</code></td><td><code>ALPHA SITE</code></td></tr>
+    <tr><td><code>beta.test</code></td><td><code>html/beta</code></td><td><code>logs/beta.access.log</code></td><td><code>BETA SITE</code></td></tr>
+    <tr><td><code>_</code> (default block)</td><td><code>html/default</code></td><td><code>logs/default.access.log</code></td><td><code>DEFAULT SITE</code></td></tr>
+  </tbody></table></div>
+  <p lang="fa">در آزمایش، پس از چند درخواست فایل‌های log جداگانه را ببین: نام file مدرکی از block انتخاب‌شده است. نبودن فایل هم دلیل قطعی برای نرسیدن درخواست نیست؛ ممکن است هنوز در آن مسیر چیزی نوشته نشده باشد یا مسیر log را اشتباه خوانده باشی. برای جزئیات فرمت و چرخش log، فصل گزارش‌ها را داریم.</p>
+  <p lang="en">After several lab requests, inspect the separate log files; the filename is evidence of the selected block. A missing file does not prove the request never arrived—it may not have been written yet, or you may be checking the wrong log path. We will cover log formats and rotation in the logging chapter.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">compare bodies and per-site logs</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">for name in alpha beta default; do
+  printf '\n--- %s ---\n' "$name"
+  tail -n 2 "$LAB_DIR/logs/$name.access.log" 2&gt;/dev/null || true
+done</span></pre></div>
+  <p lang="fa">این دستور فقط چند خط پایانی log آزمایش را می‌خواند؛ هنوز تنظیمات کامل logging یا چرخش آن را نمی‌سنجد. اگر در shellای هستی که <code>tail</code> ندارد، فایل مربوط را با ابزار خواندن متن همان محیط باز کن.</p>
+  <p lang="en">This command reads only the last few lines from the lab logs; it does not assess full logging or rotation settings. If your shell lacks <code>tail</code>, open the relevant file with that environment’s text viewer.</p>
+</section>
+
+<section id="safe-live-change">
+  <h2><span lang="fa">اگر همین ایده را روی نصب واقعی می‌بری…</span><span lang="en">If you apply this to a real installation…</span></h2>
+  <p class="lede" lang="fa">در آزمایشگاه، Nginx جداست. در یک VPS واقعی ممکن است configهای دیگری روی همان پورت باشند و تغییر تو default آن‌ها را عوض کند. پس پیش از افزودن سایت، اول بفهم کدام فایل‌ها واقعاً include شده‌اند و کدام process پورت را گرفته است.</p>
+  <p class="lede" lang="en">The lab Nginx is isolated. On a real VPS, other configs may already share the port, and your change could alter their default. Before adding a site, find which files are actually included and which process owns the listener.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">inspect before editing a packaged service</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">sudo nginx -T 2&gt;&amp;1 | grep -nE 'configuration file|listen|server_name'
+sudo ss -ltnp | grep -E ':(80|443)\b'</span></pre></div>
+  <p lang="fa">از <code>-T</code> برای دیدن فایل‌های مؤثر و جای واقعی server blockها استفاده کن؛ خروجی ممکن است اطلاعات داخلی داشته باشد، پس آن را بی‌بررسی عمومی نکن. از <code>ss</code> می‌فهمی listener در اختیار چه processای است. هیچ‌کدام به‌تنهایی نمی‌گوید یک نام عمومی از اینترنت به این ماشین می‌رسد.</p>
+  <p lang="en">Use <code>-T</code> to inspect effective files and where server blocks actually live; its output may contain internal details, so do not publish it without review. <code>ss</code> identifies the process owning a listener. Neither alone proves that a public domain reaches this host from the Internet.</p>
+  <p lang="fa">در نصب‌های توزیعی، نام‌هایی مثل <code>sites-available</code> و <code>sites-enabled</code> ممکن است وجود داشته باشند؛ در بستهٔ رسمی یا container شاید ساختار متفاوت باشد. معیار، فایل‌هایی است که باینری فعال واقعاً بار می‌کند، نه یک آموزش عمومی. قبل از reload، از همان config و با همان binary، <code>nginx -t</code> بگیر؛ اگر موفق بود، reload کن و همان درخواست کنترل‌شده را دوباره بفرست.</p>
+  <p lang="en">Packaged installations may use directories such as <code>sites-available</code> and <code>sites-enabled</code>; an official package or container may use a different layout. Trust the files the active binary actually loads, not a generic tutorial. Before reloading, run <code>nginx -t</code> against that config and binary; if it succeeds, reload and repeat the same controlled request.</p>
+  <div class="note warn"><div class="note-t"><span lang="fa">ترتیب فایل، ابزار تشخیص نیست</span><span lang="en">File order is not a debugging method</span></div><p lang="fa">اگر سایت اشتباه جواب می‌دهد، همهٔ فایل‌ها را جابه‌جا یا حذف نکن. body پاسخ، <code>Host</code> ارسال‌شده، listener، serverهای مؤثر در <code>-T</code> و نام‌های دقیق را کنار هم بگذار؛ بعد فقط اختلاف اثبات‌شده را اصلاح کن.</p><p lang="en">If the wrong site answers, do not reorder or delete every file. Compare the response body, sent <code>Host</code>, listener, effective servers in <code>-T</code>, and exact names; then fix only the demonstrated mismatch.</p></div>
+</section>
+
+<section id="exercises">
+  <h2><span lang="fa">تمرین‌ها: انتخاب درست را از روی مدرک بفهم</span><span lang="en">Exercises: infer the selection from evidence</span></h2>
+  <p class="lede" lang="fa">در تمرین‌های اول، نتیجه را پیش‌بینی می‌کنی. جلوتر، باید تشخیص بدهی کدام لایه هنوز آزمایش نشده و چه مدرکی قبل از تغییر بعدی لازم است. پاسخ‌ها را بعد از اینکه خودت فکر کردی باز کن.</p>
+  <p class="lede" lang="en">The first exercises ask you to predict. Later, you will identify which layer has not been tested and what evidence is needed before the next change. Try each one before opening its solution.</p>
+
+  <div class="ex" id="ex01"><h3><span lang="fa">۱. پیش‌بینی انتخاب</span><span lang="en">1. Predict the selection</span></h3><p lang="fa">دو block روی <code>127.0.0.1:8080</code> گوش می‌دهند. اولی <code>server_name a.test</code> و دومی <code>server_name b.test</code> دارد. درخواست با <code>Host: b.test</code> می‌رسد. کدام block را انتظار داری؟</p><p lang="en">Two blocks listen on <code>127.0.0.1:8080</code>. The first declares <code>server_name a.test</code>; the second, <code>b.test</code>. A request arrives with <code>Host: b.test</code>. Which block do you expect?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">دومی، چون مقصد address:port با هر دو جور است و بعد نام <code>Host</code> با <code>b.test</code> تطبیق می‌کند. این پاسخ پیش‌بینی مدل است؛ با body متفاوت یا log جدا باید ثابتش کنی.</p><p lang="en">The second block: both match the address:port, then the <code>Host</code> value matches <code>b.test</code>. This is a model-based prediction; prove it with distinct response bodies or separate logs.</p></details></div>
+
+  <div class="ex" id="ex02"><h3><span lang="fa">۲. URL با IP، Host با نام</span><span lang="en">2. IP in the URL, name in Host</span></h3><p lang="fa">دستور <code>curl http://127.0.0.1:8080/ -H 'Host: shop.test'</code> به کدام IP وصل می‌شود و Nginx چه نامی را برای انتخاب می‌بیند؟</p><p lang="en">In <code>curl http://127.0.0.1:8080/ -H 'Host: shop.test'</code>, which IP does curl connect to, and which name does Nginx inspect for selection?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">curl به <code>127.0.0.1:8080</code> وصل می‌شود؛ Nginx برای انتخاب HTTP virtual host مقدار <code>shop.test</code> در Host را بررسی می‌کند. این تست DNS را دور می‌زند؛ به‌تنهایی ثابت نمی‌کند DNS عمومی درست است.</p><p lang="en">curl connects to <code>127.0.0.1:8080</code>; Nginx checks <code>shop.test</code> in Host for HTTP virtual-host selection. This bypasses DNS and does not prove public DNS is correct.</p></details></div>
+
+  <div class="ex" id="ex03"><h3><span lang="fa">۳. نام ناشناس</span><span lang="en">3. An unknown name</span></h3><p lang="fa">هیچ blockای <code>odd.test</code> را ندارد، ولی پاسخ <code>200</code> و body سایت اول را می‌بینی. آیا Nginx نام ناشناس را تصادفی انتخاب کرده؟</p><p lang="en">No block declares <code>odd.test</code>, yet you receive status <code>200</code> and the first site's body. Did Nginx select an arbitrary name?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه؛ درخواست به default همان address:port رسیده. اگر default صریح تعیین نشده باشد، اولین block برای همان listener پیش‌فرض می‌شود. body را با listenهای مؤثر تطبیق بده تا این فرض ثابت شود.</p><p lang="en">No. The request reached the default for that address:port. If none is explicitly declared, the first block for that listener becomes default. Compare the body with the effective listen configuration to verify it.</p></details></div>
+
+  <div class="ex" id="ex04"><h3><span lang="fa">۴. underscore جادویی نیست</span><span lang="en">4. The underscore is not magic</span></h3><p lang="fa">کسی می‌گوید <code>server_name _;</code> تمام نام‌های ناشناخته را می‌گیرد، حتی اگر block دیگری <code>default_server</code> باشد. کدام بخش حرفش اشتباه است؟</p><p lang="en">Someone claims <code>server_name _;</code> catches all unknown names even if another block has <code>default_server</code>. What is wrong with that claim?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa"><code>_</code> نام خاصی نیست؛ یک نام قراردادی است. نقش default را پارامتر <code>default_server</code> در <code>listen</code> تعیین می‌کند. برای فهم نتیجه، فقط به نام نگاه نکن؛ listener را هم بررسی کن.</p><p lang="en"><code>_</code> is not a special name; it is a convention. The <code>default_server</code> parameter on <code>listen</code> determines the default. Inspect the listener as well as the name.</p></details></div>
+
+  <div class="ex" id="ex05"><h3><span lang="fa">۵. دو default روی یک listener</span><span lang="en">5. Two defaults on one listener</span></h3><p lang="fa">دو server block هر دو روی <code>127.0.0.1:8080 default_server</code> هستند. انتظار داری <code>nginx -t</code> چه کند؟</p><p lang="en">Two server blocks both use <code>127.0.0.1:8080 default_server</code>. What do you expect <code>nginx -t</code> to do?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">باید config را به‌خاطر default تکراری برای همان زوج address:port رد کند. block دوم را حذف یا نقش‌ها را روشن کن؛ پیش از reload، آزمون را دوباره بگیر. برای یک address یا port دیگر، default مستقل ممکن است مجاز باشد.</p><p lang="en">It should reject the config because the same address:port has duplicate defaults. Remove the duplicate or clarify the roles, then retest before reloading. A different address or port may have its own default.</p></details></div>
+
+  <div class="ex" id="ex06"><h3><span lang="fa">۶. نام تکراری، پیام متفاوت</span><span lang="en">6. A duplicate name, a different message</span></h3><p lang="fa">در دو block روی listener مشترک، <code>server_name app.test</code> تکرار شده. <code>nginx -t</code> می‌گوید syntax موفق و یک warning از conflicting server name می‌دهد. آیا reload را بی‌بررسی ادامه می‌دهی؟</p><p lang="en">Two blocks sharing a listener repeat <code>server_name app.test</code>. <code>nginx -t</code> reports valid syntax and a conflicting-server-name warning. Do you reload without further inspection?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه. warning می‌گوید نام تکراری ممکن است نادیده گرفته شود؛ syntax موفق، نیت پیکربندی را تأیید نمی‌کند. با <code>-T</code> نام‌ها را در blockهای مؤثر پیدا کن و تصمیم بگیر کدام سایت باید آن نام را داشته باشد، بعد warning را برطرف و درخواست واقعی را آزمایش کن.</p><p lang="en">No. The warning says the duplicate name may be ignored; passing syntax does not validate your intent. Find the effective blocks with <code>-T</code>, decide which site should own the name, remove the conflict, and test a real request.</p></details></div>
+
+  <div class="ex" id="ex07"><h3><span lang="fa">۷. HTTP یا HTTPS؟</span><span lang="en">7. HTTP or HTTPS?</span></h3><p lang="fa">یک سرآیند <code>Host</code> درست به پورت ۸۰ فرستاده‌ای و سایت صحیح پاسخ می‌دهد. آیا همین مدرک انتخاب certificate درست در HTTPS است؟</p><p lang="en">You sent the correct <code>Host</code> to port 80 and got the right site. Does that prove HTTPS will select the right certificate?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه. در HTTPS، TLS handshake پیش از درخواست HTTP رخ می‌دهد و SNI ممکن است پیکربندی/certificate را زودتر انتخاب کند. HTTP Host به‌تنهایی رفتار TLS را نمی‌آزماید؛ نام و گواهی را جدا در تست HTTPS بررسی کن.</p><p lang="en">No. The TLS handshake happens before the HTTP request, and SNI can select configuration/certificate earlier. HTTP Host alone does not test TLS behavior; verify the name and certificate in a separate HTTPS test.</p></details></div>
+
+  <div class="ex" id="ex08"><h3><span lang="fa">۸. سرور فقط روی IPv4</span><span lang="en">8. The server listens only on IPv4</span></h3><p lang="fa">در config فقط <code>listen 127.0.0.1:8080;</code> داری. <code>curl -6 http://[::1]:8080/</code> اتصال را رد می‌کند. آیا این به‌تنهایی ثابت می‌کند نام دامنه غلط است؟</p><p lang="en">The config has only <code>listen 127.0.0.1:8080;</code>. <code>curl -6 http://[::1]:8080/</code> is refused. Does this alone prove the domain name is wrong?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه؛ هنوز به HTTP name selection نرسیده‌ایم. باید ببینیم Nginx روی IPv6 گوش می‌دهد یا نه و خود سیستم IPv6 loopback دارد یا نه. خطای اتصال پیش از بررسی <code>server_name</code> رخ می‌دهد.</p><p lang="en">No; the request has not reached HTTP name selection. Check whether Nginx listens on IPv6 and whether the host has IPv6 loopback enabled. A connection failure occurs before <code>server_name</code> is checked.</p></details></div>
+
+  <div class="ex" id="ex09"><h3><span lang="fa">۹. default برای هر زوج</span><span lang="en">9. A default for each pair</span></h3><p lang="fa">یک سایت روی <code>127.0.0.1:80</code> و <code>[::]:80</code> گوش می‌دهد. آیا می‌توانی بدون دیدن بقیهٔ config بگویی یک <code>default_server</code> کجا کافی است؟</p><p lang="en">A site listens on <code>127.0.0.1:80</code> and <code>[::]:80</code>. Can you tell where one <code>default_server</code> is sufficient without seeing the rest of the config?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه. default برای هر address:port pair است؛ باید blockهای دیگر و socketهایی را که واقعاً bind شده‌اند ببینی. ممکن است برای endpointهای IPv4 و IPv6 default جدا لازم باشد؛ رفتار dual-stack میزبان را هم بررسی کن.</p><p lang="en">No. Default status is scoped to each address:port pair; inspect the other blocks and actual bound sockets. IPv4 and IPv6 endpoints may need separate defaults, and the host’s dual-stack behavior matters.</p></details></div>
+
+  <div class="ex" id="ex10"><h3><span lang="fa">۱۰. دو ریشهٔ جدا</span><span lang="en">10. Separate roots</span></h3><p lang="fa">alpha پاسخ درست می‌دهد ولی beta محتوای قدیمی alpha را نشان می‌دهد. هر دو <code>server_name</code> درست‌اند. سه موردی که اول بررسی می‌کنی چیست؟</p><p lang="en">alpha responds correctly, but beta shows alpha’s old content. Both <code>server_name</code> values are correct. What three things do you inspect first?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">اول body و Host واقعی، بعد <code>root</code> هر block در <code>-T</code>، و در نهایت فایل موجود در مسیر root فعال beta. درخواست به block درست ممکن است برسد ولی root اشتباه باشد؛ این دو تشخیص جدا هستند.</p><p lang="en">First inspect the response body and actual Host, then each block’s effective <code>root</code> in <code>-T</code>, and finally the file under beta’s active root. The request may reach the correct block while using the wrong root; these are separate diagnoses.</p></details></div>
+
+  <div class="ex" id="ex11"><h3><span lang="fa">۱۱. همهٔ نام‌ها default می‌شوند</span><span lang="en">11. Every name lands on default</span></h3><p lang="fa">curl برای <code>alpha.test</code> و <code>beta.test</code> هر دو <code>DEFAULT SITE</code> می‌گیرد. یک علت محتمل در config و یک علت در درخواست نام ببر.</p><p lang="en">curl receives <code>DEFAULT SITE</code> for both <code>alpha.test</code> and <code>beta.test</code>. Name one plausible config cause and one request-side cause.</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">در config: typo یا server block بارنشده/بدون listener متناظر. در درخواست: Host اصلاً ارسال نشده یا نام/port به listener دیگری می‌رود. با <code>-T</code> config مؤثر را ببین و با <code>curl -v</code> header و مقصد را؛ سپس یک متغیر را تغییر بده و تکرار کن.</p><p lang="en">On the config side: a typo or an unloaded block/no matching listener. On the request side: Host was not sent, or the name/port reaches another listener. Inspect effective config with <code>-T</code> and destination/header with <code>curl -v</code>; then change one variable and retest.</p></details></div>
+
+  <div class="ex" id="ex12"><h3><span lang="fa">۱۲. response code کافی نیست</span><span lang="en">12. A status code is not enough</span></h3><p lang="fa">برای <code>shop.test</code> پاسخ <code>200 OK</code> داری، اما کاربر می‌گوید صفحهٔ فروشگاه نیست. دقیقاً چه چیزی را در پاسخ بررسی می‌کنی؟</p><p lang="en">You get <code>200 OK</code> for <code>shop.test</code>, but the user says it is not the shop page. What exactly do you inspect in the response?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">بدنهٔ پاسخ را می‌خوانم و دنبال نشانگر یکتای سایت می‌گردم؛ بعد access log و root را با همان زمان/درخواست تطبیق می‌دهم. status موفق فقط پاسخ HTTP را ثابت می‌کند، نه انتخاب سایت یا محتوای درست.</p><p lang="en">Read the response body for a site-specific marker, then correlate the access log and root with that request. A successful status proves an HTTP response, not correct site selection or content.</p></details></div>
+
+  <div class="ex" id="ex13"><h3><span lang="fa">۱۳. Host را صریح بفرست</span><span lang="en">13. Send Host explicitly</span></h3><p lang="fa">DNS واقعی هنوز ساخته نشده. یک دستور curl پیشنهاد بده که بدون تغییر فایل hosts نام <code>panel.test</code> را به loopback بفرستد و انتخاب آن را بیازماید.</p><p lang="en">Public DNS is not configured yet. Give a curl command that tests <code>panel.test</code> on loopback without editing the hosts file.</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">مثلاً <code>curl -i --resolve panel.test:18080:127.0.0.1 http://panel.test:18080/</code>. این DNS را برای همان درخواست دور می‌زند ولی Host از نام URL می‌آید. موفقیتش public DNS یا firewall را ثابت نمی‌کند.</p><p lang="en">For example, <code>curl -i --resolve panel.test:18080:127.0.0.1 http://panel.test:18080/</code>. It bypasses DNS for this request while deriving Host from the URL name. It does not prove public DNS or firewall behavior.</p></details></div>
+
+  <div class="ex" id="ex14"><h3><span lang="fa">۱۴. نام خطاست یا listener؟</span><span lang="en">14. Wrong name or wrong listener?</span></h3><p lang="fa">در درخواست به پورت <code>18081</code> سایت default دیگری می‌بینی؛ در <code>-T</code> نام موردنظر وجود دارد اما فقط روی <code>18080</code> listen شده. قدم بعدی چیست؟</p><p lang="en">A request to port <code>18081</code> reaches a different default. The desired name appears in <code>-T</code>, but it listens only on <code>18080</code>. What next?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">این درخواست به listener نام موردنظر نرسیده؛ وجود server_name در config برای پورت دیگر کافی نیست. اول پورت واقعی مقصد و socketهای <code>ss</code> را تأیید کن، بعد تصمیم بگیر block باید روی 18081 هم listen کند یا درخواست اشتباه فرستاده شده.</p><p lang="en">The request did not reach the intended listener; having the server name on another port is not enough. Confirm the destination port and sockets with <code>ss</code>, then decide whether the block should also listen on 18081 or the request used the wrong port.</p></details></div>
+
+  <div class="ex" id="ex15"><h3><span lang="fa">۱۵. نام تکراری، فایل تکراری</span><span lang="en">15. A duplicate name in separate files</span></h3><p lang="fa">دو فایل در <code>-T</code>، هر دو <code>server_name api.test</code> و listener یکسان دارند. پاسخ فعلی تصادفاً درست است. آیا کافی است؟</p><p lang="en">Two files shown by <code>-T</code> both declare <code>server_name api.test</code> on the same listener. The current response happens to be correct. Is that enough?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه. احتمالاً warning می‌بینی و یک نام conflictشده نادیده گرفته می‌شود؛ وابستگی به ترتیب یا config پنهان قابل اتکا نیست. ownership نام را در فایل‌های بارشده روشن کن، conflict را حذف کن و بعد درخواست api.test را تکرار کن.</p><p lang="en">No. A warning may indicate that one conflicting name is ignored; relying on include order or hidden config is fragile. Assign the name to one intended block, remove the conflict, and retest api.test.</p></details></div>
+
+  <div class="ex" id="ex16"><h3><span lang="fa">۱۶. IPv6 به سرویس نمی‌رسد</span><span lang="en">16. IPv6 cannot reach the service</span></h3><p lang="fa">IPv4 با <code>curl -4</code> جواب می‌دهد؛ IPv6 connection refused است. Nginx log هیچ درخواستی نشان نمی‌دهد. کدام مرز را اول بررسی می‌کنی؟</p><p lang="en">IPv4 works with <code>curl -4</code>; IPv6 returns connection refused. Nginx logs show no request. Which boundary do you inspect first?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">listener و مسیر IPv6 را؛ چون درخواست هنوز به Nginx نرسیده، بررسی log یا server_name بعدی است. آدرس، bind و خروجی <code>ss -ltn</code> را ببین. نبودن log به‌تنهایی علت را تعیین نمی‌کند، اما همراه connection refused سرنخ مرز شبکه است.</p><p lang="en">Inspect the IPv6 listener and path first. The request has not reached Nginx, so logs and server_name come later. Check addresses, bind settings, and <code>ss -ltn</code>. Missing logs alone are inconclusive, but combined with connection refused they point to the network boundary.</p></details></div>
+
+  <div class="ex" id="ex17"><h3><span lang="fa">۱۷. پورت ۸۰ عمومی نیست</span><span lang="en">17. Port 80 is not public</span></h3><p lang="fa">از خود VPS با <code>curl -H 'Host: app.example' http://127.0.0.1/</code> سایت درست است؛ کاربر بیرونی timeout می‌گیرد. آیا virtual host شکست خورده؟ سه مدرک بعدی را انتخاب کن.</p><p lang="en">From the VPS, <code>curl -H 'Host: app.example' http://127.0.0.1/</code> reaches the right site; an external user times out. Did virtual hosting fail? Choose the next three pieces of evidence.</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه لزوماً؛ تست محلی انتخاب داخل ماشین را نشان داده، نه DNS عمومی یا دسترسی شبکه را. بررسی می‌کنم DNS به IP درست اشاره کند، Nginx روی interface عمومی listen داشته باشد، و firewall/security group پورت ۸۰ را باز کند. هر مدرک مرز متفاوتی را می‌آزماید.</p><p lang="en">Not necessarily; the local test proves selection inside the host, not public DNS or network reachability. Check that DNS points to the right IP, Nginx listens on the public interface, and the firewall/security group allows port 80. Each tests a different boundary.</p></details></div>
+
+  <div class="ex" id="ex18"><h3><span lang="fa">۱۸. بلیت تشخیص کامل</span><span lang="en">18. A complete diagnostic ticket</span></h3><p lang="fa">گزارش: «فروشگاه با IP باز می‌شود، ولی دامنهٔ آزمایشی هم صفحهٔ پیش‌فرض را نشان می‌دهد.» یک توالی سه‌مرحله‌ای بنویس که اول Host/مقصد را ثابت کند، بعد config مؤثر را ببیند، و در آخر نتیجه را با مدرک پاسخ تأیید کند.</p><p lang="en">Ticket: “The shop opens by IP, but the test domain also shows the default page.” Write a three-step sequence: verify Host/destination, inspect effective config, then confirm the result using response evidence.</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">۱) <code>curl -v --resolve shop.test:18080:127.0.0.1 http://shop.test:18080/</code> و مقصد/header را تأیید می‌کنم. ۲) <code>nginx -T</code> را با config درست می‌خوانم تا listen و نام دقیق shop.test را پیدا کنم. ۳) اگر mismatch پیدا شد، یک تغییر کوچک، <code>nginx -t</code> و reload آزمایشگاه؛ سپس همان curl و body یکتای shop را تکرار می‌کنم. موفقیت syntax به‌تنهایی پایان کار نیست.</p><p lang="en">1) Run <code>curl -v --resolve shop.test:18080:127.0.0.1 http://shop.test:18080/</code> and verify destination/header. 2) Read <code>nginx -T</code> for the correct config and find the exact shop name and listener. 3) If there is a mismatch, make one small change, test with <code>nginx -t</code>, reload the lab, then repeat the same curl and verify the shop-specific body. Passing syntax alone is not completion.</p></details></div>
+</section>
+
+<section id="lab">
+  <h2><span lang="fa">ماموریت: دو سایت محلی و یک نام خراب</span><span lang="en">Mission: two local sites and one broken name</span></h2>
+  <p class="lede" lang="fa">یک Nginx ایزوله بساز که دو سایت روی یک پورت loopback ارائه کند. باید با مدرک نشان بدهی نام‌ها به block درست می‌رسند، درخواست ناشناس به default می‌رود، و typo را بدون دست‌زدن به سرویس واقعی پیدا و اصلاح می‌کنی.</p>
+  <p class="lede" lang="en">Build an isolated Nginx that serves two sites on one loopback port. Prove that names reach the right blocks, an unknown name reaches the default, and a typo can be diagnosed and fixed without touching the live service.</p>
+  <ol>
+    <li><span lang="fa">پوشهٔ موقت و سه فایل نشانگر بساز؛ مسیر <code>LAB_DIR</code> را نگه دار. هدف هر فایل این است که پاسخ قابل تشخیص باشد.</span><span lang="en">Create a temporary directory and three marker files; keep the <code>LAB_DIR</code> path. Each file makes its response identifiable.</span></li>
+    <li><span lang="fa">یک config مستقل بنویس که فقط روی <code>127.0.0.1:18080</code> گوش کند؛ یک default و دو نام دقیق داشته باشد. برای هر block، root و access log جدا قرار بده.</span><span lang="en">Write a separate config listening only on <code>127.0.0.1:18080</code>, with one default and two exact names. Give each block its own root and access log.</span></li>
+    <li><span lang="fa">پیش از start، <code>nginx -t -p "$LAB_DIR/" -c nginx.conf</code> بزن. اگر port 18080 اشغال است، همهٔ عددهای 18080 در config و فرمان‌های آزمایش را با port آزاد دیگری عوض کن.</span><span lang="en">Before starting, run <code>nginx -t -p "$LAB_DIR/" -c nginx.conf</code>. If port 18080 is occupied, replace every 18080 in the config and test commands with another free port.</span></li>
+    <li><span lang="fa">Nginx را با همان <code>-p/-c</code> بالا بیاور و با <code>curl -H 'Host: alpha.test'</code>، <code>beta.test</code> و یک نام ناشناس آزمایش کن. برای هر سه، status و body را ثبت کن.</span><span lang="en">Start Nginx with the same <code>-p/-c</code>, then test <code>alpha.test</code>, <code>beta.test</code>, and an unknown name using curl Host headers. Record status and body for all three.</span></li>
+    <li><span lang="fa">در config آزمایش نام beta را عمداً غلط کن. اول <code>-t</code> بگیر، بعد فقط آزمایشگاه را reload و همان درخواست beta را تکرار کن. خروجی default را به‌عنوان علامت mismatch ثبت کن.</span><span lang="en">Intentionally mistype beta’s name in the lab config. Run <code>-t</code>, reload only the lab, and repeat the same beta request. Record the default response as evidence of a mismatch.</span></li>
+    <li><span lang="fa">با <code>-T</code> نام اشتباه را پیدا کن. آن را اصلاح کن، syntax را دوباره بسنج، reload کن و همان درخواست را تکرار کن تا body سایت BETA را ببینی.</span><span lang="en">Find the typo with <code>-T</code>. Fix it, retest syntax, reload, and repeat the same request until you see the BETA body.</span></li>
+    <li><span lang="fa">logهای جدا را بخوان و مدرک سه درخواست را پیدا کن. اگر hosts محلی را تغییر دادی، فقط همان خط آزمایشی را برگردان.</span><span lang="en">Read the separate logs and find evidence of the three requests. If you changed the local hosts file, remove only the test line.</span></li>
+    <li><span lang="fa">پیش از cleanup، PID آزمایشگاه را با همان prefix/config به‌آرامی متوقف کن. مطمئن شو دیگر processای روی آن PID فعال نیست؛ بعد مسیر چاپ‌شدهٔ <code>LAB_DIR</code> را دوباره بررسی و فقط همان پوشه را پاک کن.</span><span lang="en">Before cleanup, gracefully stop the lab process using the same prefix/config. Confirm that PID is no longer active; then recheck the printed <code>LAB_DIR</code> path and remove only that directory.</span></li>
+  </ol>
+  <p lang="fa">برای توقف، اول PID ذخیره‌شده در فایل آزمایش را می‌خوانیم و از همان config فرمان graceful quit می‌فرستیم. اگر process هنوز زنده است، پوشه را پاک نکن؛ چند لحظه صبر کن و دوباره PID را بررسی کن. حذف فقط وقتی مجاز است که مسیر چاپ‌شده دقیقاً همان پوشهٔ موقت خودت باشد.</p>
+  <p lang="en">To stop the lab, read its saved PID and send a graceful quit using the same config. If the process is still alive, do not remove the directory; wait briefly and check again. Delete only after confirming that the printed path is exactly your temporary lab directory.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">stop and verify before targeted cleanup</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">PID_FILE="$LAB_DIR/logs/nginx.pid"
+if [ -s "$PID_FILE" ]; then
+  LAB_PID=$(cat "$PID_FILE")
+  nginx -p "$LAB_DIR/" -c nginx.conf -s quit
+  sleep 1
+  if kill -0 "$LAB_PID" 2&gt;/dev/null; then
+    echo "PID $LAB_PID is still alive; do not remove the lab directory."
+  else
+    printf 'Review this exact disposable path before cleanup: %s\n' "$LAB_DIR"
+  fi
+else
+  echo 'Lab PID file is absent; inspect the process manually before cleanup.'
+fi</span></pre></div>
+  <p lang="fa">فرمان بالا عمداً پوشه را خودکار پاک نمی‌کند؛ اول باید خروجی PID و مسیر را ببینی. فقط اگر مطمئنی این همان پوشه‌ای است که <code>mktemp</code> ساخته، آن را حذف کن. اگر PID هنوز زنده است یا فایل PID نیست، stop کن و وضعیت را دستی بررسی کن—process دیگری را با حدس متوقف نکن.</p>
+  <p lang="en">The command deliberately does not delete the directory automatically; inspect the PID result and path first. Remove it only if you are certain it is the directory created by <code>mktemp</code>. If the PID is still alive or the PID file is missing, stop and inspect manually—never stop another process by guesswork.</p>
+  <details class="capsule"><summary><span lang="fa">اگر جواب هر دو سایت یکسان شد، سرنخ‌ها را به‌ترتیب باز کن</span><span lang="en">If both sites return the same body, open hints in order</span></summary>
+    <p lang="fa">اول مطمئن شو درخواست به port درست می‌رود و header همان نامی است که فکر می‌کنی. بعد <code>-T</code> را برای پیدا کردن config و server block مؤثر بخوان. اگر نام هست ولی پاسخ default است، ببین آن block روی همان address:port هم <code>listen</code> دارد یا نه. در پایان body را با root و فایل شاخص تطبیق بده.</p>
+    <p lang="en">First confirm the request reaches the intended port and carries the name you expect. Then use <code>-T</code> to find the effective config and server blocks. If the name exists but the default answers, check whether that block also listens on the same address:port. Finally compare the response body with the root and marker file.</p>
+  </details>
+  <details class="capsule"><summary><span lang="fa">اگر موقع توقف یا پاک‌سازی شک داری</span><span lang="en">If you are unsure about stopping or cleanup</span></summary>
+    <p lang="fa">مقدار <code>pid</code> را از <code>$LAB_DIR/logs/nginx.pid</code> بخوان و همان process را بررسی کن؛ فرمان <code>-s quit</code> باید با همان prefix و config اجرا شود. اگر process تمام نشده، پوشه را پاک نکن و سرویس دیگری را kill نکن. مسیر دقیق را با <code>printf</code> چاپ کن؛ حذف بازگشت‌پذیر نیست.</p>
+    <p lang="en">Read the PID from <code>$LAB_DIR/logs/nginx.pid</code> and verify that exact process; <code>-s quit</code> must use the same prefix and config. If it has not exited, do not remove the directory or kill another service. Print the exact path before cleanup; deletion is not reversible.</p>
+  </details>
+  <div class="note safe"><div class="note-t"><span lang="fa">مدرک پایان مأموریت</span><span lang="en">Mission evidence</span></div><p lang="fa">گزارش کوتاهت باید سه body برای alpha، beta و نام ناشناس، خروجی <code>-t</code> پیش و پس از تعمیر، خط اشتباه در <code>-T</code>، و logهای مربوط را داشته باشد. در گزارش بنویس این آزمایش local بوده و DNS عمومی، firewall یا HTTPS را نسنجیده است.</p><p lang="en">Your short report should include the three bodies for alpha, beta, and an unknown name; <code>-t</code> before and after repair; the bad name shown by <code>-T</code>; and the corresponding logs. State that this was a local test and did not measure public DNS, firewall, or HTTPS.</p></div>
+  <p lang="fa">اگر خواستی با hosts هم آزمایش کنی، یک خط mapping به <code>/etc/hosts</code> یا hosts ویندوز اضافه کن و پس از ثبت نتیجه فقط همان خط را دستی بردار. اگر امکان ویرایش امن نداری، <code>curl --resolve</code> همان جداسازی DNS را بدون تغییر فایل سیستم فراهم می‌کند.</p>
+  <p lang="en">If you also test with hosts, add one mapping line to <code>/etc/hosts</code> or the Windows hosts file, then manually remove only that line after recording the result. If you cannot edit it safely, <code>curl --resolve</code> provides the same DNS isolation without changing a system file.</p>
+</section>
+
+<section id="quick-reference">
+  <h2><span lang="fa">مرجع سریع: از کدام نشانه شروع کنم؟</span><span lang="en">Quick reference: which clue comes first?</span></h2>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">نشانه</span><span lang="en">Symptom</span></th><th><span lang="fa">بررسی بعدی</span><span lang="en">Next check</span></th><th><span lang="fa">چیزی که هنوز ثابت نشده</span><span lang="en">What remains unproven</span></th></tr></thead><tbody>
+    <tr><td><span lang="fa">Connection refused</span></td><td><code>ss -ltnp</code>، address/port، IPv4/IPv6</td><td><span lang="fa">انتخاب نام؛ درخواست شاید به listener نرسیده باشد.</span><span lang="en">Name selection; the request may not have reached a listener.</span></td></tr>
+    <tr><td><span lang="fa">همیشه سایت default</span><span lang="en">Always the default site</span></td><td><span lang="fa">Host درخواست، <code>listen</code> block نام‌دار، و <code>-T</code></span><span lang="en">Request Host, named block’s <code>listen</code>, and <code>-T</code></span></td><td><span lang="fa">که DNS عمومی درست باشد.</span><span lang="en">That public DNS is correct.</span></td></tr>
+    <tr><td><span lang="fa">سایت انتخاب شده ولی فایل غلط</span><span lang="en">Right server, wrong file</span></td><td><code>root</code> block، مسیر و permission فایل</td><td><span lang="fa">اینکه انتخاب server اشتباه بوده باشد.</span><span lang="en">That server selection was wrong.</span></td></tr>
+    <tr><td><span lang="fa">نام با IP کار می‌کند، بیرون نه</span><span lang="en">Works by IP locally, not externally</span></td><td><span lang="fa">DNS، bind عمومی و firewall/provider rules</span><span lang="en">DNS, public bind, and firewall/provider rules</span></td><td><span lang="fa">یکی‌بودن مشکل با virtual host.</span><span lang="en">That the issue is virtual hosting.</span></td></tr>
+    <tr><td><span lang="fa">warning نام تکراری</span><span lang="en">Duplicate-name warning</span></td><td><code>-T</code> و blockهای دارای همان نام</td><td><span lang="fa">اینکه هر دو سایت آن نام را می‌گیرند.</span><span lang="en">That both sites receive that name.</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa">منابع رسمی Nginx برای این فصل: <a href="https://nginx.org/en/docs/http/request_processing.html">نحوهٔ پردازش درخواست</a>، <a href="https://nginx.org/en/docs/http/ngx_http_core_module.html#listen">directiveِ listen</a>، <a href="https://nginx.org/en/docs/http/ngx_http_core_module.html#server_name">directiveِ server_name</a> و <a href="https://nginx.org/en/docs/http/server_names.html">راهنمای نام‌های سرور</a>. مقدارهای پیش‌فرض و رفتار socket را با نسخه و سیستم‌عامل خودت تطبیق بده.</p>
+  <p lang="en">Official Nginx references for this chapter: <a href="https://nginx.org/en/docs/http/request_processing.html">how requests are processed</a>, the <a href="https://nginx.org/en/docs/http/ngx_http_core_module.html#listen">listen directive</a>, the <a href="https://nginx.org/en/docs/http/ngx_http_core_module.html#server_name">server_name directive</a>, and the <a href="https://nginx.org/en/docs/http/server_names.html">server names guide</a>. Check defaults and socket behavior against your version and operating system.</p>
+</section>
+
+<section id="next">
+  <h2><span lang="fa">حالا که server را پیدا کردیم، مسیر داخلش چطور انتخاب می‌شود؟</span><span lang="en">Now that we have a server, how is a path selected inside it?</span></h2>
+  <p class="lede" lang="fa">این فصل نشان داد Nginx اول listener و بعد نام HTTP را بررسی می‌کند؛ با Host درست، درخواست وارد server block درست می‌شود. اما اگر همان block چند مسیر داشته باشد—مثلاً <code>/api</code> و <code>/images</code>—کدام تنظیم مسئول پاسخ است؟ فصل بعد دربارهٔ الگوریتم <code>location</code> است؛ آن انتخاب را با همین دقت دنبال می‌کنیم، بدون اینکه ترتیب serverها را با اولویت مسیرها اشتباه بگیریم.</p>
+  <p class="lede" lang="en">This chapter showed that Nginx first matches a listener and then an HTTP name; with the right Host, the request enters the intended server block. But if that block serves several paths—say <code>/api</code> and <code>/images</code>—which configuration handles the response? Next we will follow the <code>location</code> algorithm just as carefully, without confusing server selection order with path-matching priority.</p>
+</section>

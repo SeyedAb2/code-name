@@ -1,0 +1,575 @@
+<!--meta
+title: فایل استاتیک، کش مرورگر، فشرده‌سازی
+desc: سرو فایل‌های HTML و assetها، خواندن هدرهای کش و validatorها، و سنجش gzip؛ با تفکیک روشن HTML قابل‌تغییر از assetهای fingerprint‌شده.
+-->
+
+<div class="masthead">
+  <span class="eyebrow"><span class="dot"></span><span lang="fa">Nginx · فصل ۵</span><span lang="en">Nginx · Chapter 5</span></span>
+  <h1 lang="fa">فایل استاتیک، کش مرورگر، فشرده‌سازی</h1>
+  <h1 lang="en">Static files, browser cache, compression</h1>
+  <p class="sub" lang="fa">نسخهٔ تازه را منتشر کرده‌ای، اما یکی از همکارها هنوز ظاهر قبلی صفحه را می‌بیند. از کجا بفهمیم Nginx فایل اشتباه را فرستاده، مرورگر نسخهٔ قدیمی را نگه داشته، یا فایل روی سیم فشرده شده؟ به‌جای حدس، از هدرهای پاسخ سرنخ می‌گیریم.</p>
+  <p class="sub" lang="en">You deployed a new version, but a teammate still sees the old page. Did Nginx send the wrong file, did the browser keep an older copy, or was the file compressed in transit? Rather than guess, we will use response headers as evidence.</p>
+  <div class="facts">
+    <div class="fact"><b>۷۰</b><span lang="fa">دقیقهٔ مطالعه</span><span lang="en">minutes</span></div>
+    <div class="fact"><b>۱۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></div>
+    <div class="fact"><b>۳</b><span lang="fa">نمودار</span><span lang="en">diagrams</span></div>
+    <div class="fact"><b>۱</b><span lang="fa">آزمایشگاه موقت</span><span lang="en">disposable lab</span></div>
+  </div>
+</div>
+
+<section id="stale-page">
+  <h2><span lang="fa">صفحه عوض شده؛ مرورگر هنوز همان قبلی را نشان می‌دهد</span><span lang="en">The page changed; the browser still shows the old one</span></h2>
+  <p class="lede" lang="fa">در فصل قبل فهمیدیم کدام <code>location</code> پاسخ می‌دهد. این بار فرض می‌کنیم انتخاب درست است و فایل از مسیر درست خوانده می‌شود؛ بااین‌حال، چیزی که کاربر می‌بیند با نسخهٔ تازهٔ سایت جور نیست. پیش از دست‌کاری تنظیمات، یک سؤال: پاسخ سرور چه می‌گوید که بتوانیم فرق «فایل تازه»، «اعتبارسنجی نسخه» و «فشرده‌سازی» را بفهمیم؟</p>
+  <p class="lede" lang="en">The previous chapter taught us which <code>location</code> handles a request. This time, assume the selected location and filesystem path are correct; still, the user does not see the new site. Before changing settings, ask: what can the server response tell us about a fresh file, a validated cached copy, and compression?</p>
+  <p lang="fa">یک درخواست <code>HEAD</code> با <code>curl -I</code> بدنه را نمی‌گیرد، اما هدرهایی را نشان می‌دهد که برای تصمیم‌گیری دربارهٔ کش و encoding لازم‌اند. اول پاسخ HTML و بعد یک فایل CSS را نگاه می‌کنیم. فعلاً دنبال هدرهای خاصی نباش؛ فقط ثبت کن چه چیزی وجود دارد و چه چیزی نه.</p>
+  <p lang="en">A <code>HEAD</code> request with <code>curl -I</code> omits the body but exposes the headers we need to reason about caching and encoding. We will inspect HTML and then a CSS file. For now, do not hunt for a particular header; note what is present and what is absent.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">inspect the response before changing config</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl -I http://127.0.0.1:18082/
+curl -I http://127.0.0.1:18082/assets/app.a1b2.css</span>
+<span class="s">HTTP/1.1 200 OK
+Server: nginx
+Content-Type: text/html
+Last-Modified: ...
+ETag: "..."
+
+HTTP/1.1 200 OK
+Server: nginx
+Content-Type: text/css
+Last-Modified: ...
+ETag: "..."</span></pre></div>
+  <p lang="fa">این خروجی نمونه است؛ تاریخ، ETag و اندازهٔ فایل روی هر دستگاه فرق می‌کند. <code>Content-Type</code> می‌گوید Nginx فایل را چه نوعی معرفی کرده، و <code>Last-Modified</code> و <code>ETag</code> دو شناسه برای سنجش نسخه‌اند. نکتهٔ مهم‌تر این است که هنوز <code>Cache-Control</code> ندیدیم: از این خروجی نمی‌شود نتیجه گرفت مرورگر حتماً فایل را برای مدتی نگه می‌دارد یا حتماً هر بار می‌گیرد.</p>
+  <p lang="en">This is representative output; dates, ETags, and file sizes vary. <code>Content-Type</code> tells us how Nginx labels the file, while <code>Last-Modified</code> and <code>ETag</code> are validators for comparing versions. More importantly, there is no <code>Cache-Control</code> shown yet: this output does not prove that the browser will keep the file for a fixed period or fetch it every time.</p>
+  <div class="note safe"><div class="note-t"><span lang="fa">سه سؤال جدا</span><span lang="en">Three separate questions</span></div><p lang="fa">«فایل درست را پیدا کرد؟»، «کلاینت اجازه دارد پاسخ را نگه دارد یا باید دوباره اعتبارش را بسنجد؟» و «بدنه با چه encodingای فرستاده شد؟» سه مسئله‌اند. هدر پاسخ کمک می‌کند هرکدام را جدا بررسی کنیم؛ یک <code>200</code> به‌تنهایی جواب همه نیست.</p><p lang="en">“Did Nginx find the intended file?”, “May the client reuse its copy, or must it revalidate?”, and “Which encoding was sent?” are separate questions. Response headers let us investigate each one; a <code>200</code> alone does not answer them all.</p></div>
+  <div class="diagram">
+    <svg viewBox="0 0 1040 390" role="img" aria-labelledby="delivery-flow-title" xmlns="http://www.w3.org/2000/svg">
+      <title id="delivery-flow-title">Browser request and response through Nginx to static files; browser cache can reuse a fresh response locally / رفت‌وبرگشت درخواست از Nginx تا فایل و امکان استفادهٔ محلی از پاسخ تازه</title>
+      <defs><marker id="static-flow-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow-b"/></marker><marker id="static-return-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow"/></marker></defs>
+      <rect x="30" y="105" width="260" height="158" rx="16" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/>
+      <text x="160" y="142" text-anchor="middle" class="dg-t">Browser</text>
+      <text x="160" y="177" text-anchor="middle" class="dg-tm">cache miss / stale → request</text>
+      <text x="160" y="205" text-anchor="middle" class="dg-tm">fresh max-age → reuse locally</text>
+      <text x="160" y="235" text-anchor="middle" class="dg-ts">no request reaches Nginx when fresh</text>
+      <rect x="396" y="105" width="248" height="158" rx="16" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/>
+      <text x="520" y="142" text-anchor="middle" class="dg-t">Nginx</text>
+      <text x="520" y="177" text-anchor="middle" class="dg-tm">location → root → file</text>
+      <text x="520" y="205" text-anchor="middle" class="dg-tm">headers · gzip filter</text>
+      <text x="520" y="235" text-anchor="middle" class="dg-ts">response policy + representation</text>
+      <rect x="750" y="105" width="260" height="158" rx="16" class="dg-fill-g" stroke="var(--safe)" stroke-width="2"/>
+      <text x="880" y="142" text-anchor="middle" class="dg-t">Filesystem</text>
+      <text x="880" y="177" text-anchor="middle" class="dg-tm">HTML + assets</text>
+      <text x="880" y="205" text-anchor="middle" class="dg-tm">original bytes on disk</text>
+      <path d="M290 145H386" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#static-flow-arrow)"/>
+      <text x="338" y="132" text-anchor="middle" class="dg-ts">GET /asset</text>
+      <path d="M644 145H740" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#static-flow-arrow)"/>
+      <text x="692" y="132" text-anchor="middle" class="dg-ts">read URI</text>
+      <path d="M750 224H654" class="dg-stroke" stroke-width="2.5" marker-end="url(#static-return-arrow)"/>
+      <text x="702" y="247" text-anchor="middle" class="dg-ts">file / metadata</text>
+      <path d="M396 224H300" class="dg-stroke" stroke-width="2.5" marker-end="url(#static-return-arrow)"/>
+      <text x="348" y="247" text-anchor="middle" class="dg-ts">200 / 304</text>
+      <rect x="308" y="310" width="450" height="52" rx="12" class="dg-fill" stroke="var(--line-strong)" stroke-width="1.5"/>
+      <text x="533" y="342" text-anchor="middle" class="dg-ts">gzip changes the response in transit, not the source file on disk</text>
+    </svg>
+    <p class="diagram-cap" lang="fa">فلش بالایی درخواست از مرورگر به Nginx و فایل‌سیستم را نشان می‌دهد؛ پاسخ از فیلترهای Nginx می‌گذرد و برمی‌گردد. اگر پاسخ هنوز تازه باشد، مرورگر ممکن است اصلاً درخواست جدیدی نفرستد؛ اگر منقضی شده باشد، با validator درخواست می‌کند و شاید فقط <code>304</code> بگیرد. gzip در مسیر پاسخ است، نه تغییری در فایل روی دیسک.</p>
+    <p class="diagram-cap" lang="en">The upper path is a browser request through Nginx to the filesystem; the response passes through Nginx filters on its way back. A still-fresh response may be reused without a new request. After it becomes stale, the browser may revalidate and receive only <code>304</code>. gzip is applied to the response, not to the file stored on disk.</p>
+  </div>
+</section>
+
+<section id="lab-files">
+  <h2><span lang="fa">یک سایت کوچک بسازیم که بتوانیم واقعاً اندازه‌اش بگیریم</span><span lang="en">Build a tiny site we can actually measure</span></h2>
+  <p class="lede" lang="fa">برای دیدن تفاوت کش و فشرده‌سازی، به چند فایل با نوع‌های متفاوت نیاز داریم. آزمایش را در پوشه‌ای موقت و روی loopback نگه می‌داریم: نه سایت سیستم را تغییر می‌دهیم، نه چیزی را روی شبکهٔ عمومی باز می‌کنیم. دستورها برای Bash در Linux، macOS یا WSL هستند؛ در PowerShell اجرا نمی‌شوند.</p>
+  <p class="lede" lang="en">To observe caching and compression, we need a few files with different media types. The lab stays in a temporary directory and listens only on loopback: it changes neither the system site nor a public network interface. Commands use Bash on Linux, macOS, or WSL; they are not PowerShell commands.</p>
+  <p lang="fa">اول پوشه‌ها و صفحه را بساز. <code>index.html</code> به دو نام fingerprint‌شده اشاره می‌کند؛ همین تفاوت نام در ادامه مهم می‌شود. اگر یک دستور ساخت پوشه یا فایل شکست خورد، پیش از ادامه مسیر را بررسی کن.</p>
+  <p lang="en">First create the directories and page. <code>index.html</code> refers to two fingerprinted filenames; that distinction will matter later. If a directory or file-creation command fails, inspect the path before continuing.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">create files only inside the temporary lab</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">LAB_DIR=$(mktemp -d /tmp/nginx-static.XXXXXX)
+printf 'Lab directory: %s\n' "$LAB_DIR"
+mkdir -p "$LAB_DIR/site/assets" "$LAB_DIR/logs"
+
+cat &gt; "$LAB_DIR/site/index.html" &lt;&lt;'HTML'
+&lt;!doctype html&gt;
+&lt;html lang="en"&gt;
+&lt;meta charset="utf-8"&gt;
+&lt;title&gt;Nginx static lab&lt;/title&gt;
+&lt;link rel="stylesheet" href="/assets/app.a1b2.css"&gt;
+&lt;h1&gt;Static delivery lab — version A&lt;/h1&gt;
+&lt;p&gt;Open the browser network panel and inspect the response headers.&lt;/p&gt;
+&lt;script src="/assets/app.a1b2.js" defer&gt;&lt;/script&gt;
+&lt;/html&gt;
+HTML
+
+cat &gt; "$LAB_DIR/site/assets/app.a1b2.css" &lt;&lt;'CSS'
+body { font: 18px system-ui; max-width: 48rem; margin: 3rem auto; }
+h1 { color: #2457a7; }
+CSS
+
+cat &gt; "$LAB_DIR/site/assets/app.a1b2.js" &lt;&lt;'JS'
+console.log('static bundle A loaded');
+JS</span></pre></div>
+  <p lang="fa">فایل CSS و JavaScript کوتاه‌اند و ممکن است به‌خاطر سربار فشرده‌سازی کوچک نشوند؛ برای سنجش، یک JSON تکرارشونده هم می‌سازیم. مقدارهای تکراری عمدی‌اند تا الگوریتم فرصت فشرده‌کردن پیدا کند؛ این داده برای برنامهٔ واقعی نیست.</p>
+  <p lang="en">The CSS and JavaScript files are short and may not shrink after compression overhead; we will create a repetitive JSON file for measurement. Repeated values are intentional so the compressor has something to work with; this is not application data.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">generate a bounded, valid JSON asset</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">{
+  printf '{\n  "items": [\n'
+  for ((i=1; i&lt;=700; i++)); do
+    comma=,
+    (( i == 700 )) &amp;&amp; comma=
+    printf '    {"id":%d,"note":"A repeated static delivery example for cache and gzip measurement."}%s\n' "$i" "$comma"
+  done
+  printf '  ]\n}\n'
+} &gt; "$LAB_DIR/site/data.json"
+
+wc -c "$LAB_DIR/site/data.json"
+head -n 3 "$LAB_DIR/site/data.json"</span>
+<span class="s">[the byte count varies by shell and formatting]
+{
+  "items": [</span></pre></div>
+  <p lang="fa">حلقه فقط ۷۰۰ رکورد می‌نویسد و اندازه را هم محدود و قابل‌پیش‌بینی نگه می‌دارد. سه خط اول، شکل JSON را نشان می‌دهد؛ <code>wc -c</code> اندازهٔ واقعی فایل همین آزمایش را گزارش می‌کند. این اندازه، اندازهٔ پاسخ فشرده نیست؛ هنوز چیزی از Nginx درخواست نکرده‌ایم.</p>
+  <p lang="en">The loop writes exactly 700 records, keeping the file bounded and predictable. The first three lines show its JSON shape; <code>wc -c</code> reports this lab file’s actual size. That is not the compressed response size—we have not requested anything from Nginx yet.</p>
+  <div class="note warn"><div class="note-t"><span lang="fa">پوشهٔ موقت را گم نکن</span><span lang="en">Keep track of the temporary directory</span></div><p lang="fa">مقدار <code>LAB_DIR</code> باید در همین shell بماند؛ اگر پنجره را بستی، مسیر چاپ‌شده را از خروجی بردار و پیش از پاک‌کردن دوباره بررسی‌اش کن. پایان آزمایش فقط همین پوشه را هدف می‌گیرد. مسیر عمومی یا پوشهٔ سایت واقعی را به فرمان پاک‌سازی نده.</p><p lang="en">Keep <code>LAB_DIR</code> in this shell. If you closed it, recover the printed path from your notes and verify it before cleanup. The final cleanup targets only this directory; never pass a production site or a broad path to the removal command.</p></div>
+</section>
+
+<section id="serve-files">
+  <h2><span lang="fa">فایل روی دیسک است؛ Nginx چطور پیدایش می‌کند؟</span><span lang="en">The file is on disk; how does Nginx find it?</span></h2>
+  <p class="lede" lang="fa">تا اینجا فایل‌ها را ساخته‌ایم، اما هنوز سروری نداریم که پاسخ بدهد. <code>root</code> به Nginx می‌گوید URI را به چه پوشه‌ای وصل کند؛ <code>index</code> برای درخواست یک پوشه دنبال چه نامی بگردد؛ و <code>try_files</code> چه زمانی درخواست را با 404 تمام کند. یک تنظیم حداقلی می‌سازیم تا این سه رفتار را در محیط جدا ببینیم.</p>
+  <p class="lede" lang="en">We have files, but no server is answering yet. <code>root</code> tells Nginx which directory to join with a URI; <code>index</code> says which filename to try for a directory request; and <code>try_files</code> determines when to end with 404. We will define a minimal isolated config to observe all three.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 1040 390" role="img" aria-labelledby="root-path-title" xmlns="http://www.w3.org/2000/svg">
+      <title id="root-path-title">Three independent requests show root mapping, index lookup, and try_files 404 behavior / سه درخواست جدا برای نگاشت root، پیدا کردن index و پاسخ 404 در try_files</title>
+      <defs><marker id="root-path-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow-b"/></marker></defs>
+      <text x="34" y="49" class="dg-t">Existing asset</text>
+      <rect x="30" y="62" width="205" height="64" rx="12" class="dg-fill-b" stroke="var(--blue)" stroke-width="1.5"/>
+      <text x="132" y="101" text-anchor="middle" class="dg-tm">/assets/app.js</text>
+      <path d="M235 94H320" class="dg-stroke-b" stroke-width="2" marker-end="url(#root-path-arrow)"/>
+      <rect x="330" y="62" width="235" height="64" rx="12" class="dg-fill-v" stroke="var(--violet)" stroke-width="1.5"/>
+      <text x="447" y="101" text-anchor="middle" class="dg-tm">root site + URI</text>
+      <path d="M565 94H650" class="dg-stroke-b" stroke-width="2" marker-end="url(#root-path-arrow)"/>
+      <rect x="660" y="62" width="350" height="64" rx="12" class="dg-fill-g" stroke="var(--safe)" stroke-width="1.5"/>
+      <text x="835" y="101" text-anchor="middle" class="dg-tm">site/assets/app.js → serve file</text>
+      <text x="34" y="177" class="dg-t">Directory request</text>
+      <rect x="30" y="190" width="205" height="64" rx="12" class="dg-fill-b" stroke="var(--blue)" stroke-width="1.5"/>
+      <text x="132" y="229" text-anchor="middle" class="dg-tm">/</text>
+      <path d="M235 222H320" class="dg-stroke-b" stroke-width="2" marker-end="url(#root-path-arrow)"/>
+      <rect x="330" y="190" width="235" height="64" rx="12" class="dg-fill-v" stroke="var(--violet)" stroke-width="1.5"/>
+      <text x="447" y="229" text-anchor="middle" class="dg-tm">root site → site/</text>
+      <path d="M565 222H650" class="dg-stroke-b" stroke-width="2" marker-end="url(#root-path-arrow)"/>
+      <rect x="660" y="190" width="350" height="64" rx="12" class="dg-fill-g" stroke="var(--safe)" stroke-width="1.5"/>
+      <text x="835" y="229" text-anchor="middle" class="dg-tm">index index.html → site/index.html</text>
+      <text x="34" y="305" class="dg-t">Missing asset</text>
+      <rect x="30" y="318" width="205" height="54" rx="12" class="dg-fill-b" stroke="var(--blue)" stroke-width="1.5"/>
+      <text x="132" y="351" text-anchor="middle" class="dg-tm">/missing.css</text>
+      <path d="M235 345H320" class="dg-stroke-b" stroke-width="2" marker-end="url(#root-path-arrow)"/>
+      <rect x="330" y="318" width="235" height="54" rx="12" class="dg-fill-v" stroke="var(--violet)" stroke-width="1.5"/>
+      <text x="447" y="351" text-anchor="middle" class="dg-tm">try_files candidates</text>
+      <path d="M565 345H650" class="dg-stroke-w" stroke-width="2" marker-end="url(#root-path-arrow)"/>
+      <rect x="660" y="318" width="350" height="54" rx="12" class="dg-fill-w" stroke="var(--warn)" stroke-width="1.5"/>
+      <text x="835" y="351" text-anchor="middle" class="dg-tm">none found → 404</text>
+    </svg>
+    <p class="diagram-cap" lang="fa">سه ردیف سه درخواست جدا هستند: فایل موجود با الحاق URI به <code>root</code> پیدا می‌شود؛ درخواست پوشه به <code>index</code> می‌رسد؛ و برای فایل ناموجود، <code>try_files</code> به 404 ختم می‌شود. فلش‌ها مسیر نگاشت و ادامهٔ پردازش را نشان می‌دهند.</p>
+    <p class="diagram-cap" lang="en">The three rows are independent requests: an existing file is found by appending its URI to <code>root</code>; a directory request reaches <code>index</code>; and a missing file ends at 404 through <code>try_files</code>. Arrows show path mapping and request handling.</p>
+  </div>
+  <p lang="fa">فایل config را داخل پوشهٔ آزمایش می‌گذاریم. چون مسیر <code>root</code> نسبی است، prefixای که با <code>-p</code> می‌دهیم پایهٔ مسیر آن خواهد بود. بلوک <code>types</code> این آزمایش، MIMEهای لازم را روشن تعریف می‌کند تا پاسخ JavaScript و JSON به‌اشتباه <code>application/octet-stream</code> نباشد.</p>
+  <p lang="en">We place the config inside the lab directory. Because <code>root</code> is relative, the prefix passed with <code>-p</code> is its base path. The small <code>types</code> block explicitly defines the MIME types needed here, so JavaScript and JSON are not accidentally served as <code>application/octet-stream</code>.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">an isolated static server</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cat &gt; "$LAB_DIR/nginx.conf" &lt;&lt;'NGINX'
+worker_processes 1;
+pid logs/nginx.pid;
+error_log logs/error.log notice;
+
+events { worker_connections 64; }
+
+http {
+    types {
+        text/html html;
+        text/css css;
+        application/javascript js;
+        application/json json;
+        text/plain txt;
+    }
+    default_type application/octet-stream;
+
+    server {
+        listen 127.0.0.1:18082;
+        server_name _;
+        root site;
+        index index.html;
+
+        location / {
+            try_files $uri $uri/ =404;
+        }
+    }
+}
+NGINX
+
+nginx -t -p "$LAB_DIR/" -c nginx.conf</span>
+<span class="s">nginx: the configuration file .../nginx.conf syntax is ok
+nginx: configuration file .../nginx.conf test is successful</span></pre></div>
+  <p lang="fa">دو خط آخر فقط می‌گویند config از نظر دستور زبان و فایل‌های لازم قابل‌خواندن است؛ هنوز ثابت نمی‌کنند پورت آزاد است یا URL پاسخ درست می‌دهد. اگر <code>nginx -t</code> خطا داد، پیش از start همان خط و context آن را اصلاح کن. اگر دربارهٔ <code>root</code> یا <code>location</code> شک داری، مفاهیم فصل قبل را به همین آزمایش وصل کن.</p>
+  <p lang="en">Those final lines prove only that the config syntax and required files are acceptable; they do not prove the port is free or that a URL returns the intended response. If <code>nginx -t</code> fails, fix that directive and its context before starting. If <code>root</code> or <code>location</code> is unclear, connect this experiment to the previous chapter.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">start and verify the loopback-only process</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">PORT_BUSY=0
+if command -v ss &gt;/dev/null; then
+  ss -ltn | grep -q ':18082 ' &amp;&amp; PORT_BUSY=1
+elif command -v lsof &gt;/dev/null; then
+  lsof -nP -iTCP:18082 -sTCP:LISTEN &gt;/dev/null &amp;&amp; PORT_BUSY=1
+else
+  echo 'Neither ss nor lsof is available; inspect port 18082 manually.'
+  PORT_BUSY=1
+fi
+
+LAB_STARTED=0
+if [ "$PORT_BUSY" -eq 1 ]; then
+  echo 'Port 18082 is occupied or could not be checked; choose another port first.'
+elif nginx -p "$LAB_DIR/" -c nginx.conf; then
+  LAB_STARTED=1
+else
+  echo 'Nginx did not start; inspect the lab error log before continuing.'
+fi
+
+if [ "$LAB_STARTED" -eq 1 ]; then
+  curl -i http://127.0.0.1:18082/
+  curl -I http://127.0.0.1:18082/assets/app.a1b2.css
+  curl -i http://127.0.0.1:18082/not-here
+else
+  echo 'No requests sent: resolve the port or startup issue, then retry.'
+fi</span>
+<span class="s">HTTP/1.1 200 OK
+Content-Type: text/html
+...
+HTTP/1.1 200 OK
+Content-Type: text/css
+...
+HTTP/1.1 404 Not Found</span></pre></div>
+  <p lang="fa">سه پاسخ، سه مدرک متفاوت‌اند: صفحهٔ <code>/</code> با کمک <code>index</code> پیدا شد؛ فایل CSS نوع محتوای درست دارد؛ و مسیر ناموجود به 404 رسید، نه یک صفحهٔ تصادفی. اگر نوع محتوا اشتباه است، بلوک <code>types</code> و config واقعاً بارشده را ببین؛ اگر همه‌چیز 404 است، مسیر دیسک و prefix اجرا را بررسی کن. این آزمایش هنوز کش یا gzip را ثابت نمی‌کند.</p>
+  <p lang="en">These responses provide three different pieces of evidence: <code>/</code> found an index through <code>index</code>; the CSS file has the expected media type; and a missing path ends in 404 rather than an arbitrary page. If the media type is wrong, inspect <code>types</code> and the config actually loaded; if everything is 404, inspect the disk path and startup prefix. This experiment does not yet prove caching or gzip.</p>
+</section>
+
+<section id="validators">
+  <h2><span lang="fa">مرورگر لازم نیست هر بار همان فایل را دوباره بگیرد</span><span lang="en">A browser need not download the same file every time</span></h2>
+  <p class="lede" lang="fa">الان Nginx می‌فرستد <code>Last-Modified</code> و <code>ETag</code>، اما هنوز نگفته پاسخ تا چه زمانی تازه می‌ماند. این شناسه‌ها جای کش را نمی‌گیرند؛ وقتی نسخهٔ ذخیره‌شده نیاز به بررسی دارد، کمک می‌کنند کلاینت بپرسد «همان فایل قبلی است؟»</p>
+  <p class="lede" lang="en">Nginx currently sends <code>Last-Modified</code> and <code>ETag</code>, but has not said how long the response stays fresh. These validators are not cache lifetimes. When a stored response needs checking, they let a client ask, “Is this still the same version?”</p>
+  <div class="diagram">
+    <svg viewBox="0 0 1020 370" role="img" aria-labelledby="validator-title" xmlns="http://www.w3.org/2000/svg">
+      <title id="validator-title">First request stores a representation and validators; a later conditional request can receive 304 without the body / درخواست اول نسخه و validator را نگه می‌دارد؛ درخواست بعدی ممکن است 304 بگیرد</title>
+      <defs><marker id="validator-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow-b"/></marker></defs>
+      <rect x="38" y="46" width="226" height="82" rx="14" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/>
+      <text x="151" y="80" text-anchor="middle" class="dg-t">Browser cache</text><text x="151" y="105" text-anchor="middle" class="dg-tm">no stored copy yet</text>
+      <rect x="756" y="46" width="226" height="82" rx="14" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/>
+      <text x="869" y="80" text-anchor="middle" class="dg-t">Nginx + file</text><text x="869" y="105" text-anchor="middle" class="dg-tm">current representation</text>
+      <path d="M264 72H746" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#validator-arrow)"/><text x="505" y="61" text-anchor="middle" class="dg-ts">GET /index.html</text>
+      <path d="M756 112H274" class="dg-stroke-g" stroke-width="2.5" marker-end="url(#validator-arrow)"/><text x="515" y="139" text-anchor="middle" class="dg-ts">200 + body + ETag + Last-Modified</text>
+      <rect x="38" y="221" width="226" height="82" rx="14" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/>
+      <text x="151" y="255" text-anchor="middle" class="dg-t">Stored response</text><text x="151" y="280" text-anchor="middle" class="dg-tm">validators remembered</text>
+      <rect x="756" y="221" width="226" height="82" rx="14" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/>
+      <text x="869" y="255" text-anchor="middle" class="dg-t">Same file version?</text><text x="869" y="280" text-anchor="middle" class="dg-tm">compare validator</text>
+      <path d="M264 250H746" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#validator-arrow)"/><text x="505" y="239" text-anchor="middle" class="dg-ts">If-None-Match: &quot;tag&quot;</text>
+      <path d="M756 291H274" class="dg-stroke-g" stroke-width="2.5" marker-end="url(#validator-arrow)"/><text x="515" y="324" text-anchor="middle" class="dg-ts">304: reuse stored body · 200: send changed body</text>
+    </svg>
+    <p class="diagram-cap" lang="fa">درخواست اول بدنه و validatorها را می‌گیرد. بعد از کهنه‌شدن پاسخ، درخواست شرطی می‌فرستد: اگر نسخه عوض نشده باشد <code>304</code> می‌آید و همان بدنهٔ ذخیره‌شده مصرف می‌شود؛ اگر عوض شده باشد <code>200</code> و بدنهٔ تازه می‌آید. validator خودش نمی‌گوید پاسخ تا چه زمانی تازه است.</p>
+    <p class="diagram-cap" lang="en">The first request receives the body and validators. After the response becomes stale, a conditional request asks whether the version changed. If it did not, <code>304</code> lets the client reuse its stored body; if it did, <code>200</code> carries the new body. A validator does not determine how long a response stays fresh.</p>
+  </div>
+  <p lang="fa">برای آزمایش، ETag همان پاسخ را از هدر <code>curl -I</code> کپی کن و در درخواست شرطی بفرست. مقدار نمونهٔ زیر ساختگی است؛ در اجرای خودت باید عین مقدار را جایگزین کنی. اگر فایل از زمان پاسخ اول عوض نشده باشد، انتظار داریم status برابر 304 باشد و بدنه‌ای برنگردد.</p>
+  <p lang="en">To test this, copy the ETag from the <code>curl -I</code> response and send it as a conditional request. The sample value below is illustrative; substitute the exact value from your run. If the file has not changed since the first response, expect status 304 and no response body.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">revalidate using the exact ETag you observed</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl -i -H 'If-None-Match: "copy-the-etag-from-your-response"' \
+  http://127.0.0.1:18082/assets/app.a1b2.css</span>
+<span class="s">HTTP/1.1 304 Not Modified
+ETag: "the-same-tag-as-before"
+Last-Modified: ...</span></pre></div>
+  <p lang="fa">کد 304 می‌گوید شرط با نسخهٔ موجود در سرور جور بوده؛ مرورگرِ دارای بدنهٔ قبلی لازم نیست فایل را دوباره دانلود کند. این دستور <code>curl</code> به‌تنهایی نشان نمی‌دهد browser cache چگونه یا چه مدت فایل را نگه می‌دارد، و هر cache واسطی هم الزاماً رفتار یکسانی ندارد. اگر 200 گرفتی، ETag را دقیق کپی کن و ببین فایل بین دو درخواست تغییر کرده یا نه.</p>
+  <p lang="en">A 304 means the condition matched the current server version; a browser that already has the body need not download it again. This <code>curl</code> command alone does not show how long a browser keeps a response, and intermediaries need not behave identically. If you receive 200, check that the ETag was copied exactly and that the file did not change between requests.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">هدر یا دستور</span><span lang="en">Header or directive</span></th><th><span lang="fa">چه می‌گوید؟</span><span lang="en">What it tells us</span></th><th><span lang="fa">چه چیزی را تضمین نمی‌کند؟</span><span lang="en">What it does not guarantee</span></th></tr></thead><tbody>
+    <tr><td><code>ETag</code> / <code>Last-Modified</code></td><td><span lang="fa">شناسه یا زمان نسخه برای درخواست شرطی</span><span lang="en">A version identifier or modification time for conditional requests</span></td><td><span lang="fa">مدت تازه‌ماندن پاسخ را تعیین نمی‌کند.</span><span lang="en">Does not set the freshness lifetime.</span></td></tr>
+    <tr><td><code>If-None-Match</code> / <code>If-Modified-Since</code></td><td><span lang="fa">از سرور می‌پرسد نسخه عوض شده است؟</span><span lang="en">Asks whether the representation changed.</span></td><td><span lang="fa">اگر کلاینت بدنهٔ قبلی را ندارد، 304 برای بازسازی آن کافی نیست.</span><span lang="en">A 304 cannot reconstruct a body the client does not already have.</span></td></tr>
+    <tr><td><code>304 Not Modified</code></td><td><span lang="fa">بدنهٔ ذخیره‌شده هنوز قابل استفاده است.</span><span lang="en">The stored body can still be reused.</span></td><td><span lang="fa">بدنهٔ جدیدی همراه پاسخ فرستاده نمی‌شود.</span><span lang="en">No new representation body is sent.</span></td></tr>
+  </tbody></table></div>
+</section>
+
+<section id="cache-policy">
+  <h2><span lang="fa">کش فقط وقتی کمک می‌کند که قراردادش با نوع فایل جور باشد</span><span lang="en">Caching helps only when its policy fits the kind of file</span></h2>
+  <p class="lede" lang="fa">ETag جواب «همان نسخه است؟» بود؛ حالا باید جواب بدهیم کلاینت چه زمانی اجازه دارد دوباره سؤال نکند. این را معمولاً با <code>Cache-Control</code> مشخص می‌کنیم. <code>Expires</code> هم یک تاریخ می‌دهد؛ Nginx می‌تواند با directiveِ <code>expires</code> هر دو هدر را بسازد.</p>
+  <p class="lede" lang="en">ETag answered “Is this the same version?” Now we must decide when a client may reuse a response without asking again. <code>Cache-Control</code> commonly expresses that policy. <code>Expires</code> provides a date; Nginx’s <code>expires</code> directive can generate both headers.</p>
+  <p lang="fa">برای دیدن رابطهٔ این دو، فقط روی JSON آزمایش یک مهلت کوتاه می‌گذاریم. این تنظیم نه cache دیسکی Nginx می‌سازد و نه cache مرورگر را از راه دور پاک می‌کند؛ فقط هدر پاسخ را تغییر می‌دهد. <code>curl -I</code> باید یک تاریخ آینده و <code>max-age=600</code> نشان بدهد.</p>
+  <p lang="en">To see how they relate, set a short freshness lifetime only for the lab JSON file. This neither creates an Nginx disk cache nor remotely clears a browser cache; it changes response headers. <code>curl -I</code> should show a future date and <code>max-age=600</code>.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">a short-lived cache policy for one test asset</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k"># inside server, beside location /
+location = /data.json {
+    expires 10m;
+    try_files $uri =404;
+}
+
+nginx -t -p "$LAB_DIR/" -c nginx.conf &amp;&amp; \
+  nginx -s reload -p "$LAB_DIR/" -c nginx.conf
+curl -I http://127.0.0.1:18082/data.json</span>
+<span class="s">HTTP/1.1 200 OK
+Content-Type: application/json
+Expires: [about ten minutes from now]
+Cache-Control: max-age=600
+ETag: "..."
+Last-Modified: ...</span></pre></div>
+  <p lang="fa"><code>expires 10m</code> روی پاسخ موفق هدر <code>Expires</code> و <code>Cache-Control: max-age=600</code> می‌سازد؛ <code>max-age</code> برحسب ثانیه است. تاریخ خروجی ثابت نیست. اگر این هدرها را نمی‌بینی، بررسی کن این location واقعاً برای همان فایل برنده است و directive را در context مجاز گذاشته‌ای. برای HTML و assetهای نسخه‌دار هنوز سیاست جدا لازم داریم.</p>
+  <p lang="en">On a successful response, <code>expires 10m</code> creates an <code>Expires</code> date and <code>Cache-Control: max-age=600</code>; <code>max-age</code> is measured in seconds. The date is not fixed. If the headers are absent, check that this location actually handles the file and that the directive is in a valid context. HTML and versioned assets still need different policies.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">مقدار</span><span lang="en">Directive</span></th><th><span lang="fa">برداشت عملی</span><span lang="en">Practical meaning</span></th><th><span lang="fa">نمونهٔ مناسب</span><span lang="en">A reasonable fit</span></th></tr></thead><tbody>
+    <tr><td><code>max-age=31536000, immutable</code></td><td><span lang="fa">تا یک سال تازه بماند؛ در این مدت همان URL نباید محتوای دیگری بگیرد.</span><span lang="en">Treat as fresh for a year; that URL must not acquire different content during that time.</span></td><td><span lang="fa">asset با hash/fingerprint در نام</span><span lang="en">An asset whose filename includes a content fingerprint</span></td></tr>
+    <tr><td><code>no-cache</code></td><td><span lang="fa">ذخیره مجاز است، اما پیش از استفادهٔ دوباره باید اعتبارسنجی شود.</span><span lang="en">Storage is allowed, but revalidate before reuse.</span></td><td><span lang="fa">HTML متغیر مثل <code>index.html</code></span><span lang="en">Mutable HTML such as <code>index.html</code></span></td></tr>
+    <tr><td><code>no-store</code></td><td><span lang="fa">کلاینت نباید پاسخ را ذخیره کند؛ با <code>no-cache</code> یکی نیست.</span><span lang="en">The client should not store the response; this is not the same as <code>no-cache</code>.</span></td><td><span lang="fa">پاسخ حساس که ذخیره‌شدنش مطلوب نیست</span><span lang="en">A sensitive response that should not be stored</span></td></tr>
+    <tr><td><code>private</code></td><td><span lang="fa">برای cache خصوصی کاربر است، نه cache مشترک.</span><span lang="en">For a private user cache, not a shared cache.</span></td><td><span lang="fa">محتوای مخصوص همان کاربر</span><span lang="en">Content specific to one user</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa">این directiveها قاعدهٔ کش را در پاسخ اعلام می‌کنند؛ تضمین نمی‌کنند همهٔ مرورگرها یا proxyها دقیقاً مثل یکدیگر عمل کنند. قاعدهٔ طراحی ساده است: اگر URL قابل‌تغییر است، کوتاه یا نیازمند اعتبارسنجی نگهش دار؛ اگر URL fingerprint‌شده با هر محتوا عوض می‌شود، عمر طولانی برایش معقول است.</p>
+  <p lang="en">These directives announce a policy; they do not guarantee that every browser or intermediary behaves identically. The design rule is simple: if a URL can change in place, keep its lifetime short or require revalidation. If a fingerprinted URL changes whenever its content changes, a long lifetime is reasonable.</p>
+</section>
+
+<section id="cache-mistake">
+  <h2><span lang="fa">خرابی عمدی: HTML را یک سال تازه اعلام کن</span><span lang="en">Deliberate failure: declare HTML fresh for a year</span></h2>
+  <p class="lede" lang="fa">می‌خواهیم خطای رایج را با مدرک ببینیم. یک قانون cache طولانی را برای همهٔ پاسخ‌ها می‌گذاریم، از جمله <code>index.html</code>. هنوز اصلاح را نمی‌گوییم؛ اول پیش‌بینی کن بعد از انتشار نسخهٔ تازه چه چیزی ممکن است در مرورگر بماند.</p>
+  <p class="lede" lang="en">We will reproduce a common mistake and inspect the evidence. Set a long cache rule for every response, including <code>index.html</code>. We will not reveal the fix yet; first predict what may remain in a browser after a new deployment.</p>
+  <p lang="fa">در همان config آزمایش، این directive را در <code>location /</code> قرار بده و config را test و reload کن. سپس همان HTML و JS را با <code>curl -I</code> بررسی کن. خروجی، سیاستی را که به کلاینت اعلام کرده‌ای نشان می‌دهد؛ اما curl به‌تنهایی cache مرورگر را شبیه‌سازی نمی‌کند.</p>
+  <p lang="en">In the lab config, put this directive in <code>location /</code>, then test and reload. Inspect the same HTML and JavaScript with <code>curl -I</code>. The output shows the policy you announced to clients, but curl alone does not simulate a browser cache.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">the intentionally over-broad policy</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">location / {
+    add_header Cache-Control "public, max-age=31536000, immutable";
+    try_files $uri $uri/ =404;
+}
+
+nginx -t -p "$LAB_DIR/" -c nginx.conf &amp;&amp; \
+  nginx -s reload -p "$LAB_DIR/" -c nginx.conf
+curl -I http://127.0.0.1:18082/
+curl -I http://127.0.0.1:18082/assets/app.a1b2.js</span>
+<span class="s">HTTP/1.1 200 OK
+Cache-Control: public, max-age=31536000, immutable
+...
+
+HTTP/1.1 200 OK
+Cache-Control: public, max-age=31536000, immutable
+...</span></pre></div>
+  <p lang="fa">شاهد مسئله همین هدر روی هر دو URL است. <code>immutable</code> می‌گوید تا وقتی پاسخ تازه است، کلاینت لازم نیست برای همان URL دوباره اعتبارسنجی کند. برای فایل fingerprint‌شده که نامش با محتوا عوض می‌شود، منطقی است؛ برای <code>/</code> و <code>index.html</code> که در انتشار بعدی همان URL را نگه می‌دارند، می‌تواند صفحهٔ قدیمی را زنده نگه دارد.</p>
+  <p lang="en">The evidence is that both URLs carry the same policy. <code>immutable</code> tells a cache not to revalidate that URL while the response remains fresh. That fits a fingerprinted file whose name changes with its content; it can keep stale HTML alive when <code>/</code> and <code>index.html</code> retain the same URL across deployments.</p>
+  <p lang="fa">حالا انتشار را در همین محیط موقت شبیه‌سازی کن: پیش از حذف bundle قدیمی، یک کپی بیرون از پوشهٔ سرو ذخیره کن؛ HTML را به نام تازهٔ <code>app.c3d4.js</code> وصل کن، فایل تازه را بساز و bundle قبلی را از پوشهٔ سرو بردار. بعد با curl HTML تازهٔ origin و status فایل قدیمی را بخوان. ممکن است HTML تازه نام جدید را نشان بدهد و URL قدیمی 404 شود؛ اما مرورگری که نسخهٔ HTML را هنوز تازه می‌داند، شاید اصلاً HTML جدید را نپرسد و سراغ URL قدیمی برود.</p>
+  <p lang="en">Now simulate a deployment in this temporary environment: save a copy of the old bundle outside the served directory before removing it; point HTML at a new name, <code>app.c3d4.js</code>, create that file, then remove the old bundle from the served directory. Use curl to inspect the fresh origin HTML and the old asset’s status. The origin may show the new name while the old URL returns 404; a browser that still considers its HTML fresh may not request that new HTML and can ask for the old asset instead.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">simulate version B without losing the lab copy of version A</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cp "$LAB_DIR/site/assets/app.a1b2.js" "$LAB_DIR/old-app.a1b2.js"
+cp "$LAB_DIR/site/assets/app.a1b2.css" "$LAB_DIR/site/assets/app.c3d4.css"
+printf '%s\n' "console.log('static bundle B loaded');" \
+  > "$LAB_DIR/site/assets/app.c3d4.js"
+sed 's/app\.a1b2/app.c3d4/g; s/version A/version B/' \
+  "$LAB_DIR/site/index.html" > "$LAB_DIR/site/index.next"
+mv "$LAB_DIR/site/index.next" "$LAB_DIR/site/index.html"
+rm "$LAB_DIR/site/assets/app.a1b2.js"
+
+curl -sS http://127.0.0.1:18082/ | grep -E 'version B|app\.c3d4'
+curl -I http://127.0.0.1:18082/assets/app.a1b2.js</span>
+<span class="s">&lt;link rel="stylesheet" href="/assets/app.c3d4.css"&gt;
+&lt;h1&gt;Static delivery lab — version B&lt;/h1&gt;
+&lt;script src="/assets/app.c3d4.js" defer&gt;&lt;/script&gt;
+HTTP/1.1 404 Not Found</span></pre></div>
+  <p lang="fa">کپی قدیمی بیرون از <code>site</code> مانده، پس Nginx آن را سرو نمی‌کند و در عین حال برای بازیابی داریمش. پاسخ curl از origin نسخهٔ B را می‌بیند و URL قدیمی 404 است. این مدرک می‌گوید deploy فایل را برداشته؛ ثابت نمی‌کند مرورگر cache‌شده واقعاً HTML B را درخواست کرده است.</p>
+  <p lang="en">The old copy is outside <code>site</code>, so Nginx cannot serve it, but we retain it for recovery. curl reaches the origin, sees version B, and gets 404 for the old URL. This proves the deployment removed the served file; it does not prove that a cached browser requested HTML B.</p>
+  <div class="note warn"><div class="note-t"><span lang="fa">محدودیت آزمایش را صادقانه نگه داریم</span><span lang="en">Be honest about what the test does not reproduce</span></div><p lang="fa">curl بدون یک cache پایدار، همان رفتار مرورگر را ندارد؛ درخواست تازه‌اش مستقیم به Nginx می‌رسد. هدر یک‌ساله به‌اضافهٔ HTMLای که URL آن ثابت مانده، مدرکِ policy پرخطر است؛ DevTools مرورگر می‌تواند نشان بدهد درخواست از memory/disk cache آمده یا به سرور رسیده. نتیجهٔ «حتماً همهٔ کاربران صفحهٔ قدیمی می‌بینند» از این آزمایش درنمی‌آید.</p><p lang="en">curl without a persistent cache does not behave like a browser; its fresh request reaches Nginx. A year-long header on HTML with a stable URL is evidence of a risky policy; browser DevTools can show whether a request came from memory/disk cache or reached the server. This test does not prove that every user will definitely see stale HTML.</p></div>
+  <p lang="fa">اصلاح را بر اساس نوع نام فایل انجام بده، نه یک قانون عمومی‌تر: HTML باید پیش از استفادهٔ دوباره اعتبارسنجی شود؛ assetهای fingerprint‌شده می‌توانند عمر طولانی بگیرند. اگر client هنوز HTML تازهٔ قبلی را دارد، نگه‌داشتن نسخهٔ قدیمی asset برای یک بازهٔ انتشار هم از 404 جلوگیری می‌کند.</p>
+  <p lang="en">Repair the policy by filename role rather than adding another broad rule: HTML should be revalidated before reuse; fingerprinted assets can have a long lifetime. Retaining old asset versions for a deployment overlap also prevents 404s for clients that still hold older HTML.</p>
+</section>
+
+<section id="cache-repair">
+  <h2><span lang="fa">دو سیاست روشن: HTML قابل‌تغییر، asset تغییرناپذیر</span><span lang="en">Two clear policies: mutable HTML, immutable assets</span></h2>
+  <p class="lede" lang="fa">در همین آزمایش، قانون عمومی را بردار و قاعدهٔ کش را برای هر مسیر جدا کن. Nginx برای درخواست <code>/</code> معمولاً از <code>index.html</code> داخلی استفاده می‌کند؛ پس یک location دقیق برای همان فایل بگذار. فایل‌های پوشهٔ <code>/assets/</code> ما هم نام fingerprint دارند.</p>
+  <p class="lede" lang="en">Remove the broad rule and split policy by path. For a request to <code>/</code>, Nginx normally resolves the directory through an internal request for <code>index.html</code>, so define an exact location for that file. Our files below <code>/assets/</code> have fingerprinted names.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">replace the broad rule with policy by resource identity</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">location = /index.html {
+    add_header Cache-Control "no-cache";
+    try_files $uri =404;
+}
+
+location /assets/ {
+    add_header Cache-Control "public, max-age=31536000, immutable";
+    try_files $uri =404;
+}
+
+location / {
+    try_files $uri $uri/ =404;
+}
+
+nginx -t -p "$LAB_DIR/" -c nginx.conf &amp;&amp; \
+  nginx -s reload -p "$LAB_DIR/" -c nginx.conf
+curl -I http://127.0.0.1:18082/
+curl -I http://127.0.0.1:18082/assets/app.c3d4.js</span>
+<span class="s">HTTP/1.1 200 OK
+Cache-Control: no-cache
+...
+
+HTTP/1.1 200 OK
+Cache-Control: public, max-age=31536000, immutable
+...</span></pre></div>
+  <p lang="fa"><code>no-cache</code> نام گمراه‌کننده‌ای دارد: اجازهٔ ذخیره می‌دهد، ولی استفادهٔ دوباره باید با سرور اعتبارسنجی شود. برای asset، نام تازه با محتوا عوض می‌شود و می‌توان یک سال آن URL را تغییرناپذیر دانست. هدرهای دو پاسخ حالا policy متفاوت را ثابت می‌کنند. برای تأیید بازیابی، نسخهٔ ذخیره‌شدهٔ bundle قبلی را به مسیر asset برگردان و همان URL قدیمی را با curl بگیر؛ باید دوباره 200 شود. بعد در مرورگر، نام تازه را در HTML بررسی کن.</p>
+  <p lang="en">The name <code>no-cache</code> is easy to misread: storage is allowed, but reuse requires revalidation. The asset filename changes with its content, so that URL can be treated as immutable for a year. The two response headers now prove different policies. To verify recovery, restore the saved old bundle to its asset path and request that exact URL with curl; it should return 200 again. Then confirm the new filename in the HTML.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">restore the saved bundle inside the disposable site</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cp "$LAB_DIR/old-app.a1b2.js" "$LAB_DIR/site/assets/app.a1b2.js"
+curl -I http://127.0.0.1:18082/
+curl -I http://127.0.0.1:18082/assets/app.c3d4.js
+curl -I http://127.0.0.1:18082/assets/app.a1b2.js</span>
+<span class="s">HTTP/1.1 200 OK
+Cache-Control: no-cache
+...
+HTTP/1.1 200 OK
+Cache-Control: public, max-age=31536000, immutable
+...
+HTTP/1.1 200 OK
+Cache-Control: public, max-age=31536000, immutable
+...</span></pre></div>
+  <p lang="fa">سه status باید 200 باشند، اما header کش صفحه با هر دو bundle فرق دارد. نگه‌داشتن نسخهٔ قبلی فقط در مدت سازگاری انتشار لازم است؛ فایل lab قدیمی را اینجا نگه می‌داریم تا سناریو قابل‌بازگشت باشد. در پروژهٔ واقعی، پاک‌کردن asset قدیمی به چرخهٔ انتشار و کاربران فعال بستگی دارد.</p>
+  <p lang="en">All three statuses should be 200, but the page’s cache header differs from both bundles. The previous version needs to remain only through the deployment compatibility window; we keep it here to make the lab reversible. In a real project, asset retention depends on release cadence and active clients.</p>
+  <p lang="fa">اگر asset یک URL ثابت مثل <code>/app.js</code> دارد و محتوا را زیر همان نام عوض می‌کنی، آن را <code>immutable</code> نکن. یا نام را fingerprint کن، یا policy کوتاه/نیازمند اعتبارسنجی بده. همین تصمیم برای manifestها و فایل‌های versioned هم لازم است.</p>
+  <p lang="en">If an asset keeps a stable URL such as <code>/app.js</code> while its contents change, do not mark it <code>immutable</code>. Fingerprint the filename or use a short/revalidated policy. Make the same deliberate choice for manifests and versioned files.</p>
+</section>
+
+<section id="gzip">
+  <h2><span lang="fa">همان JSON، پاسخ کوچک‌تر؛ فقط اگر کلاینت encoding را بپذیرد</span><span lang="en">Same JSON, smaller response—if the client accepts the encoding</span></h2>
+  <p class="lede" lang="fa">فایل JSON ما تکرار زیادی دارد و برای فشرده‌سازی نامزد خوبی است. پیش‌بینی کن: اگر Nginx gzip را فعال کند، فایل روی دیسک عوض می‌شود؟ و اگر کلاینت بگوید gzip را نمی‌فهمم چه؟ ابتدا نسخهٔ بدون فشرده‌سازی را نگه می‌داریم تا مقایسه‌مان حدس نباشد.</p>
+  <p class="lede" lang="en">Our JSON contains repetition and is a good compression candidate. Predict: if Nginx enables gzip, does the file on disk change? What if the client says it cannot decode gzip? We will save an uncompressed response first so our comparison is evidence, not a guess.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">record the uncompressed response size</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl -sS -H 'Accept-Encoding: identity' \
+  -o "$LAB_DIR/identity.body" \
+  http://127.0.0.1:18082/data.json
+wc -c "$LAB_DIR/identity.body"</span>
+<span class="s">[a byte count close to the file size from wc -c]</span></pre></div>
+  <p lang="fa">هدر <code>Accept-Encoding: identity</code> از curl می‌خواهد پاسخ فشرده نگیرد. عدد <code>wc -c</code> تعداد بایت‌هایی است که در این فایل ذخیره شده؛ زمان انتقال شبکه را اندازه نمی‌گیرد. حالا فیلتر gzip را در بخش <code>http</code> اضافه می‌کنیم.</p>
+  <p lang="en">The <code>Accept-Encoding: identity</code> request asks curl not to receive a compressed representation. <code>wc -c</code> counts bytes saved in that file; it is not a measurement of network time. Now enable the gzip filter in the <code>http</code> context.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">negotiate gzip only for useful text types</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">gzip on;
+gzip_min_length 1024;
+gzip_vary on;
+gzip_types text/plain text/css application/javascript application/json;
+
+nginx -t -p "$LAB_DIR/" -c nginx.conf &amp;&amp; \
+  nginx -s reload -p "$LAB_DIR/" -c nginx.conf</span></pre></div>
+  <p lang="fa">در Nginx، gzip به‌طور پیش‌فرض خاموش است؛ <code>gzip_types</code> نوع‌هایی را به HTML اضافه می‌کند و HTML خودش به‌طور ویژه پشتیبانی می‌شود. حداقل اندازه را ۱۰۲۴ بایت گذاشتیم تا پاسخ‌های خیلی کوچک بی‌دلیل وارد فشرده‌سازی نشوند. <code>gzip_vary on</code> به cacheها می‌گوید پاسخ وابسته به <code>Accept-Encoding</code> است. اول <code>nginx -t</code> و بعد reload؛ اگر syntax ناشناخته بود، خروجی <code>nginx -V</code> و بستهٔ نصب‌شده را بررسی کن.</p>
+  <p lang="en">Nginx gzip is off by default. <code>gzip_types</code> adds media types beyond HTML, which is handled specially. We set a 1024-byte threshold so tiny responses are not compressed needlessly. <code>gzip_vary on</code> tells caches that the response varies by <code>Accept-Encoding</code>. Test the config before reloading; if a directive is unknown, inspect <code>nginx -V</code> and the installed package.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">check negotiation and count raw response bytes</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl -sS -H 'Accept-Encoding: gzip' \
+  -D "$LAB_DIR/gzip.headers" -o "$LAB_DIR/gzip.body" \
+  http://127.0.0.1:18082/data.json
+grep -iE '^(HTTP/|Content-Encoding:|Vary:|Content-Length:)' "$LAB_DIR/gzip.headers"
+wc -c "$LAB_DIR/identity.body" "$LAB_DIR/gzip.body"
+
+curl --compressed -sS -D - -o /dev/null \
+  http://127.0.0.1:18082/data.json</span>
+<span class="s">HTTP/1.1 200 OK
+Content-Encoding: gzip
+Vary: Accept-Encoding
+[the gzip body should be much smaller than the identity body]
+
+HTTP/1.1 200 OK
+Content-Encoding: gzip
+Vary: Accept-Encoding</span></pre></div>
+  <p lang="fa">خط تعیین‌کننده <code>Content-Encoding: gzip</code> است؛ یعنی Nginx بدنهٔ فشرده فرستاده. <code>Vary: Accept-Encoding</code> جلوی اشتباه cache در قاطی‌کردن پاسخ identity و gzip را می‌گیرد. دو فایل را با <code>wc -c</code> مقایسه کن: اندازه‌ها با نسخه و قالب فرق می‌کنند. درخواست آخر با <code>--compressed</code> از curl می‌خواهد encoding مناسب را بپذیرد و بدنه را خودکار باز کند؛ پس فایل ذخیره‌شده از آن درخواست معیار اندازهٔ روی سیم نیست.</p>
+  <p lang="en">The decisive line is <code>Content-Encoding: gzip</code>: Nginx sent a compressed body. <code>Vary: Accept-Encoding</code> prevents a cache from mixing identity and gzip variants. Compare the two files with <code>wc -c</code>; sizes vary by version and formatting. The final <code>--compressed</code> request asks curl to negotiate a supported encoding and automatically decompress the body, so its saved output is not a wire-size measurement.</p>
+  <p lang="fa">اگر <code>Content-Encoding</code> نیامد، اول ببین پاسخ از آستانهٔ <code>gzip_min_length</code> بزرگ‌تر است، <code>Content-Type</code> در <code>gzip_types</code> قرار دارد و درخواست <code>Accept-Encoding: gzip</code> فرستاده. اگر مقدار کم نشد، احتمال دارد داده از قبل فشرده یا نامناسب باشد. gzip اندازهٔ فایل اصلی را تغییر نمی‌دهد و برای تصویر JPEG، ویدئو یا فایل ZIP معمولاً فایدهٔ مشابه متن تکرارشونده را ندارد.</p>
+  <p lang="en">If <code>Content-Encoding</code> is absent, check that the response exceeds <code>gzip_min_length</code>, its <code>Content-Type</code> is covered by <code>gzip_types</code>, and the request sent <code>Accept-Encoding: gzip</code>. If the result does not shrink, it may already be compressed or simply be a poor candidate. gzip does not change the source file, and JPEG, video, or ZIP data usually do not benefit like repetitive text.</p>
+  <div class="note warn"><div class="note-t"><span lang="fa">فشرده‌سازی را کورکورانه روشن نکن</span><span lang="en">Do not enable compression blindly</span></div><p lang="fa">gzip از CPU استفاده می‌کند و فشرده‌کردن بدنهٔ هر پاسخی هم لازم یا به‌صرفه نیست. مهم‌تر اینکه فشرده‌سازی پاسخ‌های رمزنگاری‌شده‌ای که هم‌زمان راز و متن قابل‌کنترل مهاجم دارند، می‌تواند در شرایط خاص ریسک BREACH بسازد. این فصل فقط فایل‌های استاتیک آزمایش را فشرده می‌کند؛ دربارهٔ پاسخ‌های پویای حساس، با توجه به شرایط واقعی سرویس تصمیم بگیر.</p><p lang="en">gzip consumes CPU, and not every payload should be compressed. More importantly, compressing encrypted responses that mix secrets with attacker-controlled text can create BREACH risk in some conditions. This chapter compresses only lab static files; make a contextual decision for sensitive dynamic responses.</p></div>
+</section>
+
+<section id="brotli">
+  <h2><span lang="fa">Brotli را در config جادویی فرض نکن</span><span lang="en">Do not assume Brotli is magically available</span></h2>
+  <p class="lede" lang="fa">شاید روی سرور دیگری directiveای به نام <code>brotli</code> دیده باشی. این به‌تنهایی بخشی از تضمین‌شدهٔ نصب استاندارد Nginx نیست: معمولاً باید ماژول جداگانه‌ای را نصب یا با نسخهٔ سازگار build و load کرد. فایل configای که روی یک سرور می‌پذیرد، ممکن است روی دیگری با «unknown directive» از کار بیفتد.</p>
+  <p class="lede" lang="en">You may have seen a <code>brotli</code> directive on another server. That does not make it a guaranteed part of a standard Nginx installation: commonly, a separate module must be installed or built compatibly and loaded. A config accepted on one server may fail elsewhere with “unknown directive.”</p>
+  <p lang="fa">ماژول شناخته‌شدهٔ <code>ngx_brotli</code> برای پاسخ پویا directiveهایی مثل <code>brotli on</code> و <code>brotli_types</code> دارد و برای فایل ازپیش‌فشرده‌شده هم قابلیت جدا دارد. اما module باید با build همان Nginx سازگار باشد؛ دستورهایش را فقط بعد از بررسی بسته، فایل <code>load_module</code> و <code>nginx -t</code> وارد کن. برای آزمایش اصلی این فصل، gzip کافی است و نبود Brotli هیچ قدمی را متوقف نمی‌کند.</p>
+  <p lang="en">The well-known <code>ngx_brotli</code> module provides directives such as <code>brotli on</code> and <code>brotli_types</code> for on-the-fly responses, plus a separate option for precompressed files. The module must be compatible with that Nginx build; only add its directives after checking the package, its <code>load_module</code> entry, and <code>nginx -t</code>. gzip is enough for our main lab, so missing Brotli blocks nothing.</p>
+  <div class="note safe"><div class="note-t"><span lang="fa">یک تفاوت تعیین‌کننده</span><span lang="en">One important distinction</span></div><p lang="fa">قابلیت Brotli و gzip می‌تواند پاسخ را هنگام درخواست فشرده کند یا نسخهٔ ازپیش‌فشرده‌شده را بفرستد؛ این دو مسیر تنظیم و پیش‌نیاز یکسانی ندارند. روشن‌بودن مرورگرِ پشتیبان هم کافی نیست؛ Nginx باید encoding را واقعاً در پاسخ اعلام کند و cacheها variant را درست نگه دارند.</p><p lang="en">Brotli and gzip can compress a response on demand or serve a precompressed file; these paths have different requirements and configuration. A browser supporting an encoding is not enough: Nginx must actually declare it in the response, and caches must keep the variants straight.</p></div>
+</section>
+
+<section id="exercises">
+  <h2><span lang="fa">تمرین‌ها: از هدر تا تشخیص انتشار</span><span lang="en">Exercises: from one header to a deployment diagnosis</span></h2>
+  <p class="lede" lang="fa">اول خروجی را درست می‌خوانیم؛ بعد چند نشانه را کنار هم می‌گذاریم و پیش از تغییر config می‌پرسیم کدام لایه مشکل دارد. پاسخ را بعد از یک پیش‌بینی کوتاه باز کن.</p>
+  <p class="lede" lang="en">First read individual outputs correctly; then combine signals and identify the failing layer before changing config. Make a short prediction before opening each solution.</p>
+
+  <div class="ex" id="ex01"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱ · مسیر فایل</span><span class="ex-n" lang="en">Exercise 1 · File path</span></div><p lang="fa">با <code>root /srv/site;</code> و URI برابر <code>/assets/app.js</code>، Nginx کدام مسیر دیسک را بررسی می‌کند؟</p><p lang="en">With <code>root /srv/site;</code> and URI <code>/assets/app.js</code>, which filesystem path does Nginx check?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">مسیر می‌شود <code>/srv/site/assets/app.js</code>؛ <code>root</code> مقدار URI را به انتهای root می‌افزاید. اگر فایل 404 شد، این محاسبه را با location برنده و مسیر واقعی فایل مقایسه کن؛ از روی نام پوشه حدس نزن.</p><p lang="en">The path is <code>/srv/site/assets/app.js</code>; <code>root</code> appends the URI to the root path. If the request returns 404, compare this calculation with the winning location and actual file path rather than guessing from a directory name.</p></details></div>
+
+  <div class="ex" id="ex02"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۲ · درخواست پوشه</span><span class="ex-n" lang="en">Exercise 2 · Directory request</span></div><p lang="fa">کاربر <code>/</code> را می‌زند، <code>index index.html;</code> تنظیم است، و <code>site/index.html</code> وجود دارد. چه پاسخی انتظار داری؟ آیا URI نهایی الزاماً همان <code>/</code> می‌ماند؟</p><p lang="en">A client requests <code>/</code>, <code>index index.html;</code> is configured, and <code>site/index.html</code> exists. What response do you expect? Must the final URI remain <code>/</code>?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">معمولاً index پیدا و 200 پاسخ داده می‌شود. ماژول index درخواست را به‌صورت داخلی به URI فایل index می‌فرستد؛ در نتیجه پردازش location می‌تواند دوباره انجام شود. اگر صفحه پیدا نشد، <code>root</code>، مقدار index و نتیجهٔ <code>try_files</code> را به‌ترتیب بررسی کن.</p><p lang="en">The index is normally found and served with 200. The index module internally redirects to the index URI, so location processing can run again. If it is missing, check <code>root</code>, the index value, and the <code>try_files</code> result in that order.</p></details></div>
+
+  <div class="ex" id="ex03"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۳ · فایل نیست</span><span class="ex-n" lang="en">Exercise 3 · Missing file</span></div><p lang="fa">در <code>location / { try_files $uri $uri/ =404; }</code> هیچ فایل یا پوشه‌ای برای <code>/missing.css</code> نیست. آخرین آرگومان چه می‌کند؟</p><p lang="en">In <code>location / { try_files $uri $uri/ =404; }</code>, neither a file nor directory exists for <code>/missing.css</code>. What does the final argument do?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">پاسخ با status برابر 404 تمام می‌شود. <code>try_files</code> گزینه‌ها را به‌ترتیب بررسی می‌کند و اینجا URI یا named location جایگزین نداریم. اگر به‌جای 404 صفحهٔ برنامه آمد، config دیگری یا fallback دیگری درخواست را گرفته؛ config مؤثر و location برنده را ببین.</p><p lang="en">Processing ends with status 404. <code>try_files</code> checks candidates in order, and this example has no fallback URI or named location. If an application page appears instead, another config or fallback handled the request; inspect the effective config and selected location.</p></details></div>
+
+  <div class="ex" id="ex04"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۴ · نوع محتوا</span><span class="ex-n" lang="en">Exercise 4 · Media type</span></div><p lang="fa">یک فایل <code>.js</code> به‌جای نوع JavaScript با <code>application/octet-stream</code> پاسخ می‌گیرد. دو بررسی مشخص پیشنهاد بده.</p><p lang="en">A <code>.js</code> file is served as <code>application/octet-stream</code> instead of a JavaScript media type. Name two concrete checks.</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">با <code>curl -I</code> مقدار <code>Content-Type</code> را ثبت می‌کنم؛ بعد فایل MIME مؤثر در config شامل‌شده یا بلوک <code>types</code> را بررسی می‌کنم. ممکن است <code>mime.types</code> شامل نشده یا types بازتعریف شده باشد؛ تغییر پسوند فایل بدون شناخت config درمان مطمئنی نیست.</p><p lang="en">Record <code>Content-Type</code> with <code>curl -I</code>, then inspect the effective MIME include or <code>types</code> block. The <code>mime.types</code> file may be missing or the map overridden; renaming the file without understanding config is not a reliable fix.</p></details></div>
+
+  <div class="ex" id="ex05"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۵ · validator با عمر کش فرق دارد</span><span class="ex-n" lang="en">Exercise 5 · Validator versus cache lifetime</span></div><p lang="fa">پاسخ <code>ETag</code> و <code>Last-Modified</code> دارد ولی <code>Cache-Control</code> ندارد. آیا از روی این سه خط می‌فهمی مرورگر چند دقیقه فایل را تازه نگه می‌دارد؟</p><p lang="en">A response has <code>ETag</code> and <code>Last-Modified</code>, but no <code>Cache-Control</code>. Can you infer how many minutes the browser will treat it as fresh?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه. آن دو validator برای پرسیدنِ تغییر نسخه‌اند؛ lifetime سیاست تازه‌ماندن نیستند. باید هدرهای freshness و قواعد cache مربوط را ببینی. validator ممکن است در revalidation به پاسخ 304 منجر شود، ولی خودش نمی‌گوید چه زمانی این بررسی رخ بدهد.</p><p lang="en">No. Those validators support version checks; they do not set freshness. Inspect freshness headers and relevant cache rules. A validator can lead to a 304 during revalidation, but it does not say when that revalidation happens.</p></details></div>
+
+  <div class="ex" id="ex06"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۶ · 304 چه چیزی را پس نمی‌فرستد؟</span><span class="ex-n" lang="en">Exercise 6 · What does 304 not send?</span></div><p lang="fa">درخواست شرطی با <code>If-None-Match</code> پاسخ 304 می‌گیرد. کلاینت باید کدام چیز را از قبل داشته باشد؟</p><p lang="en">A conditional request using <code>If-None-Match</code> receives 304. What must the client already have?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">بدنهٔ قبلی را. 304 می‌گوید نسخهٔ ذخیره‌شده هنوز معتبر است و بدنهٔ تازه نمی‌فرستد. اگر بدنه در دسترس نیست، کلاینت باید درخواست عادی کند. بنابراین دیدن 304 در هدرها به معنی انتقال یک فایل کامل نیست.</p><p lang="en">The previous response body. A 304 says the stored representation remains valid and does not send a new body. Without that stored body, the client needs a normal request. Seeing 304 in headers does not mean a complete file was transferred.</p></details></div>
+
+  <div class="ex" id="ex07"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۷ · ثانیه را حساب کن</span><span class="ex-n" lang="en">Exercise 7 · Count the seconds</span></div><p lang="fa">برای فایل آزمایش <code>expires 10m;</code> تنظیم شده. Nginx تقریباً چه مقدار <code>max-age</code> می‌سازد؟</p><p lang="en">The lab file is configured with <code>expires 10m;</code>. About what <code>max-age</code> does Nginx generate?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">۶۰۰ ثانیه، چون ده دقیقه هرکدام ۶۰ ثانیه‌اند. با <code>curl -I</code> هدر واقعی را ببین؛ تاریخ Expires بر اساس زمان اجراست و ثابت نیست. directive روی statusهای مشخص اثر می‌گذارد، نه الزاماً هر پاسخ ممکن.</p><p lang="en">600 seconds, since ten minutes contain 60 seconds each. Inspect the actual header with <code>curl -I</code>; the Expires date depends on when you run it. The directive applies to specified statuses, not necessarily every possible response.</p></details></div>
+
+  <div class="ex" id="ex08"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۸ · no-cache یا no-store؟</span><span class="ex-n" lang="en">Exercise 8 · no-cache or no-store?</span></div><p lang="fa">تیمی می‌خواهد HTML ذخیره شود ولی پیش از نمایش دوباره اعتبارسنجی شود. کدام directive مناسب‌تر است و چه سوءبرداشتی را باید رفع کنی؟</p><p lang="en">A team wants HTML to be stored but revalidated before reuse. Which directive fits, and what misconception should you correct?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa"><code>Cache-Control: no-cache</code> با این خواسته جور است: ذخیره ممکن است، ولی استفادهٔ دوباره نیازمند revalidation است. <code>no-store</code> می‌گوید پاسخ ذخیره نشود. اسم no-cache را با «هیچ‌وقت cache نکن» یکی نکن.</p><p lang="en"><code>Cache-Control: no-cache</code> fits: storage is allowed, but reuse requires revalidation. <code>no-store</code> says not to store the response. Do not confuse “no-cache” with “never cache this.”</p></details></div>
+
+  <div class="ex" id="ex09"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۹ · دو URL، دو قرارداد</span><span class="ex-n" lang="en">Exercise 9 · Two URLs, two policies</span></div><p lang="fa">انتخاب کن: یک سال <code>immutable</code> برای <code>app.7fd21a.js</code> و برای <code>index.html</code> هم؟ توضیح بده چرا یکسان‌کردنشان وسوسه‌انگیز اما خطرناک است.</p><p lang="en">Would you use one-year <code>immutable</code> for both <code>app.7fd21a.js</code> and <code>index.html</code>? Explain why making them identical is tempting but risky.</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">برای JS فقط اگر نام fingerprint با هر محتوای تازه عوض شود، lifetime طولانی مناسب است. HTML معمولاً URL ثابتی دارد و ارجاع نسخهٔ جدید را حمل می‌کند؛ برای آن revalidation یا عمر کوتاه‌تر لازم است. اگر HTML را یک سال immutable کنی، ممکن است ارجاع قدیمی را همان‌طور تازه نگه داری.</p><p lang="en">A long lifetime fits the JavaScript only if its fingerprinted name changes with every new content version. HTML usually keeps a stable URL and points to new versions, so it needs revalidation or a shorter lifetime. A year-long immutable policy may keep old references fresh.</p></details></div>
+
+  <div class="ex" id="ex10"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۰ · مدرک برای cache اشتباه</span><span class="ex-n" lang="en">Exercise 10 · Evidence for a bad cache policy</span></div><p lang="fa">بعد از deploy کاربر نسخهٔ قبلی را می‌بیند. اول چه مدرکی از پاسخ HTML جمع می‌کنی و چرا فوراً Nginx را راه‌اندازی دوباره نمی‌کنی؟</p><p lang="en">After deployment, a user sees the previous version. What do you first collect from the HTML response, and why not restart Nginx immediately?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">URL، status، <code>Cache-Control</code>، <code>Expires</code>، validatorها و ارجاع asset را ثبت می‌کنم؛ با curl از origin می‌پرسم نسخهٔ فعلی چیست و در DevTools می‌بینم پاسخ از cache آمده یا شبکه. راه‌اندازی دوباره، کش مرورگر را پاک نمی‌کند و ممکن است مسئله از policy کلاینت باشد، نه پردازهٔ Nginx.</p><p lang="en">Record the URL, status, <code>Cache-Control</code>, <code>Expires</code>, validators, and referenced asset names. Ask the origin with curl and inspect DevTools to see whether the browser used cache or network. Restarting Nginx does not clear browser cache and may not address a client-policy problem.</p></details></div>
+
+  <div class="ex" id="ex11"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۱ · asset قدیمی 404 می‌شود</span><span class="ex-n" lang="en">Exercise 11 · An old asset returns 404</span></div><p lang="fa">HTML قدیمی نام <code>app.old.js</code> را دارد. deploy جدید فایل را حذف کرده، ولی یک مرورگر هنوز HTML را تازه می‌داند. زنجیرهٔ رخداد را بدون این ادعا که همهٔ کاربران قطعاً خراب می‌شوند توضیح بده.</p><p lang="en">Old HTML refers to <code>app.old.js</code>. A new deployment removed it, but one browser still considers the HTML fresh. Explain the failure chain without claiming every user will definitely break.</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">اگر مرورگر HTML ذخیره‌شده را دوباره اعتبارسنجی نکند، URL قدیمی JS را از همان HTML می‌خواند. اگر آن bundle در cache خصوصی‌اش نیست و origin هم حذفش کرده، درخواست asset به 404 می‌رسد. نتیجه به cache هر کاربر بستگی دارد؛ policy مناسب HTML و نگه‌داشتن assetهای قدیمی در بازهٔ انتشار، ریسک را کم می‌کند.</p><p lang="en">If the browser reuses cached HTML without revalidation, it reads the old JS URL from that document. If the bundle is not in its own cache and the origin has removed it, the asset request returns 404. The outcome depends on each user’s cache; a suitable HTML policy and retaining old assets during deployment reduce the risk.</p></details></div>
+
+  <div class="ex" id="ex12"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۲ · هدر روی 404 ناپدید شد</span><span class="ex-n" lang="en">Exercise 12 · A header disappeared on 404</span></div><p lang="fa">روی پاسخ 200 هدر <code>add_header Cache-Control no-cache;</code> را می‌بینی، اما روی 404 نه. آیا directive اصلاً اجرا نشده؟</p><p lang="en">A 200 response carries <code>add_header Cache-Control no-cache;</code>, but a 404 does not. Does that prove the directive was not executed?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه لزوماً. <code>add_header</code> به‌طور پیش‌فرض فقط روی statusهای مشخص هدر می‌افزاید؛ 404 در آن فهرست نیست. پارامتر <code>always</code> رفتار را به statusهای دیگر گسترش می‌دهد، اما قبلش بپرس آیا واقعاً لازم است پاسخ خطا cache شود. نبود header می‌تواند از محدودیت status باشد.</p><p lang="en">Not necessarily. By default, <code>add_header</code> adds fields only for a defined set of response statuses, which does not include 404. The <code>always</code> parameter extends it to other statuses, but first decide whether the error response should carry that cache policy. The missing header may reflect status rules.</p></details></div>
+
+  <div class="ex" id="ex13"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۳ · gzip_types چه چیزی اضافه می‌کند؟</span><span class="ex-n" lang="en">Exercise 13 · What does gzip_types add?</span></div><p lang="fa">این تنظیم را داری: <code>gzip on;</code> و <code>gzip_types application/json;</code>. HTML پاسخ می‌گیرد ولی JSON هنوز gzip نمی‌شود. چه دو مدرکی را مقایسه می‌کنی؟</p><p lang="en">You have <code>gzip on;</code> and <code>gzip_types application/json;</code>. HTML is returned but JSON is not gzipped. Which two pieces of evidence do you compare?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">اول <code>Content-Type</code> واقعی JSON را با MIME تعریف‌شده مقایسه می‌کنم؛ بعد می‌بینم درخواست <code>Accept-Encoding: gzip</code> فرستاده و بدنه از حداقل اندازه بزرگ‌تر هست یا نه. HTML به‌طور ویژه مشمول gzip است؛ افزودن JSON به فهرست تضمین نمی‌کند هر پاسخ کوچک یا هر نوع محتوایی فشرده شود.</p><p lang="en">Compare the JSON response’s actual <code>Content-Type</code> with the configured MIME type. Then check whether the request advertised <code>Accept-Encoding: gzip</code> and whether the body exceeded the minimum size. HTML is handled specially; listing JSON does not guarantee that every tiny response or media type is compressed.</p></details></div>
+
+  <div class="ex" id="ex14"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۴ · پاسخ ۳۰۰ بایتی</span><span class="ex-n" lang="en">Exercise 14 · A 300-byte response</span></div><p lang="fa">JSON کوچک ۳۰۰ بایتی gzip نمی‌شود و <code>gzip_min_length 1024;</code> فعال است. قبل از تغییر مقدار، چه نتیجه‌ای می‌گیری؟</p><p lang="en">A 300-byte JSON response is not compressed while <code>gzip_min_length 1024;</code> is active. What do you conclude before changing the threshold?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">این نتیجه با آستانه سازگار است؛ Nginx طول را از <code>Content-Length</code> می‌سنجد و پاسخ زیر ۱۰۲۴ بایت ممکن است gzip نشود. پایین‌آوردن threshold خودکار به معنی سود نیست؛ سربار هدر و CPU و اندازهٔ واقعی بدنه را اندازه بگیر و دوباره مقایسه کن.</p><p lang="en">That result fits the threshold: Nginx determines length from <code>Content-Length</code>, and a response below 1024 bytes may not be gzipped. Lowering the threshold is not automatically beneficial; measure header/CPU overhead and actual payload size before comparing again.</p></details></div>
+
+  <div class="ex" id="ex15"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۵ · چرا Vary مهم است؟</span><span class="ex-n" lang="en">Exercise 15 · Why does Vary matter?</span></div><p lang="fa">پاسخ gzip و identity هر دو یک URL دارند. اگر cache واسط <code>Vary: Accept-Encoding</code> را نبیند، چه نوع خطایی ممکن است رخ دهد؟</p><p lang="en">The gzip and identity variants share one URL. What kind of failure may occur if an intermediary cache does not see <code>Vary: Accept-Encoding</code>?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">ممکن است پاسخ فشرده را برای کلاینتی که آن را نخواسته یا نمی‌تواند باز کند نگه دارد و تحویل بدهد، یا variantها را قاطی کند. <code>gzip_vary on;</code> هدر مربوط را اضافه می‌کند. هدر را با درخواست identity و gzip جداگانه ببین؛ صرف فشرده‌شدن یک درخواست کافی نیست.</p><p lang="en">It may reuse a compressed response for a client that did not request or cannot decode it, or mix the variants. <code>gzip_vary on;</code> adds the relevant response header. Inspect identity and gzip requests separately; compression on one request alone is not enough evidence.</p></details></div>
+
+  <div class="ex" id="ex16"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۶ · اندازه‌گیری با curl</span><span class="ex-n" lang="en">Exercise 16 · Measuring with curl</span></div><p lang="fa">از <code>curl --compressed -o body</code> استفاده کرده‌ای و فایل خروجی تقریباً هم‌اندازهٔ JSON اصلی است. آیا این یعنی gzip هیچ صرفه‌جویی نداشته؟</p><p lang="en">You used <code>curl --compressed -o body</code> and the saved file is about as large as the original JSON. Does that mean gzip saved nothing?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه. <code>--compressed</code> بدنهٔ دریافتی را خودکار باز می‌کند؛ فایل ذخیره‌شده بازشده است، نه بایت‌های فشرده‌ای که روی شبکه رد شده‌اند. هدر خام را با <code>-D</code> بررسی کن و درخواست gzip را بدون <code>--compressed</code> در فایل جدا ذخیره کن؛ بعد <code>Content-Encoding</code> را هم تأیید کن.</p><p lang="en">No. <code>--compressed</code> automatically decodes the received body; the saved file is decoded, not the wire representation. Capture raw headers with <code>-D</code> and save a separate gzip request without <code>--compressed</code> before counting bytes; also verify <code>Content-Encoding</code>.</p></details></div>
+
+  <div class="ex" id="ex17"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۷ · directive ناشناخته</span><span class="ex-n" lang="en">Exercise 17 · Unknown directive</span></div><p lang="fa">روی لپ‌تاپ <code>brotli on;</code> کار می‌کند؛ روی VPS همان config با <code>unknown directive</code> رد می‌شود. چه چیزی را مقایسه می‌کنی؟</p><p lang="en">The config accepts <code>brotli on;</code> on your laptop, but the VPS rejects it as an unknown directive. What do you compare?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نسخه و build Nginx، بستهٔ ماژول در هر دو محیط، و دستورهای <code>load_module</code> را بررسی می‌کنم؛ بعد <code>nginx -t</code> را روی VPS می‌گیرم. Brotli این نمونه از ماژول جدا می‌آید و ممکن است نصب، فعال یا binary-compatible نباشد. حذف کورکورانهٔ directive شاید سرویس را بالا بیاورد، اما قابلیت را تأیید نمی‌کند.</p><p lang="en">Compare Nginx versions/builds, installed module packages, and <code>load_module</code> entries, then run <code>nginx -t</code> on the VPS. This Brotli setup comes from a separate module that may be absent, unloaded, or binary-incompatible. Blindly removing the directive may restore startup but does not verify the feature.</p></details></div>
+
+  <div class="ex" id="ex18"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۸ · گزارش رخداد انتشار</span><span class="ex-n" lang="en">Exercise 18 · Deployment incident report</span></div><p lang="fa">بلیت می‌گوید «HTML قدیمی است، JS تازه 404 می‌دهد، و روی پاسخ JSON هدر gzip نمی‌بینیم.» برای هر علامت یک مدرک اول و یک علت محتمل بنویس؛ راه‌اندازی دوباره را قدم اول نگذار.</p><p lang="en">The ticket says “HTML is stale, the new JS returns 404, and JSON has no gzip header.” For each symptom, name one first piece of evidence and one plausible cause; do not make restart the first step.</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">برای HTML، DevTools و <code>Cache-Control</code> را می‌بینم: ممکن است cache تازه باشد یا origin فایل دیگری بدهد. برای JS، status، URL داخل HTML، location برنده و وجود فایل زیر مسیر <code>root</code> را بررسی می‌کنم. برای JSON، <code>Content-Type</code>، طول، <code>Accept-Encoding</code> و <code>gzip_types</code> را می‌سنجم. هر مسیر را جدا ثابت می‌کنم و پس از اصلاح همان URL را دوباره آزمایش می‌کنم؛ راه‌اندازی دوباره هیچ‌کدام را به‌تنهایی تشخیص نمی‌دهد.</p><p lang="en">For HTML, inspect DevTools and <code>Cache-Control</code>: the cache may still be fresh, or the origin may serve another file. For JS, check status, the URL in HTML, the selected location, and file existence under <code>root</code>. For JSON, inspect <code>Content-Type</code>, length, <code>Accept-Encoding</code>, and <code>gzip_types</code>. Prove each path separately and retest the same URL after repair; a restart diagnoses none of them by itself.</p></details></div>
+</section>
+
+<section id="mission">
+  <h2><span lang="fa">ماموریت کوتاه: انتشار تازه، بدون HTML کهنه</span><span lang="en">Short mission: deploy fresh files without stale HTML</span></h2>
+  <p class="lede" lang="fa">همکارت می‌گوید بعد از انتشار، صفحهٔ قدیمی می‌ماند و یک فایل JavaScript هم 404 می‌شود. حالا که آزمایشگاه آماده است، از یک رخداد ساختگی به یک گزارش قابل‌بررسی برس: سرور اصلی چه پاسخی می‌دهد، چه چیزی در cache اعلام شده و کدام فایل واقعاً روی دیسک هست؟</p>
+  <p class="lede" lang="en">A teammate says the old page remains after deployment and a JavaScript file returns 404. With the lab ready, turn this simulated incident into a verifiable report: what does the origin return, what cache policy was announced, and which file is actually on disk?</p>
+  <ol>
+    <li><span lang="fa">نسخهٔ A را بگیر: <code>curl -I</code> برای صفحه و هر دو asset، و یک درخواست gzip برای <code>data.json</code>. هدرهای کلیدی و اندازهٔ دو بدنه را ثبت کن.</span><span lang="en">Capture version A: use <code>curl -I</code> for the page and both assets, plus a gzip request for <code>data.json</code>. Record key headers and both body sizes.</span></li>
+    <li><span lang="fa">قانون یک‌سالهٔ عمومی را عمداً بگذار و با درخواست تازه هدر HTML را دوباره بخوان. برای اینکه بفهمی مرورگر واقعاً چه کرده، همان URL را در DevTools و بخش Network بررسی کن؛ خروجی curl را به‌جای مشاهدهٔ browser cache جا نزن.</span><span lang="en">Apply the broad one-year rule deliberately and inspect the HTML headers with a fresh request. To see what a browser actually did, inspect the same URL in DevTools’ Network panel; do not treat curl output as browser-cache evidence.</span></li>
+    <li><span lang="fa">نسخهٔ B بساز: پیش از برداشتن bundle قدیمی، یک کپی از آن بیرون از <code>site</code> نگه دار. HTML را به نام fingerprint تازه وصل کن، فایل تازه را بساز و URL قبلی را آزمایش کن. علت احتمالی 404 را با هدر cache و محتوای HTML کنار هم بنویس.</span><span lang="en">Create version B: save the old bundle outside <code>site</code> before removing it. Point HTML at a new fingerprinted name, create the new file, and test the old URL. Explain the possible 404 using both the cache header and HTML content.</span></li>
+    <li><span lang="fa">قاعدهٔ عمومی را بردار. به <code>index.html</code>، <code>no-cache</code> بده و فقط به مسیر assetهای fingerprint‌شده عمر بلند و <code>immutable</code> بده. فایل قدیمی را برگردان تا clientای که هنوز HTML قبلی دارد، بین انتشارها asset بدون پاسخ نماند.</span><span lang="en">Remove the broad rule. Give <code>index.html</code> <code>no-cache</code>, and give only fingerprinted asset paths a long lifetime and <code>immutable</code>. Restore the old file so a client still holding old HTML is not left without its asset between deployments.</span></li>
+    <li><span lang="fa">با <code>nginx -t</code> و reload آزمایشگاه تغییر را اعمال کن. همان URLها را دوباره بگیر و فرق headerها، statusها و اندازه‌ها را ثبت کن؛ فقط «صفحه باز شد» برای اثبات کافی نیست.</span><span lang="en">Apply the change with <code>nginx -t</code> and a lab-only reload. Request the same URLs again and record changed headers, statuses, and sizes; “the page opened” alone is not proof.</span></li>
+  </ol>
+  <details class="capsule"><summary><span lang="fa">اگر گیر کردی، سرنخ‌ها را به‌ترتیب باز کن</span><span lang="en">If stuck, reveal these hints in order</span></summary><p lang="fa">اول URLای را پیدا کن که پاسخ نادرست برایش می‌آید. بعد از همان پاسخ، <code>Cache-Control</code> و <code>Content-Encoding</code> را جدا بخوان؛ یکی عمر/اعتبار cache را توصیف می‌کند و دیگری encoding بدنه را. سپس HTML را با URL فایل موجود روی دیسک مقایسه کن. پیش از حذف asset قدیمی کپی labای نگه دار، و فقط همان را بعد از اندازه‌گیری برگردان.</p><p lang="en">First identify the exact URL with the unexpected response. Then read <code>Cache-Control</code> and <code>Content-Encoding</code> separately: one describes cache freshness/validation; the other describes body encoding. Compare HTML with files actually on disk. Save a lab copy before removing an old asset and restore only that copy after measuring.</p></details>
+  <details class="ex-sol"><summary><span lang="fa">طرح پاسخ و معیار قبولی</span><span lang="en">Reference reasoning and acceptance criteria</span></summary><p lang="fa">گزارش قابل‌قبول سه چیز را جدا ثابت می‌کند: HTML با URL ثابت نباید بی‌دلیل یک سال تازه اعلام شود؛ فایل fingerprint‌شده را می‌توان با عمر بلند نگه داشت چون انتشار جدید URL دیگری دارد؛ و فایل قدیمی باید تا پایان بازهٔ سازگاری در دسترس بماند. پاسخ gzip نیز فقط وقتی ثابت است که <code>Content-Encoding: gzip</code>، <code>Vary: Accept-Encoding</code> و کاهش اندازهٔ بدنهٔ خام را دیده باشی. curl رفتار کش مرورگر را اثبات نمی‌کند؛ آن بخش را در DevTools گزارش کن.</p><p lang="en">A passing report proves three things separately: stable-URL HTML should not be declared fresh for a year without cause; a fingerprinted asset can have a long lifetime because a new deployment gets another URL; and the old file should remain available through the compatibility window. gzip is proven only when you observe <code>Content-Encoding: gzip</code>, <code>Vary: Accept-Encoding</code>, and a smaller raw response body. curl does not prove browser-cache behavior; report that observation from DevTools.</p></details>
+</section>
+
+<section id="cleanup">
+  <h2><span lang="fa">پیش از پاک‌سازی، مدرک را نگه دار</span><span lang="en">Keep the evidence before cleanup</span></h2>
+  <p class="lede" lang="fa">پیش از بستن ترمینال، پاسخ‌ها و اندازه‌ها را در گزارش کوتاهت ثبت کن. بعد پردازهٔ همین config را متوقف کن، مطمئن شو فایل PID حذف شده و مسیر پوشه دقیقاً همان آزمایش موقت است. فقط پس از خروج پردازه، پوشه را پاک کن.</p>
+  <p class="lede" lang="en">Before closing the terminal, save the headers and size comparison in your short report. Then stop the process for this config, confirm its PID file is gone, and verify that the directory is exactly the temporary lab. Remove the directory only after the process exits.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">stop only this lab and verify the exact cleanup target</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cleanup_lab() {
+  if [[ ! "$LAB_DIR" =~ ^/tmp/nginx-static\.[A-Za-z0-9]{6}$ ]] ||
+     [ -L "$LAB_DIR" ] || [ ! -f "$LAB_DIR/nginx.conf" ] ||
+     [ ! -d "$LAB_DIR/site" ]; then
+    echo "Unexpected lab path or contents; nothing removed: $LAB_DIR"
+    return 1
+  fi
+
+  nginx -s quit -p "$LAB_DIR/" -c nginx.conf || {
+    echo 'Nginx did not confirm shutdown; nothing removed.'
+    return 1
+  }
+  for i in {1..20}; do
+    [ ! -e "$LAB_DIR/logs/nginx.pid" ] &amp;&amp; break
+    sleep 0.25
+  done
+  if [ -e "$LAB_DIR/logs/nginx.pid" ]; then
+    echo 'PID file remains; inspect the process and retry later.'
+    return 1
+  fi
+
+  printf 'Verified cleanup target: %s\n' "$LAB_DIR"
+  rm -r -- "$LAB_DIR"
+}
+
+# Run only after saving the lab evidence:
+cleanup_lab</span></pre></div>
+  <p lang="fa">اگر PID هنوز وجود دارد، پاک‌سازی نکن؛ اول ببین master process تمام شده یا نه و خطای stop چه بوده. الگوی مسیر، نبودن پیوند نمادین و وجود فایل config و پوشهٔ site کمک می‌کنند مسیر اشتباه را هدف نگیری؛ بااین‌حال، پیش از پاک‌سازی خود مسیر را هم با چشم بررسی کن. اگر مسیر تو با الگوی نشان‌داده‌شده فرق دارد، آن را دستی بررسی کن و تا مطمئن نشده‌ای حذف نکن.</p>
+  <p lang="en">If the PID still exists, do not clean up; first determine whether the master process exited and why a stop may have failed. The path pattern, symlink check, and config/site checks help avoid the wrong target, but still inspect the exact directory before removal. If your path differs from the shown pattern, inspect it manually and do not remove it until certain.</p>
+</section>
+
+<section id="quick-reference">
+  <h2><span lang="fa">مرجع سریع: فایل، cache و encoding را قاطی نکن</span><span lang="en">Quick reference: keep files, caching, and encoding distinct</span></h2>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">نشانه</span><span lang="en">Signal</span></th><th><span lang="fa">پرسش</span><span lang="en">Question</span></th><th><span lang="fa">قدم بعدی</span><span lang="en">Next check</span></th></tr></thead><tbody>
+    <tr><td><code>Content-Type</code></td><td><span lang="fa">Nginx فایل را چه نوعی معرفی می‌کند؟</span><span lang="en">How does Nginx label this file?</span></td><td><span lang="fa">MIME map، فایل‌های includeشده و پاسخ واقعی را ببین.</span><span lang="en">Inspect the MIME map, included files, and actual response.</span></td></tr>
+    <tr><td><code>ETag</code> / <code>Last-Modified</code></td><td><span lang="fa">نسخهٔ ذخیره‌شده هنوز معتبر است؟</span><span lang="en">Is the stored version still valid?</span></td><td><span lang="fa">درخواست شرطی بفرست و 304 یا 200 را تفسیر کن.</span><span lang="en">Send a conditional request and interpret 304 or 200.</span></td></tr>
+    <tr><td><code>Cache-Control</code> / <code>Expires</code></td><td><span lang="fa">تا چه زمانی پاسخ تازه است یا باید بررسی شود؟</span><span lang="en">How long is it fresh, or when must it be checked?</span></td><td><span lang="fa">قاعدهٔ کش را با ثابت‌ماندن یا تغییرکردن نشانی فایل هماهنگ کن.</span><span lang="en">Match policy to whether that resource URL can change in place.</span></td></tr>
+    <tr><td><code>Content-Encoding</code></td><td><span lang="fa">بدنه با چه روشی فشرده شده؟</span><span lang="en">How was the body encoded?</span></td><td><span lang="fa">درخواست، نوع محتوا، آستانه و اندازهٔ خام را ببین.</span><span lang="en">Check request negotiation, MIME type, threshold, and raw size.</span></td></tr>
+    <tr><td><code>Vary: Accept-Encoding</code></td><td><span lang="fa">cacheها variant فشرده و عادی را جدا می‌کنند؟</span><span lang="en">Will caches distinguish compressed and identity variants?</span></td><td><span lang="fa"><code>gzip_vary on</code> و header پاسخ را بررسی کن.</span><span lang="en">Check <code>gzip_vary on</code> and the response header.</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa">این‌ها سه مسئله را جدا نگه می‌دارند: مسیر فایل و status می‌گویند چه چیزی سرو شد؛ cache headers می‌گویند کلاینت چه وقت باید برگردد؛ و encoding می‌گوید بدنه چطور از شبکه گذشت. هیچ‌کدام جای دیگری را ثابت نمی‌کند.</p>
+  <p lang="en">These keep three questions separate: file path and status tell us what was served; cache headers tell a client when to return; encoding tells us how the body crossed the network. None proves the others.</p>
+  <p lang="fa">منابع رسمی و مرجع: <a href="https://nginx.org/en/docs/http/ngx_http_core_module.html#root">root</a>، <a href="https://nginx.org/en/docs/http/ngx_http_index_module.html">index</a>، <a href="https://nginx.org/en/docs/http/ngx_http_core_module.html#try_files">try_files</a>، <a href="https://nginx.org/en/docs/http/ngx_http_core_module.html#etag">ETag</a>، <a href="https://nginx.org/en/docs/http/ngx_http_headers_module.html">expires و add_header</a> و <a href="https://nginx.org/en/docs/http/ngx_http_gzip_module.html">ماژول gzip</a>. برای رفتار HTTP cache، <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Caching">راهنمای caching</a> و <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Conditional_requests">درخواست شرطی</a>؛ برای قابلیت و نیازمندی‌های ماژول، <a href="https://github.com/google/ngx_brotli">مستند ngx_brotli</a> را ببین. جزئیات بسته و نسخهٔ نصب‌شده‌ات را جدا بررسی کن.</p>
+  <p lang="en">References: Nginx docs for <a href="https://nginx.org/en/docs/http/ngx_http_core_module.html#root">root</a>, <a href="https://nginx.org/en/docs/http/ngx_http_index_module.html">index</a>, <a href="https://nginx.org/en/docs/http/ngx_http_core_module.html#try_files">try_files</a>, <a href="https://nginx.org/en/docs/http/ngx_http_core_module.html#etag">ETag</a>, <a href="https://nginx.org/en/docs/http/ngx_http_headers_module.html">expires and add_header</a>, and the <a href="https://nginx.org/en/docs/http/ngx_http_gzip_module.html">gzip module</a>. For HTTP caching and conditional requests, see the <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Caching">caching guide</a> and <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Conditional_requests">conditional requests guide</a>; for module capabilities and requirements, see <a href="https://github.com/google/ngx_brotli">ngx_brotli documentation</a>. Check details against your installed package and version.</p>
+</section>
+
+<section id="next">
+  <h2><span lang="fa">فایل درست سرو می‌شود؛ اگر مقصد برنامه باشد چه؟</span><span lang="en">The file is served correctly; what if the destination is an application?</span></h2>
+  <p class="lede" lang="fa">حالا می‌توانی مسیر فایل، هدرهای cache و encoding پاسخ را از هم جدا کنی. اما شاید URI به فایل روی دیسک نرسد و باید به یک برنامهٔ در حال اجرا تحویل شود. در فصل بعد سراغ این مرز می‌رویم: Nginx درخواست را چگونه به upstream می‌فرستد، چه هدرهایی را عبور می‌دهد و از کجا می‌فهمیم پاسخ دیگر از خود فایل‌سیستم نیامده است.</p>
+  <p class="lede" lang="en">You can now distinguish filesystem paths, cache headers, and response encoding. But some URIs do not resolve to disk files; they must reach a running application. Next we will cross that boundary: how Nginx sends a request to an upstream, which headers it forwards, and how to tell that the response came from beyond the filesystem.</p>
+</section>

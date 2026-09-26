@@ -1,0 +1,362 @@
+<!--meta
+title: load balancing و upstream
+desc: سه نمونهٔ برنامه پشت یک نشانی، انتخاب مقصد با round-robin و least_conn، وزن‌دهی، ip_hash و تشخیص passive خرابی در Nginx متن‌باز.
+-->
+
+<div class="masthead">
+  <span class="eyebrow"><span class="dot"></span><span lang="fa">Nginx · فصل ۷</span><span lang="en">Nginx · Chapter 7</span></span>
+  <h1 lang="fa">load balancing و upstream</h1><h1 lang="en">Load balancing and upstreams</h1>
+  <p class="sub" lang="fa">حالا که برنامه پشت Nginx است، یک نمونهٔ دیگر هم بالا آورده‌ای. هر دو سالم‌اند؛ اما درخواست بعدی باید به کدام برسد؟ اگر یکی از کار بیفتد، Nginx از کجا می‌فهمد؟ با سه برنامهٔ کوچک جواب را از روی درخواست‌های واقعی پیدا می‌کنیم.</p>
+  <p class="sub" lang="en">Now that the app sits behind Nginx, you have brought up another instance. Both are healthy—but where should the next request go? If one fails, how would Nginx know? We will answer by watching real requests reach three tiny apps.</p>
+  <div class="facts"><div class="fact"><b>۷۵</b><span lang="fa">دقیقهٔ مطالعه</span><span lang="en">minutes</span></div><div class="fact"><b>۱۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></div><div class="fact"><b>۳</b><span lang="fa">نمودار</span><span lang="en">diagrams</span></div><div class="fact"><b>۳</b><span lang="fa">نمونهٔ برنامه</span><span lang="en">app instances</span></div></div>
+</div>
+
+<section id="one-address">
+  <h2><span lang="fa">سه برنامه، یک نشانی برای کاربر</span><span lang="en">Three apps, one address for the client</span></h2>
+  <p class="lede" lang="fa">در فصل قبل دیدیم Nginx درخواست را می‌گیرد و خودش به برنامه وصل می‌شود. حالا سه نمونه از همان برنامه داریم؛ هرکدام روی پورت خودش. اگر کاربر مجبور شود نشانی هر سه را بداند، چیزی حل نکرده‌ایم. او یک نشانی می‌خواهد و Nginx باید یکی از مقصدها را انتخاب کند.</p>
+  <p class="lede" lang="en">In the previous chapter, Nginx accepted a request and opened its own connection to an app. Now we have three instances of that app, each on its own port. If clients must know all three addresses, we have not solved the problem. They need one address; Nginx must choose a destination.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 1080 410" role="img" aria-labelledby="fanout-title" xmlns="http://www.w3.org/2000/svg">
+      <title id="fanout-title">One Nginx listener routes each request to one of three upstream instances / یک listener درخواست را به یکی از سه نمونهٔ upstream می‌فرستد</title>
+      <defs><marker id="lb-fanout-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow-b"/></marker></defs>
+      <rect x="32" y="142" width="205" height="112" rx="16" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/><text x="134" y="181" text-anchor="middle" class="dg-t">Client</text><text x="134" y="211" text-anchor="middle" class="dg-tm">one public URL</text>
+      <path d="M237 198H360" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#lb-fanout-arrow)"/>
+      <rect x="375" y="120" width="250" height="156" rx="18" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/><text x="500" y="162" text-anchor="middle" class="dg-t">Nginx</text><text x="500" y="193" text-anchor="middle" class="dg-tm">listener :8080</text><text x="500" y="223" text-anchor="middle" class="dg-ts">selects one peer per request</text>
+      <path d="M625 145H738V78H825" class="dg-stroke-b" stroke-width="2.2" marker-end="url(#lb-fanout-arrow)"/><path d="M625 198H825" class="dg-stroke-b" stroke-width="2.2" marker-end="url(#lb-fanout-arrow)"/><path d="M625 251H738V318H825" class="dg-stroke-b" stroke-width="2.2" marker-end="url(#lb-fanout-arrow)"/>
+      <rect x="840" y="38" width="208" height="80" rx="14" class="dg-fill-g" stroke="var(--safe)" stroke-width="1.7"/><text x="944" y="72" text-anchor="middle" class="dg-t">app-a</text><text x="944" y="98" text-anchor="middle" class="dg-tm">127.0.0.1:19091</text>
+      <rect x="840" y="158" width="208" height="80" rx="14" class="dg-fill-g" stroke="var(--safe)" stroke-width="1.7"/><text x="944" y="192" text-anchor="middle" class="dg-t">app-b</text><text x="944" y="218" text-anchor="middle" class="dg-tm">127.0.0.1:19092</text>
+      <rect x="840" y="278" width="208" height="80" rx="14" class="dg-fill-g" stroke="var(--safe)" stroke-width="1.7"/><text x="944" y="312" text-anchor="middle" class="dg-t">app-c</text><text x="944" y="338" text-anchor="middle" class="dg-tm">127.0.0.1:19093</text>
+      <text x="500" y="328" text-anchor="middle" class="dg-ts">upstream group: demo_apps</text>
+    </svg>
+    <p class="diagram-cap" lang="fa">هر فلش آبی یک مسیر ممکن برای یک درخواست است؛ سه فلش یعنی سه مقصد ممکن، نه اینکه درخواست در هر سه کپی شود. پاسخ از مقصد انتخاب‌شده به Nginx و سپس client برمی‌گردد.</p>
+    <p class="diagram-cap" lang="en">Each blue arrow is a possible route for a request; three arrows mean three destinations, not that a request is copied to all of them. The response returns through Nginx to the client.</p>
+  </div>
+  <p lang="fa">این گروه مقصدها در Nginx اسم دارد: <code>upstream</code>. بعد در <code>proxy_pass</code> به همان اسم اشاره می‌کنیم. انتخاب مقصد برای هر درخواست انجام می‌شود؛ قرار نیست کاربر مستقیم به پورت داخلی برنامه وصل شود.</p>
+  <p lang="en">Nginx gives this group of destinations a name: an <code>upstream</code>. We refer to that name in <code>proxy_pass</code>. Nginx selects a destination per request; clients do not connect directly to the apps’ internal ports.</p>
+</section>
+
+<section id="build-lab">
+  <h2><span lang="fa">قبل از انتخاب الگوریتم، مقصد را قابل‌شناسایی کن</span><span lang="en">Make each destination identifiable first</span></h2>
+  <p class="lede" lang="fa">اگر هر سه برنامه پاسخ یکسان بدهند، نمی‌فهمیم کدام جواب داده. برنامهٔ آزمایش نام نمونه‌اش را برمی‌گرداند. مسیر <code>/slow</code> هم کمی مکث می‌کند تا فرق تعداد درخواست و اتصال فعال را ببینیم.</p>
+  <p class="lede" lang="en">If all three apps return the same response, we cannot tell which one answered. Our test app returns its instance name. The <code>/slow</code> path waits briefly so we can distinguish request counts from active connections.</p>
+  <p lang="fa">آزمایشگاه در پوشه‌ای موقت و روی loopback می‌ماند: برنامه‌ها روی <code>19091</code> تا <code>19093</code> و Nginx روی <code>18084</code>. پیش از اجرا پورت‌ها را بررسی کن؛ اگر اشغال‌اند، آزمایش را روی آن‌ها اجرا نکن و شمارهٔ آزاد را در همه‌جا یکسان جایگزین کن.</p>
+  <p lang="en">Keep the lab in a temporary directory on loopback: apps on <code>19091</code> through <code>19093</code>, and Nginx on <code>18084</code>. Check the ports first; if occupied, do not use them and replace them consistently with free ports.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">check ports and create the disposable app</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">if command -v ss &gt;/dev/null; then
+  ss -ltn | grep -E ':(18084|19091|19092|19093)([[:space:]]|$)' || true
+elif command -v lsof &gt;/dev/null; then
+  lsof -nP -iTCP:18084 -iTCP:19091 -iTCP:19092 -iTCP:19093 -sTCP:LISTEN
+else
+  echo 'Use your OS network tool to check ports 18084 and 19091-19093.'
+fi
+LAB_DIR=$(mktemp -d /tmp/nginx-lb.XXXXXX)
+printf 'Lab directory: %s\n' "$LAB_DIR"
+mkdir -p "$LAB_DIR/pids"
+cat &gt; "$LAB_DIR/app.py" &lt;&lt;'PY'
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlsplit
+import sys
+import time
+
+name, port = sys.argv[1], int(sys.argv[2])
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        path = urlsplit(self.path).path
+        if path.endswith('/slow'):
+            time.sleep(1.5)
+        body = f"instance={name} path={self.path} peer={self.client_address[0]}\n".encode()
+        print(body.decode().strip(), flush=True)
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/plain; charset=utf-8')
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+ThreadingHTTPServer(('127.0.0.1', port), Handler).serve_forever()
+PY</span></pre></div>
+  <p lang="fa">این برنامه فقط پاسخ بی‌خطر می‌دهد؛ <code>/slow</code> چیزی را تغییر نمی‌دهد و فقط ۱٫۵ ثانیه صبر می‌کند. سه پردازه را جدا بالا می‌آوریم تا بتوانیم یکی را مستقل متوقف کنیم. خروجی <code>ps</code> را بخوان: هر نام باید PID خودش را داشته باشد.</p>
+  <p lang="en">This app returns harmless responses; <code>/slow</code> changes nothing and only waits 1.5 seconds. Start three separate processes so we can stop one independently. Check the <code>ps</code> output: each instance should have its own PID.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">start the three instances</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">python3 -u "$LAB_DIR/app.py" a 19091 &gt; "$LAB_DIR/a.log" 2&gt;&amp;1 &amp;
+echo $! &gt; "$LAB_DIR/pids/a.pid"
+python3 -u "$LAB_DIR/app.py" b 19092 &gt; "$LAB_DIR/b.log" 2&gt;&amp;1 &amp;
+echo $! &gt; "$LAB_DIR/pids/b.pid"
+python3 -u "$LAB_DIR/app.py" c 19093 &gt; "$LAB_DIR/c.log" 2&gt;&amp;1 &amp;
+echo $! &gt; "$LAB_DIR/pids/c.pid"
+sleep 0.5
+ps -p "$(cat "$LAB_DIR/pids/a.pid")" -o pid=,command=
+ps -p "$(cat "$LAB_DIR/pids/b.pid")" -o pid=,command=
+ps -p "$(cat "$LAB_DIR/pids/c.pid")" -o pid=,command=</span>
+<span class="s">2410 python3 -u /tmp/nginx-lb.K4m2Qx/app.py a 19091
+2411 python3 -u /tmp/nginx-lb.K4m2Qx/app.py b 19092
+2412 python3 -u /tmp/nginx-lb.K4m2Qx/app.py c 19093</span></pre></div>
+  <p lang="fa">PID و نام پوشه در سیستم تو فرق می‌کنند. به هر نمونه مستقیم درخواست بده؛ این کار ثابت می‌کند هر سه مقصد پاسخ‌گو هستند، اما هنوز چیزی دربارهٔ انتخاب Nginx نمی‌گوید.</p>
+  <p lang="en">Your PIDs and directory name will differ. Request each instance directly. This proves all three destinations respond, but says nothing yet about Nginx’s selection.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">prove each backend works first</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">for port in 19091 19092 19093; do
+  curl -sS "http://127.0.0.1:$port/direct"
+done</span>
+<span class="s">instance=a path=/direct peer=127.0.0.1
+instance=b path=/direct peer=127.0.0.1
+instance=c path=/direct peer=127.0.0.1</span></pre></div>
+  <p lang="fa">اگر یکی جواب نداد، log و پورت همان نمونه را بررسی کن، نه الگوریتم را. Nginx نمی‌تواند برنامه‌ای را که اصلاً گوش نمی‌دهد سالم کند.</p>
+  <p lang="en">If one does not answer, inspect that instance’s log and port, not the algorithm. Nginx cannot make an app that is not listening healthy.</p>
+</section>
+
+<section id="round-robin">
+  <h2><span lang="fa">اولین انتخاب: نوبتی، با وزن برابر</span><span lang="en">First choice: rotate across equal peers</span></h2>
+  <p class="lede" lang="fa">سه مقصد مستقیم جواب می‌دهند. اگر Nginx دلیل دیگری نداشته باشد، درخواست را چطور پخش می‌کند؟ روش پیش‌فرض گروه upstream، weighted round-robin است؛ چون وزن‌ها برابرند، نتیجه شبیه نوبتی برابر می‌شود.</p>
+  <p class="lede" lang="en">All three destinations answer directly. With no other signal, how will Nginx distribute requests? The default upstream method is weighted round-robin; with equal weights, it looks like an even rotation.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">configure one listener and one named group</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cat &gt; "$LAB_DIR/nginx.conf" &lt;&lt;'NGINX'
+worker_processes 1;
+pid logs/nginx.pid;
+error_log logs/error.log notice;
+events { worker_connections 128; }
+
+http {
+    log_format upstream '$request status=$status peer=$upstream_addr time=$upstream_response_time';
+    access_log logs/access.log upstream;
+    upstream demo_round_robin {
+        server 127.0.0.1:19091 max_fails=1 fail_timeout=8s;
+        server 127.0.0.1:19092 max_fails=1 fail_timeout=8s;
+        server 127.0.0.1:19093 max_fails=1 fail_timeout=8s;
+    }
+    server {
+        listen 127.0.0.1:18084;
+        server_name _;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 2s;
+        proxy_read_timeout 5s;
+        proxy_next_upstream error timeout http_502 http_503 http_504;
+        proxy_next_upstream_tries 3;
+        location / { proxy_pass http://demo_round_robin; }
+    }
+}
+NGINX
+mkdir -p "$LAB_DIR/logs"
+nginx -t -p "$LAB_DIR/" -c nginx.conf</span>
+<span class="s">nginx: the configuration file .../nginx.conf syntax is ok
+nginx: configuration file .../nginx.conf test is successful</span></pre></div>
+  <p lang="fa">Nginx config را هنگام start یا reload می‌خواند. <code>-t</code> نحو را می‌سنجد، نه آماده‌بودن upstream را؛ آن را با درخواست می‌آزماییم. listener فقط روی <code>127.0.0.1</code> است تا endpoint آزمایش عمومی نشود.</p>
+  <p lang="en">Nginx reads the config at start or reload. <code>-t</code> checks syntax, not upstream readiness; we will test that with a request. The listener binds only to <code>127.0.0.1</code>, keeping the lab endpoint private.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">send repeated requests and inspect the instance name</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">nginx -p "$LAB_DIR/" -c nginx.conf
+for i in {1..9}; do
+  curl -sS "http://127.0.0.1:18084/whoami?request=$i"
+done
+tail -n 6 "$LAB_DIR/logs/access.log"</span>
+<span class="s">instance=a path=/whoami?request=1 peer=127.0.0.1
+instance=b path=/whoami?request=2 peer=127.0.0.1
+instance=c path=/whoami?request=3 peer=127.0.0.1
+GET /whoami?request=1 HTTP/1.1 status=200 peer=127.0.0.1:19091 time=0.001
+GET /whoami?request=2 HTTP/1.1 status=200 peer=127.0.0.1:19092 time=0.001
+... (representative; exact ordering can vary)</span></pre></div>
+  <p lang="fa">نام‌های <code>a</code> تا <code>c</code> نشان می‌دهند کدام نمونه پاسخ داده و <code>$upstream_addr</code> peer ثبت‌شده را. این دستهٔ کوچک چرخش را نشان می‌دهد؛ قول نمی‌دهد در هر بازه تعداد hitها دقیقاً برابر باشد. درخواست‌های کند، وزن‌ها و خرابی مقصد توزیع را عوض می‌کنند. log هم درستی body را ثابت نمی‌کند؛ پاسخ برنامه را کنار آن بخوان.</p>
+  <p lang="en">The names <code>a</code> through <code>c</code> show which instance answered, while <code>$upstream_addr</code> records the peer. This small batch shows rotation; it does not promise exactly equal hits in every window. Slow requests, weights, and failed peers change distribution. The log does not prove the body is correct; read the app response too.</p>
+  <p lang="fa\">درخواست با اتصال TCP ماندگار یکی نیست؛ Nginx peer را برای هر درخواست انتخاب می‌کند. اگر نتیجه متفاوت است، اول reload و access log را بررسی کن و بعد همان URL را دوباره بفرست.</p>
+
+
+<section id="weights">
+  <h2><span lang="fa">همهٔ مقصدها توان یکسان ندارند</span><span lang="en">Not every backend has the same capacity</span></h2>
+  <p class="lede" lang="fa">یک نمونه قوی‌تر است و دو نمونه کوچک‌ترند. چرخش برابر از هرکدام سهم یکسان می‌خواهد؛ اگر ظرفیت فرق دارد، می‌توانی وزن بدهی. وزن یعنی سهم نسبی در انتخاب، نه درصد تضمین‌شده در هر دقیقه.</p>
+  <p class="lede" lang="en">One instance is stronger and two are smaller. Equal rotation asks each to take the same share; when capacities differ, you can assign weights. A weight is a relative selection share, not a guaranteed percentage in every minute.</p>
+  <p lang="fa">فقط تعریف گروه را عوض می‌کنیم: برای <code>a</code> وزن ۳ و برای دو نمونهٔ دیگر وزن ۱. در ۱۰ درخواست کوتاه انتظار داریم <code>a</code> سهم بیشتری بگیرد. نتیجهٔ دستهٔ کوچک را قانون قطعی ندان؛ config، reload، log و شمار بیشتری درخواست را بررسی کن.</p>
+  <p lang="en">Change only the group: give <code>a</code> weight 3 and leave the others at 1. Across ten short requests, we expect <code>a</code> to receive a larger share. Do not turn a small batch into a universal rule; check the config, reload, logs, and a larger sample.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">weight peers, reload, and count responses</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k"># Replace only the demo_round_robin block with:
+    upstream demo_round_robin {
+        server 127.0.0.1:19091 weight=3 max_fails=1 fail_timeout=8s;
+        server 127.0.0.1:19092 weight=1 max_fails=1 fail_timeout=8s;
+        server 127.0.0.1:19093 weight=1 max_fails=1 fail_timeout=8s;
+    }
+
+nginx -t -p "$LAB_DIR/" -c nginx.conf &amp;&amp; \
+  nginx -s reload -p "$LAB_DIR/" -c nginx.conf
+for i in {1..10}; do
+  curl -sS "http://127.0.0.1:18084/weighted?request=$i"
+done | sed -E 's/instance=([^ ]+).*/\1/' | sort | uniq -c</span>
+<span class="s">      6 a
+      2 b
+      2 c</span></pre></div>
+  <p lang="fa">نمونه با نسبت <code>3:1:1</code> جور است؛ وزن ظرفیت واقعی یا حد اتصال را نمی‌سنجد. اگر شمارش تو فرق کرد، از ده درخواست قانون نساز؛ مطمئن شو Nginx reload شده و peer ناموفق یا درخواست هم‌زمان در کار نبوده است.</p>
+  <p lang="en">The sample matches a <code>3:1:1</code> ratio, but weight measures neither actual capacity nor a connection limit. If your counts differ, do not make a rule from ten requests; confirm Nginx reloaded and no peer failure or concurrency affected the batch.</p>
+  <div class="note safe"><div class="note-t"><span lang="fa">وزن را با نیاز واقعی تنظیم کن</span><span lang="en">Choose weights for a real reason</span></div><p lang="fa">وزن بیشتر ورودی بیشتری می‌سازد، نه منابع بیشتر. بعد از تغییر اندازهٔ سرورها یا نوع درخواست‌ها، توزیع و زمان پاسخ را دوباره اندازه بگیر؛ عدد مناسب امروز ممکن است بعداً گلوگاه شود.</p><p lang="en">A higher weight sends more work; it does not add resources. After changing server sizes or request mix, measure distribution and response time again; a useful number today can later become a bottleneck.</p></div>
+</section>
+
+<section id="least-conn">
+  <h2><span lang="fa">اگر مهم باشد اتصال‌ها چقدر باز می‌مانند چه؟</span><span lang="en">What if connection duration matters?</span></h2>
+  <p class="lede" lang="fa">round-robin نمی‌داند هر درخواست چند ثانیه طول می‌کشد. اگر یک نمونه هنوز چند اتصال کند را نگه داشته، نوبت بعدی ممکن است باز هم به آن برسد. <code>least_conn</code> تعداد اتصال‌های فعالی را که Nginx برای هر peer می‌بیند در انتخاب دخالت می‌دهد.</p>
+  <p class="lede" lang="en">Round-robin does not know how long each request will take. If one instance is holding several slow connections, the next turn may still go there. <code>least_conn</code> considers the active connections Nginx sees for each peer.</p>
+  <p lang="fa">این معیار CPU، پاسخ سالم‌تر یا صف داخلی برنامه نیست؛ فقط اتصال‌های فعال را مقایسه می‌کند. برای دیدنش، گروه را به <code>least_conn</code> تغییر بده و ۹ درخواست <code>/slow</code> را هم‌زمان بفرست؛ هرکدام فقط ۱٫۵ ثانیه مکث دارند. توزیع دقیق به زمان ورود درخواست‌ها بستگی دارد.</p>
+  <p lang="en">This is not CPU, response health, or the app’s internal queue; it compares active connections only. To observe it, change the group to <code>least_conn</code> and send nine <code>/slow</code> requests concurrently; each waits only 1.5 seconds. Exact distribution depends on arrival timing.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">compare active connections under a bounded burst</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k"># Add least_conn; inside demo_round_robin and reset all weights to 1.
+nginx -t -p "$LAB_DIR/" -c nginx.conf &amp;&amp; \
+  nginx -s reload -p "$LAB_DIR/" -c nginx.conf
+for i in {1..9}; do
+  (curl -sS "http://127.0.0.1:18084/slow?request=$i" &gt; "$LAB_DIR/slow.$i") &amp;
+done
+wait
+cat "$LAB_DIR"/slow.* | sed -E 's/instance=([^ ]+).*/\1/' | sort | uniq -c
+tail -n 9 "$LAB_DIR/logs/access.log"</span>
+<span class="s">      3 a
+      3 b
+      3 c
+... (representative counts; peer order may vary)</span></pre></div>
+  <p lang="fa">انتظار داریم درخواست‌های کند بین نمونه‌ها پخش شوند، نه اینکه حتماً نسبت دقیق ۳-۳-۳ ببینیم؛ درخواست‌ها دقیقاً هم‌زمان نمی‌رسند. اگر همه فوری باشند، اتصال قبلی ممکن است پیش از انتخاب بعدی بسته شود و تفاوتی نبینی. مقصد ثبت‌شده را بخوان و دربارهٔ latency فقط با اندازه‌گیری بار واقعی نتیجه بگیر.</p>
+  <p lang="en">We expect slow requests to spread, not necessarily an exact 3-3-3 split; arrivals are not perfectly simultaneous. With immediate requests, the previous connection may close before the next selection and the difference may be invisible. Read the recorded peer, and draw latency conclusions only from real load measurements.</p>
+  <p lang="fa">اگر weight هم فعال باشد، <code>least_conn</code> آن را در انتخاب دخالت می‌دهد. این directive نمی‌گوید کدام نمونه CPU آزادتر دارد یا در صف داخلی‌اش چند کار مانده؛ الگوریتم جای آزمون ظرفیت نیست.</p>
+  <p lang="en">If weights are also configured, <code>least_conn</code> accounts for them. It does not know which instance has more free CPU or how many jobs are queued inside it; a balancing method is not a capacity test.</p>
+</section>
+
+<section id="ip-hash">
+  <h2><span lang="fa">چرا درخواست‌های یک نفر گاهی باید به همان نمونه برسند؟</span><span lang="en">Why might one client need the same instance?</span></h2>
+  <p class="lede" lang="fa">یک برنامهٔ قدیمی session را فقط در حافظهٔ همان پردازه نگه می‌دارد. کاربر وارد شده؛ درخواست بعدی به نمونهٔ دیگری می‌رود و آن نمونه او را ناشناس می‌شناسد. تا وقتی برنامه بازطراحی شود، شاید بخواهی درخواست‌های یک IP را به مقصد باثبات‌تری بفرستی.</p>
+  <p class="lede" lang="en">An older app stores sessions only in its own process memory. A user signs in, but the next request lands on another instance that treats them as anonymous. Until the app is redesigned, you may want requests from one IP to reach a more stable peer.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 1040 320" role="img" aria-labelledby="ip-hash-title" xmlns="http://www.w3.org/2000/svg">
+      <title id="ip-hash-title">ip_hash maps the address Nginx sees to a peer, with affinity caveats / ip_hash نشانی‌ای را که Nginx می‌بیند به یک مقصد نگاشت می‌کند، با محدودیت‌های چسبندگی</title>
+      <defs><marker id="ip-hash-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10Z" class="dg-arrow-b"/></marker></defs>
+      <rect x="35" y="70" width="245" height="104" rx="16" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/><text x="157" y="108" text-anchor="middle" class="dg-t">Client / NAT</text><text x="157" y="140" text-anchor="middle" class="dg-tm">address seen by Nginx</text>
+      <path d="M280 122H386" class="dg-stroke-b" stroke-width="2.3" marker-end="url(#ip-hash-arrow)"/>
+      <rect x="402" y="70" width="232" height="104" rx="16" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/><text x="518" y="108" text-anchor="middle" class="dg-t">ip_hash</text><text x="518" y="140" text-anchor="middle" class="dg-ts">address → selected peer</text>
+      <path d="M634 122H729" class="dg-stroke-b" stroke-width="2.3" marker-end="url(#ip-hash-arrow)"/>
+      <rect x="745" y="70" width="250" height="104" rx="16" class="dg-fill-g" stroke="var(--safe)" stroke-width="2"/><text x="870" y="108" text-anchor="middle" class="dg-t">app-b</text><text x="870" y="140" text-anchor="middle" class="dg-tm">same mapping while available</text>
+      <rect x="92" y="221" width="856" height="58" rx="12" class="dg-fill-w" stroke="var(--warn)" stroke-width="1.5"/><text x="520" y="246" text-anchor="middle" class="dg-ts">NAT can group users · peer failure can change the mapping</text><text x="520" y="266" text-anchor="middle" class="dg-ts">session state is still local</text>
+    </svg>
+    <p class="diagram-cap" lang="fa">نشانی‌ای که Nginx به‌عنوان client می‌بیند کلید انتخاب می‌شود. چند کاربر پشت NAT ممکن است یک کلید مشترک داشته باشند؛ اگر مقصد از دسترس خارج شود، چسبندگی هم می‌تواند تغییر کند.</p>
+    <p class="diagram-cap" lang="en">The client address Nginx sees becomes the selection key. Users behind the same NAT may share a key; if the peer becomes unavailable, affinity can change too.</p>
+  </div>
+  <p lang="fa">با <code>ip_hash</code>، همان IPای که Nginx می‌بیند به همان peer نگاشت می‌شود، مگر آن peer در دسترس نباشد. در IPv4 سه بخش اول نشانی و در IPv6 کل نشانی به کار می‌رود. در آزمایش ما همهٔ درخواست‌های curl از <code>127.0.0.1</code> می‌آیند، پس انتظار داریم به یک نمونه برسند.</p>
+  <p lang="en">With <code>ip_hash</code>, the same IP as seen by Nginx maps to the same peer unless it is unavailable. IPv4 uses its first three octets; IPv6 uses the full address. In our lab every curl request comes from <code>127.0.0.1</code>, so we expect one instance to be selected.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">try simple client-IP affinity</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k"># Replace the upstream block with ip_hash; then test:
+    upstream demo_round_robin {
+        ip_hash;
+        server 127.0.0.1:19091 max_fails=1 fail_timeout=8s;
+        server 127.0.0.1:19092 max_fails=1 fail_timeout=8s;
+        server 127.0.0.1:19093 max_fails=1 fail_timeout=8s;
+    }
+nginx -t -p "$LAB_DIR/" -c nginx.conf &amp;&amp; \
+  nginx -s reload -p "$LAB_DIR/" -c nginx.conf
+for i in {1..6}; do
+  curl -sS "http://127.0.0.1:18084/session?request=$i"
+done</span>
+<span class="s">instance=b path=/session?request=1 peer=127.0.0.1
+instance=b path=/session?request=2 peer=127.0.0.1
+... (the selected instance may differ)</span></pre></div>
+  <p lang="fa">ثابت‌ماندن نمونه فقط می‌گوید همین IP با این گروه یک انتخاب ثابت داده است؛ sticky cookie نداریم و session میان برنامه‌ها کپی نشده. NAT، تغییر IP یا خرابی peer نتیجه را عوض می‌کند. در طراحی تازه بهتر است session بیرون از حافظهٔ یک نمونه باشد تا affinity شرط کارکرد نباشد.</p>
+  <p lang="en">A stable instance proves only that this IP maps consistently with this group; there is no sticky cookie and sessions were not copied between apps. NAT, an IP change, or peer failure can change the result. A new design should keep sessions outside one instance’s memory so affinity is not required for correctness.</p>
+  <div class="note warn"><div class="note-t"><span lang="fa">چسبندگی می‌تواند ایراد معماری را پنهان کند</span><span lang="en">Affinity can hide an architectural problem</span></div><p lang="fa">اگر session فقط وقتی پیدا می‌شود که کاربر به همان نمونه برگردد، از دست‌رفتن یا جایگزینی آن نمونه مشکل را برمی‌گرداند. <code>ip_hash</code> ذخیره‌سازی مشترک نمی‌سازد و تداوم session را تضمین نمی‌کند؛ فقط سیاست انتخاب را عوض می‌کند.</p><p lang="en">If a session exists only when a user returns to the same instance, losing or replacing it brings the problem back. <code>ip_hash</code> creates no shared storage and does not guarantee session continuity; it only changes peer selection.</p></div>
+</section>
+</section>
++
+
+<section id="passive-health">
+  <h2><span lang="fa">وقتی نمونه‌ای می‌میرد، Nginx چه چیزی می‌فهمد؟</span><span lang="en">When an instance dies, what can Nginx know?</span></h2>
+  <p class="lede" lang="fa">یک نفر پردازهٔ <code>app-b</code> را متوقف کرده و کاربر گاهی 502 می‌بیند. قبل از اینکه بگوییم «Nginx خودش همه‌چیز را می‌فهمد»، بپرسیم خرابی چه زمانی برایش قابل‌مشاهده می‌شود: وقتی درخواست واقعی به آن نمونه می‌رسد و ارتباط شکست می‌خورد.</p>
+  <p class="lede" lang="en">Someone stopped <code>app-b</code>, and users sometimes see a 502. Before saying “Nginx figures everything out,” ask when the failure becomes visible: when a real request reaches that instance and communication fails.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 1060 310" role="img" aria-labelledby="passive-health-title" xmlns="http://www.w3.org/2000/svg">
+      <title id="passive-health-title">Open-source Nginx detects peer failures through live requests; active checks are separate / Nginx متن‌باز شکست peer را در درخواست واقعی می‌بیند؛ active check جداست</title>
+      <defs><marker id="passive-arrow\" markerWidth=\"10\" markerHeight=\"10\" refX=\"8\" refY=\"5\" orient=\"auto\"><path d=\"M0 0L10 5L0 10Z\" class=\"dg-arrow-b\"/></marker></defs>
+      <rect x=\"30\" y=\"75\" width=\"190\" height=\"96\" rx=\"15\" class=\"dg-fill-b\" stroke=\"var(--blue)\" stroke-width=\"2\"/><text x=\"125\" y=\"112\" text-anchor=\"middle\" class=\"dg-t\">real request</text><text x=\"125\" y=\"142\" text-anchor=\"middle\" class=\"dg-ts\">reaches Nginx</text>
+      <path d=\"M220 123H278\" class=\"dg-stroke-b\" stroke-width=\"2\" marker-end=\"url(#passive-arrow)\"/>
+      <rect x=\"294\" y=\"75\" width=\"196\" height=\"96\" rx=\"15\" class=\"dg-fill-v\" stroke=\"var(--violet)\" stroke-width=\"2\"/><text x=\"392\" y=\"112\" text-anchor=\"middle\" class=\"dg-t\">peer attempt fails</text><text x=\"392\" y=\"142\" text-anchor=\"middle\" class=\"dg-ts\">connect / timeout</text>
+      <path d=\"M490 123H548\" class=\"dg-stroke-b\" stroke-width=\"2\" marker-end=\"url(#passive-arrow)\"/>
+      <rect x=\"564\" y=\"75\" width=\"212\" height=\"96\" rx=\"15\" class=\"dg-fill-w\" stroke=\"var(--warn)\" stroke-width=\"2\"/><text x=\"670\" y=\"112\" text-anchor=\"middle\" class=\"dg-t\">failure is counted</text><text x=\"670\" y=\"142\" text-anchor=\"middle\" class=\"dg-ts\">max_fails / fail_timeout</text>
+      <path d=\"M776 123H834\" class=\"dg-stroke-b\" stroke-width=\"2\" marker-end=\"url(#passive-arrow)\"/>
+      <rect x=\"850\" y=\"75\" width=\"180\" height=\"96\" rx=\"15\" class=\"dg-fill-g\" stroke=\"var(--safe)\" stroke-width=\"2\"/><text x=\"940\" y=\"112\" text-anchor=\"middle\" class=\"dg-ts\">avoid this peer</text><text x=\"940\" y=\"142\" text-anchor=\"middle\" class=\"dg-ts\">for a while</text>
+      <rect x=\"188\" y=\"220\" width=\"684\" height=\"56\" rx=\"12\" class=\"dg-fill\" stroke=\"var(--line-strong)\" stroke-width=\"1.5\"/><text x=\"530\" y=\"254\" text-anchor=\"middle\" class=\"dg-ts\">No independent HTTP probe here · active health_check is an NGINX Plus feature</text>
+    </svg>
+    <p class="diagram-cap" lang="fa">ردیف بالا مسیر passive است: درخواست زنده خطای ارتباط را آشکار می‌کند و تنظیم‌های server تعیین می‌کنند peer چه مدت کنار گذاشته شود. جعبهٔ پایین یادآوری می‌کند که این کار probe مستقل و دوره‌ای نیست.</p>
+    <p class="diagram-cap" lang="en">The top row is passive: a live request exposes a communication failure, and server parameters determine how long the peer is avoided. The lower callout reminds us this is not an independent periodic probe.</p>
+  </div>
+  <p lang="fa">در Nginx متن‌باز، بررسی upstream به‌صورت passive است: شکست درخواست واقعی شمرده می‌شود. <code>max_fails</code> تعداد شکست‌ها در بازهٔ <code>fail_timeout</code> را تعیین می‌کند؛ پس از رسیدن به حد، peer برای مدت <code>fail_timeout</code> نامناسب در نظر گرفته می‌شود. بعد از آن، یک درخواست واقعی دوباره فرصت امتحانش را می‌دهد؛ probe پس‌زمینه‌ای HTTP خودکار اجرا نمی‌شود.</p>
+  <p lang="en">Open-source Nginx uses passive upstream failure checks: failures from real requests are counted. <code>max_fails</code> sets the number of unsuccessful attempts within the <code>fail_timeout</code> window; after the threshold, the peer is considered unavailable for <code>fail_timeout</code>. After that, a real request can try it again; no background HTTP probe runs automatically.</p>
+  <p lang="fa">چه خطایی شمرده شود به <code>proxy_next_upstream</code> مربوط است. پیکربندی ما ارتباط ناموفق، timeout و چند status را برای retry تعریف کرده و تا سه تلاش اجازه می‌دهد. این آزمایش فقط GET بی‌خطر است؛ retry یک POST غیرقابل‌تکرار ممکن است اثر جانبی را دوباره اجرا کند، پس directive را کورکورانه کپی نکن.</p>
+  <p lang="en">Which failures count depends on <code>proxy_next_upstream</code>. Our config allows retries for communication errors, timeouts, and selected statuses, with up to three attempts. This lab uses harmless GETs; retrying a non-idempotent POST can repeat a side effect, so do not copy the directive blindly.</p>
+  <p lang="fa">خرابی را بازتولید می‌کنیم، اما اول PID نمونهٔ <code>b</code> و فرمانش را می‌خوانیم. فقط اگر همان فایل آزمایش را اجرا می‌کند متوقفش کن. پاسخ مستقیم باید شکست بخورد؛ درخواست Nginx می‌تواند با retry روی peer دیگری موفق شود. اگر PID جور نبود، متوقف نشو و چیزی را دست نزن.</p>
+  <p lang="en">We will reproduce the failure, but first inspect instance <code>b</code>’s PID and command. Stop it only if it runs this lab’s script. The direct request should fail; Nginx may succeed by retrying another peer. If the PID does not match, stop and leave it alone.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">stop only verified app-b; compare direct and proxied paths</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">APP_B_PID=$(cat "$LAB_DIR/pids/b.pid")
+APP_B_COMMAND=$(ps -p "$APP_B_PID" -o command= 2&gt;/dev/null || true)
+printf 'PID=%s\n%s\n' "$APP_B_PID" "$APP_B_COMMAND"
+case "$APP_B_COMMAND" in
+  *"$LAB_DIR/app.py b 19092"*) kill -TERM "$APP_B_PID" ;;
+  *) echo 'PID does not match app-b; stop here and investigate.' ;;
+esac
+sleep 0.3
+curl --max-time 1 -i http://127.0.0.1:19092/direct || true
+for i in {1..6}; do
+  curl -sS --max-time 3 "http://127.0.0.1:18084/after-stop?request=$i" || true
+done
+tail -n 12 "$LAB_DIR/logs/error.log"
+tail -n 12 "$LAB_DIR/logs/access.log"</span>
+<span class="s">curl: (7) Failed to connect to 127.0.0.1 port 19092 ...
+instance=a path=/after-stop?request=1 peer=127.0.0.1
+instance=c path=/after-stop?request=2 peer=127.0.0.1
+... (representative; peer order depends on the algorithm)
+connect() failed (111: Connection refused) while connecting to upstream
+... peer=127.0.0.1:19092, 127.0.0.1:19091 status=200 ...</span></pre></div>
+  <p lang="fa">در مدرک، درخواست مستقیم پورت <code>19092</code> رد شده؛ error log تلاش ناموفق را ثبت کرده و access log ممکن است peer خراب و جایگزین را کنار هم نشان دهد. درخواست بعدی معمولاً از نمونهٔ سالم پاسخ می‌گیرد؛ اگر همهٔ مقصدها خراب باشند یا retry تمام شود، کاربر خطا می‌بیند. پس از ۸ ثانیه ممکن است Nginx با درخواست واقعی <code>b</code> را دوباره بیازماید.</p>
+  <p lang="en">The evidence shows the direct request to port <code>19092</code> was refused; the error log records the failed attempt and the access log may show both failed and replacement peers. A later request usually gets a healthy response; if every peer is broken or retries are exhausted, the client sees an error. After eight seconds, a real request may try <code>b</code> again.</p>
+  <p lang="fa">این active health check نیست. پردازه می‌تواند زنده باشد ولی پاسخ نادرست بدهد؛ حتی endpoint سلامت ممکن است <code>200</code> بدهد درحالی‌که پایگاه‌داده قطع است. قابلیت HTTP <code>health_check</code> در upstream در مستند NGINX Plus آمده، نه به‌عنوان دستور عمومی Nginx متن‌باز. اگر آن را به config سادهٔ OSS اضافه کنی، با <code>unknown directive</code> روبه‌رو می‌شوی.</p>
+  <p lang="en">This is not an active health check. A process can be alive but return the wrong response; even its health endpoint may return <code>200</code> while the database is disconnected. The upstream HTTP <code>health_check</code> feature is documented for NGINX Plus, not as a general open-source directive. Adding it to a basic OSS config can produce <code>unknown directive</code>.</p>
+  <p lang="fa">حتی statusی که در retry شمرده می‌شود، معادل سلامت کامل سرویس نیست. اگر می‌خواهی <code>503</code> مقصد را کنار بگذارد، باید status در سیاست باشد و اثر تکرار درخواست را بفهمی. برای write واقعی، idempotency و قرارداد برنامه را پیش از retry بررسی کن.</p>
+  <p lang="en">Even a status counted for retry is not equivalent to full service health. To avoid a peer after <code>503</code>, that status must be in the policy and you must understand replay consequences. Before retrying a real write, verify idempotency and the app contract.</p>
+</section>
+
+<section id="choose">
+  <h2><span lang="fa">یک الگوریتم خوب برای همه نداریم</span><span lang="en">There is no best algorithm for every app</span></h2>
+  <p class="lede" lang="fa">تا اینجا هر انتخاب را با یک مسئله سنجیدیم: پیش‌فرض ساده، ظرفیت نامساوی، اتصال‌های متفاوت یا نیاز موقت به affinity. این جدول نسخهٔ حفظ‌کردنی نیست؛ می‌پرسد هر روش از چه نشانه‌ای استفاده می‌کند و چه چیزی را تضمین نمی‌کند.</p>
+  <p class="lede" lang="en">We matched each choice to a problem: a simple default, unequal capacity, varying connection duration, or temporary affinity. This is not a memorization table; it asks what signal each method uses and what it cannot guarantee.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">روش</span><span lang="en">Method</span></th><th><span lang="fa">نشانهٔ مورد استفاده</span><span lang="en">Signal used</span></th><th><span lang="fa">کجا کمک می‌کند؟</span><span lang="en">Where it can help</span></th><th><span lang="fa">چه چیزی را تضمین نمی‌کند؟</span><span lang="en">What it does not guarantee</span></th></tr></thead><tbody>
+    <tr><td><code>round-robin</code></td><td><span lang="fa">نوبت میان peerها؛ پیش‌فرض weight برابر است</span><span lang="en">Rotation across peers; weights default to equal</span></td><td><span lang="fa">درخواست‌های شبیه و مقصدهای هم‌ظرفیت</span><span lang="en">Similar requests and similarly sized peers</span></td><td><span lang="fa">شمار دقیق در هر بازه یا latency برابر</span><span lang="en">Exact counts in every window or equal latency</span></td></tr>
+    <tr><td><code>weight</code></td><td><span lang="fa">سهم نسبی در انتخاب</span><span lang="en">Relative selection share</span></td><td><span lang="fa">مقصدهایی با ظرفیت متفاوت</span><span lang="en">Peers with different capacity</span></td><td><span lang="fa">حد اتصال، CPU یا درصد لحظه‌ای</span><span lang="en">Connection cap, CPU measurement, or exact instant share</span></td></tr>
+    <tr><td><code>least_conn</code></td><td><span lang="fa">اتصال‌های فعال هر peer، با وزن</span><span lang="en">Active connections per peer, accounting for weight</span></td><td><span lang="fa">وقتی مدت درخواست‌ها فرق دارد</span><span lang="en">When request durations differ</span></td><td><span lang="fa">CPU، صف داخلی یا سلامت معنایی برنامه</span><span lang="en">CPU, internal queue, or semantic app health</span></td></tr>
+    <tr><td><code>ip_hash</code></td><td><span lang="fa">نشانی client که Nginx می‌بیند</span><span lang="en">Client address as seen by Nginx</span></td><td><span lang="fa">affinity موقت برای app وابسته به نمونه</span><span lang="en">Temporary affinity for an instance-dependent app</span></td><td><span lang="fa">session مشترک، تداوم خرابی یا توزیع برابر پشت NAT</span><span lang="en">Shared sessions, continuity through failure, or even NAT distribution</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa">روش را از رفتار درخواست و معماری برنامه انتخاب کن، نه از محبوبیت directive. برای هر تغییر فرضی روشن بنویس و همان درخواست را با body، status و peer ثبت‌شده مقایسه کن. اگر نمی‌دانی درخواست‌ها چقدر طول می‌کشند، اول مشاهده بساز؛ از روی حدس الگوریتم انتخاب نکن.</p>
+  <p lang="en">Choose from request behavior and app architecture, not directive popularity. Write one clear hypothesis for each change and compare the same request’s body, status, and recorded peer. If you do not know request duration, add observation before choosing by guesswork.</p>
+</section>
+</section>
++
+
+<section id="exercises">
+  <h2><span lang="fa">تمرین‌ها: از شمارش درخواست تا تشخیص خرابی</span><span lang="en">Exercises: from counting requests to diagnosing failure</span></h2>
+  <p class="lede" lang="fa">جواب را پیش از بازکردن راه‌حل حدس بزن. بعضی سؤال‌ها دنبال عدد نیستند؛ دنبال این‌اند که بدانی از کدام مدرک می‌شود نتیجه گرفت و کجا باید جلوی نتیجه‌گیری را گرفت.</p>
+  <p class="lede" lang="en">Predict before opening a solution. Some questions are not asking for a number; they ask which evidence supports a conclusion and when to stop short of overclaiming.</p>
+
+  <div class="ex" id="ex01"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱ · مقصد پنهان</span><span class="ex-n" lang="en">Exercise 1 · The hidden peer</span></div><p lang="fa">پاسخ برنامه می‌گوید <code>instance=c</code>. کدام بخش config و log را برای فهمیدن اینکه Nginx چرا c را انتخاب کرد بررسی می‌کنی؟</p><p lang="en">The app responds with <code>instance=c</code>. Which config and log evidence tells you why Nginx selected c?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">گروه <code>upstream</code> و روش انتخاب، مثل <code>least_conn</code> یا <code>ip_hash</code> را پیدا می‌کنم؛ بعد access log دارای <code>$upstream_addr</code> را کنار پاسخ می‌گذارم. نام c ثابت می‌کند کدام برنامه جواب داده، اما به‌تنهایی روش فعال یا دلیل انتخاب را ثابت نمی‌کند.</p><p lang="en">Find the <code>upstream</code> group and selection method, such as <code>least_conn</code> or <code>ip_hash</code>, then compare an access log containing <code>$upstream_addr</code> with the response. The name c proves which app answered, but not by itself which method was active or why it selected that peer.</p></details></div>
+
+  <div class="ex" id="ex02"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۲ · سه درخواست</span><span class="ex-n" lang="en">Exercise 2 · Three requests</span></div><p lang="fa">سه سرور weight پیش‌فرض ۱ دارند. برای سه درخواست کوتاه چه الگویی انتظار داری و چرا نباید بگویی «همیشه دقیقاً برابر»؟</p><p lang="en">Three servers have default weight 1. What pattern do you expect for three short requests, and why not say “always exactly equal”?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">انتظار معقول این است که هر peer یک درخواست بگیرد. اما این فقط پیش‌بینی برای وضعیت ساده است؛ هم‌زمانی، وزن، peer ناموفق و بازهٔ شمارش نتیجه را عوض می‌کنند. body و access log همین اجرا را بخوان تا آن را ثابت کنی.</p><p lang="en">A reasonable expectation is one request per peer. But that is a prediction for a simple setup; concurrency, weights, failed peers, and the counting window can change results. Read this run’s bodies and access log to prove what happened.</p></details></div>
+
+  <div class="ex" id="ex03"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۳ · نسبت وزن‌ها</span><span class="ex-n" lang="en">Exercise 3 · Weight ratio</span></div><p lang="fa">سه peer وزن‌های ۴، ۲ و ۲ دارند. در تعداد درخواست کافی، سهم نسبی مورد انتظار هرکدام چیست؟</p><p lang="en">Three peers have weights 4, 2, and 2. With enough requests, what relative shares do you expect?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نسبت <code>4:2:2</code> ساده می‌شود به <code>2:1:1</code>؛ حدود نصف برای peer اول و یک‌چهارم برای هرکدام از دو peer دیگر در مجموعه‌ای مناسب از انتخاب‌ها. این تضمین زمان‌بندی دقیق در هر بازه نیست و جای سنجش ظرفیت را نمی‌گیرد.</p><p lang="en">The ratio <code>4:2:2</code> reduces to <code>2:1:1</code>: about half for the first peer and a quarter for each other peer over a suitable sample. This does not guarantee exact scheduling in every window or replace capacity measurement.</p></details></div>
+
+  <div class="ex" id="ex04"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۴ · وزن یا سقف اتصال؟</span><span class="ex-n" lang="en">Exercise 4 · Weight or connection cap?</span></div><p lang="fa">همکارت بعد از تنظیم <code>weight=5</code> می‌گوید «پس این سرور پنج اتصال هم‌زمان می‌گیرد». کدام بخش حرفش اشتباه است؟</p><p lang="en">After setting <code>weight=5</code>, a teammate says, “So this server gets five simultaneous connections.” What is wrong?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">weight سهم نسبی انتخاب peer است، نه سقف اتصال و نه تعداد هم‌زمان. برای رفتار هم‌زمان باید اتصال‌های فعال را مشاهده کرد؛ این دستور منابع سرور را زیاد نمی‌کند.</p><p lang="en">Weight is a relative peer-selection share, not a connection cap or concurrency count. Observe active connections to understand concurrency; this directive adds no server resources.</p></details></div>
+
+  <div class="ex" id="ex05"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۵ · درخواست کند</span><span class="ex-n" lang="en">Exercise 5 · The slow request</span></div><p lang="fa">یک peer سه اتصال ۲۰ثانیه‌ای دارد و دو peer دیگر آزادند. چرا <code>least_conn</code> ممکن است برای درخواست بعدی مناسب‌تر باشد؟</p><p lang="en">One peer has three 20-second connections while two peers are idle. Why might <code>least_conn</code> be preferable for the next request?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">این روش تعداد اتصال فعال را دخالت می‌دهد و ممکن است peer آزاد را انتخاب کند؛ round-robin فقط نوبت را می‌چرخاند. اما CPU، latency یا صف داخلی را نمی‌سنجد، پس نتیجه را با اندازه‌گیری درخواست واقعی بررسی کن.</p><p lang="en">It considers active connection counts and may choose an idle peer; round-robin just rotates. It does not measure CPU, latency, or an internal queue, so verify the result with real request measurements.</p></details></div>
+
+  <div class="ex" id="ex06"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۶ · همه اتصال‌ها کوتاه‌اند</span><span class="ex-n" lang="en">Exercise 6 · All connections are brief</span></div><p lang="fa">درخواست‌ها فوری‌اند و تفاوت <code>least_conn</code> با round-robin دیده نمی‌شود. آیا ثابت شد directive لود نشده؟</p><p lang="en">Requests are immediate and you see no difference between <code>least_conn</code> and round-robin. Does this prove the directive did not load?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه؛ اتصال قبلی شاید پیش از انتخاب بعدی بسته شود و شمار اتصال فعال تفاوتی نسازد. اول <code>nginx -t</code> و نتیجهٔ reload را بررسی کن؛ بعد آزمایش محدود با چند درخواست کند و log مقصد اجرا کن.</p><p lang="en">No. The previous connection may close before the next selection, leaving no active-connection difference. First check <code>nginx -t</code> and reload; then run a bounded slow-request test and inspect the peer log.</p></details></div>
+
+  <div class="ex" id="ex07"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۷ · چند کاربر، یک IP</span><span class="ex-n" lang="en">Exercise 7 · Many users, one IP</span></div><p lang="fa">صدها کاربر پشت NAT یک شرکت‌اند و <code>ip_hash</code> فعال است. چه خطری برای توزیع می‌بینی؟</p><p lang="en">Hundreds of users share a company NAT address and <code>ip_hash</code> is enabled. What distribution risk do you see?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">همه ممکن است برای hash یک IP دیده شوند و به یک peer بچسبند؛ بار نامتوازن می‌شود. affinity بر پایهٔ IP هویت یکتای کاربر نیست. log و الگوی NAT را بسنج و اگر لازم است session مشترک بساز تا انتخاب متوازن‌تر ممکن شود.</p><p lang="en">They may all appear as one IP to the hash and stick to one peer, creating uneven load. IP affinity is not unique user identity. Measure logs and NAT patterns, and consider shared sessions to allow more balanced selection.</p></details></div>
+
+  <div class="ex" id="ex08"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۸ · کلاینت پشت proxy</span><span class="ex-n" lang="en">Exercise 8 · A client behind a proxy</span></div><p lang="fa">قبل از Nginx یک load balancer هست و <code>ip_hash</code> همه را به یک نمونه می‌فرستد. کدام مدرک فصل قبل مرتبط است؟</p><p lang="en">A load balancer sits in front of Nginx, and <code>ip_hash</code> sends everyone to one instance. Which evidence from the previous chapter is relevant?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">TCP peerای را که Nginx می‌بیند با header انتقالی و مرز اعتماد مقایسه کن. اگر peer برای همه load balancer باشد و real-IP handling محدود به proxyهای مورداعتماد درست تنظیم نشده باشد، همه یک IP به نظر می‌آیند. اول trust config را بررسی کن؛ header کلاینت را کورکورانه مبنا نگذار.</p><p lang="en">Compare the TCP peer Nginx sees with forwarded headers and their trust boundary. If every peer is the load balancer and trusted real-IP handling is not configured, everyone may appear to have one IP. Check the trust config first; do not blindly trust the client header.</p></details></div>
+
+  <div class="ex" id="ex09"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۹ · همان IP، همان نمونه؟</span><span class="ex-n" lang="en">Exercise 9 · Same IP, same peer?</span></div><p lang="fa">شش درخواست loopback همگی <code>instance=a</code> می‌دهند. این چه چیزی را پشتیبانی می‌کند و چه چیزی را ثابت نمی‌کند؟</p><p lang="en">Six loopback requests all return <code>instance=a</code>. What does this support, and what does it not prove?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">با <code>ip_hash</code> برای همین IP و همین گروه سازگار است. ثابت نمی‌کند همهٔ کاربران همیشه همان سرور را می‌بینند؛ در آزمایش loopback همه یک peer دارند و با تغییر IP یا خرابی مقصد، نگاشت ممکن است عوض شود.</p><p lang="en">It is consistent with <code>ip_hash</code> for this IP and group. It does not prove every user always reaches the same server: loopback gives all lab requests one peer, and an IP change or peer failure can alter the mapping.</p></details></div>
+
+  <div class="ex" id="ex10"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۰ · پردازه خاموش</span><span class="ex-n" lang="en">Exercise 10 · The stopped process</span></div><p lang="fa">درخواست مستقیم به backend، <code>connection refused</code> می‌دهد؛ از Nginx پاسخ 200 با نام نمونهٔ دیگری می‌بینی. چه چیزی محتمل است؟</p><p lang="en">A direct request to a backend gets <code>connection refused</code>; through Nginx you get 200 from another instance. What likely happened?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">Nginx احتمالاً peer خاموش را امتحان کرده، شکست ارتباط را دیده و درخواست GET را به peer دیگری retry کرده است. log را برای مقصد هر تلاش بخوان. پاسخ 200 ثابت نمی‌کند peer خراب تعمیر شده؛ فقط درخواست از مقصد دیگری پاسخ گرفته.</p><p lang="en">Nginx likely tried the stopped peer, saw a communication failure, and retried the GET on another peer. Read the logs for each attempt. A 200 does not prove the failed peer was repaired; it only shows another peer answered.</p></details></div>
+
+  <div class="ex" id="ex11"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۱ · پردازه زنده، برنامه خراب</span><span class="ex-n" lang="en">Exercise 11 · Process alive, app broken</span></div><p lang="fa">پردازه زنده است اما هر پاسخ <code>200</code> در body می‌گوید «database unavailable». آیا passive failure حتماً آن peer را کنار می‌گذارد؟</p><p lang="en">The process is alive, but each <code>200</code> body says “database unavailable.” Must passive failure handling remove that peer?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه؛ ارتباط موفق و status موردقبول ممکن است برای Nginx شکست نباشد، هرچند body از نظر برنامه بد است. قرارداد status و <code>proxy_next_upstream</code> را بررسی کن. معنای پاسخ را فقط از بازبودن socket نمی‌شود فهمید.</p><p lang="en">No. A successful connection and accepted status may not count as an Nginx failure even though the body is bad for the app. Check the status contract and <code>proxy_next_upstream</code>. An open socket alone does not reveal response meaning.</p></details></div>
+
+  <div class="ex" id="ex12"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۲ · active check ناشناخته</span><span class="ex-n" lang="en">Exercise 12 · Unknown active check</span></div><p lang="fa">Nginx با <code>unknown directive \"health_check\"</code> متوقف می‌شود. اولین بررسی چیست؟</p><p lang="en">Nginx stops with <code>unknown directive \"health_check\"</code>. What should you check first?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">آیا دستور active health check را از مستند NGINX Plus به Nginx متن‌باز منتقل کرده‌ای؟ edition و مستندات همان قابلیت را بررسی کن. برای OSS از passive behavior یا checker بیرونی استفاده می‌شود؛ دستور ناشناخته را با حدس جایگزین نکن.</p><p lang="en">Did you copy an active-health-check directive from NGINX Plus documentation into open-source Nginx? Verify the edition and feature docs. OSS uses passive behavior or an external checker; do not guess a substitute for an unknown directive.</p></details></div>
+
+  <div class="ex" id="ex13"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۳ · پنجرهٔ شکست</span><span class="ex-n" lang="en">Exercise 13 · Failure window</span></div><p lang="fa">تنظیم <code>max_fails=2 fail_timeout=10s</code> است. آیا Nginx هر ۱۰ ثانیه دو بار backend را ping می‌کند؟</p><p lang="en">The config uses <code>max_fails=2 fail_timeout=10s</code>. Does Nginx ping the backend twice every ten seconds?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه. شکست‌های ارتباطی درخواست‌های زنده شمرده می‌شوند؛ دو شکست در بازهٔ ۱۰ثانیه‌ای peer را برای مدتی نامناسب می‌کند. این directive زمان‌بند probe نیست؛ پس از آن بازه، درخواست زنده می‌تواند دوباره آن را بیازماید.</p><p lang="en">No. Communication failures from live requests are counted; two failures in the 10-second window make the peer unavailable for a period. This directive schedules no probes; after the interval, a live request may try the peer again.</p></details></div>
+
+  <div class="ex" id="ex14"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۴ · POST را retry کنیم؟</span><span class="ex-n" lang="en">Exercise 14 · Retry the POST?</span></div><p lang="fa">POST پرداختی آغاز شده، ارتباط حین پاسخ قطع می‌شود و Nginx می‌خواهد آن را به peer بعدی بفرستد. پیش از فعال‌کردن retry چه چیزی را بررسی می‌کنی؟</p><p lang="en">A payment POST starts, the connection fails while waiting for a response, and Nginx may send it to another peer. What do you check before enabling that retry?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">باید بدانیم درخواست اول تا کجا اجرا شده و عملیات idempotent یا دارای idempotency key هست یا نه. اگر پرداخت انجام شده ولی پاسخ گم شده باشد، retry می‌تواند هزینهٔ دوم بسازد. قرارداد برنامه و سرویس پرداخت را بررسی کن؛ directive را کورکورانه تغییر نده.</p><p lang="en">Establish how far the first request ran and whether the operation is idempotent or protected by an idempotency key. If payment succeeded but its response was lost, a retry could charge twice. Check the app and payment-service contract; do not change the directive blindly.</p></details></div>
+
+  <div class="ex" id="ex15"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۵ · وزن با least_conn</span><span class="ex-n" lang="en">Exercise 15 · Weight with least_conn</span></div><p lang="fa">گروه <code>least_conn</code> وزن‌های ۳، ۱ و ۱ دارد. آیا وزن‌ها نادیده گرفته می‌شوند؟</p><p lang="en">A <code>least_conn</code> group has weights 3, 1, and 1. Are the weights ignored?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">خیر؛ تعداد اتصال فعال را با درنظرگرفتن وزن مقایسه می‌کند و در تساوی از انتخاب نوبتی weighted استفاده می‌شود. از این توضیح، نتیجهٔ دقیق یک دستهٔ کوچک را حدس نزن؛ توزیع را زیر بار مناسب بسنج.</p><p lang="en">No. It compares active connections while accounting for weight and uses weighted rotation to break ties. Do not infer exact results for a tiny sample from that alone; measure under suitable load.</p></details></div>
+
+  <div class="ex" id="ex16"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۶ · peer برگشته</span><span class="ex-n" lang="en">Exercise 16 · The peer has returned</span></div><p lang="fa">backend بعد از <code>fail_timeout</code> روشن شده. چرا دقیق‌تر است بگویی «یک درخواست واقعی دوباره امتحانش می‌کند» نه «Nginx health check می‌زند»؟</p><p lang="en">A backend restarts after <code>fail_timeout</code>. Why is “a real request may try it again” more accurate than “Nginx runs a health check”?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">در passive checking، Nginx probe مستقل و زمان‌بندی‌شده نمی‌فرستد؛ درخواست عادی است که دوباره به peer می‌رسد و مدرک تازه می‌سازد. روشن‌شدن پردازه به‌تنهایی به Nginx خبر نمی‌دهد.</p><p lang="en">With passive checking, Nginx sends no independent scheduled probe. An ordinary request reaches the peer and supplies new evidence. The process restarting alone does not notify Nginx.</p></details></div>
+
+  <div class="ex" id="ex17"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۷ · session محلی</span><span class="ex-n" lang="en">Exercise 17 · Local session state</span></div><p lang="fa">کاربران با <code>ip_hash</code> کمتر logout می‌شوند. peer دارای session محلی از دسترس خارج می‌شود. چرا تداوم session هنوز تضمین نیست؟</p><p lang="en">Users see fewer logouts after enabling <code>ip_hash</code>. The peer holding local sessions becomes unavailable. Why is session continuity still not guaranteed?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">Nginx می‌تواند درخواست را به نمونه‌ای دیگر بفرستد که آن session را ندارد. affinity فقط تا وقتی peer موجود و IP ثابت است کمک می‌کند. برای تداوم واقعی، state را مشترک/بیرونی کن یا برنامه را stateless بساز.</p><p lang="en">Nginx can send the request to another instance that lacks the session. Affinity helps only while the peer stays available and the IP is stable. Real continuity needs shared/external state or a stateless app.</p></details></div>
+
+  <div class="ex" id="ex18"><div class="ex-h"><span class="ex-n" lang="fa">تمرین ۱۸ · تصمیم برای ترافیک واقعی</span><span class="ex-n" lang="en">Exercise 18 · Choose for real traffic</span></div><p lang="fa">یک backend قوی‌تر است، بعضی درخواست‌ها چند ثانیه باز می‌مانند و session در حافظهٔ هر نمونه است. چه روش‌هایی را می‌آزمایی و پیش از production چه چیزی را تغییر می‌دهی؟</p><p lang="en">One backend is stronger, some requests stay open for seconds, and sessions live in each instance’s memory. What would you test, and what would you change before production?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">ظرفیت را با weight بازتاب می‌دهم و اگر اتصال‌های فعال متفاوت‌اند <code>least_conn</code> را زیر بار نماینده می‌سنجم. session محلی مسئله‌ای جداست: <code>ip_hash</code> affinity موقت می‌دهد، نه تداوم هنگام خرابی. پیش از production session را بیرونی/مشترک می‌کنم و latency و خطا را می‌سنجم.</p><p lang="en">Reflect capacity with weights and test <code>least_conn</code> under representative load if active connections vary. Local sessions are separate: <code>ip_hash</code> provides temporary affinity, not continuity through failure. Before production, move sessions to shared/external storage and measure latency and errors.</p></details></div>
+</section>

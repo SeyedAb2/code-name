@@ -1,0 +1,414 @@
+<!--meta
+title: منطق location و اولویت‌ها
+desc: پیش‌بینی انتخاب location در Nginx با exact، prefix، طولانی‌ترین پیشوند، regex، ^~، و تفاوت مسیر root و alias.
+-->
+
+<div class="masthead">
+  <span class="eyebrow"><span class="dot"></span><span lang="fa">Nginx · فصل ۴</span><span lang="en">Nginx · Chapter 4</span></span>
+  <h1 lang="fa">منطق location و اولویت‌ها</h1>
+  <h1 lang="en">Location matching and priority</h1>
+  <p class="sub" lang="fa">درخواست به server درست می‌رسد، اما هنوز پاسخ عجیبی می‌گیری: چرا <code>/docs/api/report.css</code> از قاعدهٔ عمومی regex جواب می‌گیرد، نه از prefix بلندترش؟ این فصل را مثل معمای مسیریابی حل می‌کنیم: پیش‌بینی، درخواست، نشانهٔ برنده، و بعد اصلاح قاعده.</p>
+  <p class="sub" lang="en">The request reaches the right server, but the response is still surprising: why does <code>/docs/api/report.css</code> match a general regex instead of its longer prefix? We will solve location selection as a routing puzzle: predict, request, inspect the winning marker, then adjust the rule.</p>
+  <div class="facts">
+    <div class="fact"><b>۸۰</b><span lang="fa">دقیقهٔ مطالعه</span><span lang="en">minutes</span></div>
+    <div class="fact"><b>۱۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></div>
+    <div class="fact"><b>۳</b><span lang="fa">نمودار تصمیم</span><span lang="en">decision diagrams</span></div>
+    <div class="fact"><b>۱۰</b><span lang="fa">URL آزمایشی</span><span lang="en">test URLs</span></div>
+  </div>
+</div>
+
+<section id="puzzle">
+  <h2><span lang="fa">مسیر درست است؛ پس چرا handler اشتباه جواب می‌دهد؟</span><span lang="en">The path is right—why did the wrong handler answer?</span></h2>
+  <p class="lede" lang="fa">فصل قبل با <code>Host</code> درخواست را به server block درست رساندیم. حالا همان سایت چند مسیر دارد: صفحهٔ سلامت، API، اسناد و فایل‌های media. همکارمان می‌گوید برای هرکدام یک <code>location</code> نوشته، اما درخواست فایل CSS زیرمسیر API با پاسخ دیگری برمی‌گردد.</p>
+  <p class="lede" lang="en">The previous chapter used <code>Host</code> to reach the correct server block. Now that site has several paths: a health page, an API, documentation, and media files. A teammate says they wrote a <code>location</code> for each, yet a CSS request under the API path receives an unexpected response.</p>
+  <p lang="fa">قبل از خواندن config حدس بزن: اگر <code>/docs/api/</code> از <code>/</code> طولانی‌تر است، آیا این به‌تنهایی تضمین می‌کند که آن block پاسخ دهد؟ فعلاً جواب را نگه دار. همین URL را در آزمایشگاه با نشانگرهای متفاوت می‌فرستیم تا Nginx خودش انتخابش را لو بدهد.</p>
+  <p lang="en">Predict before reading the config: if <code>/docs/api/</code> is longer than <code>/</code>, does that alone guarantee its block will answer? Hold the answer for now. We will send that URL to a lab with distinct markers so Nginx reveals its choice.</p>
+  <div class="note safe"><div class="note-t"><span lang="fa">قبل از location</span><span lang="en">Before location matching</span></div><p lang="fa">این فصل از این‌جا شروع می‌کند که request قبلاً وارد server block درست شده است. انتخاب server بر اساس listener و نام درخواست را با انتخاب location بر اساس URI قاطی نکن؛ دو تصمیم جدا هستند.</p><p lang="en">This chapter assumes the request has already entered the intended server block. Do not mix server selection by listener and request name with location selection by URI; they are two separate decisions.</p></div>
+</section>
+
+<section id="lab-shape">
+  <h2><span lang="fa">یک آزمایشگاه، چند پاسخ قابل‌تشخیص</span><span lang="en">One lab, several identifiable responses</span></h2>
+  <p class="lede" lang="fa">برای دیدن انتخاب Nginx، محتوای واقعی لازم نداریم؛ هر location یک برچسب یکتا برمی‌گرداند. config را در پوشهٔ موقت می‌سازیم و فقط روی loopback گوش می‌دهیم. این نمونه روی نصب Nginx خودت اجرا می‌شود، اما config سرویس موجود را دست‌کاری نمی‌کند.</p>
+  <p class="lede" lang="en">We do not need real content to observe Nginx’s choice; each location returns a unique label. We will build the config in a temporary directory and listen only on loopback. The lab uses your Nginx binary but does not modify the existing service config.</p>
+  <p lang="fa">این دستورها برای پوستهٔ Bash در Linux، macOS یا WSL نوشته شده‌اند؛ در PowerShell اجرا نمی‌شوند. اول پوشه را بساز و مسیرش را نگه دار. اگر فرمان شکست خورد، جلو نرو؛ پاک‌سازی بعدی فقط باید همین مسیر آزمایش را هدف بگیرد.</p>
+  <p lang="en">First create the directory and keep its path. If this command fails, stop; later cleanup must target only this lab path.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">create a disposable lab</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">LAB_DIR=$(mktemp -d "${TMPDIR:-/tmp}/nginx-location.XXXXXX")
+mkdir -p "$LAB_DIR/logs"
+printf 'Lab directory: %s\n' "$LAB_DIR"</span></pre></div>
+  <p lang="fa">config زیر عمداً پاسخ‌ها را به فایل وابسته نمی‌کند؛ تنها سؤال این است که کدام location برنده شد. مقصد آزمایش <code>127.0.0.1:18081</code> است تا با default سایت فصل قبل تداخل نکند. اگر پورت اشغال است، پیش از ادامه یک پورت آزاد انتخاب کن و همهٔ 18081ها را یکسان تغییر بده.</p>
+  <p lang="en">The config below does not depend on files; our only question is which location won. The lab uses <code>127.0.0.1:18081</code> to avoid the previous chapter’s default port. If it is occupied, choose a free port before continuing and change every 18081 consistently.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">the first location map</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">cat &gt; "$LAB_DIR/nginx.conf" &lt;&lt;'NGINX'</span>
+worker_processes 1;
+pid logs/nginx.pid;
+error_log logs/error.log notice;
+
+events { worker_connections 64; }
+
+http {
+    access_log off;
+    default_type text/plain;
+
+    server {
+        listen 127.0.0.1:18081 default_server;
+        server_name _;
+
+        location = /health {
+            return 200 "EXACT: health\n";
+        }
+
+        location ^~ /media/ {
+            return 200 "PREFIX: media, regex skipped\n";
+        }
+
+        location /docs/api/ {
+            return 200 "PREFIX: longest docs api\n";
+        }
+
+        location /docs/ {
+            return 200 "PREFIX: docs\n";
+        }
+
+        location /assets/ {
+            return 200 "PREFIX: assets\n";
+        }
+
+        location ~* \.(css|js)$ {
+            return 200 "REGEX: static, first match\n";
+        }
+
+        location ~ \.php$ {
+            return 200 "REGEX: php\n";
+        }
+
+        location / {
+            return 200 "PREFIX: catch-all slash\n";
+        }
+    }
+}
+<span class="k">NGINX
+nginx -t -p "$LAB_DIR/" -c nginx.conf</span>
+<span class="s">nginx: the configuration file .../nginx.conf syntax is ok
+nginx: configuration file .../nginx.conf test is successful</span></pre></div>
+  <p lang="fa">چند نکته را قبل از start ببین: همهٔ locationها داخل یک server هستند؛ پس Host دیگری وارد داستان نمی‌شود. <code>nginx -t</code> syntax و فایل‌های لازم را بررسی می‌کند، اما نه اشغال‌بودن پورت را تضمین می‌کند و نه انتخاب مسیر برای درخواست واقعی را. اول همین آزمون را بگیر، بعد سرویس آزمایشی را بالا بیاور.</p>
+  <p lang="en">Notice a few things before starting: every location is inside one server, so host selection is out of the picture. <code>nginx -t</code> checks syntax and required files, but does not guarantee the port is free or predict which location a real request will use. Run the test, then start the lab service.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">start only if the lab port is free</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">if command -v ss &gt;/dev/null &amp;&amp; ss -ltn | grep -q ':18081 '; then
+  echo 'Port 18081 is occupied; choose another port first.'
+else
+  nginx -p "$LAB_DIR/" -c nginx.conf
+fi</span></pre></div>
+  <p lang="fa">اگر خروجی گفت پورت اشغال است، این branch عمداً Nginx را اجرا نمی‌کند. port را در config و درخواست‌ها عوض کن و <code>-t</code> را دوباره اجرا کن. اگر ابزار <code>ss</code> نداری، از ابزار سیستم خودت برای بررسی listener استفاده کن؛ خط را کورکورانه حذف نکن.</p>
+  <p lang="en">If the output says the port is occupied, this branch intentionally does not start Nginx. Change the port in both config and requests, then rerun <code>-t</code>. If <code>ss</code> is unavailable, use your system’s listener-inspection tool; do not remove the check blindly.</p>
+</section>
+
+<section id="exact-prefix">
+  <h2><span lang="fa">اول استثنای دقیق، بعد prefixها</span><span lang="en">First an exact exception, then prefixes</span></h2>
+  <p class="lede" lang="fa">در آزمایشگاه <code>/health</code> یک location دقیق دارد. پیش‌بینی کن: <code>/health?verbose=1</code> هم همان را می‌گیرد؟ و <code>/health/</code> چطور؟</p>
+  <p class="lede" lang="en">In the lab, <code>/health</code> has an exact location. Predict: does <code>/health?verbose=1</code> use it too? What about <code>/health/</code>?</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">compare exact URI, query, and trailing slash</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl -i 'http://127.0.0.1:18081/health'
+curl -i 'http://127.0.0.1:18081/health?verbose=1'
+curl -i 'http://127.0.0.1:18081/health/'</span>
+<span class="s">EXACT: health
+EXACT: health
+PREFIX: catch-all slash</span></pre></div>
+  <p lang="fa">locationها URI درخواست را می‌سنجند، نه query string را؛ بنابراین دو URL اول برای تطبیق URI یکسان <code>/health</code> دارند. <code>/health/</code> مسیر دیگری است و exact match نمی‌شود؛ پس در این config به <code>location /</code> می‌افتد. «exact» یعنی مسیر دقیق، نه تطبیق byte-for-byte با کل URL شامل query.</p>
+  <p lang="en">Locations match the request URI, not its query string, so the first two URLs have the same matching URI: <code>/health</code>. <code>/health/</code> is a different path and does not exact-match; in this config it falls through to <code>location /</code>. “Exact” means the exact URI, not a byte-for-byte match of the whole URL including its query.</p>
+  <p lang="fa">قاعدهٔ <code>location = /health</code> اگر پیدا شود جست‌وجو را همان‌جا تمام می‌کند؛ prefix یا regex دیگری دیگر برنده نمی‌شود. این راهی روشن برای یک endpoint دقیق است، مثل مسیر سلامت. حالا اگر exact نداشته باشیم، نوبت prefixهاست.</p>
+  <p lang="en">If <code>location = /health</code> matches, the search ends there; no other prefix or regex can win. This is a clear way to define one exact endpoint, such as a health path. Without an exact match, Nginx considers prefixes next.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">نوع rule</span><span lang="en">Rule type</span></th><th><span lang="fa">نمونه</span><span lang="en">Example</span></th><th><span lang="fa">اثر در انتخاب</span><span lang="en">Selection effect</span></th></tr></thead><tbody>
+    <tr><td>Exact</td><td><code>location = /health</code></td><td><span lang="fa">URI دقیق را می‌گیرد و جست‌وجو را تمام می‌کند.</span><span lang="en">Matches the exact URI and ends the search.</span></td></tr>
+    <tr><td>Prefix</td><td><code>location /docs/</code></td><td><span lang="fa">ابتدای URI را می‌سنجد؛ میان prefixهای مطابق، بلندترین ذخیره می‌شود.</span><span lang="en">Matches the start of the URI; the longest matching prefix is remembered.</span></td></tr>
+    <tr><td>Case-sensitive regex</td><td><code>location ~ \.php$</code></td><td><span lang="fa">به‌ترتیب config بررسی می‌شود؛ اولین regex مطابق برنده است.</span><span lang="en">Checked in config order; the first matching regex wins.</span></td></tr>
+    <tr><td>Case-insensitive regex</td><td><code>location ~* \.(css|js)$</code></td><td><span lang="fa">همان ترتیب regex، اما با تطبیق بدون حساسیت به بزرگی/کوچکی حرف.</span><span lang="en">Same regex order, but case-insensitive matching.</span></td></tr>
+    <tr><td>Prefix with <code>^~</code></td><td><code>location ^~ /media/</code></td><td><span lang="fa">اگر طولانی‌ترین prefix این باشد، regex و predicate locationها بررسی نمی‌شوند.</span><span lang="en">If it is the longest prefix, regex and predicate locations are not checked.</span></td></tr>
+  </tbody></table></div>
+</section>
+
+<section id="longest-prefix">
+  <h2><span lang="fa">بلندترین prefix پیدا می‌شود؛ ولی هنوز قطعی نیست</span><span lang="en">The longest prefix is found—but not necessarily final</span></h2>
+  <p class="lede" lang="fa">سه prefix داریم: <code>/</code>، <code>/docs/</code> و <code>/docs/api/</code>. برای <code>/docs/api/users</code> هر سه ابتدای URI هستند. پیش‌بینی تو چیست؟ prefix بلندتر مستقل از ترتیب نوشته‌شدن در فایل پیدا می‌شود.</p>
+  <p class="lede" lang="en">We have three prefixes: <code>/</code>, <code>/docs/</code>, and <code>/docs/api/</code>. For <code>/docs/api/users</code>, all three match the start of the URI. What do you predict? The longer prefix is found regardless of the order in which these blocks appear in the file.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 1000 700" role="img" aria-labelledby="location-flow-title" xmlns="http://www.w3.org/2000/svg">
+      <title id="location-flow-title">Nginx location selection flow: exact, longest prefix, ^~, then ordered regex / روند انتخاب location در Nginx</title>
+      <defs>
+        <marker id="loc-flow-arrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9Z" class="dg-arrow-b"/></marker>
+      </defs>
+      <rect x="270" y="20" width="360" height="60" rx="14" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/>
+      <text x="450" y="46" text-anchor="middle" class="dg-t">request URI</text><text x="450" y="68" text-anchor="middle" class="dg-tm">normalized path, no query args</text>
+      <path d="M450 80V98" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#loc-flow-arrow)"/>
+      <rect x="270" y="108" width="360" height="62" rx="14" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/>
+      <text x="450" y="135" text-anchor="middle" class="dg-t">exact `=` match?</text><text x="450" y="157" text-anchor="middle" class="dg-tm">yes: stop</text>
+      <path d="M630 139H700" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#loc-flow-arrow)"/><text x="665" y="126" text-anchor="middle" class="dg-ts">yes</text>
+      <rect x="710" y="108" width="250" height="62" rx="14" class="dg-fill-g" stroke="var(--safe)" stroke-width="2"/>
+      <text x="835" y="135" text-anchor="middle" class="dg-t">exact location wins</text><text x="835" y="157" text-anchor="middle" class="dg-tm">search ends</text>
+      <path d="M450 170V198" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#loc-flow-arrow)"/><text x="473" y="189" class="dg-ts">no</text>
+      <rect x="270" y="208" width="360" height="62" rx="14" class="dg-fill" stroke="var(--line-strong)" stroke-width="2"/>
+      <text x="450" y="235" text-anchor="middle" class="dg-t">find longest matching prefix</text><text x="450" y="257" text-anchor="middle" class="dg-tm">remember it as candidate</text>
+      <path d="M450 270V298" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#loc-flow-arrow)"/>
+      <rect x="270" y="308" width="360" height="62" rx="14" class="dg-fill-w" stroke="var(--warn)" stroke-width="2"/>
+      <text x="450" y="335" text-anchor="middle" class="dg-t">does candidate use `^~`?</text><text x="450" y="357" text-anchor="middle" class="dg-tm">yes: skip regex and predicates</text>
+      <path d="M630 339H700" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#loc-flow-arrow)"/><text x="665" y="326" text-anchor="middle" class="dg-ts">yes</text>
+      <rect x="710" y="308" width="250" height="62" rx="14" class="dg-fill-g" stroke="var(--safe)" stroke-width="2"/>
+      <text x="835" y="335" text-anchor="middle" class="dg-t">remembered prefix wins</text><text x="835" y="357" text-anchor="middle" class="dg-tm">no regex stage</text>
+      <path d="M450 370V398" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#loc-flow-arrow)"/><text x="473" y="389" class="dg-ts">no</text>
+      <rect x="270" y="408" width="360" height="62" rx="14" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/>
+      <text x="450" y="435" text-anchor="middle" class="dg-t">test regexes in config order</text><text x="450" y="457" text-anchor="middle" class="dg-tm">first matching regex wins</text>
+      <path d="M630 439H700" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#loc-flow-arrow)"/><text x="665" y="426" text-anchor="middle" class="dg-ts">match</text>
+      <rect x="710" y="408" width="250" height="62" rx="14" class="dg-fill-g" stroke="var(--safe)" stroke-width="2"/>
+      <text x="835" y="435" text-anchor="middle" class="dg-t">matching regex wins</text><text x="835" y="457" text-anchor="middle" class="dg-tm">stop at first match</text>
+      <path d="M450 470V498" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#loc-flow-arrow)"/><text x="473" y="489" class="dg-ts">none</text>
+      <rect x="270" y="508" width="360" height="62" rx="14" class="dg-fill" stroke="var(--line-strong)" stroke-width="2"/>
+      <text x="450" y="535" text-anchor="middle" class="dg-t">predicate locations (1.31.5+)</text><text x="450" y="557" text-anchor="middle" class="dg-tm">optional, check in order</text>
+      <path d="M630 539H700" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#loc-flow-arrow)"/><text x="665" y="526" text-anchor="middle" class="dg-ts">match</text>
+      <rect x="710" y="508" width="250" height="62" rx="14" class="dg-fill-g" stroke="var(--safe)" stroke-width="2"/>
+      <text x="835" y="535" text-anchor="middle" class="dg-t">matching predicate wins</text><text x="835" y="557" text-anchor="middle" class="dg-tm">newer versions only</text>
+      <path d="M450 570V598" class="dg-stroke-b" stroke-width="2.5" marker-end="url(#loc-flow-arrow)"/><text x="473" y="589" class="dg-ts">none / unsupported</text>
+      <rect x="270" y="608" width="360" height="62" rx="14" class="dg-fill-g" stroke="var(--safe)" stroke-width="2"/>
+      <text x="450" y="635" text-anchor="middle" class="dg-t">remembered longest prefix wins</text><text x="450" y="657" text-anchor="middle" class="dg-tm">fallback</text>
+    </svg>
+    <p class="diagram-cap" lang="fa">این نمودار مسیر کلاسیک را نشان می‌دهد: exact پایان زودهنگام دارد؛ بعد بلندترین prefix ذخیره می‌شود. <code>^~</code> مرحلهٔ regex را کنار می‌زند؛ در غیر این صورت اولین regex مطابق برنده است و اگر match نشود، prefix ذخیره‌شده به کار می‌رود. نسخه‌های جدیدتر predicate location هم دارند؛ یادداشت نسخه را ببین.</p>
+    <p class="diagram-cap" lang="en">This diagram shows the classic path: an exact match ends the search; then the longest prefix is remembered. <code>^~</code> skips regex checks; otherwise the first matching regex wins, and the remembered prefix is used if none match. Newer versions also have predicate locations; see the version note.</p>
+  </div>
+  <p lang="fa">قاعدهٔ prefix واقعاً «بلندترین» است، نه «اولین خط فایل». برای اینکه ترتیب را با چشم ببینی، این سه URL را بفرست و متن پاسخ را بخوان:</p>
+  <p lang="en">The prefix rule really is “longest,” not “first line in the file.” To see it directly, send these three URLs and read their response bodies:</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">prefix predictions</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl -s http://127.0.0.1:18081/
+curl -s http://127.0.0.1:18081/docs/guide
+curl -s http://127.0.0.1:18081/docs/api/users</span>
+<span class="s">PREFIX: catch-all slash
+PREFIX: docs
+PREFIX: longest docs api</span></pre></div>
+  <p lang="fa">این سه پاسخ نشان می‌دهند prefixهای عمومی‌تر کنار می‌روند و خاص‌ترین موردِ مطابق برای مرحلهٔ بعد ذخیره می‌شود. اما واژهٔ «ذخیره» مهم است: هنوز regexها می‌توانند نتیجه را عوض کنند. این همان جایی است که حدسِ «بلندترین همیشه برنده است» می‌شکند.</p>
+  <p lang="en">These responses show that broader prefixes give way to the most specific matching candidate. But “candidate” matters: a regex may still change the result. This is where the guess “the longest always wins” breaks down.</p>
+</section>
+
+<section id="regex">
+  <h2><span lang="fa">regex بعد از prefix می‌آید، اما می‌تواند برنده شود</span><span lang="en">Regex runs after prefixes, but it can still win</span></h2>
+  <p class="lede" lang="fa">برای <code>/docs/api/report.css</code> بلندترین prefix همان <code>/docs/api/</code> است. قبل از curl انتخابت چیست؟ جواب config فعلی: regex فایل‌های CSS/JS بعد از prefixها بررسی می‌شود و اگر match شود، پاسخ را می‌گیرد.</p>
+  <p class="lede" lang="en">For <code>/docs/api/report.css</code>, the longest prefix is <code>/docs/api/</code>. What is your prediction before curl? With the current config, the CSS/JS regex is checked after prefixes and takes the request if it matches.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">long prefix versus regex</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl -i http://127.0.0.1:18081/docs/api/report.css
+curl -i http://127.0.0.1:18081/docs/api/report.php?download=1</span>
+<span class="s">HTTP/1.1 200 OK
+...
+REGEX: static, first match
+
+HTTP/1.1 200 OK
+...
+REGEX: php</span></pre></div>
+  <p lang="fa">بدنهٔ اول ثابت می‌کند regex از prefix بلندتر جلو زده؛ درخواست دوم هم regexِ PHP را نشان می‌دهد، با اینکه همان prefixها match هستند. regexها به ترتیب ظاهرشان در config سنجیده می‌شوند و اولین regex مطابق، پایان جست‌وجو است؛ «طولانی‌ترین regex» مفهومی در این الگوریتم نیست.</p>
+  <p lang="en">The first body proves a regex beat the longer prefix; the second shows the PHP regex winning even though the same prefixes match. Regex locations are tested in config order, and the first matching regex ends the search. There is no “longest regex” rule here.</p>
+  <p lang="fa">نمونهٔ CSS از <code>~*</code> استفاده می‌کند؛ پس پسوند <code>.CSS</code> هم match می‌شود. اگر همان قاعده با <code>~</code> نوشته شود، تطبیق regex به بزرگی/کوچکی حرف حساس است. بعداً در decision table خواهیم دید query string در انتخاب دخالت نمی‌کند: regex روی URI است، نه <code>?download=1</code>.</p>
+  <p lang="en">The CSS rule uses <code>~*</code>, so an uppercase <code>.CSS</code> suffix also matches. With <code>~</code>, regex matching is case-sensitive. The decision table will also show that the query string does not participate: regex sees the URI, not <code>?download=1</code>.</p>
+  <h3><span lang="fa">پس <code>^~</code> دقیقاً چه چیزی را می‌بندد؟</span><span lang="en">So what exactly does <code>^~</code> suppress?</span></h3>
+  <p lang="fa">یک مسیر media داریم که نباید regex عمومی CSS آن را بگیرد. modifier را روی prefix بلندترِ <code>/media/</code> می‌گذاریم. اگر همان طولانی‌ترین prefix باشد، Nginx regexها را بررسی نمی‌کند و همان block را استفاده می‌کند.</p>
+  <p lang="en">We have a media path that should not be captured by the general CSS regex. Put the modifier on the longer <code>/media/</code> prefix. If it is the longest matching prefix, Nginx skips regex checks and uses that block.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">the media prefix wins with ^~</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl -i http://127.0.0.1:18081/media/app.css</span>
+<span class="s">HTTP/1.1 200 OK
+...
+PREFIX: media, regex skipped</span></pre></div>
+  <p lang="fa">حواست باشد <code>^~</code> جلوی exact match را نمی‌گیرد و regex را به‌طور سراسری خاموش نمی‌کند؛ فقط وقتی همان prefix طولانی‌ترین مورد مطابق باشد، مرحلهٔ بررسی regex را برای آن درخواست کنار می‌زند. اگر prefix بلندتری بدون <code>^~</code> پیدا شود، نتیجه دوباره فرق می‌کند.</p>
+  <p lang="en">Note that <code>^~</code> does not override an exact match and does not disable regex globally. It skips regex checks for a request only when that prefix is the longest matching prefix. A still-longer prefix without <code>^~</code> can change the result again.</p>
+  <div class="note safe"><div class="note-t"><span lang="fa">نسخهٔ فشردهٔ الگوریتم کلاسیک</span><span lang="en">The classic algorithm, compactly</span></div><p lang="fa">اول exact؛ اگر نبود، بلندترین prefix را پیدا کن. اگر آن prefix <code>^~</code> داشت، همان برنده است و regex/predicate بررسی نمی‌شود. وگرنه regexها به ترتیب config می‌آیند؛ اولین match برنده است. در الگوریتم کلاسیک، اگر regexای نخورد، به prefix ذخیره‌شده برمی‌گردیم. از Nginx 1.31.5 به بعد یک مرحلهٔ predicate location هم پس از regexها وجود دارد؛ اگر از آن syntax استفاده می‌کنی، مرحلهٔ آن را هم پیش از fallback به prefix بررسی کن.</p><p lang="en">First check exact; otherwise find the longest prefix. If it has <code>^~</code>, it wins and regex/predicate checks are skipped. Otherwise test regexes in config order; the first match wins. In the classic algorithm, if no regex matches, fall back to the remembered prefix. Since Nginx 1.31.5, there is also a predicate-location stage after regexes; if you use that syntax, check that stage before falling back to the prefix.</p></div>
+</section>
+
+<section id="decision-table">
+  <h2><span lang="fa">پیش‌بینی کن؛ بعد جدول را با پاسخ واقعی پر کن</span><span lang="en">Predict first, then compare with the response</span></h2>
+  <p class="lede" lang="fa">برای هر URL، قبل از ارسال درخواست، winner را حدس بزن. در این config ترتیب regexها همان CSS/JS سپس PHP است. بعد متن پاسخ <code>curl</code> را با پیش‌بینی خودت مقایسه کن؛ اگر اختلاف دارد، به خود URI و modifierها برگرد.</p>
+  <p class="lede" lang="en">For each URL, predict the winner before sending it. In this config, regex order is CSS/JS first, then PHP. Compare curl’s body with your prediction; if they differ, revisit the URI and modifiers.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">URL</span><span lang="en">URL</span></th><th><span lang="fa">قاعده‌هایی که می‌توانند match شوند</span><span lang="en">Potential matches</span></th><th><span lang="fa">برنده</span><span lang="en">Winner</span></th><th><span lang="fa">دلیل کوتاه</span><span lang="en">Why</span></th></tr></thead><tbody>
+    <tr><td><code>/health</code></td><td><code>= /health</code>، <code>/</code></td><td><code>= /health</code></td><td><span lang="fa">exact جست‌وجو را تمام می‌کند.</span><span lang="en">Exact match ends the search.</span></td></tr>
+    <tr><td><code>/health?verbose=1</code></td><td><code>= /health</code>، <code>/</code></td><td><code>= /health</code></td><td><span lang="fa">query جزو URI برای تطبیق location نیست.</span><span lang="en">The query is not part of the location-match URI.</span></td></tr>
+    <tr><td><code>/unknown</code></td><td><code>/</code></td><td><code>/</code></td><td><span lang="fa">فقط prefix عمومی مطابق است.</span><span lang="en">Only the catch-all prefix matches.</span></td></tr>
+    <tr><td><code>/docs/guide</code></td><td><code>/</code>، <code>/docs/</code></td><td><code>/docs/</code></td><td><span lang="fa">prefix بلندتر ذخیره می‌شود.</span><span lang="en">The longer prefix is remembered.</span></td></tr>
+    <tr><td><code>/docs/api/users</code></td><td><code>/</code>، <code>/docs/</code>، <code>/docs/api/</code></td><td><code>/docs/api/</code></td><td><span lang="fa">بلندترین prefix؛ regexای match نمی‌شود.</span><span lang="en">Longest prefix; no regex matches.</span></td></tr>
+    <tr><td><code>/docs/api/report.css</code></td><td><code>/docs/api/</code>، regex CSS/JS</td><td><code>~* \.(css|js)$</code></td><td><span lang="fa">regex بعد از prefix بررسی می‌شود و match دارد.</span><span lang="en">A regex is checked after prefixes and matches.</span></td></tr>
+    <tr><td><code>/docs/api/report.CSS</code></td><td><code>/docs/api/</code>، regex CSS/JS</td><td><code>~* \.(css|js)$</code></td><td><span lang="fa"><code>~*</code> نسبت به case حساس نیست.</span><span lang="en"><code>~*</code> is case-insensitive.</span></td></tr>
+    <tr><td><code>/docs/api/report.php?download=1</code></td><td><code>/docs/api/</code>، regex PHP</td><td><code>~ \.php$</code></td><td><span lang="fa">regex فقط URI را می‌بیند؛ query حذف است.</span><span lang="en">The regex sees the URI; the query is excluded.</span></td></tr>
+    <tr><td><code>/media/app.css</code></td><td><code>^~ /media/</code>، regex CSS/JS</td><td><code>^~ /media/</code></td><td><span lang="fa">prefix برندهٔ نهایی است و regex رد می‌شود.</span><span lang="en">The prefix wins and regex checks are skipped.</span></td></tr>
+    <tr><td><code>/media/readme</code></td><td><code>^~ /media/</code>، <code>/</code></td><td><code>^~ /media/</code></td><td><span lang="fa">طولانی‌ترین prefix همین است.</span><span lang="en">This is the longest matching prefix.</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa">حالا ده درخواست را پشت سر هم بفرست. خروجی باید با ستون winner جور باشد. اگر پیش‌بینی تو با پاسخ فرق داشت، سریع config را تغییر نده: اول curl -v را ببین، URL واقعی را از query جدا کن، و ترتیب regexها را در config بازبینی کن.</p>
+  <p lang="en">Now send all ten requests. The output should match the winner column. If your prediction differs from the response, do not immediately change the config: inspect curl -v, separate the actual URI from its query, and review regex order in the config.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">ten URLs, ten location markers</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">for path in \
+  '/health' '/health?verbose=1' '/unknown' '/docs/guide' \
+  '/docs/api/users' '/docs/api/report.css' '/docs/api/report.CSS' \
+  '/docs/api/report.php?download=1' '/media/app.css' '/media/readme'; do
+  printf '\n%-42s ' "$path"
+  curl -s "http://127.0.0.1:18081$path"
+done</span>
+<span class="s">/health                                    EXACT: health
+/health?verbose=1                         EXACT: health
+/unknown                                  PREFIX: catch-all slash
+/docs/guide                               PREFIX: docs
+/docs/api/users                           PREFIX: longest docs api
+/docs/api/report.css                     REGEX: static, first match
+/docs/api/report.CSS                     REGEX: static, first match
+/docs/api/report.php?download=1           REGEX: php
+/media/app.css                            PREFIX: media, regex skipped
+/media/readme                             PREFIX: media, regex skipped</span></pre></div>
+  <p lang="fa">برای این آزمایش، body یکتا مدرک winner است؛ statusِ <code>200</code> برای همه فقط می‌گوید یک پاسخ موفق گرفته‌ایم. خروجی نشان می‌دهد هم prefixها و هم regexها می‌توانند match باشند، اما قاعدهٔ تصمیم تعیین می‌کند کدامشان پاسخ نهایی را بسازد. اگر body از یک نصب قبلی آمد، config و port را دوباره تأیید کن.</p>
+  <p lang="en">In this experiment, the unique body identifies the winner; status <code>200</code> only says a successful response arrived. The output shows that both prefixes and regexes can match, while the decision rules determine which one produces the final response. If the body came from another service, recheck the config and port.</p>
+</section>
+
+<section id="regex-order-failure">
+  <h2><span lang="fa">خرابی عمدی: longest prefix هست، regex می‌برد</span><span lang="en">Deliberate failure: the longest prefix exists, but regex wins</span></h2>
+  <p class="lede" lang="fa">همکارمان نتیجهٔ جدول را نمی‌خواهد. می‌گوید «هر چیزی زیر <code>/docs/api/</code> باید از API عبور کند، حتی پسوند CSS». پس از او می‌خواهیم یک درخواست CSS بفرستد؛ قبل از اصلاح، خروجی را نگه می‌داریم و از روی آن حرف می‌زنیم.</p>
+  <p class="lede" lang="en">Our teammate dislikes the table’s result. They say, “Everything under <code>/docs/api/</code> must go through the API, even a CSS suffix.” We ask them to send a CSS request and preserve the output before making a fix.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">what the unprotected prefix actually does</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">curl -i http://127.0.0.1:18081/docs/api/report.css</span>
+<span class="s">HTTP/1.1 200 OK
+...
+REGEX: static, first match</span></pre></div>
+  <p lang="fa">بدنهٔ <code>REGEX: static</code> خلاف انتظار است، اما با الگوریتم جور درمی‌آید: prefix بلندتر پیدا و ذخیره شد؛ چون <code>^~</code> نداشت، regexها هم بررسی شدند؛ regex اول CSS را گرفت. هنوز هیچ‌چیز را تغییر نده. اگر config مؤثر با چیزی که می‌خوانی یکی است، این پاسخ نتیجهٔ مستقیم ترتیب تصمیم است، نه تصادف.</p>
+  <p lang="en">The <code>REGEX: static</code> body is surprising but consistent with the algorithm: the longer prefix was found and remembered; because it lacked <code>^~</code>, regex checks continued; the first CSS regex matched. Do not change anything yet. If the effective config is the one you read, this response follows directly from the decision order—it is not random.</p>
+  <p lang="fa">حالا تنها یک تغییر می‌دهیم: <code>location /docs/api/</code> را به <code>location ^~ /docs/api/</code> تبدیل کن. syntax را بسنج و فقط آزمایشگاه را reload کن. پیش‌بینی کن: همین CSS حالا از کدام block برمی‌گردد؟</p>
+  <p lang="en">Now make just one change: turn <code>location /docs/api/</code> into <code>location ^~ /docs/api/</code>. Test syntax and reload only the lab. Predict: which block will return this CSS request now?</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">verify the same request after ^~</span><button class="copy">کپی</button></div><pre dir="ltr"><span class="k">nginx -t -p "$LAB_DIR/" -c nginx.conf
+nginx -p "$LAB_DIR/" -c nginx.conf -s reload
+curl -i http://127.0.0.1:18081/docs/api/report.css</span>
+<span class="s">HTTP/1.1 200 OK
+...
+PREFIX: longest docs api</span></pre></div>
+  <p lang="fa">چون همان URL و همان port را بعد از یک تغییر مشخص فرستادیم، فرق body مدرک اثر <code>^~</code> است. این ثابت نمی‌کند هر APIای سالم است؛ فقط انتخاب location را عوض کردیم. برای requestهایی که exact match دارند، exact همچنان جلوتر است.</p>
+  <p lang="en">Because we sent the same URL to the same port after one controlled change, the different body is evidence of <code>^~</code>’s effect. This does not prove any API works; we only changed location selection. Exact matches still take precedence.</p>
+  <div class="note warn"><div class="note-t"><span lang="fa">^~ را چسب زخم نکن</span><span lang="en">Do not use ^~ as a bandage</span></div><p lang="fa">اگر regex به مسیر اشتباه می‌رسد، اول روشن کن کدام درخواست باید در کدام قاعده باشد. <code>^~</code> فقط regexها را پس از بلندترین prefix کنار می‌زند؛ اگر prefixها هم بد طراحی شده باشند، این modifier علت اصلی را پنهان می‌کند. در production همان config مؤثر و یک درخواست نمونه را بررسی کن.</p><p lang="en">If a regex reaches the wrong path, first clarify which requests should use which rule. <code>^~</code> only skips regexes after the longest prefix; if the prefixes are poorly designed, the modifier can hide the real problem. Inspect the effective config and one representative request in production.</p></div>
+</section>
+
+<section id="uri-normalization">
+  <h2><span lang="fa">location خود URL کامل را نمی‌بیند</span><span lang="en">A location does not see the full URL</span></h2>
+  <p class="lede" lang="fa">دیدیم query string را نمی‌سنجد. پیش از آن هم URI برای تطبیق به شکل نرمال‌شده استفاده می‌شود: بخش‌های percent-encoded decode می‌شوند، اجزای نقطه‌ای مسیر حل می‌شوند و با تنظیم پیش‌فرض، slashهای پشت‌سرهم به یک slash تبدیل می‌شوند. پس گاهی رشته‌ای که در مرورگر تایپ شده دقیقاً رشته‌ای نیست که prefix/regex می‌بیند.</p>
+  <p class="lede" lang="en">We saw that the query string is not tested. Before matching, the URI is also normalized: percent-encoded parts are decoded, dot path components are resolved, and—by default—repeated slashes are compressed. So the string typed in the browser is not always exactly the string a prefix or regex sees.</p>
+  <p lang="fa">این جزئیات برای خواندن مثال‌ها مهم است، نه دعوت به ساختن مسیرهای مبهم. برای یک بررسی کنترل‌شده می‌توانی شکل خام و پاسخ را کنار هم ثبت کنی؛ اما اگر ورودی encoded یا slashهای تکراری داری، config را با نسخهٔ Nginx خودت آزمایش کن. خاموش‌کردن <code>merge_slashes</code> تصمیم امنیتی/سازگاری است، نه راه معمول رفع مشکل.</p>
+  <p lang="en">This matters when reading examples; it is not an invitation to create ambiguous paths. For a controlled check, record the raw request and response together. If encoded input or repeated slashes matter to your application, test with your installed Nginx version. Turning off <code>merge_slashes</code> is a security/compatibility decision, not a routine fix.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">بخش درخواست</span><span lang="en">Request component</span></th><th><span lang="fa">در تطبیق location؟</span><span lang="en">Used in location matching?</span></th><th><span lang="fa">نمونه</span><span lang="en">Example</span></th></tr></thead><tbody>
+    <tr><td>Path / URI</td><td><span lang="fa">بله؛ پس از نرمال‌سازی Nginx</span><span lang="en">Yes, after Nginx normalization</span></td><td><code>/docs/api/report.css</code></td></tr>
+    <tr><td>Query arguments</td><td><span lang="fa">نه، برای انتخاب location</span><span lang="en">No, not for location selection</span></td><td><code>?download=1</code></td></tr>
+    <tr><td>Host name</td><td><span lang="fa">قبلاً برای server block بررسی شد</span><span lang="en">Used earlier for server-block selection</span></td><td><code>api.example.test</code></td></tr>
+  </tbody></table></div>
+</section>
+
+<section id="root-alias">
+  <h2><span lang="fa">root مسیر را اضافه می‌کند؛ alias prefix را جایگزین</span><span lang="en">root appends the URI; alias replaces its prefix</span></h2>
+  <p class="lede" lang="fa">فرض کن location درست را پیدا کرده‌ای، ولی فایل وجود ندارد. ممکن است قاعدهٔ انتخاب درست باشد و مسیر دیسک غلط ساخته شود. تفاوت <code>root</code> و <code>alias</code> همین‌جا مهم می‌شود؛ این دو مسیر فایل را می‌سازند، نه اینکه location برنده را انتخاب کنند.</p>
+  <p class="lede" lang="en">Suppose you found the right location, but the file is missing. The rule may be correct while the filesystem path is wrong. That is where the difference between <code>root</code> and <code>alias</code> matters; they build a file path, not the winning location.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 900 310" role="img" aria-labelledby="root-alias-title" xmlns="http://www.w3.org/2000/svg">
+      <title id="root-alias-title">root appends the URI while alias replaces the matching location prefix / root URI را اضافه و alias prefix را جایگزین می‌کند</title>
+      <rect x="28" y="36" width="408" height="220" rx="16" class="dg-fill-b" stroke="var(--blue)" stroke-width="2"/>
+      <text x="232" y="72" text-anchor="middle" class="dg-t">root /srv/site;</text>
+      <rect x="64" y="99" width="336" height="56" rx="11" class="dg-fill" stroke="var(--line-strong)" stroke-width="1.5"/>
+      <text x="232" y="134" text-anchor="middle" class="dg-tm">URI: /img/logo.svg</text>
+      <path d="M232 155V185" class="dg-stroke-b" stroke-width="2.5"/>
+      <rect x="64" y="188" width="336" height="48" rx="10" class="dg-fill-g" stroke="var(--safe)" stroke-width="1.5"/>
+      <text x="232" y="218" text-anchor="middle" class="dg-tm">/srv/site/img/logo.svg</text>
+      <rect x="464" y="36" width="408" height="220" rx="16" class="dg-fill-v" stroke="var(--violet)" stroke-width="2"/>
+      <text x="668" y="72" text-anchor="middle" class="dg-t">location /img/ + alias /data/images/</text>
+      <rect x="500" y="99" width="336" height="56" rx="11" class="dg-fill" stroke="var(--line-strong)" stroke-width="1.5"/>
+      <text x="668" y="134" text-anchor="middle" class="dg-tm">/img/ replaced by /data/images/</text>
+      <path d="M668 155V185" class="dg-stroke-v" stroke-width="2.5"/>
+      <rect x="500" y="188" width="336" height="48" rx="10" class="dg-fill-g" stroke="var(--safe)" stroke-width="1.5"/>
+      <text x="668" y="218" text-anchor="middle" class="dg-tm">/data/images/logo.svg</text>
+      <text x="450" y="286" text-anchor="middle" class="dg-ts">Same selected location; different filesystem mapping</text>
+    </svg>
+    <p class="diagram-cap" lang="fa">در مثال <code>root</code>، URI به مسیر root افزوده می‌شود؛ در مثال <code>alias</code>، بخش منطبق location با مسیر alias جایگزین می‌شود. فلش‌ها تبدیل مسیر را نشان می‌دهند، نه جریان شبکه را.</p>
+    <p class="diagram-cap" lang="en">With <code>root</code>, the URI is appended to the root path; with <code>alias</code>, the matching location prefix is replaced by the alias path. Arrows show path construction, not network traffic.</p>
+  </div>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">قاعده</span><span lang="en">Directive</span></th><th><span lang="fa">config</span><span lang="en">Config</span></th><th><span lang="fa">URI درخواست</span><span lang="en">Request URI</span></th><th><span lang="fa">مسیر ساخته‌شده</span><span lang="en">Resulting path</span></th></tr></thead><tbody>
+    <tr><td><code>root</code></td><td><code>root /srv/site;</code></td><td><code>/img/logo.svg</code></td><td><code>/srv/site/img/logo.svg</code></td></tr>
+    <tr><td><code>alias</code></td><td><code>location /img/</code><br><code>alias /data/images/;</code></td><td><code>/img/logo.svg</code></td><td><code>/data/images/logo.svg</code></td></tr>
+  </tbody></table></div>
+  <p lang="fa">برای prefixای مثل <code>/img/</code>، با <code>root /srv/site</code> تکهٔ <code>/img/</code> هم به مسیر دیسک می‌آید؛ با <code>alias /data/images/</code> آن prefix حذف و با مسیر جایگزین می‌شود. در الگوی رایجِ location و alias، slash پایانی دو طرف را هماهنگ نگه دار. اگر 404 دیدی، اول با یک نشانگر جدا ثابت کن کدام location انتخاب شده؛ بعد مسیر نهایی و وجود و دسترسی فایل را بررسی کن.</p>
+  <p lang="fa">دام کوچکِ slash را هم ببین: در <code>location /img/</code> اگر مقدار را <code>alias /data/images</code> بنویسی، بخش باقی‌ماندهٔ URI ممکن است بی‌فاصله به انتهای مسیر بچسبد؛ برای <code>/img/logo.svg</code> مسیر مورد انتظار <code>/data/images/logo.svg</code> است، نه یک رشتهٔ چسبیده. slash پایانی alias را نگه دار و مسیر را با درخواست آزمایشی و وجود فایل روی دیسک تأیید کن.</p>
+  <p lang="en">There is also a small trailing-slash trap: with <code>location /img/</code>, writing <code>alias /data/images</code> can concatenate the remaining URI suffix directly to the path. For <code>/img/logo.svg</code>, the intended path is <code>/data/images/logo.svg</code>, not a concatenated string. Keep the alias trailing slash and verify the mapping with a test request and the file on disk.</p>
+  <p lang="en">For a prefix such as <code>/img/</code>, <code>root /srv/site</code> keeps <code>/img/</code> in the filesystem path; <code>alias /data/images/</code> removes that prefix and substitutes the new path. In the common location/alias pattern, keep trailing slashes aligned. If you get a 404, first prove the winner with a distinct marker, then inspect the resulting path and file existence/permissions.</p>
+  <p lang="fa">یک دام رایج این است که از روی نام location فکر کنیم فایل حتماً زیر پوشه‌ای هم‌نام قرار می‌گیرد. بعد از محاسبهٔ مسیر، از ابزار سیستم خودت وجود فایل را بررسی کن؛ <code>root</code> و <code>alias</code> رفتار یکسانی ندارند و جایگزین هم نیستند. در فصل فایل استاتیک، مسیر فایل، index و رفتار پاسخ را مفصل‌تر دنبال می‌کنیم.</p>
+  <p lang="en">A common trap is assuming the file must live under a same-named directory just because the location has that name. Verify the computed path with your system tools; <code>root</code> and <code>alias</code> do not behave the same way and are not interchangeable. The static-files chapter will go deeper into file paths, index handling, and response behavior.</p>
+</section>
+
+<section id="named-nested">
+  <h2><span lang="fa">دو نکتهٔ کوتاه دربارهٔ locationهای پیشرفته‌تر</span><span lang="en">Two short notes on more advanced locations</span></h2>
+  <p class="lede" lang="fa">همهٔ locationها مستقیماً با URL تطبیق داده نمی‌شوند. location نام‌دار با <code>@name</code> تعریف می‌شود و معمولاً مقصدی داخلی برای redirectهای خود Nginx است؛ کاربر نمی‌تواند با URLای مثل <code>/@fallback</code> مستقیماً آن را انتخاب کند. مثال‌های این فصل را عمداً تو‌در‌تو نکردیم تا ترتیب اصلی را جدا بفهمیم.</p>
+  <p class="lede" lang="en">Not every location is matched directly against a URL. Named locations use <code>@name</code> and are usually internal targets for Nginx redirects; a client cannot select one directly with a URL such as <code>/@fallback</code>. Our examples stay flat so we can learn the main order separately.</p>
+  <p lang="fa">locationهای تو‌در‌تو می‌توانند جست‌وجوی regex را در محدوده‌های مختلف پیچیده کنند؛ پس الگوریتم سادهٔ این صفحه را بی‌قیدوشرط به blockهای تو‌در‌تو تعمیم نده. اگر از nesting استفاده می‌کنی، درخت را دقیق بخوان و همان پیکربندی را با <code>nginx -T</code> و curl بیازما. میان‌بر ذهنیِ ساده بهتر از یک قانون نادرست نیست.</p>
+  <p lang="en">Nested locations can make regex searches across scopes more subtle; do not apply this page’s flat algorithm to nested blocks without qualification. If you use nesting, inspect the tree carefully and test that exact config with <code>nginx -T</code> and curl. A simple but false shortcut is not a useful mental model.</p>
+  <div class="note safe"><div class="note-t"><span lang="fa">یادداشت نسخه</span><span lang="en">Version note</span></div><p lang="fa">مستند جاری Nginx علاوه بر prefix و regex، predicate location بر پایهٔ متغیر را هم فهرست می‌کند؛ syntax آن در Nginx 1.31.5 اضافه شده است. این rule با <code>location $variable</code> نوشته می‌شود و پس از regexها بررسی می‌شود؛ اولین predicate مطابق می‌تواند برنده شود. اگر بلندترین prefix <code>^~</code> داشته باشد، predicateها هم بررسی نمی‌شوند. چون این قابلیت تازه‌تر و خارج از آزمایش مقدماتی ماست، syntax و محدودیتش را از مستند همان نسخه بخوان.</p><p lang="en">Current Nginx docs also list variable-based predicate locations; this syntax appeared in Nginx 1.31.5. Written as <code>location $variable</code>, it is checked after regexes, and the first matching predicate can win. If the longest prefix has <code>^~</code>, predicates are skipped too. Because this feature is newer and outside our introductory lab, consult the docs for your exact version before using its syntax and constraints.</p></div>
+</section>
+
+<section id="exercises">
+  <h2><span lang="fa">تمرین‌ها: پیش از دیدن پاسخ، location برنده را حدس بزن</span><span lang="en">Exercises: predict the winning location before opening the answer</span></h2>
+  <p class="lede" lang="fa">از پیش‌بینی ساده شروع می‌کنیم، اما آخر تمرین‌ها فقط حفظ ترتیب کافی نیست: باید evidence را بخوانی، خرابی را از مرز درست تشخیص بدهی و امن‌ترین آزمایش بعدی را انتخاب کنی.</p>
+  <p class="lede" lang="en">We begin with simple predictions, but memorizing the order is not enough by the end. You will need to read evidence, locate the failing boundary, and choose the safest next experiment.</p>
+
+  <div class="ex" id="ex01"><h3><span lang="fa">۱. یک exact در میان prefixها</span><span lang="en">1. One exact among prefixes</span></h3><p lang="fa">config شامل <code>location = /health</code>، <code>location /</code> و regex عمومی است. برای URI برابر <code>/health</code> چه کسی برنده است؟</p><p lang="en">The config has <code>location = /health</code>, <code>location /</code>, and a general regex. Which wins for URI <code>/health</code>?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">exact، چون match دقیق جست‌وجو را تمام می‌کند. نه طولانی‌ترین prefix و نه regex عمومی بعد از آن فرصت برنده‌شدن ندارند. یک درخواست curl با body یکتا تأییدش می‌کند.</p><p lang="en">The exact location, because an exact match ends the search. Neither the longest prefix nor the general regex gets a chance to win. Verify with curl and a unique body.</p></details></div>
+
+  <div class="ex" id="ex02"><h3><span lang="fa">۲. query را از مسیر جدا کن</span><span lang="en">2. Separate the query from the path</span></h3><p lang="fa">برای <code>/health?detail=1</code> آیا <code>location = /health</code> match می‌شود؟ توضیح بده کدام بخش URI location را انتخاب می‌کند.</p><p lang="en">Does <code>location = /health</code> match <code>/health?detail=1</code>? Explain which part selects the location.</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">بله. برای انتخاب location، query arguments ملاک نیستند؛ URI مسیر <code>/health</code> است. این به معنی نادیده‌گرفته‌شدن query برای کل برنامه نیست؛ فقط location matching را انتخاب نمی‌کند.</p><p lang="en">Yes. Query arguments do not participate in location selection; the path URI is <code>/health</code>. That does not mean the application ignores the query entirely—only that it does not select the location.</p></details></div>
+
+  <div class="ex" id="ex03"><h3><span lang="fa">۳. prefix بلندتر</span><span lang="en">3. The longer prefix</span></h3><p lang="fa">سه rule داری: <code>/</code>، <code>/docs/</code> و <code>/docs/api/</code>. برای <code>/docs/api/users</code> کدام prefix candidate می‌شود؟</p><p lang="en">You have three rules: <code>/</code>, <code>/docs/</code>, and <code>/docs/api/</code>. Which prefix becomes the candidate for <code>/docs/api/users</code>?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">بلندترین prefix مطابق، یعنی <code>/docs/api/</code>. این پاسخ هنوز برندهٔ نهایی را تضمین نمی‌کند؛ اگر <code>^~</code> ندارد، regexهای بعدی ممکن است انتخاب را عوض کنند.</p><p lang="en">The longest matching prefix, <code>/docs/api/</code>. This does not yet guarantee the final winner; without <code>^~</code>, a later regex may change the selection.</p></details></div>
+
+  <div class="ex" id="ex04"><h3><span lang="fa">۴. دو regex، یک URI</span><span lang="en">4. Two regexes, one URI</span></h3><p lang="fa">ابتدا <code>location ~* \.css$</code> و بعد <code>location ~* \.(css|js)$</code> آمده‌اند. برای <code>/app.css</code> کدام برنده است و چرا؟</p><p lang="en">First comes <code>location ~* \.css$</code>, followed by <code>location ~* \.(css|js)$</code>. Which wins for <code>/app.css</code>, and why?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">اولی، چون هر دو match می‌شوند ولی regexها به ترتیب config بررسی و با اولین match متوقف می‌شوند. این با prefixها فرق دارد که بلندترین انتخاب می‌شود، نه اولین خط.</p><p lang="en">The first one, because both match but regexes are tested in config order and stop at the first match. This differs from prefixes, where the longest is selected rather than the first line.</p></details></div>
+
+  <div class="ex" id="ex05"><h3><span lang="fa">۵. حساسیت به حروف</span><span lang="en">5. Case sensitivity</span></h3><p lang="fa">یک rule با <code>~ \.css$</code> داری. آیا <code>/APP.CSS</code> را می‌گیرد؟ اگر رفتار بدون حساسیت به case می‌خواهی چه modifierی را بررسی می‌کنی؟</p><p lang="en">You have a <code>~ \.css$</code> rule. Will it match <code>/APP.CSS</code>? Which modifier would you consider for case-insensitive behavior?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه؛ <code>~</code> برای regex حساس به بزرگی/کوچکی حروف است. <code>~*</code> حالت case-insensitive می‌دهد. بااین‌حال پیش از تغییر، مطمئن شو URI نرمال‌شده واقعاً همان suffix را دارد و ترتیب regex دیگری زودتر برنده نشده.</p><p lang="en">No. <code>~</code> makes regex matching case-sensitive. <code>~*</code> is case-insensitive. Before changing it, confirm the normalized URI has that suffix and no earlier regex wins first.</p></details></div>
+
+  <div class="ex" id="ex06"><h3><span lang="fa">۶. ^~ در کجای انتخاب اثر می‌کند؟</span><span lang="en">6. Where does ^~ take effect?</span></h3><p lang="fa"><code>location ^~ /media/</code> و <code>location ~* \.css$</code> هر دو با <code>/media/app.css</code> جورند. چه چیزی را انتظار داری؟</p><p lang="en">Both <code>location ^~ /media/</code> and <code>location ~* \.css$</code> match <code>/media/app.css</code>. What do you expect?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">اگر <code>/media/</code> بلندترین prefix است، همان برنده است و regex بررسی نمی‌شود. <code>^~</code> regex را globally خاموش نمی‌کند؛ اثرش مشروط به این است که این prefix بلندترین مورد باشد.</p><p lang="en">If <code>/media/</code> is the longest prefix, it wins and regex checks are skipped. <code>^~</code> does not disable regex globally; it applies only when this is the longest matching prefix.</p></details></div>
+
+  <div class="ex" id="ex07"><h3><span lang="fa">۷. regex را جابه‌جا کنیم؟</span><span lang="en">7. Should we reorder the regexes?</span></h3><p lang="fa">برای <code>/docs/api/file.css</code> می‌خواهی prefix API پاسخ دهد، نه regex عمومی فایل‌ها. یک راه <code>^~</code> است. آیا جابه‌جاکردن regex CSS به پایین هم کافی است؟ فرق این دو راه را بگو.</p><p lang="en">For <code>/docs/api/file.css</code>, you want the API prefix to answer instead of the general file regex. One option is <code>^~</code>. Would moving the CSS regex lower also be enough? Explain the difference.</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه لزوماً؛ اگر regex دیگری هم match شود، پایین‌بردن یک regex فقط ترتیب را بین regexها عوض می‌کند. <code>^~</code> روی بلندترین prefix می‌گوید برای آن مسیر اصلاً regex مرحلهٔ بعد را نسنج. انتخاب درست به قرارداد مسیرهای API و فایل وابسته است؛ درخواست را قبل و بعد با body یکتا آزمایش کن.</p><p lang="en">Not necessarily. Another regex may still match; moving one regex only changes order among regexes. <code>^~</code> on the longest prefix says not to test the next regex stage for that path. Choose based on the API/file routing contract and verify the same request with unique bodies before and after.</p></details></div>
+
+  <div class="ex" id="ex08"><h3><span lang="fa">۸. 404 یا winner اشتباه؟</span><span lang="en">8. A 404 or the wrong winner?</span></h3><p lang="fa">یک 404 می‌بینی و می‌خواهی regex را تغییر بدهی. چطور اول تشخیص می‌دهی location درست انتخاب شده ولی فایل نیست، یا location دیگری پاسخ داده؟</p><p lang="en">You see a 404 and want to change a regex. How do you first distinguish “the right location won but the file is missing” from “a different location answered”?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">موقتاً برای ruleهای موردنظر پاسخ یکتا (body یا header آزمایشگاهی) می‌گذارم یا log/config مؤثر را بررسی می‌کنم. بعد از ثابت‌کردن winner، مسیر دیسک، root/alias، وجود و دسترسی فایل را می‌سنجم. status به‌تنهایی انتخاب location را نشان نمی‌دهد.</p><p lang="en">Temporarily give candidate rules distinct lab responses or inspect effective config/logs. After proving the winner, check the filesystem path, root/alias, file existence, and permissions. Status alone does not identify the selected location.</p></details></div>
+
+  <div class="ex" id="ex09"><h3><span lang="fa">۹. root چه مسیری می‌سازد؟</span><span lang="en">9. What path does root build?</span></h3><p lang="fa">یک <code>location /img/</code> با <code>root /srv/site;</code> داری. درخواست <code>/img/logo.svg</code> کدام مسیر را می‌جوید؟</p><p lang="en">You have <code>location /img/</code> with <code>root /srv/site;</code>. Which path is checked for <code>/img/logo.svg</code>?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">مسیر با افزودن URI به root ساخته می‌شود: <code>/srv/site/img/logo.svg</code>. اگر فایل در <code>/srv/site/logo.svg</code> است، root و ساختار مسیر باهم جور نیستند؛ برای mapping جایگزین ممکن است alias مناسب باشد.</p><p lang="en">The URI is appended to root: <code>/srv/site/img/logo.svg</code>. If the file is at <code>/srv/site/logo.svg</code>, the root and path structure do not align; alias may be appropriate for a replacement mapping.</p></details></div>
+
+  <div class="ex" id="ex10"><h3><span lang="fa">۱۰. alias چه چیزی را حذف می‌کند؟</span><span lang="en">10. What does alias replace?</span></h3><p lang="fa">با <code>location /img/ { alias /data/images/; }</code> درخواست <code>/img/logo.svg</code> چه مسیر فایلی می‌سازد؟</p><p lang="en">With <code>location /img/ { alias /data/images/; }</code>, what filesystem path does <code>/img/logo.svg</code> map to?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">prefix منطبق <code>/img/</code> با <code>/data/images/</code> جایگزین می‌شود، پس مسیر <code>/data/images/logo.svg</code> است. برای اطمینان، slashهای پایانی دو طرف و مسیر واقعی فایل را کنار هم بررسی کن.</p><p lang="en">The matching <code>/img/</code> prefix is replaced with <code>/data/images/</code>, yielding <code>/data/images/logo.svg</code>. Check both trailing slashes and the real file path to confirm the mapping.</p></details></div>
+
+  <div class="ex" id="ex11"><h3><span lang="fa">۱۱. query روی regex اثر گذاشت؟</span><span lang="en">11. Did the query affect the regex?</span></h3><p lang="fa"><code>location ~ \.php$</code> داری. آیا <code>/index.php?mode=css</code> این regex را می‌گیرد؟ چرا؟</p><p lang="en">You have <code>location ~ \.php$</code>. Does it match <code>/index.php?mode=css</code>? Why?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">بله؛ regex روی URI path یعنی <code>/index.php</code> اعمال می‌شود و query <code>?mode=css</code> جزو رشتهٔ تطبیق نیست. در عمل می‌توانی با body یکتا یا <code>curl -i</code> این را ببینی، اما نگذار query گمراهت کند.</p><p lang="en">Yes. The regex is applied to the URI path, <code>/index.php</code>; <code>?mode=css</code> is not part of the match string. A unique body or <code>curl -i</code> can verify it, but do not let the query mislead you.</p></details></div>
+
+  <div class="ex" id="ex12"><h3><span lang="fa">۱۲. «اولین prefix» اشتباه است</span><span lang="en">12. “First prefix” is wrong</span></h3><p lang="fa">دو prefix مطابق‌اند: خط اول <code>location /</code> و خط پایین‌تر <code>location /docs/</code>. برای <code>/docs/start</code> کدام را می‌گیری؟</p><p lang="en">Two prefixes match: first <code>location /</code>, then a later <code>location /docs/</code>. Which one handles <code>/docs/start</code>?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa"><code>/docs/</code> چون بلندتر است، مستقل از ترتیب تعریف prefixها. ترتیب config برای regexها مهم است؛ برای prefixها طول مهم است، مگر exact یا رفتار modifierها تصمیم را عوض کند.</p><p lang="en"><code>/docs/</code>, because it is longer, regardless of prefix declaration order. Config order matters for regexes; prefix length matters for prefixes unless exact matching or modifiers change the decision.</p></details></div>
+
+  <div class="ex" id="ex13"><h3><span lang="fa">۱۳. /media/app.css</span><span lang="en">13. /media/app.css</span></h3><p lang="fa">هم <code>location ^~ /media/</code> و هم regex اول <code>location ~* \.css$</code> match هستند. دقیقاً کدام marker باید برگردد؟</p><p lang="en">Both <code>location ^~ /media/</code> and the first <code>location ~* \.css$</code> regex match. Which marker should be returned?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">marker مربوط به <code>^~ /media/</code>؛ چون آن prefix بلندترین match است، مرحلهٔ regex انجام نمی‌شود. اگر response از regex آمد، بررسی کن واقعاً همین config بار شده و prefixهای دیگری طولانی‌تر نیستند.</p><p lang="en">The <code>^~ /media/</code> marker. Because it is the longest match, the regex stage is skipped. If the regex response appears, confirm this config is loaded and no longer prefix changes the candidate.</p></details></div>
+
+  <div class="ex" id="ex14"><h3><span lang="fa">۱۴. شش regex در یک config</span><span lang="en">14. Six regexes in one config</span></h3><p lang="fa">در چند regex، دو قاعدهٔ اول هر دو URI را match می‌کنند؛ قاعدهٔ دلخواهت سوم است. آیا سوم به‌علت «خاص‌تر بودن» برنده می‌شود؟</p><p lang="en">Several regexes match, and your preferred rule is third. Does it win because it is “more specific”?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">نه؛ regexها با ترتیب config سنجیده می‌شوند و اولین match تمام می‌کند. خودت قاعده‌ها را طوری مرتب کن که قرارداد روشن باشد، یا prefix/دسته‌بندی را بازطراحی کن؛ «خاص‌تر» اولویت خودکار نیست.</p><p lang="en">No. Regexes are tested in config order and the first match stops the search. Order the rules to express the intended contract or redesign the prefix grouping; “more specific” is not an automatic priority rule.</p></details></div>
+
+  <div class="ex" id="ex15"><h3><span lang="fa">۱۵. root درست است یا winner؟</span><span lang="en">15. Is root wrong, or is the winner wrong?</span></h3><p lang="fa">marker نشان می‌دهد location مورد انتظار برنده شده، اما Nginx فایل را پیدا نمی‌کند. دو بررسی بعدی را به‌ترتیب بنویس.</p><p lang="en">The marker proves the intended location won, but Nginx cannot find the file. Name the next two checks in order.</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">اول مسیر نهایی را با قاعدهٔ همان root/alias محاسبه می‌کنم؛ بعد وجود فایل و permission پوشه/فایل را در همان مسیر می‌سنجم. عوض‌کردن regex در این مرحله مسئلهٔ انتخابی را که قبلاً ثابت شده دوباره باز می‌کند.</p><p lang="en">First calculate the final path using that rule’s root/alias behavior; then check file existence and directory/file permissions at that exact path. Changing the regex reopens a selection problem already proven correct.</p></details></div>
+
+  <div class="ex" id="ex16"><h3><span lang="fa">۱۶. تغییر امن یک modifier</span><span lang="en">16. Safely changing one modifier</span></h3><p lang="fa">در production، CSS از زیرمسیر API به regex می‌رود. قبل از افزودن <code>^~</code> چه دو چیز را روشن می‌کنی و چه چیزی را بعدش دوباره می‌سنجی؟</p><p lang="en">In production, CSS under an API path goes to a regex. What two things do you clarify before adding <code>^~</code>, and what do you retest afterwards?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">اول قرارداد مطلوب برای فایل‌های زیر API و دقیقاً کدام prefix بلندترین است؛ بعد مطمئن می‌شوم regex نباید عمداً برای آن مسیر اجرا شود. config را backup/review می‌کنم، <code>-t</code> می‌گیرم، reload کنترل‌شده و همان URL را با marker و status دوباره می‌آزمایم. تغییر modifier همهٔ رفتارهای برنامه را ثابت نمی‌کند.</p><p lang="en">First clarify the intended handling of files below the API and which prefix is actually longest; then confirm regex should not run for that path. Back up/review the config, run <code>-t</code>, reload in a controlled way, and retest the same URL with its marker and status. A modifier change does not prove every application behavior.</p></details></div>
+
+  <div class="ex" id="ex17"><h3><span lang="fa">۱۷. نتیجهٔ خام و نرمال‌شده</span><span lang="en">17. Raw and normalized request paths</span></h3><p lang="fa">یک URL دارای percent-encoding یا slashهای تکراری به prefix مورد انتظار نمی‌رسد. قبل از بازنویسی regex، چه شواهدی جمع می‌کنی؟</p><p lang="en">A URL with percent-encoding or repeated slashes does not reach the expected prefix. What evidence do you collect before rewriting the regex?</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">request خام و URIای که Nginx برای matching نرمال می‌کند را جدا بررسی می‌کنم، بعد با یک URL ساده و یک نمونهٔ encoded در config آزمایش درخواست می‌فرستم. تنظیم <code>merge_slashes</code> و نسخه را می‌سنجم؛ آن را صرفاً برای اینکه یک regex match شود خاموش نمی‌کنم.</p><p lang="en">Separate the raw request from the normalized URI Nginx matches, then test a simple URL and an encoded example against a lab config. Check version and <code>merge_slashes</code>; do not disable it merely to force one regex to match.</p></details></div>
+
+  <div class="ex" id="ex18"><h3><span lang="fa">۱۸. بلیت عیب‌یابی نهایی</span><span lang="en">18. Final debugging ticket</span></h3><p lang="fa">بلیت: «<code>/docs/api/manual.pdf</code> باید از API بیاید؛ الان از قاعدهٔ فایل‌های عمومی پاسخ می‌گیرد.» یک تشخیص مرحله‌ای بساز که exact، طولانی‌ترین prefix، <code>^~</code> و ترتیب regex را بررسی کند و به تغییر تصادفی ختم نشود.</p><p lang="en">Ticket: “<code>/docs/api/manual.pdf</code> should be handled by the API; it currently receives the general file response.” Build a stepwise diagnosis that checks exact match, longest prefix, <code>^~</code>, and regex order without random edits.</p><details class="ex-sol"><summary><span lang="fa">پاسخ را ببین</span><span lang="en">Show solution</span></summary><p lang="fa">با curl همان URL و body/header یکتا، winner فعلی را ثابت می‌کنم. در config مؤثر <code>-T</code> اول exactهای ممکن، سپس همهٔ prefixها و طولانی‌ترینشان را پیدا می‌کنم. اگر prefix API <code>^~</code> ندارد، regexها را به ترتیب می‌سنجم تا اولین match را بیابم. بعد با قرارداد تیم تصمیم می‌گیرم ^~ لازم است یا regex باید محدودتر شود؛ یک تغییر، <code>-t</code>، reload آزمایش‌شده و همان درخواست را تکرار می‌کنم.</p><p lang="en">Use curl with a unique body/header to prove the current winner. In the effective config from <code>-T</code>, check exact locations, then all prefixes and the longest one. If the API prefix lacks <code>^~</code>, test regexes in order to find the first match. Decide from the team’s routing contract whether ^~ is needed or the regex should be narrower; make one change, run <code>-t</code>, reload safely, and repeat the same request.</p></details></div>
+</section>
+
+<section id="lab-mission">
+  <h2><span lang="fa">ماموریت: جدول locationهای برنده را ثابت کن</span><span lang="en">Mission: prove your own winner table</span></h2>
+  <p class="lede" lang="fa">یک پیکربندی کوچک در اختیار داری، نه Nginx یک محیط واقعی. باید ده نشانی را پیش‌بینی کنی، پاسخ واقعی بگیری، یک مسیر را عمداً به قاعدهٔ نادرست بفرستی و توضیح بدهی چه چیزی انتخاب را عوض کرد. معیار موفقیت تعداد دستورها نیست؛ جدول پیش‌بینی‌ای است که با متن پاسخ‌ها جور دربیاید.</p>
+  <p class="lede" lang="en">You have a small config, not a production Nginx. Predict ten URLs, collect real responses, deliberately misroute one path, and explain what changed the winner. Success is not the number of commands; it is a prediction table that agrees with the response bodies.</p>
+  <ol>
+    <li><span lang="fa">پیکربندی آزمایشگاه این فصل را در پوشهٔ <code>LAB_DIR</code> بساز و <code>nginx -t</code> بگیر. پیش از اجرا، آزادبودن پورت را بررسی کن.</span><span lang="en">Create this chapter’s lab config under <code>LAB_DIR</code> and run <code>nginx -t</code>. Check that the port is free before starting.</span></li>
+    <li><span lang="fa">برای هر ده ردیف جدول تصمیم، location برنده و دلیل یک‌خطی را پیش از اجرای <code>curl</code> بنویس. اگر مطمئن نیستی، دقیقاً مشخص کن کدام قاعده‌ها ممکن است تطبیق کنند.</span><span lang="en">Before curl, write a winner and one-line reason for each of the ten decision-table rows. If unsure, list exactly which rules may match.</span></li>
+    <li><span lang="fa">حلقهٔ درخواست‌ها را اجرا کن و متن پاسخ‌ها را ذخیره کن. هر اختلاف را با URI، prefixها و ترتیب regex توضیح بده؛ کد وضعیت ۲۰۰ به‌تنهایی کافی نیست.</span><span lang="en">Run the loop and record the bodies. Explain every difference using the URI, prefixes, and regex order; status 200 alone is not enough.</span></li>
+    <li><span lang="fa">خرابی را بساز: در config آزمایش، <code>^~</code> را از <code>/media/</code> بردار (یا آن را از <code>/docs/api/</code> بردار تا عمداً regex جلو بزند). قبل از تغییر، پاسخ همان URL را ثبت کن.</span><span lang="en">Create the failure: remove <code>^~</code> from <code>/media/</code> (or from <code>/docs/api/</code> so the regex deliberately wins). Record the same URL’s response before changing it.</span></li>
+    <li><span lang="fa">با یک تغییر اصلاحش کن، <code>-t</code> بگیر، فقط آزمایشگاه را reload کن و همان URL را دوباره بفرست. تغییر بدنه را به مرحلهٔ regex نسبت بده، نه چند تغییر هم‌زمان.</span><span lang="en">Restore the modifier with one change, run <code>-t</code>, reload only the lab, and resend the same URL. Attribute the body change to the regex stage, not to several simultaneous edits.</span></li>
+    <li><span lang="fa">در پایان یک آزمایش جدا برای مسیر <code>root</code> و <code>alias</code> طراحی کن؛ مسیر فایل مورد انتظار را پیش از درخواست روی کاغذ محاسبه کن. اگر 404 شد، ابتدا همین محاسبه و وجود فایل را بررسی کن، نه اولویت location را که جداگانه ثابت کرده‌ای.</span><span lang="en">Finally design a separate root/alias path test; calculate the expected file path before requesting it. If it returns 404, inspect that calculation and file existence first, not the location priority already proven separately.</span></li>
+    <li><span lang="fa">فرایند آزمایشگاه را با <code>-s quit</code> و همان <code>-p/-c</code> متوقف کن. PID را بررسی کن، مسیر <code>LAB_DIR</code> را دوباره چاپ و تأیید کن، و فقط بعد از پایان فرایند همان پوشهٔ موقت را پاک کن.</span><span lang="en">Stop the lab with <code>-s quit</code> and the same <code>-p/-c</code>. Verify the PID, print and recheck <code>LAB_DIR</code>, then remove only that temporary directory after the process exits.</span></li>
+  </ol>
+  <details class="capsule"><summary><span lang="fa">سرنخ‌ها را فقط اگر لازم شد باز کن</span><span lang="en">Open hints only if you need them</span></summary><p lang="fa">اگر location برنده را پیدا نمی‌کنی، اول exact را جدا کن؛ بعد prefixهای مطابق را از کوتاه به بلند بنویس؛ سپس ببین بلندترینشان <code>^~</code> دارد یا نه؛ در غیر این صورت regexها را به ترتیب فایل بررسی کن. این ترتیب را برعکس نکن.</p><p lang="en">If you cannot find the winner, isolate exact matches first; list matching prefixes from shortest to longest; check whether the longest has ^~; otherwise walk regexes in file order. Do not reverse this sequence.</p></details>
+  <div class="note safe"><div class="note-t"><span lang="fa">گزارش پایان کار</span><span lang="en">Finish with a short report</span></div><p lang="fa">ده ردیف را با location برندهٔ پیش‌بینی‌شده و متن واقعی پاسخ تحویل بده. برای خرابی عمدی، یک جمله دربارهٔ علت، یک مدرک پیش از اصلاح و همان درخواست پس از اصلاح اضافه کن. بنویس آزمایش فقط روی loopback بوده و سلامت upstream، DNS عمومی یا فایل‌های واقعی سایت را ثابت نمی‌کند.</p><p lang="en">Submit ten rows with predicted winners and actual bodies. For the deliberate failure, include one sentence about its cause, evidence before repair, and the same request after repair. State that the lab used loopback only and does not prove upstream health, public DNS, or real site files.</p></div>
+</section>
+
+<section id="quick-reference">
+  <h2><span lang="fa">مرجع سریع: ترتیب را با یک نگاه برگردان</span><span lang="en">Quick reference: recall the order at a glance</span></h2>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">قدم</span><span lang="en">Step</span></th><th><span lang="fa">پرسش</span><span lang="en">Question</span></th><th><span lang="fa">نتیجه</span><span lang="en">Outcome</span></th></tr></thead><tbody>
+    <tr><td>1</td><td><span lang="fa">exact URI match هست؟</span><span lang="en">Is there an exact URI match?</span></td><td><span lang="fa">بله: همان location؛ تمام.</span><span lang="en">Yes: use it and stop.</span></td></tr>
+    <tr><td>2</td><td><span lang="fa">بلندترین prefix کدام است؟</span><span lang="en">What is the longest prefix?</span></td><td><span lang="fa">آن را به‌عنوان گزینهٔ فعلی نگه دار.</span><span lang="en">Remember it as the candidate.</span></td></tr>
+    <tr><td>3</td><td><span lang="fa">آیا این prefix با <code>^~</code> است؟</span><span lang="en">Does the candidate use <code>^~</code>?</span></td><td><span lang="fa">بله: regex و predicate را نسنج؛ prefix برنده است.</span><span lang="en">Yes: skip regex and predicate checks; prefix wins.</span></td></tr>
+    <tr><td>4</td><td><span lang="fa">کدام regex زودتر تطبیق می‌کند؟</span><span lang="en">Which regex matches first?</span></td><td><span lang="fa">اولین regex مطابق در ترتیب پیکربندی برنده است.</span><span lang="en">The first matching regex in config order wins.</span></td></tr>
+    <tr><td>5*</td><td><span lang="fa">اگر regexای نخورد و predicate location داری؟</span><span lang="en">If no regex matched and predicate locations exist?</span></td><td><span lang="fa">در نسخه‌های پشتیبان، آن‌ها را به ترتیب بررسی کن؛ جزئیات به نسخه وابسته است.</span><span lang="en">On supporting versions, check them in order; details are version-sensitive.</span></td></tr>
+    <tr><td>6</td><td><span lang="fa">هیچ گزینهٔ دیگری match نشد؟</span><span lang="en">No other match remains?</span></td><td><span lang="fa">به prefix ذخیره‌شده برگرد.</span><span lang="en">Use the remembered prefix.</span></td></tr>
+  </tbody></table></div>
+  <p lang="fa">ستارهٔ قدم ۵ یادآوری می‌کند که predicate location فقط در نسخه‌های پشتیبان (از 1.31.5) مطرح است؛ در configهای قدیمی‌تر مستقیم به fallback prefix می‌رویم.</p>
+  <p lang="en">The asterisk on step 5 marks predicate locations as version-dependent (available since 1.31.5); older configs go straight to the prefix fallback.</p>
+  <p lang="fa">منابع رسمی: مستند <a href="https://nginx.org/en/docs/http/ngx_http_core_module.html#location">directiveِ location</a> برای الگوریتم و نرمال‌سازی URI، <a href="https://nginx.org/en/docs/http/request_processing.html">نحوهٔ پردازش درخواست در Nginx</a> برای مثال‌های انتخاب، و مستندهای <a href="https://nginx.org/en/docs/http/ngx_http_core_module.html#root">root</a> و <a href="https://nginx.org/en/docs/http/ngx_http_core_module.html#alias">alias</a> برای ساخت مسیر فایل. رفتار نسخه‌های جدیدتر را هم در مستند نسخهٔ نصب‌شده‌ات ببین.</p>
+  <p lang="en">Official references: the <a href="https://nginx.org/en/docs/http/ngx_http_core_module.html#location">location directive</a> for matching and URI normalization, <a href="https://nginx.org/en/docs/http/request_processing.html">how Nginx processes requests</a> for selection examples, and the <a href="https://nginx.org/en/docs/http/ngx_http_core_module.html#root">root</a> and <a href="https://nginx.org/en/docs/http/ngx_http_core_module.html#alias">alias</a> docs for filesystem path construction. Check your installed version for newer behavior.</p>
+</section>
+
+<section id="next">
+  <h2><span lang="fa">حالا که location برنده را می‌دانیم، فایل واقعی چطور سرو می‌شود؟</span><span lang="en">Now that we know the winner, how is a real file served?</span></h2>
+  <p class="lede" lang="fa">حالا می‌توانی برای یک URL بگویی exact است، بلندترین prefix کدام است و آیا regex انتخاب را عوض می‌کند. قدم بعدی طبیعی است: وقتی location درست انتخاب شد، Nginx فایل را از کجا می‌خواند، cache مرورگر چه کمکی می‌کند و فشرده‌سازی چه اثری دارد؟ فصل بعد همین پاسخ واقعی را دنبال می‌کند؛ الگوریتم انتخاب را دوباره از صفر نمی‌خوانیم.</p>
+  <p class="lede" lang="en">You can now explain whether a URL is exact, which prefix is longest, and whether a regex overrides it. The natural next question is: after the right location is selected, where does Nginx read the file, when does browser caching help, and what does compression change? The next chapter follows the actual response without reteaching this selection algorithm.</p>
+</section>
