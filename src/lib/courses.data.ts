@@ -1167,7 +1167,7 @@ export const TRACKS: Track[] = [
       {
         "n": "05",
         "file": "05-artifacts.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 70,
         "fa": {
@@ -1184,7 +1184,7 @@ export const TRACKS: Track[] = [
       {
         "n": "06",
         "file": "06-terraform.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -1201,7 +1201,7 @@ export const TRACKS: Track[] = [
       {
         "n": "07",
         "file": "07-ansible.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -1218,7 +1218,7 @@ export const TRACKS: Track[] = [
       {
         "n": "08",
         "file": "08-monitoring.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
@@ -1391,7 +1391,7 @@ export const TRACKS: Track[] = [
       "exercises": 273,
       "minutes": 1405,
       "capstones": 3,
-      "ready": 4
+      "ready": 8
     }
   },
   {

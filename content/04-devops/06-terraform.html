@@ -1,0 +1,224 @@
+<!--meta
+title: IaC با Terraform
+desc: configuration، provider، resource و state را در یک آزمایش محلی می‌شناسیم؛ plan را پیش از apply می‌خوانیم، drift را پیدا می‌کنیم و state را مثل دارایی مهم نگه می‌داریم.
+-->
+<div class="masthead">
+ <span class="eyebrow"><span class="dot"></span><span lang="fa">دواپس و CI/CD · فصل ۶</span><span lang="en">DevOps & CI/CD · Chapter 6</span></span>
+ <h1><span lang="fa">IaC با Terraform</span><span lang="en">Infrastructure as Code with Terraform</span></h1>
+ <p class="lede" lang="fa">توی staging یک تنظیم کم است. یکی می‌گوید «هفتهٔ پیش ساختمش»، یکی فایل را روی لپ‌تاپش دارد، ولی روی ماشین اجرا چیزی نیست. اگر دوباره بسازیم، از کجا بدانیم محیط این بار با دفعهٔ قبل یکی است؟</p>
+ <p class="lede" lang="en">A setting is missing in staging. Someone says, “I created it last week”; another has the file on a laptop, but the runtime machine has nothing. If we recreate it, how do we know this environment will match the previous one?</p>
+ <div class="facts"><div class="fact"><b>۹۰</b><span lang="fa">دقیقه</span><span lang="en">minutes</span></div><div class="fact"><b>۱۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></div><div class="fact"><b>۲</b><span lang="fa">resource محلی</span><span lang="en">local resources</span></div></div>
+</div>
+
+<section id="problem">
+ <h2><span lang="fa">«فکر کنم مثل دفعهٔ قبل بود» مدرک نیست</span><span lang="en">“I think it matched last time” is not evidence</span></h2>
+ <p class="lede" lang="fa">فصل قبل artifact را نسخه‌دار کردیم تا بدانیم چه چیزی را تحویل می‌دهیم. حالا نظم مشابهی برای محیط می‌خواهیم: configuration وضعیت مطلوب را توصیف می‌کند؛ provider می‌خواند و تغییر می‌دهد؛ plan اختلاف و کار پیشنهادی را نشان می‌دهد؛ پس از بررسی، apply آن را اجرا می‌کند.</p>
+ <p class="lede" lang="en">Last chapter we versioned an artifact so we knew what we were shipping. Now we want similar discipline around the environment: configuration describes the desired setup; a provider reads and changes it; plan shows the difference and proposed actions; after review, apply executes them.</p>
+ <p lang="fa">برای دیدن چرخه لازم نیست حساب cloud بسازی. این آزمایش فقط چند فایل را در پوشهٔ موقت مدیریت می‌کند. مفهوم‌ها واقعی‌اند، اما نه هزینهٔ cloud دارند و نه resource بیرونی می‌سازند. بعداً همین مدل می‌تواند VM یا شبکه را مدیریت کند.</p>
+ <p lang="en">You do not need a cloud account to see the cycle. This lab manages files inside a temporary directory. The concepts are real, but it creates no cloud costs or external resources. The same model can later manage a VM or network.</p>
+ <div class="diagram"><svg viewBox="0 0 1020 360" role="img" aria-labelledby="tf-title tf-desc"><title id="tf-title">Configuration, observed objects, plan, apply, and state</title><desc id="tf-desc">Terraform compares desired configuration and prior state with objects observed through a provider. Plan proposes actions; apply performs approved actions and updates state. A manual change creates drift.</desc><defs><marker id="tf-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 10 5 0 10z" class="dg-arrow"/></marker></defs>
+ <rect x="12" y="12" width="996" height="336" rx="18" class="dg-fill dg-stroke"/>
+ <rect x="38" y="72" width="190" height="82" rx="12" class="dg-fill-v dg-stroke-v"/><text x="133" y="104" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate"><tspan x="133">Configuration</tspan><tspan x="133" dy="24" class="dg-muted">desired values</tspan></text>
+ <rect x="38" y="210" width="190" height="82" rx="12" class="dg-fill-b dg-stroke-b"/><text x="133" y="242" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate"><tspan x="133">Prior state</tspan><tspan x="133" dy="24" class="dg-muted">known bindings</tspan></text>
+ <rect x="300" y="140" width="190" height="88" rx="12" class="dg-fill-w dg-stroke-w"/><text x="395" y="174" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate"><tspan x="395">Provider reads</tspan><tspan x="395" dy="24" class="dg-muted">real objects</tspan></text>
+ <rect x="565" y="140" width="165" height="88" rx="12" class="dg-fill-v dg-stroke-v"/><text x="647" y="174" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate"><tspan x="647">Plan</tspan><tspan x="647" dy="24" class="dg-muted">review actions</tspan></text>
+ <rect x="805" y="140" width="170" height="88" rx="12" class="dg-fill-g dg-stroke-g"/><text x="890" y="174" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate"><tspan x="890">Apply</tspan><tspan x="890" dy="24" class="dg-muted">then new state</tspan></text>
+ <path d="M238 113h52M238 251h36q26 0 26-26v-2M494 184h65M734 184h63" class="dg-stroke" marker-end="url(#tf-arrow)"/>
+ <path d="M890 236v66H395v-66" fill="none" class="dg-stroke-g" marker-end="url(#tf-arrow)"/><text x="640" y="326" text-anchor="middle" class="dg-muted" style="direction:ltr;unicode-bidi:isolate">new state · next comparison</text>
+ <path d="M395 132V69h252v63" fill="none" stroke-dasharray="7 6" class="dg-stroke-w" marker-end="url(#tf-arrow)"/><text x="520" y="58" text-anchor="middle" class="dg-muted" style="direction:ltr;unicode-bidi:isolate">manual edit → drift</text>
+ </svg><p class="diagram-cap" lang="fa">plan تصویر زمان بررسی را نشان می‌دهد، نه تضمین ثبات تا لحظهٔ apply. state هم binding بین آدرس‌های Terraform و objectهای واقعی است، نه خود زیرساخت.</p><p class="diagram-cap" lang="en">A plan describes what Terraform observed at planning time; it cannot guarantee nothing changes before apply. State maps Terraform addresses to real objects; it is not the infrastructure itself.</p></div>
+ <div class="note safe"><span lang="fa">قانون این آزمایش: فقط از پوشهٔ موقت کار کن. هیچ‌وقت destroy یا پاک‌کردن state را از پروژه یا محیط واقعی امتحان نکن.</span><span lang="en">Lab rule: work only in the temporary directory. Never try destroy or state deletion from a real project or environment.</span></div>
+</section>
+
+<section id="vocabulary">
+ <h2><span lang="fa">چهار اسم؛ چهار کار متفاوت</span><span lang="en">Four names, four different jobs</span></h2>
+ <p lang="fa">provider راه ارتباط با یک پلتفرم یا API است. resource چیزی است که lifecycle آن را مدیریت می‌کنیم. data source فقط می‌خواند. variable ورودی قابل‌تنظیم است و output نتیجه‌ای را نشان می‌دهد یا در اختیار بخش دیگری می‌گذارد. نوع resource و فیلدهایش را مستندات همان provider تعیین می‌کند؛ Terraform Core به‌تنهایی schema همهٔ cloudها را نمی‌شناسد.</p>
+ <p lang="en">A provider integrates with a platform or API. A resource is something whose lifecycle we manage. A data source only reads. A variable is configurable input; an output displays a result or exposes it to another part. The provider defines resource types and fields; Terraform Core does not know every cloud schema on its own.</p>
+ <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">بلوک</span><span lang="en">Block</span></th><th><span lang="fa">پرسش</span><span lang="en">Question</span></th><th><span lang="fa">نمونهٔ lab</span><span lang="en">Lab example</span></th></tr></thead><tbody><tr><td>provider</td><td><span lang="fa">با کدام سامانه حرف می‌زنم؟</span><br/><span lang="en">Which system?</span></td><td>hashicorp/local</td></tr><tr><td>resource</td><td><span lang="fa">چه چیزی را مدیریت می‌کنم؟</span><br/><span lang="en">What do I manage?</span></td><td>local_file</td></tr><tr><td>data source</td><td><span lang="fa">چه چیزی را فقط می‌خوانم؟</span><br/><span lang="en">What do I only read?</span></td><td>local_file data</td></tr><tr><td>variable / output</td><td><span lang="fa">چه می‌گیرم / چه نشان می‌دهم؟</span><br/><span lang="en">What input / result?</span></td><td>banner_text / rendered_banner</td></tr></tbody></table></div>
+ <p lang="fa">providerها جداگانه نسخه می‌گیرند. نسخهٔ قابل‌قبول را محدود می‌کنیم و فایل <code>.terraform.lock.hcl</code> را همراه کد نگه می‌داریم تا ماشین دیگر هم انتخاب قابل‌پیش‌بینی داشته باشد. <code>file_permission</code> در سیستم‌های POSIX مجوز فایل را مشخص می‌کند؛ Windows از ACLهای خودش استفاده می‌کند.</p>
+ <p lang="en">Providers have independent releases. Constrain acceptable versions and keep <code>.terraform.lock.hcl</code> with the code for predictable selection on another machine.</p>
+</section>
+
+<section id="lab-setup">
+ <h2><span lang="fa">یک آزمایشگاه محلی و بی‌هزینه</span><span lang="en">A local, cost-free lab</span></h2>
+ <p lang="fa">نسخهٔ CLI را ببین و یک پوشهٔ تازه بساز. اگر Terraform نصب نیست، طبق مستندات رسمی سیستم‌عامل نصبش کن. در PowerShell:</p><p lang="en">Check the CLI version and make a fresh directory. If Terraform is not installed, follow the official OS installation guide. In PowerShell:</p>
+ <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">PowerShell</span><button class="copy">کپی</button></div><pre dir="ltr">terraform version
+New-Item -ItemType Directory -Force terraform-playground
+Set-Location terraform-playground
+New-Item -ItemType Directory -Force generated</pre></div>
+ <p lang="fa">در Bash/WSL از <code>mkdir -p terraform-playground/generated &amp;&amp; cd terraform-playground</code> استفاده کن. با <code>Get-Location</code> یا <code>pwd</code> مسیر را تأیید کن. حالا <code>main.tf</code> بساز؛ این HCL دو فایل در همان lab می‌نویسد، یک فایل را می‌خواند و متن را خروجی می‌دهد.</p>
+ <p lang="en">In Bash/WSL use <code>mkdir -p terraform-playground/generated &amp;&amp; cd terraform-playground</code>. Confirm the path with <code>Get-Location</code> or <code>pwd</code>. Create <code>main.tf</code>; this HCL writes two files in the lab, reads one, and outputs its content.</p>
+ <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">main.tf · local-only resources</span><button class="copy">کپی</button></div><pre dir="ltr">terraform {
+  required_providers {
+    local = {
+      source  = "hashicorp/local"
+      version = "~&gt; 2.5"
+    }
+  }
+}
+
+provider "local" {}
+
+variable "banner_text" {
+  description = "Text written into the lab file"
+  type        = string
+  default     = "hello from terraform"
+}
+
+resource "local_file" "banner" {
+  filename        = "${path.module}/generated/banner.txt"
+  content         = "${var.banner_text}\n"
+  file_permission = "0644"
+}
+
+resource "local_file" "receipt" {
+  filename        = "${path.module}/generated/receipt.txt"
+  content         = "Managed banner: ${local_file.banner.filename}\n"
+  file_permission = "0644"
+}
+
+data "local_file" "banner" {
+  filename   = local_file.banner.filename
+  depends_on = [local_file.banner]
+}
+
+output "rendered_banner" {
+  description = "Content read from the generated file"
+  value       = data.local_file.banner.content
+}</pre></div>
+ <p lang="fa">resource دوم با ارجاع به filename، dependency خودکار به banner دارد. data source نیز همان resource را با filename مشخص می‌کند، اما چون این مقدار از قبل قابل‌محاسبه است، خواندن فایل ممکن است در مرحلهٔ plan انجام شود؛ برای همین اینجا صریحاً <code>depends_on</code> گذاشتیم تا ابتدا فایل ساخته شود. Terraform از referenceها گراف می‌سازد، نه ترتیب خط‌های فایل.</p>
+ <p lang="en">The second resource references the banner filename, creating an implicit dependency. The data source also uses that filename, but because it is known early, Terraform might read before creation during planning. Here an explicit <code>depends_on</code> defers the read until the file exists. Terraform builds a graph from references, not file-line order.</p>
+ <p lang="fa">data source فقط می‌خواند و lifecycle فایل را مالک نیست. در پروژهٔ واقعی provider دقیق را مستندات نسخه‌دارش بررسی کن؛ این lab به cloud وصل نمی‌شود.</p><p lang="en">A data source reads but does not own the file lifecycle. In a real project, consult versioned provider documentation; this lab does not contact a cloud.</p>
+</section>
+
+<section id="init">
+ <h2><span lang="fa">init، fmt و validate؛ هنوز چیزی ساخته نشده</span><span lang="en">Init, fmt, and validate; nothing is created yet</span></h2>
+ <p lang="fa"><code>init</code> provider و backend را آماده می‌کند و lock file می‌سازد. سپس قالب و ساختار را بررسی کن:</p><p lang="en"><code>init</code> prepares the provider and backend and creates the lock file. Then check formatting and configuration structure:</p>
+ <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">PowerShell or Bash</span><button class="copy">کپی</button></div><pre dir="ltr">terraform init
+terraform fmt -check
+terraform validate</pre></div>
+ <p lang="fa">انتظار پیام successful initialization و valid configuration را داریم. init resource نمی‌سازد؛ validate نحو و ارجاع‌ها را بررسی می‌کند، نه دسترسی عملیاتی یا سلامت سرویس را. اگر provider دانلود نشد، شبکه/نسخه و lock file را ببین؛ اگر HCL نامعتبر است، خط گزارش‌شده را بررسی کن.</p>
+ <p lang="en">Expect successful initialization and a valid-configuration result. Init creates no resources; validate checks syntax and references, not operational access or service health. For provider download errors, check network, version, and lock file; for invalid HCL, inspect the reported line.</p>
+ <div class="note safe"><span lang="fa">state و plan را در Git نگذار؛ ممکن است حاوی secret باشند. در <code>.gitignore</code> موارد <code>.terraform/</code>، <code>terraform.tfstate*</code> و <code>*.tfplan</code> را بگذار. lock file را commit کن.</span><span lang="en">Keep state and plans out of Git; they may contain secrets. Ignore <code>.terraform/</code>, <code>terraform.tfstate*</code>, and <code>*.tfplan</code>. Commit the lock file.</span></div>
+</section>
+
+<section id="plan">
+ <h2><span lang="fa">حدس بزن؛ بعد plan را بخوان</span><span lang="en">Predict, then read the plan</span></h2>
+ <p lang="fa">در پوشهٔ تازه دو resource داریم و هنوز state نیست. پیش‌بینی‌ات را بنویس، بعد:</p><p lang="en">We have two resources in a fresh directory and no state. Write your prediction, then run:</p>
+ <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">PowerShell or Bash</span><button class="copy">کپی</button></div><pre dir="ltr">terraform plan</pre></div>
+ <pre class="output" dir="ltr">Plan: 2 to add, 0 to change, 0 to destroy.</pre>
+ <p lang="fa">علامت <code>+</code> کنار هر local_file یعنی ساخت فایل پیشنهاد شده. این خروجی مدرک وضعیت مشاهده‌شده در همین لحظه است، نه تضمین اینکه تا apply کسی محیط را تغییر نمی‌دهد. اگر destroy، replace یا مسیر ناآشنا دیدی apply نکن؛ پوشه، resource address، workspace و state را بررسی کن.</p>
+ <p lang="en">A <code>+</code> beside each local_file means creation is proposed. This is evidence from the current observation, not a guarantee nobody changes the environment before apply. If you see destroy, replace, or an unfamiliar path, do not apply; inspect directory, resource addresses, workspace, and state.</p>
+ <p lang="fa">در کار تیمی می‌توان plan را در فایل ذخیره و همان خروجی مرورشده را apply کرد، اما plan file هم ممکن است دادهٔ حساس داشته باشد و پس از تغییر ورودی یا state کهنه شود. تازه plan بگیر و همان را بررسی کن.</p><p lang="en">Teams may save a plan file and apply that reviewed plan, but plan files can contain sensitive data and become stale after inputs or state change. Generate and review a fresh plan.</p>
+</section>
+
+<section id="apply">
+ <h2><span lang="fa">تأیید آگاهانه و دیدن فایل‌ها</span><span lang="en">Approve deliberately and inspect the files</span></h2>
+ <p lang="fa">اگر plan فقط دو فایلِ همین پوشه را اضافه می‌کند، apply را اجرا کن. Terraform plan تازه می‌سازد و تأیید می‌خواهد؛ فقط وقتی action و مسیر درست است <code>yes</code> بزن.</p><p lang="en">If the plan adds only the two files in this directory, run apply. Terraform creates a fresh plan and asks for approval; type <code>yes</code> only when actions and paths are correct.</p>
+ <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">PowerShell</span><button class="copy">کپی</button></div><pre dir="ltr">terraform apply
+terraform output rendered_banner
+Get-Content .\generated\banner.txt
+Get-Content .\generated\receipt.txt</pre></div>
+ <p lang="fa">در Bash/WSL دو دستور آخر را با <code>cat generated/banner.txt</code> و <code>cat generated/receipt.txt</code> اجرا کن. باید hello from terraform را ببینی. بعد <code>terraform state list</code> دو resource و یک آدرس <code>data.local_file.banner</code> را نشان می‌دهد؛ data source هم در state ثبت می‌شود، هرچند مالک lifecycle فایل نیست. <code>terraform state show local_file.banner</code> جزئیات resource را می‌دهد. فهرست state به‌تنهایی محتوای درست فایل را ثابت نمی‌کند؛ فایل را هم بخوان.</p>
+ <p lang="en">In Bash/WSL, replace the last two commands with <code>cat generated/banner.txt</code> and <code>cat generated/receipt.txt</code>. You should see hello from terraform. <code>terraform state list</code> then shows two resources and a <code>data.local_file.banner</code> address; data sources are recorded in state even though they do not own the file lifecycle. <code>terraform state show local_file.banner</code> inspects the resource. State listing alone does not prove file contents; read the file too.</p>
+</section>
+
+<section id="drift">
+ <h2><span lang="fa">یک تغییر بیرون از Terraform</span><span lang="en">A change outside Terraform</span></h2>
+ <p lang="fa">در lab فقط banner را دستی عوض کن؛ این کار را روی محیط واقعی نکن. بعد پیش‌بینی کن plan چه می‌گوید.</p><p lang="en">In the lab only, manually change the banner; do not do this in a real environment. Predict what plan will report.</p>
+ <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">PowerShell</span><button class="copy">کپی</button></div><pre dir="ltr">Set-Content -NoNewline .\generated\banner.txt 'edited outside terraform'
+terraform plan</pre></div>
+ <p lang="fa">در Bash/WSL خط اول: <code>printf '%s' 'edited outside terraform' &gt; generated/banner.txt</code>. plan باید اختلاف و معمولاً جایگزینی local_file را نشان دهد؛ شکل دقیق action را با provider انتخابی ببین. اگر تغییر دستی عمدی است، configuration را هم با مقدار جدید هماهنگ کن؛ اگر مطلوب همان مقدار قبلی است، plan را بخوان و apply کن تا reconcile شود.</p>
+ <p lang="en">In Bash/WSL, use <code>printf '%s' 'edited outside terraform' &gt; generated/banner.txt</code>. Plan should show a difference and typically replacement of the local_file; inspect the exact action for your provider version. If the manual change is intentional, update configuration too; if the old value remains desired, review and apply the plan to reconcile.</p>
+ <p lang="fa">این همان drift است: واقعیت از configuration/state جدا شده. اگر در cloud تغییر دستی یک firewall عمدی و اضطراری بوده، کورکورانه apply نکن؛ owner و هدف تغییر را روشن کن. plan پیشنهاد است، تصمیم نهایی نیست.</p><p lang="en">This is drift: reality has diverged from configuration/state. If a manual cloud firewall change was intentional and urgent, do not blindly apply; clarify its owner and purpose. A plan is a proposal, not the final decision.</p>
+</section>
+
+<section id="state">
+ <h2><span lang="fa">چرا state را دارایی مهم حساب می‌کنیم؟</span><span lang="en">Why treat state as an important asset?</span></h2>
+ <p lang="fa">state cache ساده نیست؛ آدرس‌هایی مثل <code>local_file.banner</code> را به object واقعی وصل و metadata لازم برای مقایسه را نگه می‌دارد. بدون mapping ممکن است Terraform نداند چه چیزی را ساخته؛ با state اشتباه هم ممکن است یک object را دوبار مدیریت کند. «state مقدس است» یعنی محافظت و تغییر کنترل‌شده، نه اینکه هرگز تغییر نمی‌کند.</p>
+ <p lang="en">State is not a simple cache. It maps addresses such as <code>local_file.banner</code> to real objects and stores metadata for comparisons. Without the mapping Terraform may not know what it created; with the wrong state it may manage one object twice. “State is sacred” means protect it and change it deliberately, not that it can never change.</p>
+ <p lang="fa">backend پیش‌فرض local است و state را در <code>terraform.tfstate</code> می‌نویسد؛ برای lab تک‌نفره ساده است، اما برای تیم دردسرِ stateهای جدا و رقابت می‌سازد. تیم‌ها remote backend به‌کار می‌برند تا state مشترک باشد و اگر backend پشتیبانی کند، locking جلوی دو عملیات هم‌زمان را بگیرد.</p>
+ <p lang="en">The default local backend writes <code>terraform.tfstate</code>. It is simple for a solo lab, but separate states and concurrent work make it unsuitable for teams. Teams use a remote backend for shared state and, when supported, locking to prevent concurrent operations.</p>
+ <p lang="fa">remote بودن خودبه‌خود امن نیست؛ backend تعیین می‌کند دسترسی، encryption و locking چطور کار می‌کند. state می‌تواند secret داشته باشد و plan file هم ممکن است حساس باشد؛ دسترسی محدود، backup و بازیابی لازم‌اند. حساس‌علامت‌زدن مقدار معمولاً فقط نمایش را پنهان می‌کند، نه ذخیره‌اش را.</p>
+ <p lang="en">Remote does not automatically mean secure; the backend determines access, encryption, and locking. State may contain secrets and plan files may be sensitive, so restrict access and plan backup/recovery. Marking a value sensitive usually redacts display, not storage.</p>
+ <div class="note warn"><span lang="fa">state را با ویرایشگر دستی اصلاح یا برای شروع دوباره حذف نکن. اگر state گم یا mismatch شد، apply و destroy را نگه دار؛ پوشه، account، workspace و backend را بررسی کن، backup درست را پیدا کن و plan را فقط برای مشاهده بخوان. import و moved ابزارهای تکمیلی‌اند، نه درمان فوری.</span><span lang="en">Do not hand-edit state or delete it to start over. If state is lost or mismatched, stop apply and destroy; verify directory, account, workspace, and backend, locate the correct backup, and use plan for observation only. Import and moved are deliberate extensions, not emergency fixes.</span></div>
+</section>
+
+<section id="commands">
+ <h2><span lang="fa">هر فرمان یک سؤال را جواب می‌دهد</span><span lang="en">Each command answers a different question</span></h2>
+ <div class="table-wrap"><table class="doc-table"><thead><tr><th>Command</th><th><span lang="fa">چه می‌کند؟</span><span lang="en">What it does</span></th><th><span lang="fa">چه چیزی را ثابت نمی‌کند؟</span><span lang="en">What it does not prove</span></th></tr></thead><tbody>
+ <tr><td>init</td><td><span lang="fa">provider، module و backend را آماده می‌کند.</span><br/><span lang="en">Prepares provider, modules, backend.</span></td><td><span lang="fa">محیط را نمی‌سازد.</span><br/><span lang="en">Does not create the environment.</span></td></tr>
+ <tr><td>validate</td><td><span lang="fa">ساختار و ارجاع configuration را می‌سنجد.</span><br/><span lang="en">Checks configuration structure/references.</span></td><td><span lang="fa">امکان تغییر API را تضمین نمی‌کند.</span><br/><span lang="en">Does not prove API changes will work.</span></td></tr>
+ <tr><td>plan</td><td><span lang="fa">پیشنهاد تغییر را برای مرور می‌سازد.</span><br/><span lang="en">Previews proposed changes.</span></td><td><span lang="fa">تغییر را اجرا یا آینده را تضمین نمی‌کند.</span><br/><span lang="en">Does not execute or guarantee future state.</span></td></tr>
+ <tr><td>apply</td><td><span lang="fa">پس از تأیید، تغییر و state را به‌روز می‌کند.</span><br/><span lang="en">Applies approved changes and updates state.</span></td><td><span lang="fa">جای آزمون سرویس را نمی‌گیرد.</span><br/><span lang="en">Does not replace service tests.</span></td></tr>
+ <tr><td>destroy</td><td><span lang="fa">resourceهای مدیریت‌شده را حذف می‌کند.</span><br/><span lang="en">Destroys managed resources.</span></td><td><span lang="fa">پاک‌کردن cache نیست.</span><br/><span lang="en">Is not a cache cleanup.</span></td></tr>
+ </tbody></table></div>
+ <p lang="fa">برای آزمایش همین lab، ابتدا <code>terraform plan -destroy</code> را بخوان؛ فقط اگر دو فایل همین پوشه را نشان داد، <code>terraform destroy</code> را تأیید کن. اگر چیزی ناآشناست توقف کن. هیچ فرمان مخربی را از پوشهٔ نامطمئن اجرا نکن.</p>
+ <p lang="en">For this lab, inspect <code>terraform plan -destroy</code> first; approve <code>terraform destroy</code> only if it lists these two files. Stop if anything is unfamiliar. Never run a destructive command from an uncertain directory.</p>
+</section>
+
+<section id="incident">
+ <h2><span lang="fa">خرابی عمدی، بدون پاک‌کردن چیزی: state از محیط دیگری است</span><span lang="en">A deliberate incident without deleting anything: state belongs elsewhere</span></h2>
+ <p lang="fa">هم‌تیمی به پوشهٔ تازه‌ای رفته و state محیط staging را ندارد. validate ممکن است موفق باشد، چون فایل‌ها از نظر ساختاری درست‌اند؛ اما آیا apply امن است؟ اول فقط زمینه را شناسایی کن:</p>
+ <p lang="en">A teammate moved to a fresh directory and does not have staging state. Validate may pass because the files are structurally sound, but is apply safe? First inspect context only:</p>
+ <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">PowerShell or Bash · observe, do not apply</span><button class="copy">کپی</button></div><pre dir="ltr">terraform workspace show
+terraform state list
+terraform plan</pre></div>
+ <p lang="fa">اگر plan می‌گوید resourceهای مهم «to add» هستند، این شاید محیط خالی باشد یا state اشتباه/گم شده باشد. از روی عجله apply نکن. account، endpoint، workspace و backend را طبق runbook مستقل تأیید کن؛ state backup یا مسئول backend را پیدا کن. state دیگری را جایگزین نکن و state را پاک نکن.</p>
+ <p lang="en">If plan says important resources are “to add,” the environment may be empty—or state may be missing/wrong. Do not apply in a hurry. Independently verify account, endpoint, workspace, and backend against the runbook; locate a state backup or backend owner. Do not substitute or delete state.</p>
+ <p lang="fa">در آزمایش محلی، به پوشهٔ اصلی برگرد و state list را دوباره ببین. اگر موضوع cloud است، عملیات را متوقف و از مسئول زیرساخت کمک بگیر. هدف، تشخیص از روی نشانه است؛ نه امتحان‌کردن دستورهای پرخطر.</p><p lang="en">In the local lab, return to the original directory and inspect state again. For cloud, stop and involve the infrastructure owner. The goal is evidence-based diagnosis, not trying risky commands.</p>
+</section>
+
+<section id="extensions">
+ <h2><span lang="fa">وقتی resource از قبل وجود دارد</span><span lang="en">When a resource already exists</span></h2>
+ <p lang="fa">اگر object بیرون Terraform ساخته شده، تعریف resource و apply ممکن است duplicate یا conflict بسازد. اول ownership و state را روشن کن. اگر این state باید مالک object شود، import یا import block می‌تواند binding را ثبت کند؛ بعد configuration و plan را باید بازبینی کرد. برای تغییر آدرس در refactor، moved block می‌تواند جابه‌جایی را اعلام کند. این‌ها ابزار تکمیلی‌اند، نه میان‌بر برای دورزدن plan.</p>
+ <p lang="en">If an object was created outside Terraform, declaring it and applying may create a duplicate or conflict. Clarify ownership and state first. If this state should own it, import can record the binding; configuration and plan still need review. For an address refactor, a moved block can declare the move. These are extensions, not shortcuts around review.</p>
+</section>
+
+<section id="exercises">
+ <h2><span lang="fa">۱۸ تمرین؛ قبل از تغییر، بگو چه مدرکی می‌خواهی</span><span lang="en">18 exercises—name the evidence before changing anything</span></h2>
+ <p lang="fa">اول پاسخ خودت را حدس بزن، بعد توضیح را باز کن. سؤال‌های آخر شبیه ticket واقعی‌اند: جواب امن گاهی «فعلاً اجرا نکن» است.</p><p lang="en">Predict first, then open the explanation. The last questions resemble real tickets: the safe answer is sometimes “do not run it yet.”</p>
+
+ <div class="ex" id="ex-01"><div class="ex-h"><h3>۱. provider lab چیست؟ <span lang="en">1. What does the lab provider manage?</span></h3></div><p lang="fa">آیا VM cloud می‌سازیم؟</p><p lang="en">Are we creating a cloud VM?</p><details class="ex-sol"><summary>پاسخ · Answer</summary><p lang="fa">نه؛ hashicorp/local و دو local_file یعنی فایل‌های همین پوشه. نوع provider/resource مرز اثر است.</p><p lang="en">No: hashicorp/local and two local_file resources affect files in this directory. Provider/resource types define the impact.</p></details></div>
+ <div class="ex" id="ex-02"><div class="ex-h"><h3>۲. plan اول <span lang="en">2. First plan</span></h3></div><p lang="fa">دو resource و state تازه؛ summary مورد انتظار چیست؟</p><p lang="en">Two resources, fresh state: expected summary?</p><details class="ex-sol"><summary>توضیح · Reasoning</summary><p lang="fa">معمولاً ۲ add، صفر change و صفر destroy. actionهای نام‌دار و مسیرها را هم کنترل کن.</p><p lang="en">Usually 2 add, 0 change, 0 destroy. Also inspect named actions and paths.</p></details></div>
+ <div class="ex" id="ex-03"><div class="ex-h"><h3>۳. validate موفق شد <span lang="en">3. Validation passed</span></h3></div><p lang="fa">آیا آمادهٔ production هستیم؟</p><p lang="en">Are we production-ready?</p><details class="ex-sol"><summary>پاسخ · Answer</summary><p lang="fa">نه؛ فقط ساختار معتبر است. account، دسترسی، plan و سلامت سرویس جدا بررسی می‌شوند.</p><p lang="en">No; only configuration structure is valid. Verify account, access, plan, and service health separately.</p></details></div>
+ <div class="ex" id="ex-04"><div class="ex-h"><h3>۴. شبکهٔ موجود <span lang="en">4. Existing network</span></h3></div><p lang="fa">شبکه متعلق به تیم دیگری است؛ فقط ID لازم داری. resource یا data source؟</p><p lang="en">Another team owns a network; you only need its ID. Resource or data source?</p><details class="ex-sol"><summary>دلیل · Reasoning</summary><p lang="fa">data source، چون فقط می‌خوانی و lifecycle شبکه را مالک نیستی؛ resource برای object تازهٔ تحت مدیریت خودت.</p><p lang="en">A data source, because you only read an object you do not own; use a resource for something whose lifecycle you manage.</p></details></div>
+ <div class="ex" id="ex-05"><div class="ex-h"><h3>۵. ترتیب ساخت <span lang="en">5. Creation order</span></h3></div><p lang="fa">resource receipt به attribute از banner ارجاع دارد. چطور ترتیب معلوم می‌شود؟</p><p lang="en">Receipt references a banner attribute. How is order determined?</p><details class="ex-sol"><summary>پاسخ · Answer</summary><p lang="fa">ارجاع dependency graph خودکار می‌سازد. depends_on فقط برای وابستگی پنهان لازم است.</p><p lang="en">The reference creates an implicit graph dependency. Use depends_on only for hidden dependencies.</p></details></div>
+ <div class="ex" id="ex-06"><div class="ex-h"><h3>۶. provider requirement عوض شد <span lang="en">6. Provider requirement changed</span></h3></div><p lang="fa">کدام فرمان افزونه و lock را آماده می‌کند؟</p><p lang="en">Which command prepares the plugin and lock file?</p><details class="ex-sol"><summary>پاسخ · Answer</summary><p lang="fa">init. بعد lock file diff را ببین؛ validate به‌تنهایی provider تازه را نصب نمی‌کند.</p><p lang="en">init. Review the lock-file diff; validate does not install the new provider.</p></details></div>
+ <div class="ex" id="ex-07"><div class="ex-h"><h3>۷. destroy غیرمنتظره <span lang="en">7. Unexpected destroy</span></h3></div><p lang="fa">تغییر کوچکی دادی ولی plan یک firewall rule را حذف می‌کند. قدم امن؟</p><p lang="en">A small edit makes plan destroy a firewall rule. Safe next step?</p><details class="ex-sol"><summary>تصمیم · Decision</summary><p lang="fa">apply را متوقف کن؛ provider، address، state و diff کامل را بررسی و با owner تأیید کن. علامت حذف را نادیده نگیر.</p><p lang="en">Stop apply; inspect provider, address, state, and full diff with the owner. Do not ignore destruction.</p></details></div>
+ <div class="ex" id="ex-08"><div class="ex-h"><h3>۸. state list <span lang="en">8. State list</span></h3></div><p lang="fa">دو address دیدی. آیا محتوا درست است؟</p><p lang="en">Two addresses appear. Is the content correct?</p><details class="ex-sol"><summary>توضیح · Explanation</summary><p lang="fa">نه؛ list فقط addressها را نشان می‌دهد. state show و provider plan و خواندن فایل، مدرک‌های جدا هستند.</p><p lang="en">No; list shows addresses. State show, provider plan, and reading the file are different evidence.</p></details></div>
+ <div class="ex" id="ex-09"><div class="ex-h"><h3>۹. تغییر دستی عمدی <span lang="en">9. Intentional manual change</span></h3></div><p lang="fa">plan مقدار قبلی را برمی‌گرداند، ولی مقدار تازه را می‌خواهیم. چه باید کرد؟</p><p lang="en">Plan restores the old value, but the new one is desired. What now?</p><details class="ex-sol"><summary>پاسخ · Answer</summary><p lang="fa">منبع حقیقت را روشن و configuration/variable را به مقدار مطلوب تغییر بده؛ سپس plan تازه بگیر.</p><p lang="en">Clarify the source of truth, update configuration/variable to the desired value, then create a fresh plan.</p></details></div>
+ <div class="ex" id="ex-10"><div class="ex-h"><h3>۱۰. state در Git؟ <span lang="en">10. State in Git?</span></h3></div><p lang="fa">همکار می‌خواهد tfstate را commit کند. چرا نه؟</p><p lang="en">A teammate wants to commit tfstate. Why not?</p><details class="ex-sol"><summary>پاسخ · Answer</summary><p lang="fa">ممکن است secret داشته باشد و Git کنترل دسترسی/locking مناسب state نیست. backend امن و مشترک با ویژگی‌های تأییدشده انتخاب کن.</p><p lang="en">It may contain secrets, and Git is not a suitable state backend with locking. Choose a secure shared backend with verified features.</p></details></div>
+ <div class="ex" id="ex-11"><div class="ex-h"><h3>۱۱. sensitive <span lang="en">11. Sensitive values</span></h3></div><p lang="fa">نمایش plan مخفی است؛ آیا مقدار از state حذف شده؟</p><p lang="en">Plan output is redacted; is the value removed from state?</p><details class="ex-sol"><summary>توضیح · Explanation</summary><p lang="fa">نه لزوماً؛ sensitive نمایش را پنهان می‌کند، اما state و plan را همچنان محرمانه نگه دار.</p><p lang="en">Not necessarily. Sensitive redacts display; still protect state and plan files.</p></details></div>
+ <div class="ex" id="ex-12"><div class="ex-h"><h3>۱۲. سه state محلی <span lang="en">12. Three local states</span></h3></div><p lang="fa">سه نفر هرکدام local apply می‌زنند؛ خطر چیست؟</p><p lang="en">Three people each apply with local state. Risk?</p><details class="ex-sol"><summary>تحلیل · Analysis</summary><p lang="fa">mapping جدا باعث duplicate یا تغییر متناقض می‌شود. backend مشترک و locking پشتیبانی‌شده لازم است.</p><p lang="en">Separate mappings can create duplicates or conflicting changes. Use shared backend and supported locking.</p></details></div>
+ <div class="ex" id="ex-13"><div class="ex-h"><h3>۱۳. lock مانده <span lang="en">13. A lock remains</span></h3></div><p lang="fa">آیا -lock=false راه‌حل پیش‌فرض است؟</p><p lang="en">Is -lock=false the default fix?</p><details class="ex-sol"><summary>تصمیم · Decision</summary><p lang="fa">نه؛ اول run فعال را بررسی کن. force-unlock فقط با lock ID و اطمینان از نبود writer انجام شود.</p><p lang="en">No. Check for an active run first. Force-unlock only with the lock ID and confirmation no writer is active.</p></details></div>
+ <div class="ex" id="ex-14"><div class="ex-h"><h3>۱۴. plan صبحگاهی <span lang="en">14. Morning plan</span></h3></div><p lang="fa">ظهر زیرساخت دستی تغییر کرد؛ apply فایل plan قدیمی؟</p><p lang="en">Infrastructure changed manually at noon. Apply the morning plan?</p><details class="ex-sol"><summary>پاسخ · Answer</summary><p lang="fa">نه؛ دوباره مشاهده و plan تازه بساز و تغییر را با owner بررسی کن.</p><p lang="en">No. Refresh observations, create a new plan, and review the change with its owner.</p></details></div>
+ <div class="ex" id="ex-15"><div class="ex-h"><h3>۱۵. DNS از قبل هست <span lang="en">15. DNS record already exists</span></h3></div><p lang="fa">plan ساخت duplicate می‌دهد؛ چه کار می‌کنی؟</p><p lang="en">Plan proposes a duplicate. What do you do?</p><details class="ex-sol"><summary>گام امن · Safe step</summary><p lang="fa">account و state را تأیید کن؛ اگر مالکیت این state است import را بررسی کن، وگرنه data source. duplicate apply نکن.</p><p lang="en">Verify account and state. If this state should own it, investigate import; otherwise use a data source. Do not apply a duplicate.</p></details></div>
+ <div class="ex" id="ex-16"><div class="ex-h"><h3>۱۶. label عوض شد <span lang="en">16. A resource label changed</span></h3></div><p lang="fa">فقط اسم address عوض شده ولی plan destroy/create می‌دهد؛ چه چیزی را بررسی می‌کنی؟</p><p lang="en">Only the address name changed, but plan shows destroy/create. What do you inspect?</p><details class="ex-sol"><summary>پاسخ · Answer</summary><p lang="fa">moved block یا جابه‌جایی کنترل‌شدهٔ state؛ پیش از apply backup و plan را بررسی کن.</p><p lang="en">A moved block or controlled state move may preserve the object. Review backup and plan before applying.</p></details></div>
+ <div class="ex" id="ex-17"><div class="ex-h"><h3>۱۷. incident روی firewall <span lang="en">17. Firewall incident</span></h3></div><p lang="fa">plan تغییر دستی تیم شبکه را overwrite می‌کند. چه مدرکی جمع می‌کنی؟</p><p lang="en">Plan would overwrite a network team’s manual change. What evidence do you gather?</p><details class="ex-sol"><summary>گزارش حادثه · Incident response</summary><p lang="fa">account/workspace/backend، آدرس و diff rule، زمان تغییر و مالک آن را ثبت می‌کنم؛ تا روشن‌شدن هدف، apply نمی‌کنم و بعد plan تازه می‌گیرم.</p><p lang="en">Record account/workspace/backend, address and rule diff, change time, and owner. Do not apply until intent is clear; then create a fresh plan.</p></details></div>
+ <div class="ex" id="ex-18"><div class="ex-h"><h3>۱۸. پاک‌سازی lab <span lang="en">18. Lab cleanup</span></h3></div><p lang="fa">چطور ثابت می‌کنی destroy فقط فایل‌های آزمایش را حذف می‌کند؟</p><p lang="en">How do you prove destroy removes only lab files?</p><details class="ex-sol"><summary>پاسخ · Answer</summary><p lang="fa">مسیر و workspace را ببین، plan -destroy را بخوان و فقط دو local_file را تأیید کن. موارد ناآشنا یعنی توقف.</p><p lang="en">Check directory and workspace; inspect plan -destroy and confirm only the two local_file resources. Stop if anything is unfamiliar.</p></details></div>
+</section>
+
+<section id="wrap-up">
+ <h2><span lang="fa">این lab تمام است؛ چرخهٔ فکری تازه شروع شده</span><span lang="en">The lab ends; the reasoning cycle is yours to keep</span></h2>
+ <p lang="fa">پیش از cleanup، فایل‌ها و state را مشاهده کن. سپس فقط از پوشهٔ مشخص lab، <code>terraform plan -destroy</code> بگیر؛ اگر فقط دو resource از نوع local_file برای فایل‌های generated دیده می‌شوند، <code>terraform destroy</code> را تأیید کن و نبود فایل‌ها و addressهای <code>local_file.*</code> را بررسی کن. data source ممکن است تا وقتی در configuration است در فهرست state دیده شود؛ آن را با resource قابل‌حذف اشتباه نگیر. اگر resource دیگری دیدی، اجرا نکن. برای پایان، پوشهٔ موقت را با مسیر روشن از File Explorer پاک کن.</p>
+ <p lang="en">Before cleanup, inspect files and state. From the known lab directory run <code>terraform plan -destroy</code>; approve <code>terraform destroy</code> only if it lists the two local_file resources for generated files, then verify file absence and that no <code>local_file.*</code> resource addresses remain. The data source may remain listed while it is still configured; do not confuse it with a managed resource to destroy. Stop if another resource appears. Finally remove the temporary directory from File Explorer using its known path.</p>
+ <p lang="fa">حالا وقتی کسی می‌گوید «زیرساخت تغییر کرده»، به‌جای حدس می‌توانی بپرسی: کدام account و workspace؟ state کدام است؟ plan چه actionی پیشنهاد می‌دهد؟ چه کسی مالک resource است؟ و بعد از تغییر، دقیقاً با چه مدرکی verify می‌کنیم؟</p>
+ <p lang="en">When someone says “the infrastructure changed,” you can now ask: which account and workspace? Which state? What action does the plan propose? Who owns the resource? What evidence will verify the result?</p>
+</section>
+
+<section id="next">
+ <h2><span lang="fa">قدم بعد: ماشین‌ها را چطور یکدست نگه داریم؟</span><span lang="en">Next: how do we keep machines consistent?</span></h2>
+ <p lang="fa">Terraform وضعیت مطلوب زیرساخت را توصیف می‌کند و objectها را در state نگاشت می‌کند. فصل بعد مسئلهٔ دیگری را می‌گیرد: چند میزبان موجود را چطور با بسته‌ها، فایل‌های پیکربندی و سرویس‌های همسان نگه داریم؟ با Ansible سراغ اجرای تکرارپذیر روی میزبان می‌رویم؛ نه برای جایگزین‌کردن state، بلکه برای لایه‌ای دیگر.</p>
+ <p lang="en">Terraform describes desired infrastructure and maps objects in state. The next chapter tackles a different problem: how to keep existing hosts consistent in packages, configuration files, and services. Ansible applies repeatable actions on hosts—not as a replacement for state, but at another layer.</p>
+</section>
+
+<section id="references"><h2><span lang="fa">مستندات رسمی</span><span lang="en">Official references</span></h2><ul>
+ <li><a href="https://developer.hashicorp.com/terraform/cli/commands" target="_blank" rel="noreferrer">HashiCorp — Terraform CLI commands</a></li>
+ <li><a href="https://developer.hashicorp.com/terraform/cli/commands/plan" target="_blank" rel="noreferrer">HashiCorp — terraform plan</a></li>
+ <li><a href="https://developer.hashicorp.com/terraform/language/state/purpose" target="_blank" rel="noreferrer">HashiCorp — Purpose of state</a></li>
+ <li><a href="https://developer.hashicorp.com/terraform/language/state/backends" target="_blank" rel="noreferrer">HashiCorp — Backends and locking</a></li>
+ <li><a href="https://developer.hashicorp.com/terraform/language/manage-sensitive-data" target="_blank" rel="noreferrer">HashiCorp — Sensitive data</a></li>
+ <li><a href="https://developer.hashicorp.com/terraform/language/data-sources" target="_blank" rel="noreferrer">HashiCorp — Data sources</a></li>
+ <li><a href="https://registry.terraform.io/providers/hashicorp/local/latest/docs/resources/file" target="_blank" rel="noreferrer">Terraform Registry — local_file</a></li>
+ </ul><p lang="fa">locking و نگهداری state به backend وابسته‌اند؛ schema و رفتار فایل به provider نسخه‌دار. پیش از محیط واقعی، مستندات همان نسخه و سیاست تیم را بخوان. این lab جای طراحی backend تولید نیست.</p><p lang="en">State locking and storage depend on the backend; file schema and behavior depend on the provider version. Check exact-version docs and team policy before production use. This lab is not a production backend design.</p></section>
