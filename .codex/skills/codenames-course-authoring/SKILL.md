@@ -98,6 +98,7 @@ Use a `term` block with a `term-bar`, label, copy button, and LTR `pre`. Keep te
 - Map the entities, ownership boundaries, and arrow meaning before drawing. Every arrow must have one defensible semantic meaning--such as request, reply, ownership, hosting, lifecycle, or data flow--and its caption or label must make that meaning explicit.
 - Do not merge distinct paths merely to make the graphic look tidy. If two clients reach one service through different endpoints or integrations, show them as separate paths and identify their common destination.
 - Use responsive SVG `viewBox`, a descriptive `title`, and project diagram classes/tokens (`dg-fill*`, `dg-stroke*`, `dg-t*`, `dg-arrow*`) where possible.
+- SVG connector paths need a visible stroke class such as `dg-stroke`; `dg-arrow` is a fill token for the arrowhead marker, not a line stroke. Check both the connector and its marker render visibly rather than assuming a `marker-end` makes the path visible.
 - Never rely on native SVG default fills for `rect` or `text`. Set shape fill/stroke and text fill explicitly.
 - Test light and dark readability: no black-on-black, white-on-white, invisible arrows, or theme-dependent text.
 - Use `currentColor` only when its inherited color is known safe. Avoid RTL-sensitive spatial ambiguity; label direction and ownership clearly.

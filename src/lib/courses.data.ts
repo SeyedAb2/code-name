@@ -884,7 +884,7 @@ export const TRACKS: Track[] = [
       {
         "n": "07",
         "file": "07-net.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -901,7 +901,7 @@ export const TRACKS: Track[] = [
       {
         "n": "08",
         "file": "08-netdebug.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -918,7 +918,7 @@ export const TRACKS: Track[] = [
       {
         "n": "09",
         "file": "09-firewall.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
@@ -935,7 +935,7 @@ export const TRACKS: Track[] = [
       {
         "n": "10",
         "file": "10-ssh.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
@@ -952,7 +952,7 @@ export const TRACKS: Track[] = [
       {
         "n": "11",
         "file": "11-logs.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 65,
         "fa": {
@@ -969,7 +969,7 @@ export const TRACKS: Track[] = [
       {
         "n": "12",
         "file": "12-monitor.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 70,
         "fa": {
@@ -986,7 +986,7 @@ export const TRACKS: Track[] = [
       {
         "n": "13",
         "file": "13-cron.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 65,
         "fa": {
@@ -1003,7 +1003,7 @@ export const TRACKS: Track[] = [
       {
         "n": "14",
         "file": "14-hardening.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -1020,8 +1020,8 @@ export const TRACKS: Track[] = [
       {
         "n": "15",
         "file": "15-cap1.html",
-        "ready": false,
-        "ex": 5,
+        "ready": true,
+        "ex": 0,
         "mins": 60,
         "fa": {
           "t": "پروژهٔ ۱ — کاربر، سرویس، فایروال",
@@ -1037,8 +1037,8 @@ export const TRACKS: Track[] = [
       {
         "n": "16",
         "file": "16-cap2.html",
-        "ready": false,
-        "ex": 7,
+        "ready": true,
+        "ex": 0,
         "mins": 90,
         "fa": {
           "t": "پروژهٔ ۲ — اسکریپت پشتیبان‌گیری زمان‌بندی‌شده",
@@ -1054,8 +1054,8 @@ export const TRACKS: Track[] = [
       {
         "n": "17",
         "file": "17-cap3.html",
-        "ready": false,
-        "ex": 9,
+        "ready": true,
+        "ex": 0,
         "mins": 150,
         "fa": {
           "t": "پروژهٔ ۳ — آماده‌سازی کامل یک VPS تازه",
@@ -1071,10 +1071,10 @@ export const TRACKS: Track[] = [
     ],
     "stats": {
       "chapters": 17,
-      "exercises": 273,
+      "exercises": 252,
       "minutes": 1345,
       "capstones": 3,
-      "ready": 6
+      "ready": 17
     }
   },
   {
@@ -1099,7 +1099,7 @@ export const TRACKS: Track[] = [
       {
         "n": "01",
         "file": "01-what.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 65,
         "fa": {
@@ -1116,7 +1116,7 @@ export const TRACKS: Track[] = [
       {
         "n": "02",
         "file": "02-git.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
@@ -1133,7 +1133,7 @@ export const TRACKS: Track[] = [
       {
         "n": "03",
         "file": "03-ci.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
@@ -1150,7 +1150,7 @@ export const TRACKS: Track[] = [
       {
         "n": "04",
         "file": "04-cd.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -1391,7 +1391,7 @@ export const TRACKS: Track[] = [
       "exercises": 273,
       "minutes": 1405,
       "capstones": 3,
-      "ready": 0
+      "ready": 4
     }
   },
   {

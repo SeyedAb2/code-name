@@ -88,17 +88,17 @@ C.push({
 ["04","04-packages.html",1,18,65,"بسته و ریپازیتوری","apt و dnf بدون خراب کردن سیستم.","Packages and repositories","apt and dnf without breaking the system.","apt dnf repository gpg key"],
 ["05","05-text.html",1,18,80,"ابزار متن: grep، awk، sed","استخراج جواب از لاگ در یک خط.","Text tools: grep, awk, sed","Pulling answers out of a log in one line.","grep awk sed cut sort uniq pipe"],
 ["06","06-bash.html",1,18,80,"اسکریپت‌نویسی bash","اسکریپتی که وقتی خطا داد، متوقف شود.","Bash scripting","Scripts that stop when something goes wrong.","bash set euo pipefail function trap"],
-["07","07-net.html",0,18,80,"مدل شبکه در عمل: ip، route، DNS","آدرس، مسیر، نام — سه لایه‌ای که همیشه یکی‌شان خراب است.","Networking in practice: ip, route, DNS","Address, route, name — one of the three is always the problem.","ip route dns resolv netplan"],
-["08","08-netdebug.html",0,18,80,"عیب‌یابی: ping، traceroute، ss، tcpdump","از «کار نمی‌کند» تا «این پورت بسته است».","Debugging: ping, traceroute, ss, tcpdump","From “it does not work” to “that port is closed”.","ping traceroute ss netstat tcpdump mtr dig"],
-["09","09-firewall.html",0,18,75,"فایروال: nftables / ufw","قانون بنویس، خودت را بیرون نیانداز.","Firewalls: nftables / ufw","Write rules without locking yourself out.","ufw nftables iptables firewall rule"],
-["10","10-ssh.html",0,18,75,"SSH، کلید، tunnel، ssh/config","ورود بی‌رمز، تونل، و پیکربندی تمیز.","SSH, keys, tunnels, ssh/config","Passwordless login, tunnels, and a clean config.","ssh key tunnel port forward config agent"],
-["11","11-logs.html",0,18,65,"لاگ و journald","journalctl و لاگ‌های ماندگار.","Logs and journald","journalctl and persistent logs.","journalctl syslog rsyslog logrotate"],
-["12","12-monitor.html",0,18,70,"مانیتورینگ منابع و دیسک","CPU، RAM، I/O و دیسکی که پر شد.","Resource and disk monitoring","CPU, RAM, I/O and the disk that filled up.","top htop df du iostat free"],
-["13","13-cron.html",0,18,65,"cron و زمان‌بندی","cron و systemd timer، و چرا اجرا نشد.","cron and scheduling","cron and systemd timers, and why it did not run.","cron crontab timer at"],
-["14","14-hardening.html",0,18,80,"سخت‌سازی سرور","حداقل کارهایی که قبل از production باید کرد.","Server hardening","The minimum you must do before production.","hardening fail2ban ssh root sysctl"],
-["15","15-cap1.html",0,5,60,"پروژهٔ ۱ — کاربر، سرویس، فایروال","یک سرویس کوچک بساز، با کاربر اختصاصی اجرا کن و پورتش را باز کن.","Project 1 — user, service, firewall","Build a small service, run it as its own user and open its port.","capstone service",1],
-["16","16-cap2.html",0,7,90,"پروژهٔ ۲ — اسکریپت پشتیبان‌گیری زمان‌بندی‌شده","اسکریپت مقاوم، لاگ‌گیری، چرخش نسخه‌ها و اجرای شبانه.","Project 2 — a scheduled backup script","A resilient script with logging, rotation and a nightly run.","capstone backup cron",2],
-["17","17-cap3.html",0,9,150,"پروژهٔ ۳ — آماده‌سازی کامل یک VPS تازه","از سرور خام تا سروری سخت‌شده و آمادهٔ production.","Project 3 — preparing a fresh VPS","From a raw server to a hardened, production-ready one.","capstone vps hardening",3]
+["07","07-net.html",1,18,80,"مدل شبکه در عمل: ip، route، DNS","آدرس، مسیر، نام — سه لایه‌ای که همیشه یکی‌شان خراب است.","Networking in practice: ip, route, DNS","Address, route, name — one of the three is always the problem.","ip route dns resolv netplan"],
+["08","08-netdebug.html",1,18,80,"عیب‌یابی: ping، traceroute، ss، tcpdump","از «کار نمی‌کند» تا «این پورت بسته است».","Debugging: ping, traceroute, ss, tcpdump","From “it does not work” to “that port is closed”.","ping traceroute ss netstat tcpdump mtr dig"],
+["09","09-firewall.html",1,18,75,"فایروال: nftables / ufw","قانون بنویس، خودت را بیرون نیانداز.","Firewalls: nftables / ufw","Write rules without locking yourself out.","ufw nftables iptables firewall rule"],
+["10","10-ssh.html",1,18,75,"SSH، کلید، tunnel، ssh/config","ورود بی‌رمز، تونل، و پیکربندی تمیز.","SSH, keys, tunnels, ssh/config","Passwordless login, tunnels, and a clean config.","ssh key tunnel port forward config agent"],
+["11","11-logs.html",1,18,65,"لاگ و journald","journalctl و لاگ‌های ماندگار.","Logs and journald","journalctl and persistent logs.","journalctl syslog rsyslog logrotate"],
+["12","12-monitor.html",1,18,70,"مانیتورینگ منابع و دیسک","CPU، RAM، I/O و دیسکی که پر شد.","Resource and disk monitoring","CPU, RAM, I/O and the disk that filled up.","top htop df du iostat free"],
+["13","13-cron.html",1,18,65,"cron و زمان‌بندی","cron و systemd timer، و چرا اجرا نشد.","cron and scheduling","cron and systemd timers, and why it did not run.","cron crontab timer at"],
+["14","14-hardening.html",1,18,80,"سخت‌سازی سرور","حداقل کارهایی که قبل از production باید کرد.","Server hardening","The minimum you must do before production.","hardening fail2ban ssh root sysctl"],
+["15","15-cap1.html",1,5,60,"پروژهٔ ۱ — کاربر، سرویس، فایروال","یک سرویس کوچک بساز، با کاربر اختصاصی اجرا کن و پورتش را باز کن.","Project 1 — user, service, firewall","Build a small service, run it as its own user and open its port.","capstone service",1],
+["16","16-cap2.html",1,7,90,"پروژهٔ ۲ — اسکریپت پشتیبان‌گیری زمان‌بندی‌شده","اسکریپت مقاوم، لاگ‌گیری، چرخش نسخه‌ها و اجرای شبانه.","Project 2 — a scheduled backup script","A resilient script with logging, rotation and a nightly run.","capstone backup cron",2],
+["17","17-cap3.html",1,9,150,"پروژهٔ ۳ — آماده‌سازی کامل یک VPS تازه","از سرور خام تا سروری سخت‌شده و آمادهٔ production.","Project 3 — preparing a fresh VPS","From a raw server to a hardened, production-ready one.","capstone vps hardening",3]
 ]});
 
 /* ═══════════════ ۰۴ — دواپس ═══════════════ */
@@ -110,10 +110,10 @@ C.push({
   en:{name:"DevOps & CI/CD", desc:"Git, CI/CD, Terraform, Ansible, Prometheus and zero-downtime releases — plus the postmortem when it breaks.",
       intro:"This track is not about tools; it is about the gap between “I wrote the code” and “a user is using it”. Each chapter automates one piece of that gap."},
   ch:[
-["01","01-what.html",0,18,65,"DevOps چیست و چه چیزی نیست","نه یک سِمَت، نه یک ابزار.","What DevOps is and is not","Not a job title, not a tool.","devops culture sre"],
-["02","02-git.html",0,18,85,"Git در عمل: branch، merge، rebase","استراتژی شاخه‌بندی و بیرون آمدن از دردسر.","Git in practice: branch, merge, rebase","Branching strategy and getting out of trouble.","git branch merge rebase conflict reflog"],
-["03","03-ci.html",0,18,85,"CI: تست خودکار، lint، build","GitHub Actions از صفر.","CI: automated tests, lint, build","GitHub Actions from zero.","ci github actions workflow matrix cache"],
-["04","04-cd.html",0,18,80,"CD و محیط‌ها","staging، production و تأیید دستی.","CD and environments","Staging, production and manual approval.","cd deploy environment approval"],
+["01","01-what.html",1,18,65,"DevOps چیست و چه چیزی نیست","نه یک سِمَت، نه یک ابزار.","What DevOps is and is not","Not a job title, not a tool.","devops culture sre"],
+["02","02-git.html",1,18,85,"Git در عمل: branch، merge، rebase","استراتژی شاخه‌بندی و بیرون آمدن از دردسر.","Git in practice: branch, merge, rebase","Branching strategy and getting out of trouble.","git branch merge rebase conflict reflog"],
+["03","03-ci.html",1,18,85,"CI: تست خودکار، lint، build","GitHub Actions از صفر.","CI: automated tests, lint, build","GitHub Actions from zero.","ci github actions workflow matrix cache"],
+["04","04-cd.html",1,18,80,"CD و محیط‌ها","staging، production و تأیید دستی.","CD and environments","Staging, production and manual approval.","cd deploy environment approval"],
 ["05","05-artifacts.html",0,18,70,"ساخت artifact و نسخه‌گذاری","semver و اینکه چه چیزی را باید نگه داشت.","Artifacts and versioning","Semver and what is worth keeping.","artifact semver release tag"],
 ["06","06-terraform.html",0,18,90,"IaC با Terraform","state، plan، apply و اینکه چرا state مقدس است.","IaC with Terraform","State, plan, apply — and why state is sacred.","terraform state plan apply module"],
 ["07","07-ansible.html",0,18,80,"Ansible","playbook، inventory و idempotency.","Ansible","Playbooks, inventories and idempotency.","ansible playbook inventory role idempotent"],

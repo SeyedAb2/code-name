@@ -1,0 +1,249 @@
+<!--meta
+title: CI: تست خودکار، lint، build
+desc: وقتی هر تغییر باید با یک معیار یکسان بررسی شود، GitHub Actions را با workflow، runner، job، step و خروجی واقعی راه بینداز؛ شکست را ببین و مطمئن شو خطا واقعاً خط لوله را قرمز می‌کند.
+-->
+<div class="masthead">
+ <span class="eyebrow"><span class="dot"></span><span lang="fa">دواپس و CI/CD · فصل ۳</span><span lang="en">DevOps & CI/CD · Chapter 3</span></span>
+ <h1><span lang="fa">CI: تست خودکار، lint، build</span><span lang="en">CI: automated tests, lint, build</span></h1>
+ <p class="lede" lang="fa">در فصل قبل گفتیم pull request باید برای همان تغییری که قرار است ادغام شود شاهد داشته باشد. اما اگر هر نفر lint و test را با دستور یا نسخه‌ای متفاوت اجرا کند، «سبز شد» یعنی چه؟ یک runner تمیز را وادار می‌کنیم هر بار همان بررسی‌ها را انجام دهد.</p>
+ <p class="lede" lang="en">Last chapter established that a pull request needs evidence for the exact change being merged. But if everyone runs lint and tests with different commands or versions, what does “green” mean? We will ask a clean runner to perform the same checks every time.</p>
+ <div class="facts"><div class="fact"><b>۸۵</b><span lang="fa">دقیقه</span><span lang="en">minutes</span></div><div class="fact"><b>۱۸</b><span lang="fa">تمرین با پاسخ</span><span lang="en">solved exercises</span></div><div class="fact"><b>۱</b><span lang="fa">workflow قابل‌آزمایش</span><span lang="en">testable workflow</span></div></div>
+</div>
+
+<section id="red-release">
+ <h2><span lang="fa">«روی لپ‌تاپم سبز بود» کافی نیست</span><span lang="en">“It was green on my laptop” is not enough</span></h2>
+ <p class="lede" lang="fa">سارا یک تغییر فرستاده. reviewer آن را تأیید کرده، اما بعد از merge می‌بینیم build اصلاً روی نسخهٔ Node پروژه اجرا نشده بوده. آیا مشکل از بی‌دقتی سارا بود؟ شاید؛ ولی سؤال بهتر این است: چرا تیم برای هر تغییر یک بررسی تکرارپذیر نداشت؟</p>
+ <p class="lede" lang="en">Sara submitted a change. A reviewer approved it, but after merging we discover the build had not even run against the project’s Node version. Was Sara careless? Perhaps—but a better question is why the team had no repeatable check for every change.</p>
+ <p lang="fa">CI یا Continuous Integration قرار نیست به کد «اعتماد» کند. تغییر را با دستورهای مشخص، روی محیطی مشخص، می‌سازد و نتیجه را به commit مربوط می‌کند. اگر lint یا test خطا بدهد، همان گام باید شکست بخورد تا status به PR برسد. CI فقط کیفیت بررسی‌های تعریف‌شده را منظم می‌کند؛ اشتباه بودن خودِ تعریف را جبران نمی‌کند.</p>
+ <p lang="en">Continuous Integration does not “trust” code. It runs explicit commands in a defined environment, building the change and attaching results to its commit. If lint or tests fail, that step must fail so the status reaches the PR. CI makes the chosen checks consistent; it cannot compensate for choosing the wrong checks.</p>
+ <div class="diagram"><svg viewBox="0 0 1000 370" role="img" aria-labelledby="ci-flow-title ci-flow-desc"><title id="ci-flow-title">A pull request becomes a CI status check</title><desc id="ci-flow-desc">A commit or pull request triggers a job on a runner. The runner checks out code, sets up the runtime and runs lint, tests and build. Its result becomes a status check used by the merge gate. Arrows show this order.</desc><defs><marker id="ci-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 10 5 0 10z" class="dg-arrow"/></marker></defs>
+  <rect x="12" y="12" width="976" height="346" rx="18" class="dg-fill dg-stroke"/>
+  <rect x="40" y="110" width="145" height="96" rx="14" class="dg-fill-v dg-stroke-v"/><text x="112" y="149" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate"><tspan x="112">Commit / PR</tspan><tspan x="112" dy="25" class="dg-muted">trigger</tspan></text>
+  <rect x="232" y="75" width="236" height="166" rx="16" class="dg-fill-b dg-stroke-b"/><text x="350" y="110" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Runner · one job</text>
+  <rect x="253" y="129" width="194" height="88" rx="12" class="dg-fill dg-stroke"/><text x="350" y="159" text-anchor="middle" class="dg-muted" style="direction:ltr;unicode-bidi:isolate"><tspan x="350">checkout · setup</tspan><tspan x="350" dy="24">lint · test · build</tspan></text>
+  <rect x="520" y="110" width="180" height="96" rx="14" class="dg-fill-w dg-stroke-w"/><text x="610" y="148" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate"><tspan x="610">Job result</tspan><tspan x="610" dy="25" class="dg-muted">exit status + logs</tspan></text>
+  <rect x="752" y="65" width="204" height="92" rx="14" class="dg-fill-g dg-stroke-g"/><text x="854" y="103" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate"><tspan x="854">Status check</tspan><tspan x="854" dy="24" class="dg-muted">passed / failed</tspan></text>
+  <rect x="752" y="202" width="204" height="92" rx="14" class="dg-fill-r dg-stroke-r"/><text x="854" y="240" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate"><tspan x="854">Merge gate</tspan><tspan x="854" dy="24" class="dg-muted">host policy</tspan></text>
+  <path d="M188 158h37" class="dg-stroke" marker-end="url(#ci-arrow)"/><path d="M470 158h45" class="dg-stroke" marker-end="url(#ci-arrow)"/><path d="M702 146h45" class="dg-stroke" marker-end="url(#ci-arrow)"/><path d="M854 162v34" class="dg-stroke" marker-end="url(#ci-arrow)"/>
+  <text x="854" y="330" text-anchor="middle" class="dg-muted" style="direction:ltr;unicode-bidi:isolate">A green check proves only what ran.</text>
+ </svg></div>
+ <p lang="fa">شکل یک مسیر را نشان می‌دهد: trigger باعث اجرای job می‌شود؛ job روی runner کار می‌کند و نتیجه‌اش status می‌شود؛ میزبان می‌تواند آن status را شرط merge کند. پیکانِ status check نمی‌گوید «برنامه سالم است»؛ فقط می‌گوید دستورهای پیکربندی‌شده با exit موفق تمام شدند.</p>
+ <p lang="en">The diagram shows one path: a trigger starts a job, the job runs on a runner, and its result becomes a status that the host may require for merging. A passed check does not say “the application is healthy”; it says the configured commands exited successfully.</p>
+</section>
+
+<section id="workflow-anatomy">
+ <h2><span lang="fa">workflow از کجا شروع می‌شود؟</span><span lang="en">Where does a workflow begin?</span></h2>
+ <p lang="fa">GitHub Actions فایل YAML را از `.github/workflows/` می‌خواند. workflow می‌گوید چه رویدادی شروعش کند؛ jobها کارهای مستقل‌اند؛ هر job روی runner مشخصی اجرا می‌شود؛ و stepها دستور یا actionهای همان job هستند. این واژه‌ها را روی یک نمونهٔ کوچک می‌خوانیم، نه حفظ می‌کنیم.</p>
+ <p lang="en">GitHub Actions reads YAML files from `.github/workflows/`. A workflow declares which events start it; jobs are units of work; each job runs on a selected runner; and steps are commands or actions inside that job. We will read these concepts in a small example rather than memorise a glossary.</p>
+ <div class="table-wrap"><table class="doc-table"><thead><tr><th><span lang="fa">جزء</span><span lang="en">Part</span></th><th><span lang="fa">سؤالش</span><span lang="en">Question it answers</span></th><th><span lang="fa">شاهد در اجرای CI</span><span lang="en">Evidence in a run</span></th></tr></thead><tbody>
+  <tr><td>workflow / trigger</td><td><span lang="fa">چه اتفاقی آن را شروع می‌کند؟</span><br/><span lang="en">What event starts it?</span></td><td><span lang="fa">رویداد push یا pull request</span><br/><span lang="en">A push or pull-request event</span></td></tr>
+  <tr><td>runner / job</td><td><span lang="fa">کجا و با چه ترتیب کاری اجرا می‌شود؟</span><br/><span lang="en">Where and in what unit does work run?</span></td><td><span lang="fa">ماشین انتخابی و وضعیت نهایی job</span><br/><span lang="en">Selected machine and final job status</span></td></tr>
+  <tr><td>step</td><td><span lang="fa">کدام دستور یا action اجرا شد؟</span><br/><span lang="en">Which command or action ran?</span></td><td><span lang="fa">نام گام، exit code و log همان گام</span><br/><span lang="en">Step name, exit code, and its log</span></td></tr>
+ </tbody></table></div>
+ <p lang="fa">یک فایل در مسیر زیر بسازیم. فعلاً trigger را به push شاخهٔ `main` و pull request به همان شاخه محدود می‌کنیم. پس از commit کردن workflow در GitHub، در تب Actions باید اجرای تازه را ببینی؛ اجرای محلی YAML به‌تنهایی ثابت نمی‌کند GitHub آن را از مسیر درست خوانده است.</p>
+ <p lang="en">Create this file at the path below. For now, limit triggers to pushes to `main` and pull requests targeting it. Once the workflow is committed to GitHub, a new run should appear in the Actions tab; locally parsing YAML does not prove GitHub read it from the right path.</p>
+ <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">.github/workflows/ci.yml · first shape</span><button class="copy">کپی</button></div><pre dir="ltr">name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+      - name: Show the revision under test
+        run: git rev-parse --short HEAD</pre></div>
+ <p lang="fa">`permissions: contents: read` دسترسی پیش‌فرض `GITHUB_TOKEN` را برای این workflow محدود می‌کند؛ job بررسی کد برای نوشتن در مخزن نیازی ندارد. `checkout` فایل‌ها را در workspace runner می‌آورد. گام آخر باید شناسهٔ کوتاهی چاپ کند؛ این شاهد می‌گوید چه revisionی در runner است، نه اینکه آزمون‌ها موفق بوده‌اند.</p>
+ <p lang="en">`permissions: contents: read` limits this workflow’s `GITHUB_TOKEN`; a verification job does not need repository write access. `checkout` places repository files in the runner workspace. The last step should print a short revision ID; that identifies what is running, not whether tests passed.</p>
+ <div class="note"><span lang="fa">نسخهٔ actionها را هر از گاهی از مستندات رسمی بازبینی کن. در این نمونه از major tagهای رایج استفاده شده؛ برای زنجیرهٔ حساس، pin کردن action به commit SHA تغییرناپذیر و بازبینی ارتقا، کنترل قوی‌تری است. runnerهای self-hosted هم باید runtime لازم را داشته باشند و محافظت شوند.</span><span lang="en">Periodically review action versions against official documentation. This example uses major tags; for sensitive pipelines, pinning actions to immutable commit SHAs and reviewing upgrades provides stronger control. Self-hosted runners must also have required runtimes and be secured.</span></div>
+</section>
+
+<section id="tiny-app">
+ <h2><span lang="fa">یک برنامهٔ کوچک که واقعاً چیزی را بررسی می‌کند</span><span lang="en">A tiny app that checks something real</span></h2>
+ <p lang="fa">فقط workflow داشتن چیزی را بررسی نمی‌کند. یک برنامهٔ خیلی کوچک می‌سازیم تا دستورهای محلی و CI یکسان باشند. `npm ci` به lockfile نیاز دارد؛ یک‌بار محلی `npm install` اجرا کن و `package-lock.json` را commit کن. بعد runner نسخهٔ دقیق dependencyهای ثبت‌شده را نصب می‌کند.</p>
+ <p lang="en">Having a workflow does not itself check anything. We will create a tiny app so local and CI commands match. `npm ci` requires a lockfile; run `npm install` locally once and commit `package-lock.json`. The runner then installs the exact dependency versions recorded there.</p>
+ <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">package.json · commands the team agrees to run</span><button class="copy">کپی</button></div><pre dir="ltr">{
+  "name": "hello-ci-lab",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "node --check src.mjs",
+    "test": "node --test",
+    "build": "node build.mjs"
+  }
+}</pre></div>
+ <p lang="fa">`lint` در این نمونه syntax فایل را با Node بررسی می‌کند؛ این جای lint معنایی مثل ESLint را نمی‌گیرد. تست‌ها با test runner داخلی Node اجرا می‌شوند و build یک artifact کوچک می‌سازد. پیش از افزودن CI، محلی همان سه دستور را اجرا کن: اگر در پوشهٔ پروژه fail می‌شوند، runner هم باید fail شود.</p>
+ <p lang="en">Here, `lint` checks JavaScript syntax with Node; it is not a substitute for a semantic linter such as ESLint. Tests use Node’s built-in test runner, and build creates a small artifact. Before adding CI, run the same three commands locally: if they fail in the project directory, the runner should fail too.</p>
+ <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">src.mjs · application function</span><button class="copy">کپی</button></div><pre dir="ltr">export function greeting(name) {
+  return `Hello, ${name}!`;
+}</pre></div>
+ <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">src.test.mjs · assertion can fail the process</span><button class="copy">کپی</button></div><pre dir="ltr">import test from 'node:test';
+import assert from 'node:assert/strict';
+import { greeting } from './src.mjs';
+
+test('greets the named person', () =&gt; {
+  assert.equal(greeting('Sara'), 'Hello, Sara!');
+});</pre></div>
+ <p lang="fa">اگر assertion برقرار نباشد، Node test runner با exit code غیرصفر بیرون می‌آید. همین قرارداد مهم است: shell و GitHub Actions از exit code می‌فهمند گام موفق بوده یا نه. متن قرمز در log فقط ظاهر است؛ exit status شاهدی است که job بر اساسش fail می‌شود.</p>
+ <p lang="en">If the assertion fails, Node’s test runner exits with a non-zero code. That contract matters: the shell and GitHub Actions use the exit code to decide whether a step succeeded. Red text in a log is only appearance; the exit status is the evidence that fails the job.</p>
+ <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">build.mjs · a small build output</span><button class="copy">کپی</button></div><pre dir="ltr">import { mkdir, writeFile } from 'node:fs/promises';
+import { greeting } from './src.mjs';
+
+await mkdir('dist', { recursive: true });
+await writeFile('dist/greeting.txt', `${greeting('CI')}\n`);</pre></div>
+ <p lang="fa">اکنون `npm install` و بعد `npm run lint`، `npm test` و `npm run build` را اجرا کن. `dist/greeting.txt` باید ساخته شود و در آن `Hello, CI!` باشد. این build نمونه فقط نشان می‌دهد گام تولید خروجی کار می‌کند؛ کیفیت یا سازگاری محصول واقعی را نمی‌سنجد.</p>
+ <p lang="en">Now run `npm install`, followed by `npm run lint`, `npm test`, and `npm run build`. `dist/greeting.txt` should contain `Hello, CI!`. This toy build only proves the output step works; it says nothing about the quality or compatibility of a real product.</p>
+</section>
+
+<section id="complete-workflow">
+ <h2><span lang="fa">حالا همان بررسی را به هر تغییر وصل کنیم</span><span lang="en">Now attach the same checks to every change</span></h2>
+ <p lang="fa">workflow را گسترش می‌دهیم: runtime مشخص، checkout، نصب از lockfile، lint، test و build. `setup-node` گزینهٔ cache برای npm دارد؛ cache فقط زمان دانلود را کم می‌کند و dependency را معتبر نمی‌کند. `npm ci` همچنان از lockfile نصب پاک و قابل‌تکرار انجام می‌دهد.</p>
+ <p lang="en">Expand the workflow with a defined runtime, checkout, lockfile-based install, lint, test, and build. `setup-node` can cache npm data; a cache only reduces download time and does not validate dependencies. `npm ci` still performs a clean, repeatable installation from the lockfile.</p>
+ <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">.github/workflows/ci.yml · lint, test, build and save artifact</span><button class="copy">کپی</button></div><pre dir="ltr">name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Save build output
+        uses: actions/upload-artifact@v7
+        with:
+          name: hello-ci-build
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7</pre></div>
+ <p lang="fa">در Actions، گام ناموفق و log همان گام را پیدا کن؛ بعد commit را با `git rev-parse` مقایسه کن تا مطمئن شوی همان تغییر بررسی شده. artifact خروجی build را برای دریافت از همان اجرای workflow نگه می‌دارد؛ deploy خودکار نیست. اگر مسیر `dist/` ساخته نشود، `if-no-files-found: error` باعث می‌شود گام artifact پنهانی سبز نماند.</p>
+ <p lang="en">In Actions, locate the failed step and its log, then compare the commit with `git rev-parse` to ensure the intended change ran. The artifact keeps build output downloadable from that workflow run; it is not an automatic deployment. If `dist/` is missing, `if-no-files-found: error` prevents the artifact step from silently passing.</p>
+ <div class="note"><span lang="fa">در نمونه، major tagهای action برای خوانایی آمده و نسخهٔ Node روی 22 ثابت است. GitHub-hosted runnerها آماده‌اند؛ actionهای upload v7 و runtime جدیدش برای self-hosted runner به runner سازگار نیاز دارند. نسخه‌ها را از مستندات رسمی روز بررسی کن؛ tag متحرک با SHA ثابت یکسان نیست. نمونه برای GitHub.com است؛ پشتیبانی نسخه‌های artifact action در GHES می‌تواند فرق کند.</span><span lang="en">Major action tags keep the example readable, and Node is pinned to 22. GitHub-hosted runners are maintained for these workflows; upload v7 and its newer runtime require a compatible self-hosted runner. Check current official docs: a moving tag is not a fixed SHA. This example targets GitHub.com; artifact-action support can differ on GHES.</span></div>
+</section>
+
+<section id="red-test">
+ <h2><span lang="fa">عمداً تست را خراب کنیم؛ قرمزی را ببین</span><span lang="en">Break a test deliberately and watch it turn red</span></h2>
+ <p lang="fa">تست را طوری عوض کن که انتظار اشتباه باشد؛ مثلاً انتظار بده `Hello, Sara?` برگردد. قبل از push پیش‌بینی کن کدام گام باید fail شود. پس از push روی branch تمرینی، گام `Test` باید غیرصفر تمام شود و job قرمز شود. log مقدارهای مورد انتظار و واقعی را نشان می‌دهد؛ این ثابت می‌کند assertion اجرا شده و mismatch را گرفته است.</p>
+ <p lang="en">Change the test so it expects the wrong value—for example, `Hello, Sara?`. Before pushing to a practice branch, predict which step should fail. The `Test` step should exit non-zero and the job should turn red. Its log shows expected and actual values, proving the assertion ran and caught the mismatch.</p>
+ <p lang="fa">حالا انتظار تست را اصلاح کن یا implementation را آگاهانه تغییر بده، commit تازه بزن و اجرای تازه را باز کن. سبز شدن اجرای جدید برای commit تازه مهم است؛ سبز قدیمی روی commit قبلی شاهد این تغییر نیست. پس از fix، گام‌های lint، test و build باید همگی اجرا و موفق شوند.</p>
+ <p lang="en">Now fix the expectation or deliberately change the implementation, commit again, and inspect the new run. A green run for the new commit matters; an old green result for an earlier commit is not evidence for this change. After the fix, lint, test, and build should all run successfully.</p>
+ <div class="note safe"><span lang="fa">این آزمایش را در branch یا fork تمرینی انجام بده، نه با خراب‌کردن شاخهٔ اصلی پروژه. اگر branch protection فعال است، قرمز شدن status check باید merge را ببندد؛ امکان دور زدن آن به تنظیم میزبان، مجوزها و سیاست تیم بستگی دارد.</span><span lang="en">Run this experiment on a practice branch or fork, not by breaking the project’s main branch. With branch protection enabled, a failed status check should block merging; bypass behaviour depends on host configuration, permissions, and team policy.</span></div>
+</section>
+
+<section id="false-green">
+ <h2><span lang="fa">دام رایج: pipeline سبز است، چون شکست را پنهان کردیم</span><span lang="en">A common trap: the pipeline is green because failure was hidden</span></h2>
+ <p lang="fa">یک workflow قدیمی چنین گامی دارد: `npm test || echo "tests skipped"`. تیم می‌گوید «تست اجرا شد، پس سبز بودن یعنی موفقیت». پیش از اصلاح، متن shell را بخوان: اگر `npm test` شکست بخورد، دستور سمت راست اجرا می‌شود و `echo` معمولاً exit code صفر می‌دهد. runner شکست اصلی را نمی‌بیند.</p>
+ <p lang="en">An old workflow contains `npm test || echo "tests skipped"`. The team says, “The tests ran, so green means success.” Read the shell expression first: if `npm test` fails, the right-hand command runs and `echo` normally exits zero. The runner never sees the original failure.</p>
+ <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">bash · reproduce the misleading success locally</span><button class="copy">کپی</button></div><pre dir="ltr">npm test || echo "tests skipped"
+echo "shell exit: $?"
+
+# Compare with a command that propagates the failure
+npm test</pre></div>
+ <p lang="fa">خط `shell exit: 0` در حالت شکست تست شاهد فریب است. آخرین دستور بلوک، exit code خودش را برمی‌گرداند؛ برای دیدن درست نتیجه، خط دوم را جدا اجرا کن یا shell را طوری بنویس که خطا را نبلعد. `continue-on-error: true` هم عمداً همین مرز را تغییر می‌دهد و برای check اجباری انتخاب مناسبی نیست.</p>
+ <p lang="en">A `shell exit: 0` line after a failing test is the misleading evidence. A shell block reports the final command’s status; run the comparison separately or write the shell so it propagates failures. `continue-on-error: true` deliberately changes the same boundary and is usually wrong for a required check.</p>
+ <p lang="fa">حالا یک ایراد دوم: در پروژهٔ واقعی package داخل `web/` است، اما CI از ریشه `npm test` می‌زند. اگر آنجا package.json نباشد، log باید خطای مسیر بدهد. `working-directory: web` یا `npm --prefix web test` مسیر واقعی را روشن می‌کند. دستور موفق در پوشهٔ غلط هم check مفیدی نیست.</p>
+ <p lang="en">Now a second bug: the real package is under `web/`, but CI runs `npm test` from the repository root. If there is no root package.json, the log should report a path-related error. Use `working-directory: web` or `npm --prefix web test` to make the intended location explicit. A successful command in the wrong directory is not a useful check.</p>
+ <div class="note safe"><span lang="fa">اگر workflow شکست خورد، اول نام job و step، working directory، دستور دقیق و exit status را بخوان. بعد همان دستور را محلی با همان نسخهٔ runtime تکرار کن. log را بررسی کن؛ کلید یا secret را چاپ نکن.</span><span lang="en">When a workflow fails, first inspect the job and step name, working directory, exact command, and exit status. Then rerun that command locally with the same runtime version. Read logs without printing keys or secrets.</span></div>
+</section>
+
+<section id="cache-artifact">
+ <h2><span lang="fa">cache و artifact دو چیز متفاوت‌اند</span><span lang="en">A cache and an artifact are different things</span></h2>
+ <p lang="fa">با بزرگ‌شدن dependencyها، نصب طول می‌کشد. cache داده‌ای قابل‌بازسازی مثل بسته‌های npm را برای سریع‌تر شدن اجرای بعدی نگه می‌دارد؛ artifact خروجی همان اجرای build مثل `dist/` است که باید بررسی یا بعداً دریافت شود. cache تضمین نمی‌کند ورودی معتبر است؛ lockfile و نصب پاک هنوز مرجع‌اند.</p>
+ <p lang="en">As dependencies grow, installation takes longer. A cache retains reproducible-to-regenerate data such as npm packages to speed later runs; an artifact is output from this build, such as `dist/`, that may need inspection or download. A cache does not guarantee valid inputs; the lockfile and clean install remain authoritative.</p>
+ <p lang="fa">در مثال، `setup-node` cache را بر اساس lockfile تنظیم می‌کند. اگر dependency عوض شود، کلید cache تغییر می‌کند و دادهٔ قدیمی لزوماً استفاده نمی‌شود؛ اما حتی cache hit هم اثبات نمی‌کند dependency بی‌خطر یا برنامه سالم است. برای workflowهای ورودی از fork، cache را جای محرمانه‌سازی اطلاعات نگذار؛ جریان‌های کم‌اعتماد ممکن است به cacheهای قابل‌دسترسی برسند.</p>
+ <p lang="en">In the example, `setup-node` keys caching from the lockfile. When dependencies change, the cache key changes, so old data is not necessarily reused. Still, a cache hit does not prove a dependency is safe or the app is healthy. For workflows triggered by forks, do not treat caches as secret storage; lower-trust workflows may access available caches.</p>
+ <p lang="fa">artifact را فقط وقتی آپلود می‌کنیم که build موفق شده باشد و مسیر خروجی مشخص باشد. نام، retention و فایل‌های واردشده را بررسی کن؛ artifact ممکن است اطلاعاتی داشته باشد که انتشار عمومی‌اش مناسب نیست. retention کوتاه در تمرین کافی است؛ قواعد نگهداری به نیاز پروژه و تنظیم مخزن وابسته است.</p>
+ <p lang="en">Upload an artifact only after the build succeeds and its output path is known. Inspect its name, retention, and included files; an artifact may contain information unsuitable for public distribution. Short retention is enough for a lab; retention policy depends on the project and repository settings.</p>
+</section>
+
+<section id="secrets-boundary">
+ <h2><span lang="fa">secret را وارد CI نکن مگر لازم باشد</span><span lang="en">Do not put secrets in CI unless needed</span></h2>
+ <p lang="fa">workflow این فصل فقط lint و test و build می‌کند؛ پس به password یا deploy key احتیاج ندارد. برای دسترسی به مخزن هم token فقط `contents: read` دارد. هر secret اضافی، چیزی است که log، dependency مخرب یا تغییر workflow می‌تواند در معرض خطر بگذارد.</p>
+ <p lang="en">This chapter’s workflow only lints, tests, and builds, so it needs no password or deployment key. Repository access is limited to a `contents: read` token. Every extra secret is something that logs, a compromised dependency, or a workflow change could put at risk.</p>
+ <p lang="fa">در triggerهای `pull_request` از fork، secretهای معمول مخزن در دسترس workflow نیستند؛ این حفاظت مهم است، نه مانع مطلق برای هر رویداد و هر طراحی. از `pull_request_target` برای اجرای کد بررسی‌نشده با اختیارهای حساس استفاده نکن. برای هر workflow، trigger، مجوز `GITHUB_TOKEN`، actionهای شخص ثالث و محل مصرف secret را جدا بررسی کن.</p>
+ <p lang="en">For `pull_request` events from forks, ordinary repository secrets are not available to the workflow; this is an important safeguard, not a blanket guarantee for every event or design. Do not use `pull_request_target` to run untrusted code with sensitive privileges. Review each workflow’s triggers, `GITHUB_TOKEN` permissions, third-party actions, and secret use separately.</p>
+ <div class="note safe"><span lang="fa">اگر بعدها deploy key لازم شد، آن را در secrets مخزن یا environment محدود نگه دار، فقط در job موردنیاز تزریق کن و مقدارش را چاپ نکن. این درس هنوز deploy انجام نمی‌دهد؛ آن کار موضوع فصل محیط‌هاست.</span><span lang="en">If a deployment key is needed later, store it in repository or environment secrets with narrow access, expose it only to the required job, and never print it. This chapter does not deploy; that belongs to the environments chapter.</span></div>
+</section>
+
+<section id="matrix-status">
+ <h2><span lang="fa">matrix را کی اضافه کنیم؟ status را کی gate کنیم؟</span><span lang="en">When to add a matrix—and when to gate status</span></h2>
+ <p lang="fa">اگر برنامه فقط یک runtime پشتیبانی می‌کند، matrix چند نسخه‌ای زمان و هزینه اضافه می‌کند بی‌آنکه تصمیمی عوض کند. وقتی واقعاً چند نسخه را پشتیبانی می‌کنی، matrix همان job را با ورودی‌های متفاوت تکرار می‌کند؛ نتیجه باید روشن کند کدام ترکیب شکست خورده. شروع کوچک را پیش‌فرض بگیر.</p>
+ <p lang="en">If the app supports one runtime, a multi-version matrix adds time and cost without changing a decision. When several versions are genuinely supported, a matrix repeats the job with different inputs and identifies which combination failed. Start small by default.</p>
+ <p lang="fa">در pull request یک status check ممکن است برای merge اجباری شود. نام check باید پایدار و یکتا باشد؛ branch protection را پس از اولین اجرای موفق تنظیم کن تا نام واقعی check را انتخاب کنی. در تنظیمات میزبان ممکن است merge queue یا شرط تازه‌بودن شاخه هم دخیل باشد. نسخهٔ قدیمی green را برای commit جدید قبول نکن.</p>
+ <p lang="en">A status check can be required before a pull request merges. Keep check names stable and unique; configure branch protection after the first successful run so you can select the actual check name. Host settings may also involve merge queues or branch freshness. Do not accept an old green result for a new commit.</p>
+ <p lang="fa">در commit تمرینی، یک assertion را خراب کن و ببین status failed می‌شود. بعد workflow را در مخزن GitHub فعال کن، از تنظیمات شاخه check درست را required کن و PR بساز. این آزمایش ثابت می‌کند سیاست میزبان جلوی merge را در همان تنظیمات گرفته؛ اثبات نمی‌کند runtime production یا همهٔ مسیرهای bypass ایمن‌اند.</p>
+ <p lang="en">Break one assertion in a practice commit and confirm the status fails. Then enable the workflow in a GitHub repository, require the correct check in branch settings, and open a PR. This demonstrates that the host policy blocks merging under those settings; it does not prove production runtime or every bypass path is secure.</p>
+</section>
+
+<section id="exercises">
+ <h2><span lang="fa">تمرین‌ها: سبز بودن را با شاهد بسنج</span><span lang="en">Exercises: judge green by its evidence</span></h2>
+ <p class="lede" lang="fa">تمرین‌ها را به‌ترتیب انجام بده: اول پیش‌بینی، بعد خواندن log، و آخر طراحی یک check که شکست را پنهان نکند.</p><p class="lede" lang="en">Work through the sequence: predict first, inspect logs next, and finish by designing a check that cannot hide failure.</p>
+ <div class="ex-stat"><b>۰ / ۱۸</b><div class="pbar"><i></i></div></div>
+ <div class="ex" id="ex-01"><div class="ex-h"><h3><span lang="fa">۱. runner چیست؟</span><span lang="en">1. What is a runner?</span></h3></div><p lang="fa">در workflow یک job روی `ubuntu-latest` اجرا می‌شود. این مقدار کدام بخش را مشخص می‌کند و کدام بخش را نه؟</p><p lang="en">A job runs on `ubuntu-latest`. What does this select, and what does it not select?</p><details class="ex-sol"><summary><span lang="fa">توضیح</span><span lang="en">Explanation</span></summary><p lang="fa">runner را انتخاب می‌کند؛ stepها و دستورهای job هنوز باید جدا تعریف شوند. این نام تضمین‌کنندهٔ یک snapshot تغییرناپذیر از سیستم‌عامل نیست؛ image runner به‌روز می‌شود.</p><p lang="en">It selects the runner environment; the job’s steps and commands still need defining. It does not pin an immutable operating-system snapshot; runner images evolve.</p></details></div>
+ <div class="ex" id="ex-02"><div class="ex-h"><h3><span lang="fa">۲. workflow اجرا نشد</span><span lang="en">2. The workflow did not run</span></h3></div><p lang="fa">فایل YAML در `scripts/ci.yml` قرار دارد و GitHub هیچ workflowی نشان نمی‌دهد. نخستین بررسی؟</p><p lang="en">The YAML file is at `scripts/ci.yml`, and GitHub shows no workflow. What do you inspect first?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">workflowها باید در `.github/workflows/` باشند. مسیر و branchی که فایل در آن commit شده، سپس syntax و trigger رویداد را بررسی کن.</p><p lang="en">Workflows belong in `.github/workflows/`. Check the path and the branch containing the committed file, then validate syntax and event triggers.</p></details></div>
+ <div class="ex" id="ex-03"><div class="ex-h"><h3><span lang="fa">۳. `push` یا `pull_request`؟</span><span lang="en">3. `push` or `pull_request`?</span></h3></div><p lang="fa">می‌خواهی نتیجه قبل از merge روی PR دیده شود و بعد از commit مستقیم روی main هم اجرا شود. چه دو triggerی لازم است؟</p><p lang="en">You want results visible on a PR before merge and also for direct commits to main. Which two triggers do you need?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">`pull_request` برای مقصد main و `push` برای شاخهٔ main. رفتار دقیق رویداد را با branch filters و سیاست مخزن هماهنگ کن؛ اجرای workflow را در Actions verify کن.</p><p lang="en">`pull_request` targeting main and `push` on main. Match filters to repository policy and verify actual runs in Actions.</p></details></div>
+ <div class="ex" id="ex-04"><div class="ex-h"><h3><span lang="fa">۴. step شکست خورد، job سبز ماند</span><span lang="en">4. A step failed, but the job stayed green</span></h3></div><p lang="fa">log پیام test failed دارد، اما step موفق است. چه دو تنظیمی را جست‌وجو می‌کنی؟</p><p lang="en">The log says a test failed, but the step passed. Which two settings do you search for?</p><details class="ex-sol"><summary><span lang="fa">توضیح</span><span lang="en">Explanation</span></summary><p lang="fa">دستور shell ممکن است خطا را با `|| true` یا `echo` ببلعد؛ یا step از `continue-on-error` استفاده کند. exit code و تنظیم step را بخوان و علت پنهان‌شدن را حذف کن.</p><p lang="en">The shell command may swallow failure with `|| true` or `echo`, or the step may set `continue-on-error`. Inspect exit status and step configuration, then remove the cause.</p></details></div>
+ <div class="ex" id="ex-05"><div class="ex-h"><h3><span lang="fa">۵. checkout جا افتاده</span><span lang="en">5. Checkout is missing</span></h3></div><p lang="fa">runner در گام `npm ci` می‌گوید package-lock پیدا نشد؛ workflow گام setup-node دارد. چه گامی احتمالاً جا افتاده؟</p><p lang="en">The runner says it cannot find package-lock during `npm ci`; the workflow has setup-node. Which step is likely missing?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">`actions/checkout` باید پیش از نصب اجرا شود تا فایل‌های مخزن وارد workspace شوند. setup-node فقط runtime را آماده می‌کند، کد را checkout نمی‌کند.</p><p lang="en">`actions/checkout` must run before installation to place repository files in the workspace. setup-node prepares the runtime; it does not check out code.</p></details></div>
+ <div class="ex" id="ex-06"><div class="ex-h"><h3><span lang="fa">۶. `npm ci` روی لپ‌تاپ موفق نیست</span><span lang="en">6. `npm ci` fails locally</span></h3></div><p lang="fa">CI می‌گوید lockfile با package.json هماهنگ نیست. کجا باید اصلاح را انجام دهی؟</p><p lang="en">CI says the lockfile is out of sync with package.json. Where should you fix it?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">dependencyها را محلی با package manager درست همگام کن، lockfile را commit کن و دوباره CI را اجرا کن. lockfile را حذف نکن تا CI از نسخه‌های حل‌شدهٔ تصادفی استفاده کند.</p><p lang="en">Synchronise dependencies locally with the project’s package manager, commit the lockfile, and rerun CI. Do not remove the lockfile and let CI resolve arbitrary versions.</p></details></div>
+ <div class="ex" id="ex-07"><div class="ex-h"><h3><span lang="fa">۷. CI در پوشهٔ اشتباه است</span><span lang="en">7. CI runs from the wrong directory</span></h3></div><p lang="fa">package در `web/` است؛ workflow از ریشه `npm test` می‌زند. خروجی log و دو راه اصلاح را بگو.</p><p lang="en">The package is in `web/`, but the workflow runs `npm test` at the root. What should the log show, and name two fixes.</p><details class="ex-sol"><summary><span lang="fa">توضیح</span><span lang="en">Explanation</span></summary><p lang="fa">npm احتمالاً package.json را پیدا نمی‌کند. `working-directory: web` برای step یا `npm --prefix web test` مسیر را صریح می‌کند؛ مسیر log باید اجرای همان package را تأیید کند.</p><p lang="en">npm will likely fail to find package.json. Set `working-directory: web` on the step or use `npm --prefix web test`; confirm the log targets that package.</p></details></div>
+ <div class="ex" id="ex-08"><div class="ex-h"><h3><span lang="fa">۸. تست شکست خورد ولی shell صفر داد</span><span lang="en">8. A failed test returned zero</span></h3></div><p lang="fa">توضیح بده چرا `npm test || echo ignored` خروجی گمراه‌کننده می‌دهد.</p><p lang="en">Explain why `npm test || echo ignored` produces misleading success.</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">بعد از شکست npm، shell دستور echo را اجرا می‌کند و exit code آخرین دستور معمولاً صفر است. بخش `|| echo` را حذف کن و دوباره exit status را مشاهده کن.</p><p lang="en">After npm fails, the shell runs echo, whose final exit status is usually zero. Remove the `|| echo` and inspect the resulting status.</p></details></div>
+ <div class="ex" id="ex-09"><div class="ex-h"><h3><span lang="fa">۹. تست سبز برای کدام commit؟</span><span lang="en">9. Green for which commit?</span></h3></div><p lang="fa">PR بعد از سبز شدن دو commit تازه گرفته است. چه چیزی باید پیش از merge تازه شود؟</p><p lang="en">The PR received two new commits after going green. What must be fresh before merging?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">status check باید به آخرین commit یا ترکیب نهایی merge مربوط باشد. شناسهٔ revision در run را با PR مقایسه کن؛ status قبلی دیگر دربارهٔ تغییر تازه شاهد نیست.</p><p lang="en">The check must correspond to the latest commit or final merge candidate. Compare the run’s revision with the PR; an older status is not evidence for new changes.</p></details></div>
+ <div class="ex" id="ex-10"><div class="ex-h"><h3><span lang="fa">۱۰. cache hit؛ پس dependency امن است؟</span><span lang="en">10. Cache hit—so dependencies are safe?</span></h3></div><p lang="fa">جواب کوتاه بده و بگو lockfile و `npm ci` هر کدام چه نقشی دارند.</p><p lang="en">Answer briefly and explain the separate roles of a lockfile and `npm ci`.</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">نه. cache کارایی است، نه گواه امنیت. lockfile نسخه‌ها را ثبت می‌کند؛ npm ci نصب را مطابق آن از نو انجام می‌دهد. بررسی آسیب‌پذیری و اعتماد به dependencyها مسئلهٔ جداست.</p><p lang="en">No. A cache is a performance feature, not a security certificate. The lockfile records versions; npm ci installs cleanly from it. Vulnerability review and dependency trust are separate concerns.</p></details></div>
+ <div class="ex" id="ex-11"><div class="ex-h"><h3><span lang="fa">۱۱. matrix ارزش دارد؟</span><span lang="en">11. Is a matrix worthwhile?</span></h3></div><p lang="fa">سرویس فقط Node 22 را پشتیبانی می‌کند؛ پیشنهاد می‌شود هر تغییر را روی Node 20، 22 و 24 بسازی. چه تصمیمی می‌گیری؟</p><p lang="en">The service supports only Node 22, but someone proposes testing every change on 20, 22, and 24. What do you decide?</p><details class="ex-sol"><summary><span lang="fa">توضیح</span><span lang="en">Explanation</span></summary><p lang="fa">فعلاً Node 22 را verify کن. matrix وقتی ارزش دارد که نسخه‌های دیگر واقعاً قرارداد پشتیبانی باشند یا ریسک سازگاری را پوشش دهند؛ هزینه و زمان بی‌دلیل اضافه نکن.</p><p lang="en">Verify Node 22 for now. A matrix is useful when other versions are part of the support contract or cover real compatibility risk; avoid needless cost and delay.</p></details></div>
+ <div class="ex" id="ex-12"><div class="ex-h"><h3><span lang="fa">۱۲. artifact یا cache؟</span><span lang="en">12. Artifact or cache?</span></h3></div><p lang="fa">می‌خواهی `dist/` ساخته‌شده از یک run را برای دانلود نگه داری. کدام قابلیت و چرا؟</p><p lang="en">You want to retain that run’s generated `dist/` for download. Which feature and why?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">artifact، چون خروجی همان build است که باید به همان run وصل و دانلود شود. cache برای بازاستفاده از ورودی قابل‌بازسازی جهت سرعت است.</p><p lang="en">An artifact, because it is output from that build that should be attached to and downloaded from the run. A cache reuses regenerable input to improve speed.</p></details></div>
+ <div class="ex" id="ex-13"><div class="ex-h"><h3><span lang="fa">۱۳. artifact خالی</span><span lang="en">13. An empty artifact</span></h3></div><p lang="fa">upload-artifact سبز است اما می‌گوید هیچ فایلی نیافت. چه تغییری جلوی سبز کاذب را می‌گیرد؟</p><p lang="en">upload-artifact passes but says no files were found. What change prevents a false green?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">مسیر build را verify کن و `if-no-files-found: error` بگذار. فقط وقتی فایل واقعاً تولید و در مسیر موردنظر است، upload موفق می‌شود.</p><p lang="en">Verify the build output path and set `if-no-files-found: error`. Upload should pass only when the expected files exist at that path.</p></details></div>
+ <div class="ex" id="ex-14"><div class="ex-h"><h3><span lang="fa">۱۴. secret در pull request از fork</span><span lang="en">14. A secret in a fork pull request</span></h3></div><p lang="fa">PR از fork به secret دسترسی ندارد. چه کار خطرناکی را نباید برای دور زدن این محدودیت انجام دهی؟</p><p lang="en">A fork PR cannot access a secret. What dangerous workaround should you avoid?</p><details class="ex-sol"><summary><span lang="fa">پاسخ مسئولانه</span><span lang="en">Responsible answer</span></summary><p lang="fa">کد بررسی‌نشده را با privilege رویداد حساس مثل `pull_request_target` اجرا نکن و secret را در log یا ورودی ناامن نریز. طراحی trigger و مجوزها را براساس threat model بازبینی کن.</p><p lang="en">Do not run untrusted code with a privileged event such as `pull_request_target`, or expose secrets in logs or unsafe inputs. Review triggers and permissions against the threat model.</p></details></div>
+ <div class="ex" id="ex-15"><div class="ex-h"><h3><span lang="fa">۱۵. `contents: read` کافی است؟</span><span lang="en">15. Is `contents: read` enough?</span></h3></div><p lang="fa">workflow فقط کد را می‌خواند و test می‌کند. چرا دسترسی write را اضافه نکنیم؟</p><p lang="en">The workflow only reads code and runs tests. Why not grant write access?</p><details class="ex-sol"><summary><span lang="fa">توضیح</span><span lang="en">Explanation</span></summary><p lang="fa">اصل کمترین اختیار: مجوزی بده که job واقعاً لازم دارد. دسترسی write سطح حمله را زیاد می‌کند و برای lint/test/build لازم نیست.</p><p lang="en">Least privilege: grant only what the job needs. Write access expands the attack surface and is unnecessary for lint, tests, and build.</p></details></div>
+ <div class="ex" id="ex-16"><div class="ex-h"><h3><span lang="fa">۱۶. workflow اجرا نمی‌شود</span><span lang="en">16. The workflow never starts</span></h3></div><p lang="fa">YAML در مسیر درست است، اما push به `feature/a` اجرا نمی‌شود. trigger فقط `push: branches: [main]` دارد. اشکال کجاست؟</p><p lang="en">The YAML is in the right path, but a push to `feature/a` does not run. The trigger only has `push: branches: [main]`. What is wrong?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">فیلتر شاخه push را به main محدود کرده. اگر branchها هم باید بررسی شوند، trigger یا PR را متناسب با سیاست گسترش بده؛ logی وجود ندارد چون اصلاً run ساخته نشده، پس event filter را ببین.</p><p lang="en">The push filter limits runs to main. Expand the trigger or use PR events according to policy; there is no run log because no run was created, so inspect event filters.</p></details></div>
+ <div class="ex" id="ex-17"><div class="ex-h"><h3><span lang="fa">۱۷. check اجباری کدام است؟</span><span lang="en">17. Which check should be required?</span></h3></div><p lang="fa">در branch settings چند check نام مشابه دارند. چه می‌کنی تا مورد درست را انتخاب کنی و بعد چه چیزی را دوباره می‌سنجی؟</p><p lang="en">Several similarly named checks appear in branch settings. How do you identify the right one, and what do you verify afterwards?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">یک اجرای موفق PR را باز کن و نام دقیق status/job را از همان run انتخاب کن؛ سپس PR تازه را با یک شکست کنترل‌شده آزمایش کن تا مطمئن شوی واقعاً merge را می‌بندد. تنظیمات میزبان ممکن است استثنا داشته باشد.</p><p lang="en">Open a successful PR run and select the exact status/job name; then test a controlled failure on a fresh PR to ensure it blocks merging. Host settings may provide exceptions.</p></details></div>
+ <div class="ex" id="ex-18"><div class="ex-h"><h3><span lang="fa">۱۸. incident: همه‌چیز سبز، ولی build اشتباه</span><span lang="en">18. Incident: green, but the wrong build</span></h3></div><p lang="fa">CI سبز است؛ بعد معلوم می‌شود job از `docs/` اجرا شده و package برنامه در `web/` است. برنامهٔ تشخیص و اصلاح را با شواهد بنویس.</p><p lang="en">CI is green; then you discover the job ran from `docs/` while the app package is in `web/`. Write an evidence-based diagnosis and repair.</p><details class="ex-sol"><summary><span lang="fa">برنامه</span><span lang="en">Plan</span></summary><p lang="fa">log فرمان و working directory را ثبت می‌کنم؛ آن‌ها نشان می‌دهند اصلاً کدام package بررسی شده. مسیر را با `working-directory: web` اصلاح می‌کنم، lockfile همان package را commit و test شکست‌پذیر اضافه می‌کنم. اجرای تازه باید شناسهٔ commit درست و stepهای واقعی web را نشان دهد؛ سبز شدن دوباره فقط همان checks را ثابت می‌کند.</p><p lang="en">Record the command and working directory from the log; they show which package was checked. Set `working-directory: web`, commit that package’s lockfile, and add a test that can fail. The new run must show the correct commit and actual web steps; another green run proves only those checks.</p></details></div>
+</section>
+
+<section id="quick-reference">
+ <h2><span lang="fa">اگر فقط یک دقیقه وقت داری</span><span lang="en">If you have only one minute</span></h2>
+ <p lang="fa">CI یک دستور تکرارپذیر را روی commit مشخص اجرا می‌کند. trigger، runner، job و step را درست انتخاب کن؛ checkout، runtime، نصب lockfile و check واقعی لازم‌اند. شکست باید exit code غیرصفر را تا job برساند. cache را با artifact اشتباه نگیر، برای check ساده secret نده و status سبز را بیشتر از چیزی که واقعاً اجرا شده تفسیر نکن.</p>
+ <p lang="en">CI runs repeatable commands against a specific commit. Choose the right trigger, runner, job, and steps; checkout, runtime setup, lockfile installation, and meaningful checks matter. Failure must reach the job as a non-zero exit. Do not confuse cache with artifact, do not grant secrets to simple checks, and never claim a green status proves more than what ran.</p>
+ <div class="note safe"><span lang="fa">پیش از اعتماد به status، سه شاهد بخواه: commit درست، دستورهای درست در پوشهٔ درست، و exit statusی که شکست را پنهان نکرده باشد.</span><span lang="en">Before trusting a status, require three pieces of evidence: the right commit, the right commands in the right directory, and exit statuses that do not hide failures.</span></div>
+</section>
+
+<section id="next">
+ <h2><span lang="fa">قدم بعد: وقتی همه‌چیز سبز است، به کدام محیط می‌رود؟</span><span lang="en">Next: when everything is green, which environment gets it?</span></h2>
+ <p lang="fa">CI می‌گوید این تغییر از بررسی‌های خودکار ما عبور کرده؛ هنوز نگفته کجا و چه زمانی deploy شود یا چه کسی production را تأیید کند. فصل بعد بین staging و production مرز می‌گذارد و جریان CD را می‌چیند—بدون اینکه green را با «منتشر شده» اشتباه بگیریم.</p>
+ <p lang="en">CI says this change passed our automated checks; it has not said where or when to deploy, or who approves production. Next, we will separate staging from production and shape the CD flow—without confusing green with “released.”</p>
+</section>
+
+<section id="sources"><h2><span lang="fa">مستندات رسمی برای ادامه</span><span lang="en">Official references</span></h2><ul><li><a href="https://docs.github.com/en/actions/concepts/workflows-and-actions/workflows" target="_blank" rel="noreferrer">GitHub Docs — Workflows</a></li><li><a href="https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax" target="_blank" rel="noreferrer">GitHub Docs — Workflow syntax</a></li><li><a href="https://docs.github.com/en/actions/concepts/workflows-and-actions/dependency-caching" target="_blank" rel="noreferrer">GitHub Docs — Dependency caching</a></li><li><a href="https://docs.github.com/en/actions/reference/security/secrets" target="_blank" rel="noreferrer">GitHub Docs — Secrets reference</a></li><li><a href="https://github.com/actions/setup-node" target="_blank" rel="noreferrer">actions/setup-node — official repository</a></li><li><a href="https://github.com/actions/upload-artifact" target="_blank" rel="noreferrer">actions/upload-artifact — official repository</a></li></ul></section>

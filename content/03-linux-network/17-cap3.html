@@ -1,0 +1,146 @@
+<!--meta
+title: پروژهٔ ۳ — آماده‌سازی کامل یک VPS تازه
+desc: یک Ubuntu VPS آزمایشی را با SSH امن، سرویس محدود، firewall، backup، reboot test و runbook قابل‌راستی‌آزمایی تحویل بده.
+-->
+<div class="masthead"><div class="masthead-kicker"><span lang="fa">لینوکس برای شبکه · پروژهٔ پایانی</span><span lang="en">Linux for networking · Capstone</span></div>
+<h1><span lang="fa">آماده‌سازی کامل یک VPS تازه</span><span lang="en">Preparing a fresh VPS</span></h1>
+<p class="lede" lang="fa">تیکت فقط می‌گوید: «تا آخر امروز آمادهٔ استقرار باشد.» اما آماده یعنی چه؟ باید ثابت کنی چه کسی وارد می‌شود، کدام سرویس اجراست، چه پورتی از کجا جواب می‌دهد و اگر فایل پاک شد چه چیزی برمی‌گردد. مأموریت، تبدیل سرور خام به تحویلی است که مهندس بعدی بتواند دوباره بررسی‌اش کند.</p><p class="lede" lang="en">The ticket says only: “Make it ready to deploy by end of day.” But what does ready mean? Prove who can log in, which service runs, which port responds from where, and what can be recovered after a file is lost. Turn the raw server into a handoff another engineer can verify.</p>
+<div class="facts"><div class="fact"><b>۱۵۰</b><span lang="fa">دقیقه</span><span lang="en">minutes</span></div><div class="fact"><b>۹</b><span lang="fa">نقطهٔ مأموریت</span><span lang="en">checkpoints</span></div><div class="fact"><b>۳</b><span lang="fa">خرابی کنترل‌شده</span><span lang="en">controlled failures</span></div></div></div>
+<section id="mission"><h2><span lang="fa">مأموریت: سرور قابل‌تحویل، نه فقط روشن</span><span lang="en">Mission: a handoff-ready server, not merely a running one</span></h2>
+<p lang="fa">روی Ubuntu VPS یا VM آزمایشی کار کن. تحویل شامل SSH قابل‌بازیابی، update و ساعت ثبت‌شده، یک سرویس کوچک با user اختصاصی و systemd، firewall محدود، log، بررسی منابع، backup زمان‌دار و restore آزمایشی است. پایان کار reboot می‌کنی و همان آزمون‌ها را تکرار می‌کنی.</p><p lang="en">Use an Ubuntu VPS or disposable VM. Deliver recoverable SSH access, documented updates and time, a small service with its own user and systemd unit, a narrow firewall, logs, resource checks, scheduled backup, and a restore rehearsal. Reboot at the end and repeat the same tests.</p>
+<div class="diagram"><svg viewBox="0 0 1040 300" role="img" aria-labelledby="vf-title vf-desc"><title id="vf-title">VPS operational verification path</title><desc id="vf-desc">Verify boot and access, service identity, network and firewall, logs and resources, then backup and restore. Diagnose each boundary before repair.</desc><defs><marker id="vf-head" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 10 5 0 10z" class="dg-arrow"/></marker></defs>
+<rect x="18" y="18" width="1004" height="264" rx="18" class="dg-fill dg-stroke"/>
+<rect x="42" y="66" width="158" height="96" rx="14" class="dg-fill-b dg-stroke-b"/><text x="121" y="103" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate"><tspan x="121">Boot · access</tspan><tspan x="121" dy="26">users · time</tspan></text>
+<rect x="240" y="66" width="158" height="96" rx="14" class="dg-fill-v dg-stroke-v"/><text x="319" y="103" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate"><tspan x="319">Service</tspan><tspan x="319" dy="26">systemd · user</tspan></text>
+<rect x="438" y="66" width="158" height="96" rx="14" class="dg-fill-w dg-stroke-w"/><text x="517" y="103" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate"><tspan x="517">Network</tspan><tspan x="517" dy="26">socket · firewall</tspan></text>
+<rect x="636" y="66" width="158" height="96" rx="14" class="dg-fill-g dg-stroke-g"/><text x="715" y="103" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate"><tspan x="715">Operations</tspan><tspan x="715" dy="26">logs · resources</tspan></text>
+<rect x="834" y="66" width="166" height="96" rx="14" class="dg-fill-r dg-stroke-r"/><text x="917" y="103" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate"><tspan x="917">Recovery</tspan><tspan x="917" dy="26">backup · restore</tspan></text>
+<path d="M204 114h32" class="dg-stroke" marker-end="url(#vf-head)"/><path d="M402 114h32" class="dg-stroke" marker-end="url(#vf-head)"/><path d="M600 114h32" class="dg-stroke" marker-end="url(#vf-head)"/><path d="M798 114h32" class="dg-stroke" marker-end="url(#vf-head)"/>
+<rect x="190" y="210" width="660" height="46" rx="12" class="dg-fill dg-stroke"/><text x="520" y="239" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">symptom → state → evidence → cause → repair → verify</text></svg>
+<p class="diagram-cap" lang="fa">فلش‌ها ترتیب بررسی‌اند؛ قبولی هر مرحله مرحلهٔ بعد را ثابت نمی‌کند.</p><p class="diagram-cap" lang="en">Arrows show the verification order; passing one stage does not prove the next.</p></div>
+<div class="note warn"><span lang="fa">در VPS واقعی تغییر SSH یا firewall فقط با نشست دوم و کنسول provider انجام می‌شود. private key را در repository نگذار. خرابی عمدی فقط روی VM قابل‌بازگردانی.</span><span lang="en">On a real VPS, change SSH or firewall only with a second session and provider console available. Keep private keys out of the repository. Deliberate failures belong on a recoverable VM.</span></div></section>
+<section id="checkpoint-1"><h2><span lang="fa">نقطهٔ ۱ از ۹: snapshot قبل از تغییر</span><span lang="en">Checkpoint 1 of 9: before-change snapshot</span></h2>
+<p lang="fa">قبل از نصب چیزی، hostname، login، زمان، دیسک، listenerها و firewall را ثبت کن. ماشین دارای سرویس یا rule را fresh فرض نکن.</p><p lang="en">Before installing anything, record hostname, login, time, disk, listeners, and firewall. Do not assume a machine with services or rules is fresh.</p>
+<div class="term"><div class="term-bar"><span class="term-label">capture baseline</span><button class="copy">کپی</button></div><pre dir="ltr"><code>hostnamectl
+whoami
+id
+uptime
+timedatectl
+df -h
+df -i
+sudo ss -lntup
+sudo ufw status verbose</code></pre></div>
+<p lang="fa">listener پورت محلی را نشان می‌دهد، نه دسترسی بیرونی. UFW خاموش وضعیت firewall ارائه‌دهنده را نمی‌گوید. خروجی را با زمان ذخیره کن.</p><p lang="en">A listener proves a local port is bound, not external access. Inactive UFW does not reveal provider firewall state. Save output with a timestamp.</p></section>
+<section id="checkpoint-2"><h2><span lang="fa">نقطهٔ ۲ از ۹: SSH و راه برگشت</span><span lang="en">Checkpoint 2 of 9: SSH and recovery path</span></h2>
+<p lang="fa">حساب sudo و پورت واقعی SSH را شناسایی کن. public key روی سرور، private key فقط روی دستگاه خودت. تغییر sshd را از نشست دوم آزمایش کن و نشست فعلی را نبند.</p><p lang="en">Identify the sudo account and actual SSH port. Public key goes on the server; private key stays on your device. Test sshd changes from a second session and keep the current one open.</p>
+<div class="term"><div class="term-bar"><span class="term-label">inspect and validate before reload</span><button class="copy">کپی</button></div><pre dir="ltr"><code>getent group sudo
+sudo sshd -T | grep -E '^(port|permitrootlogin|passwordauthentication) '
+sudo systemctl status ssh --no-pager
+sudo sshd -t</code></pre></div>
+<p lang="fa"><code>sshd -t</code> فقط syntax را می‌سنجد؛ اتصال واقعی را باید جداگانه تست کنی. VM محلی را از کنسول بازیابی کن، VPS را از کنسول provider.</p><p lang="en"><code>sshd -t</code> checks syntax only; test an actual login separately. Use the VM console for local recovery and the provider console for a VPS.</p></section>
+<section id="checkpoint-3"><h2><span lang="fa">نقطهٔ ۳ از ۹: update، ساعت و فضا</span><span lang="en">Checkpoint 3 of 9: updates, time, and space</span></h2>
+<p lang="fa">Ubuntu از apt استفاده می‌کند. پیش و پس از upgrade فضا را بسنج و failed serviceها را ثبت کن. روی VPS واقعی تغییر پرریسک به maintenance window نیاز دارد.</p><p lang="en">Ubuntu uses apt. Check free space before and after upgrades and record failed services. Risky changes on a real VPS need a maintenance window.</p>
+<div class="term"><div class="term-bar"><span class="term-label">update and recheck</span><button class="copy">کپی</button></div><pre dir="ltr"><code>timedatectl status
+sudo apt update
+sudo apt upgrade
+systemctl --failed --no-pager
+df -h
+df -i</code></pre></div>
+<p lang="fa">apt update فهرست بسته‌ها را می‌گیرد؛ upgrade بسته‌های نصب‌شده را تغییر می‌دهد. ساعت برای timestampهای log و backup مهم است، اما سلامت کل شبکه را ثابت نمی‌کند.</p><p lang="en"><code>apt update</code> refreshes package indexes; <code>apt upgrade</code> changes installed packages. Time matters for log and backup timestamps, but does not prove overall network health.</p></section>
+<section id="checkpoint-4"><h2><span lang="fa">نقطهٔ ۴ از ۹: سرویس non-root و خرابی مسیر</span><span lang="en">Checkpoint 4 of 9: non-root service and path failure</span></h2>
+<p lang="fa">صفحه‌ای ساختگی در /srv بساز؛ root مالک، گروه سرویس خواننده. process زیر systemd و با user اختصاصی اجرا می‌شود.</p><p lang="en">Create a synthetic page under /srv; root owns it and the service group reads it. systemd runs the process under a dedicated user.</p>
+<div class="term"><div class="term-bar"><span class="term-label">service identity and content</span><button class="copy">کپی</button></div><pre dir="ltr"><code>sudo adduser --system --group --no-create-home --shell /usr/sbin/nologin codenames-web
+sudo install -d -o root -g codenames-web -m 0750 /srv/codenames-vps-demo/public
+printf '%s\n' 'VPS baseline page' | sudo tee /srv/codenames-vps-demo/public/index.html &gt;/dev/null
+sudo chown root:codenames-web /srv/codenames-vps-demo/public/index.html
+sudo chmod 0640 /srv/codenames-vps-demo/public/index.html
+command -v python3</code></pre></div>
+<p lang="fa">در unit از User/Group اختصاصی، interpreter واقعی، پورت ۸۰۸۰، Restart=on-failure و محدودیت‌هایی مثل NoNewPrivileges و ProtectSystem استفاده کن. این‌ها sandbox کامل نیستند. fault اول: ExecStart را موقتاً به مسیر خیالی /usr/bin/python3-missing تغییر بده؛ status و journal را بخوان، سپس مسیر را درست کن و همان درخواست را دوباره بزن.</p><p lang="en">Use the dedicated User/Group, actual interpreter path, port 8080, Restart=on-failure, and restrictions such as NoNewPrivileges and ProtectSystem. They are not a complete sandbox. Seed fault one by changing ExecStart to the nonexistent /usr/bin/python3-missing; inspect status and journal, repair the path, and repeat the same request.</p>
+<div class="term"><div class="term-bar"><span class="term-label">save the unit at the path used below</span><button class="copy">کپی</button></div><pre dir="ltr"><code>sudoedit /etc/systemd/system/codenames-vps-demo.service</code></pre></div>
+<div class="term"><div class="term-bar"><span class="term-label">save the unit at this exact path</span><button class="copy">کپی</button></div><pre dir="ltr"><code>sudoedit /etc/systemd/system/codenames-vps-demo.service</code></pre></div>
+<div class="term"><div class="term-bar"><span class="term-label">unit outline and evidence checks</span></div><pre dir="ltr"><code>[Unit]
+Description=CodeNames VPS demo
+After=network.target
+[Service]
+Type=simple
+User=codenames-web
+Group=codenames-web
+WorkingDirectory=/srv/codenames-vps-demo
+ExecStart=/usr/bin/python3 -m http.server 8080 --directory /srv/codenames-vps-demo/public --bind 0.0.0.0
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+[Install]
+WantedBy=multi-user.target</code></pre></div>
+<div class="term"><div class="term-bar"><span class="term-label">diagnose, repair, verify locally</span><button class="copy">کپی</button></div><pre dir="ltr"><code>sudo systemd-analyze verify /etc/systemd/system/codenames-vps-demo.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now codenames-vps-demo.service
+systemctl status codenames-vps-demo.service --no-pager
+sudo journalctl -u codenames-vps-demo.service -n 30 --no-pager
+sudo ss -lntp | grep ':8080'
+curl -i http://127.0.0.1:8080/
+ps -o user,group,pid,args -C python3</code></pre></div>
+<p lang="fa">active یا listener body پاسخ و user درست را ثابت نمی‌کند؛ curl و ps را هم ببین.</p><p lang="en">Active state or a listener proves neither the response body nor process identity; inspect curl and ps too.</p></section>
+<section id="checkpoint-5"><h2><span lang="fa">نقطهٔ ۵ از ۹: firewall و درخواست بیرونی</span><span lang="en">Checkpoint 5 of 9: firewall and external request</span></h2>
+<p lang="fa">روی VM آزمایشی پورت واقعی SSH را مجاز کن. fault دوم: به‌جای ۸۰۸۰، ۸۰۸۱ را باز کن. اگر rule از قبل داری، VM تازه به‌کار ببر؛ rule موجود را پاک نکن.</p><p lang="en">On the disposable VM, allow the actual SSH port. Seed fault two by allowing 8081 instead of 8080. If rules already exist, use a fresh VM; do not delete existing rules.</p>
+<div class="term"><div class="term-bar"><span class="term-label">drill; preserve the SSH path</span><button class="copy">کپی</button></div><pre dir="ltr"><code>sudo ufw allow OpenSSH
+sudo ufw allow 8081/tcp
+sudo ufw status numbered
+sudo ufw enable</code></pre></div>
+<p lang="fa">اگر SSH پورت دیگری دارد همان را باز کن. از client جدا به ۸۰۸۰ وصل شو؛ listener را با ss و ruleها را با ufw status numbered تطبیق بده. فقط rule همین تمرین را با شمارهٔ فعلی حذف و ۸۰۸۰/TCP را مجاز کن. NAT و firewall provider را جدا بررسی کن.</p><p lang="en">If SSH uses another port, allow that port. Connect to 8080 from a separate client; compare the listener with ss and rules with ufw status numbered. Delete only the drill rule by its current number and allow TCP 8080. Check NAT and provider firewall separately.</p>
+<div class="term"><div class="term-bar"><span class="term-label">inspect current number before removal</span><button class="copy">کپی</button></div><pre dir="ltr"><code>sudo ufw status numbered
+sudo ufw delete RULE_NUMBER
+sudo ufw allow 8080/tcp
+sudo ufw status verbose</code></pre></div>
+<p lang="fa">موفقیت LAN را موفقیت اینترنت عمومی جا نزن؛ شبکهٔ آزموده‌شده را ثبت کن.</p><p lang="en">Do not describe LAN success as public-internet success; record which network you tested.</p></section>
+<section id="checkpoint-6"><h2><span lang="fa">نقطهٔ ۶ از ۹: log و منابع</span><span lang="en">Checkpoint 6 of 9: logs and resources</span></h2>
+<p lang="fa">یک process active لزوماً سالم نیست. log، user، listener، RAM، دیسک و inode را ثبت کن. journal محل مشاهدهٔ log این unit است؛ خودش rotation یا هشدار بیرونی نمی‌سازد.</p><p lang="en">An active process is not necessarily healthy. Record logs, user, listener, memory, disk, and inodes. The journal exposes this unit’s logs; it does not configure rotation or external alerting.</p>
+<div class="term"><div class="term-bar"><span class="term-label">operational snapshot</span><button class="copy">کپی</button></div><pre dir="ltr"><code>sudo journalctl -u codenames-vps-demo.service --since '-15 minutes' --no-pager
+free -h
+df -h
+df -i
+uptime
+sudo ss -lntup</code></pre></div>
+<p lang="fa">این‌ها snapshot هستند، نه تشخیص کامل کندی. زمان خطا را با journal و وضعیت همان بازه تطبیق بده.</p><p lang="en">These are snapshots, not a full performance diagnosis. Correlate failure time with journal and state from that interval.</p></section>
+<section id="checkpoint-7"><h2><span lang="fa">نقطهٔ ۷ از ۹: backup و خرابی سوم</span><span lang="en">Checkpoint 7 of 9: backup and third failure</span></h2>
+<p lang="fa">الگوی پروژهٔ قبل را به دادهٔ همین سرویس وصل کن: source مشخص، مقصد محدود، اجرای دستی، checksum، timer، journal و restore آزمایشی. مقصد همان VM خرابی میزبان را پوشش نمی‌دهد.</p><p lang="en">Apply the previous project’s pattern to this service: explicit source, restricted destination, manual run, checksum, timer, journal, and restore rehearsal. A destination on the same VM does not cover host loss.</p>
+<p lang="fa">fault سوم را با بستن موقت مجوز نوشتن مقصد آزمایشی بساز. service را اجرا و Result، ExecMainStatus و journal را ثبت کن؛ mode را فوری برگردان و اجرای تازه را verify کن. prune گسترده لازم نیست.</p><p lang="en">Create fault three by temporarily removing write permission on the lab destination. Run the service and record Result, ExecMainStatus, and journal; immediately restore permissions and verify a fresh run. No broad prune is needed.</p>
+<div class="term"><div class="term-bar"><span class="term-label">scheduled run evidence</span><button class="copy">کپی</button></div><pre dir="ltr"><code>systemctl list-timers --all --no-pager
+systemctl show codenames-backup.service -p Result -p ExecMainStatus
+sudo journalctl -u codenames-backup.service --since today --no-pager
+sudo sha256sum -c /var/backups/codenames-demo/codenames-TIMESTAMP.tar.gz.sha256
+tar -tzf /var/backups/codenames-demo/codenames-TIMESTAMP.tar.gz</code></pre></div>
+<p lang="fa">موعد timer موفقیت را ثابت نمی‌کند؛ checksum و listing را جدا بخوان و محل و محدودیت archive را بنویس.</p><p lang="en">A timer deadline does not prove success; inspect checksum and listing separately and document archive location and limits.</p></section>
+<section id="checkpoint-8"><h2><span lang="fa">نقطهٔ ۸ از ۹: reboot و تکرار</span><span lang="en">Checkpoint 8 of 9: reboot and repeat</span></h2>
+<p lang="fa">فقط با راه برگشت reboot کن. پس از بالا آمدن همان آزمون‌ها را تکرار کن تا مقایسه معتبر بماند.</p><p lang="en">Reboot only with a recovery path. After startup, repeat the same tests so the comparison remains valid.</p>
+<div class="term"><div class="term-bar"><span class="term-label">after reboot</span><button class="copy">کپی</button></div><pre dir="ltr"><code>uptime
+timedatectl status
+systemctl is-enabled codenames-vps-demo.service
+systemctl is-active codenames-vps-demo.service
+ps -o user,group,pid,args -C python3
+sudo ss -lntp | grep ':8080'
+sudo ufw status verbose
+curl -fsS http://127.0.0.1:8080/
+sudo journalctl -u codenames-vps-demo.service -b --no-pager
+systemctl list-timers --all --no-pager
+df -h</code></pre></div>
+<p lang="fa">از client جدا هم درخواست بزن. unit، listener و firewall سه مدرک متفاوت‌اند؛ restart کورکورانه recovery plan نیست.</p><p lang="en">Request from a separate client too. Unit, listener, and firewall are distinct evidence; a blind restart is not a recovery plan.</p></section>
+<section id="checkpoint-9"><h2><span lang="fa">نقطهٔ ۹ از ۹: handoff و rollback</span><span lang="en">Checkpoint 9 of 9: handoff and rollback</span></h2>
+<p lang="fa">runbook شامل hostname و OS، userهای مجاز و راه بازیابی SSH، پورت‌ها و مالکشان، unit و user سرویس، مسیر داده، فرمان log، disk/inode، timer، آخرین اجرای موفق و checksum است. هیچ password یا private key در آن نیست.</p><p lang="en">The runbook records hostname and OS, authorised users and SSH recovery, ports and owners, unit and service identity, data path, log command, disk/inodes, timer, last success, and checksum. It contains no password or private key.</p>
+<p lang="fa">rollback یعنی فقط تغییرهای پروژه را برگردانی: timer را متوقف و disable کن، unitهای آزمایشی را بردار و فقط ruleهایی را حذف کن که خودت اضافه کرده‌ای. rule SSH یا دادهٔ قبلی را دست نزن؛ بعد SSH و firewall را دوباره بررسی کن.</p><p lang="en">Rollback means undoing only this project’s changes: stop and disable the timer, remove lab units, and delete only rules you added. Preserve existing SSH rules and data, then recheck SSH and firewall.</p></section>
+<section id="acceptance"><h2><span lang="fa">شرط قبولی نهایی</span><span lang="en">Final acceptance</span></h2><ul>
+<li><span lang="fa">snapshot قبل/بعد hostname و زمان دارد؛ package، ساعت، failed service و disk/inode بررسی شده‌اند.</span><span lang="en">Before/after snapshots include hostname and time; packages, time, failed services, disk, and inodes were checked.</span></li>
+<li><span lang="fa">SSH از نشست تازه کار می‌کند و راه بازیابی مستند است؛ private key در repository نیست.</span><span lang="en">SSH works from a fresh session and recovery is documented; no private key is in the repository.</span></li>
+<li><span lang="fa">پس از reboot برنامه non-root است و local و client جدا پاسخ می‌گیرند.</span><span lang="en">After reboot the app runs non-root and responds locally and from a separate client.</span></li>
+<li><span lang="fa">سه failure با شاهد تشخیص و با تکرار همان آزمون اصلاح شده‌اند.</span><span lang="en">Three failures were diagnosed with evidence and fixed by repeating the same tests.</span></li>
+<li><span lang="fa">journal و timer دیده شده؛ archive checksumشده و restore آزمایشی ثبت شده.</span><span lang="en">Journal and timer were inspected; a checksummed archive and restore rehearsal were recorded.</span></li>
+<li><span lang="fa">handoff محدودیت provider firewall و backup محلی را بیان می‌کند.</span><span lang="en">The handoff states provider-firewall and local-backup limitations.</span></li>
+</ul></section>
+<section id="hints"><h2><span lang="fa">راهنماها</span><span lang="en">Hints</span></h2><details><summary><span lang="fa">بعد از تغییر SSH وصل نمی‌شوی</span><span lang="en">You cannot reconnect after SSH changes</span></summary><p lang="fa">از نشست دوم یا کنسول provider استفاده کن؛ sshd -t و پورت واقعی را بررسی کن. ruleها را بی‌مدرک reset نکن.</p><p lang="en">Use the second session or provider console; check sshd -t and the actual port. Do not reset rules without evidence.</p></details><details><summary><span lang="fa">unit active است ولی HTTP fail می‌شود</span><span lang="en">Unit is active but HTTP fails</span></summary><p lang="fa">status، journal، process user، listener و مجوز فایل را جدا بسنج. active فقط state systemd است.</p><p lang="en">Check status, journal, process identity, listener, and file permissions separately. Active is only the systemd state.</p></details><details><summary><span lang="fa">timer موعد دارد اما archive تازه نیست</span><span lang="en">Timer has a deadline but no fresh archive</span></summary><p lang="fa">Result و ExecMainStatus را با journal همان زمان تطبیق بده و بعد مقصد را بررسی کن.</p><p lang="en">Correlate Result and ExecMainStatus with the journal at that time, then inspect the destination.</p></details></section>
+<section id="reference"><h2><span lang="fa">راه‌حل مرجع و گزارش incident</span><span lang="en">Reference approach and incident report</span></h2>
+<p lang="fa">ترتیب امن: snapshot؛ SSH با نشست دوم؛ update و ساعت؛ user و فایل؛ unit و خرابی مسیر؛ firewall و خرابی پورت؛ log و منابع؛ timer و backup و خرابی permission؛ reboot؛ handoff. پس از هر اصلاح همان آزمون شکست‌خورده را تکرار کن. VPS واقعی را با script کور تغییر نده.</p><p lang="en">Safe order: baseline; SSH with a second session; updates and time; service identity and files; unit and path fault; firewall and wrong-port fault; logs and resources; timer/backup and permission fault; reboot; handoff. Repeat the failed test after each repair. Do not make blind changes to a real VPS.</p>
+<p lang="fa">گزارش incident را با نشانه، شاهد، علت، اصلاح و راستی‌آزمایی تمام کن؛ بعد بنویس چه چیزی ثابت نشده، مثل provider firewall یا بازیابی پس از گم‌شدن میزبان. «production-ready» برچسب نیست؛ مجموعه‌ای از ادعاهای آزموده‌شده است.</p><p lang="en">Close the incident note with symptom, evidence, cause, repair, and repeated verification; then state what remains unproven, such as provider firewall behavior or recovery after losing the host. “Production-ready” is not a label; it is a set of tested claims.</p></section>
+<section id="references"><h2><span lang="fa">مراجع رسمی</span><span lang="en">Official references</span></h2><ul><li><a href="https://ubuntu.com/server/docs/how-to/security/firewalls/" target="_blank" rel="noreferrer">Ubuntu Server — Firewalls</a></li><li><a href="https://ubuntu.com/server/docs/how-to/security/openssh-server/" target="_blank" rel="noreferrer">Ubuntu Server — OpenSSH</a></li><li><a href="https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html" target="_blank" rel="noreferrer">systemd.service</a> · <a href="https://www.freedesktop.org/software/systemd/man/latest/systemd.timer.html" target="_blank" rel="noreferrer">systemd.timer</a></li></ul></section>
