@@ -1235,7 +1235,7 @@ export const TRACKS: Track[] = [
       {
         "n": "09",
         "file": "09-logging.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
@@ -1252,7 +1252,7 @@ export const TRACKS: Track[] = [
       {
         "n": "10",
         "file": "10-alerting.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 70,
         "fa": {
@@ -1269,7 +1269,7 @@ export const TRACKS: Track[] = [
       {
         "n": "11",
         "file": "11-release.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -1286,7 +1286,7 @@ export const TRACKS: Track[] = [
       {
         "n": "12",
         "file": "12-secrets.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 70,
         "fa": {
@@ -1303,7 +1303,7 @@ export const TRACKS: Track[] = [
       {
         "n": "13",
         "file": "13-backup.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
@@ -1320,7 +1320,7 @@ export const TRACKS: Track[] = [
       {
         "n": "14",
         "file": "14-postmortem.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 65,
         "fa": {
@@ -1337,7 +1337,7 @@ export const TRACKS: Track[] = [
       {
         "n": "15",
         "file": "15-cap1.html",
-        "ready": false,
+        "ready": true,
         "ex": 5,
         "mins": 60,
         "fa": {
@@ -1354,7 +1354,7 @@ export const TRACKS: Track[] = [
       {
         "n": "16",
         "file": "16-cap2.html",
-        "ready": false,
+        "ready": true,
         "ex": 7,
         "mins": 90,
         "fa": {
@@ -1371,7 +1371,7 @@ export const TRACKS: Track[] = [
       {
         "n": "17",
         "file": "17-cap3.html",
-        "ready": false,
+        "ready": true,
         "ex": 9,
         "mins": 180,
         "fa": {
@@ -1391,7 +1391,7 @@ export const TRACKS: Track[] = [
       "exercises": 273,
       "minutes": 1405,
       "capstones": 3,
-      "ready": 8
+      "ready": 17
     }
   },
   {
@@ -2311,7 +2311,7 @@ export const TRACKS: Track[] = [
       {
         "n": "01",
         "file": "01-why.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
@@ -2328,7 +2328,7 @@ export const TRACKS: Track[] = [
       {
         "n": "02",
         "file": "02-architecture.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -2345,7 +2345,7 @@ export const TRACKS: Track[] = [
       {
         "n": "03",
         "file": "03-pod.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
@@ -2362,7 +2362,7 @@ export const TRACKS: Track[] = [
       {
         "n": "04",
         "file": "04-kubectl.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
@@ -2379,7 +2379,7 @@ export const TRACKS: Track[] = [
       {
         "n": "05",
         "file": "05-deployment.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -2396,7 +2396,7 @@ export const TRACKS: Track[] = [
       {
         "n": "06",
         "file": "06-service.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -2413,7 +2413,7 @@ export const TRACKS: Track[] = [
       {
         "n": "07",
         "file": "07-ingress.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -2430,7 +2430,7 @@ export const TRACKS: Track[] = [
       {
         "n": "08",
         "file": "08-config.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 70,
         "fa": {
@@ -2447,7 +2447,7 @@ export const TRACKS: Track[] = [
       {
         "n": "09",
         "file": "09-storage.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -2464,7 +2464,7 @@ export const TRACKS: Track[] = [
       {
         "n": "10",
         "file": "10-resources.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
@@ -2481,7 +2481,7 @@ export const TRACKS: Track[] = [
       {
         "n": "11",
         "file": "11-scaling.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
@@ -2498,7 +2498,7 @@ export const TRACKS: Track[] = [
       {
         "n": "12",
         "file": "12-rbac.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
@@ -2515,7 +2515,7 @@ export const TRACKS: Track[] = [
       {
         "n": "13",
         "file": "13-probes.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 70,
         "fa": {
@@ -2532,7 +2532,7 @@ export const TRACKS: Track[] = [
       {
         "n": "14",
         "file": "14-workloads.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -2549,7 +2549,7 @@ export const TRACKS: Track[] = [
       {
         "n": "15",
         "file": "15-helm.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -2566,7 +2566,7 @@ export const TRACKS: Track[] = [
       {
         "n": "16",
         "file": "16-debug.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
@@ -2583,7 +2583,7 @@ export const TRACKS: Track[] = [
       {
         "n": "17",
         "file": "17-cap1.html",
-        "ready": false,
+        "ready": true,
         "ex": 5,
         "mins": 70,
         "fa": {
@@ -2600,7 +2600,7 @@ export const TRACKS: Track[] = [
       {
         "n": "18",
         "file": "18-cap2.html",
-        "ready": false,
+        "ready": true,
         "ex": 7,
         "mins": 110,
         "fa": {
@@ -2617,7 +2617,7 @@ export const TRACKS: Track[] = [
       {
         "n": "19",
         "file": "19-cap3.html",
-        "ready": false,
+        "ready": true,
         "ex": 9,
         "mins": 180,
         "fa": {
@@ -2637,7 +2637,7 @@ export const TRACKS: Track[] = [
       "exercises": 309,
       "minutes": 1595,
       "capstones": 3,
-      "ready": 0
+      "ready": 19
     }
   },
   {
@@ -5426,7 +5426,7 @@ export const TRACKS: Track[] = [
       {
         "n": "17",
         "file": "17-cap1.html",
-        "ready": false,
+        "ready": true,
         "ex": 5,
         "mins": 70,
         "fa": {
@@ -5443,7 +5443,7 @@ export const TRACKS: Track[] = [
       {
         "n": "18",
         "file": "18-cap2.html",
-        "ready": false,
+        "ready": true,
         "ex": 7,
         "mins": 120,
         "fa": {
@@ -5460,7 +5460,7 @@ export const TRACKS: Track[] = [
       {
         "n": "19",
         "file": "19-cap3.html",
-        "ready": false,
+        "ready": true,
         "ex": 9,
         "mins": 180,
         "fa": {
@@ -5480,7 +5480,7 @@ export const TRACKS: Track[] = [
       "exercises": 309,
       "minutes": 1620,
       "capstones": 3,
-      "ready": 0
+      "ready": 3
     }
   },
   {
@@ -5777,7 +5777,7 @@ export const TRACKS: Track[] = [
       {
         "n": "17",
         "file": "17-cap1.html",
-        "ready": false,
+        "ready": true,
         "ex": 5,
         "mins": 70,
         "fa": {
@@ -5794,7 +5794,7 @@ export const TRACKS: Track[] = [
       {
         "n": "18",
         "file": "18-cap2.html",
-        "ready": false,
+        "ready": true,
         "ex": 7,
         "mins": 120,
         "fa": {
@@ -5811,7 +5811,7 @@ export const TRACKS: Track[] = [
       {
         "n": "19",
         "file": "19-cap3.html",
-        "ready": false,
+        "ready": true,
         "ex": 9,
         "mins": 170,
         "fa": {
@@ -5831,7 +5831,7 @@ export const TRACKS: Track[] = [
       "exercises": 309,
       "minutes": 1595,
       "capstones": 3,
-      "ready": 0
+      "ready": 3
     }
   },
   {
@@ -6128,7 +6128,7 @@ export const TRACKS: Track[] = [
       {
         "n": "17",
         "file": "17-cap1.html",
-        "ready": false,
+        "ready": true,
         "ex": 5,
         "mins": 80,
         "fa": {
@@ -6145,7 +6145,7 @@ export const TRACKS: Track[] = [
       {
         "n": "18",
         "file": "18-cap2.html",
-        "ready": false,
+        "ready": true,
         "ex": 7,
         "mins": 140,
         "fa": {
@@ -6162,7 +6162,7 @@ export const TRACKS: Track[] = [
       {
         "n": "19",
         "file": "19-cap3.html",
-        "ready": false,
+        "ready": true,
         "ex": 9,
         "mins": 200,
         "fa": {
@@ -6182,7 +6182,7 @@ export const TRACKS: Track[] = [
       "exercises": 309,
       "minutes": 1675,
       "capstones": 3,
-      "ready": 0
+      "ready": 3
     }
   },
   {
@@ -9072,7 +9072,7 @@ export const TRACKS: Track[] = [
       {
         "n": "01",
         "file": "01-what.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
@@ -9089,7 +9089,7 @@ export const TRACKS: Track[] = [
       {
         "n": "02",
         "file": "02-http-proxy.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -9106,7 +9106,7 @@ export const TRACKS: Track[] = [
       {
         "n": "03",
         "file": "03-socks.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -9123,7 +9123,7 @@ export const TRACKS: Track[] = [
       {
         "n": "04",
         "file": "04-build-proxy.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -9140,7 +9140,7 @@ export const TRACKS: Track[] = [
       {
         "n": "05",
         "file": "05-tls.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
@@ -9157,7 +9157,7 @@ export const TRACKS: Track[] = [
       {
         "n": "06",
         "file": "06-chaining.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
@@ -9174,7 +9174,7 @@ export const TRACKS: Track[] = [
       {
         "n": "07",
         "file": "07-vpn-model.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -9191,7 +9191,7 @@ export const TRACKS: Track[] = [
       {
         "n": "08",
         "file": "08-wireguard.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -9208,7 +9208,7 @@ export const TRACKS: Track[] = [
       {
         "n": "09",
         "file": "09-openvpn.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
@@ -9225,7 +9225,7 @@ export const TRACKS: Track[] = [
       {
         "n": "10",
         "file": "10-routing.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
@@ -9242,7 +9242,7 @@ export const TRACKS: Track[] = [
       {
         "n": "11",
         "file": "11-dns.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -9259,7 +9259,7 @@ export const TRACKS: Track[] = [
       {
         "n": "12",
         "file": "12-performance.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -9293,7 +9293,7 @@ export const TRACKS: Track[] = [
       {
         "n": "14",
         "file": "14-hardening.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -9310,7 +9310,7 @@ export const TRACKS: Track[] = [
       {
         "n": "15",
         "file": "15-cap1.html",
-        "ready": false,
+        "ready": true,
         "ex": 5,
         "mins": 70,
         "fa": {
@@ -9327,7 +9327,7 @@ export const TRACKS: Track[] = [
       {
         "n": "16",
         "file": "16-cap2.html",
-        "ready": false,
+        "ready": true,
         "ex": 7,
         "mins": 120,
         "fa": {
@@ -9344,7 +9344,7 @@ export const TRACKS: Track[] = [
       {
         "n": "17",
         "file": "17-cap3.html",
-        "ready": false,
+        "ready": true,
         "ex": 9,
         "mins": 180,
         "fa": {
@@ -9364,7 +9364,7 @@ export const TRACKS: Track[] = [
       "exercises": 273,
       "minutes": 1510,
       "capstones": 3,
-      "ready": 0
+      "ready": 16
     }
   },
   {
@@ -13114,7 +13114,7 @@ export const TRACKS: Track[] = [
       {
         "n": "17",
         "file": "17-cap1.html",
-        "ready": false,
+        "ready": true,
         "ex": 5,
         "mins": 70,
         "fa": {
@@ -13131,7 +13131,7 @@ export const TRACKS: Track[] = [
       {
         "n": "18",
         "file": "18-cap2.html",
-        "ready": false,
+        "ready": true,
         "ex": 7,
         "mins": 120,
         "fa": {
@@ -13148,7 +13148,7 @@ export const TRACKS: Track[] = [
       {
         "n": "19",
         "file": "19-cap3.html",
-        "ready": false,
+        "ready": true,
         "ex": 9,
         "mins": 170,
         "fa": {
@@ -13168,7 +13168,7 @@ export const TRACKS: Track[] = [
       "exercises": 309,
       "minutes": 1640,
       "capstones": 3,
-      "ready": 0
+      "ready": 3
     }
   },
   {
@@ -16935,7 +16935,7 @@ export const TRACKS: Track[] = [
       {
         "n": "17",
         "file": "17-cap1.html",
-        "ready": false,
+        "ready": true,
         "ex": 5,
         "mins": 80,
         "fa": {
@@ -16952,7 +16952,7 @@ export const TRACKS: Track[] = [
       {
         "n": "18",
         "file": "18-cap2.html",
-        "ready": false,
+        "ready": true,
         "ex": 7,
         "mins": 140,
         "fa": {
@@ -16969,7 +16969,7 @@ export const TRACKS: Track[] = [
       {
         "n": "19",
         "file": "19-cap3.html",
-        "ready": false,
+        "ready": true,
         "ex": 9,
         "mins": 180,
         "fa": {
@@ -16989,7 +16989,7 @@ export const TRACKS: Track[] = [
       "exercises": 309,
       "minutes": 1780,
       "capstones": 3,
-      "ready": 0
+      "ready": 3
     }
   },
   {
@@ -18407,7 +18407,7 @@ export const TRACKS: Track[] = [
       {
         "n": "17",
         "file": "17-cap1.html",
-        "ready": false,
+        "ready": true,
         "ex": 5,
         "mins": 80,
         "fa": {
@@ -18424,7 +18424,7 @@ export const TRACKS: Track[] = [
       {
         "n": "18",
         "file": "18-cap2.html",
-        "ready": false,
+        "ready": true,
         "ex": 7,
         "mins": 140,
         "fa": {
@@ -18441,7 +18441,7 @@ export const TRACKS: Track[] = [
       {
         "n": "19",
         "file": "19-cap3.html",
-        "ready": false,
+        "ready": true,
         "ex": 9,
         "mins": 190,
         "fa": {
@@ -18461,7 +18461,7 @@ export const TRACKS: Track[] = [
       "exercises": 309,
       "minutes": 1735,
       "capstones": 3,
-      "ready": 0
+      "ready": 3
     }
   },
   {
@@ -20830,7 +20830,7 @@ export const TRACKS: Track[] = [
       {
         "n": "17",
         "file": "17-cap1.html",
-        "ready": false,
+        "ready": true,
         "ex": 5,
         "mins": 110,
         "fa": {
@@ -20847,7 +20847,7 @@ export const TRACKS: Track[] = [
       {
         "n": "18",
         "file": "18-cap2.html",
-        "ready": false,
+        "ready": true,
         "ex": 7,
         "mins": 180,
         "fa": {
@@ -20864,7 +20864,7 @@ export const TRACKS: Track[] = [
       {
         "n": "19",
         "file": "19-cap3.html",
-        "ready": false,
+        "ready": true,
         "ex": 9,
         "mins": 240,
         "fa": {
@@ -20884,7 +20884,7 @@ export const TRACKS: Track[] = [
       "exercises": 309,
       "minutes": 2065,
       "capstones": 3,
-      "ready": 0
+      "ready": 3
     }
   },
   {
@@ -21243,7 +21243,7 @@ export const TRACKS: Track[] = [
       {
         "n": "01",
         "file": "01-why.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -21260,7 +21260,7 @@ export const TRACKS: Track[] = [
       {
         "n": "02",
         "file": "02-virtualbox.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -21535,7 +21535,7 @@ export const TRACKS: Track[] = [
       "exercises": 273,
       "minutes": 1615,
       "capstones": 3,
-      "ready": 0
+      "ready": 2
     }
   },
   {
@@ -21832,7 +21832,7 @@ export const TRACKS: Track[] = [
       {
         "n": "17",
         "file": "17-cap1.html",
-        "ready": false,
+        "ready": true,
         "ex": 5,
         "mins": 80,
         "fa": {
@@ -21849,7 +21849,7 @@ export const TRACKS: Track[] = [
       {
         "n": "18",
         "file": "18-cap2.html",
-        "ready": false,
+        "ready": true,
         "ex": 7,
         "mins": 130,
         "fa": {
@@ -21866,7 +21866,7 @@ export const TRACKS: Track[] = [
       {
         "n": "19",
         "file": "19-cap3.html",
-        "ready": false,
+        "ready": true,
         "ex": 9,
         "mins": 170,
         "fa": {
@@ -21886,7 +21886,7 @@ export const TRACKS: Track[] = [
       "exercises": 309,
       "minutes": 1745,
       "capstones": 3,
-      "ready": 0
+      "ready": 3
     }
   },
   {
@@ -24940,7 +24940,7 @@ export const TRACKS: Track[] = [
       {
         "n": "17",
         "file": "17-cap1.html",
-        "ready": false,
+        "ready": true,
         "ex": 5,
         "mins": 90,
         "fa": {
@@ -24957,7 +24957,7 @@ export const TRACKS: Track[] = [
       {
         "n": "18",
         "file": "18-cap2.html",
-        "ready": false,
+        "ready": true,
         "ex": 7,
         "mins": 160,
         "fa": {
@@ -24974,7 +24974,7 @@ export const TRACKS: Track[] = [
       {
         "n": "19",
         "file": "19-cap3.html",
-        "ready": false,
+        "ready": true,
         "ex": 9,
         "mins": 220,
         "fa": {
@@ -24994,7 +24994,7 @@ export const TRACKS: Track[] = [
       "exercises": 309,
       "minutes": 1865,
       "capstones": 3,
-      "ready": 0
+      "ready": 3
     }
   },
   {

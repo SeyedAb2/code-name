@@ -118,15 +118,15 @@ C.push({
 ["06","06-terraform.html",1,18,90,"IaC با Terraform","state، plan، apply و اینکه چرا state مقدس است.","IaC with Terraform","State, plan, apply — and why state is sacred.","terraform state plan apply module"],
 ["07","07-ansible.html",1,18,80,"Ansible","playbook، inventory و idempotency.","Ansible","Playbooks, inventories and idempotency.","ansible playbook inventory role idempotent"],
 ["08","08-monitoring.html",1,18,85,"مانیتورینگ: Prometheus + Grafana","متریک، scrape، و داشبوردی که به درد بخورد.","Monitoring: Prometheus + Grafana","Metrics, scraping, and a dashboard worth looking at.","prometheus grafana metrics promql exporter"],
-["09","09-logging.html",0,18,75,"لاگ متمرکز","جمع‌آوری، ساختاردهی و جستجو.","Centralised logging","Collection, structure and search.","loki elastic fluentbit structured logging"],
-["10","10-alerting.html",0,18,70,"alert و on-call","هشداری که نصف شب بیدارت کند باید ارزشش را داشته باشد.","Alerting and on-call","An alert that wakes you at 3am had better be worth it.","alert alertmanager oncall slo"],
-["11","11-release.html",0,18,80,"blue-green، canary، rollback","انتشار بدون قطعی و راه برگشت.","Blue-green, canary, rollback","Releasing without downtime, and the way back.","blue-green canary rollback feature flag"],
-["12","12-secrets.html",0,18,70,"مدیریت secret","Vault، sealed secret و چیزهایی که نباید در Git باشند.","Secret management","Vault, sealed secrets, and what must never be in Git.","vault secret sops kms"],
-["13","13-backup.html",0,18,75,"backup و disaster recovery","پشتیبانی که تست نشده، پشتیبان نیست.","Backup and disaster recovery","An untested backup is not a backup.","backup restore rpo rto dr"],
-["14","14-postmortem.html",0,18,65,"postmortem","بدون مقصر، با درس.","Postmortems","Blameless, with an actual lesson.","postmortem incident blameless timeline"],
-["15","15-cap1.html",0,5,60,"پروژهٔ ۱ — اولین خط لولهٔ CI","تست و lint خودکار روی هر push.","Project 1 — your first CI pipeline","Automated tests and linting on every push.","capstone ci",1],
-["16","16-cap2.html",0,7,90,"پروژهٔ ۲ — استقرار خودکار به staging","بیلد ایمیج، انتشار و استقرار با تأیید دستی.","Project 2 — automated deploy to staging","Build the image, publish it and deploy behind a manual approval.","capstone cd staging",2],
-["17","17-cap3.html",0,9,180,"پروژهٔ ۳ — از commit تا production با rollback خودکار","خط لولهٔ کامل با canary، مانیتورینگ و برگشت خودکار روی خطا.","Project 3 — commit to production with automatic rollback","A full pipeline with canary releases, monitoring and automatic rollback on failure.","capstone pipeline canary rollback",3]
+["09","09-logging.html",1,18,75,"لاگ متمرکز","جمع‌آوری، ساختاردهی و جستجو.","Centralised logging","Collection, structure and search.","loki elastic fluentbit structured logging"],
+["10","10-alerting.html",1,18,70,"alert و on-call","هشداری که نصف شب بیدارت کند باید ارزشش را داشته باشد.","Alerting and on-call","An alert that wakes you at 3am had better be worth it.","alert alertmanager oncall slo"],
+["11","11-release.html",1,18,80,"blue-green، canary، rollback","انتشار بدون قطعی و راه برگشت.","Blue-green, canary, rollback","Releasing without downtime, and the way back.","blue-green canary rollback feature flag"],
+["12","12-secrets.html",1,18,70,"مدیریت secret","Vault، sealed secret و چیزهایی که نباید در Git باشند.","Secret management","Vault, sealed secrets, and what must never be in Git.","vault secret sops kms"],
+["13","13-backup.html",1,18,75,"backup و disaster recovery","پشتیبانی که تست نشده، پشتیبان نیست.","Backup and disaster recovery","An untested backup is not a backup.","backup restore rpo rto dr"],
+["14","14-postmortem.html",1,18,65,"postmortem","بدون مقصر، با درس.","Postmortems","Blameless, with an actual lesson.","postmortem incident blameless timeline"],
+["15","15-cap1.html",1,5,60,"پروژهٔ ۱ — اولین خط لولهٔ CI","تست و lint خودکار روی هر push.","Project 1 — your first CI pipeline","Automated tests and linting on every push.","capstone ci",1],
+["16","16-cap2.html",1,7,90,"پروژهٔ ۲ — استقرار خودکار به staging","بیلد ایمیج، انتشار و استقرار با تأیید دستی.","Project 2 — automated deploy to staging","Build the image, publish it and deploy behind a manual approval.","capstone cd staging",2],
+["17","17-cap3.html",1,9,180,"پروژهٔ ۳ — از commit تا production با rollback خودکار","خط لولهٔ کامل با canary، مانیتورینگ و برگشت خودکار روی خطا.","Project 3 — commit to production with automatic rollback","A full pipeline with canary releases, monitoring and automatic rollback on failure.","capstone pipeline canary rollback",3]
 ]});
 
 /* ═══════════════ ۰۵ — SQL و SQL Server ═══════════════ */
@@ -200,25 +200,25 @@ C.push({
   en:{name:"Kubernetes", desc:"When containers become many across many servers: Pods, Deployments, Services, Ingress, scaling and debugging.",
       intro:"Docker tells you how to run one container. Kubernetes answers the next question: who keeps fifty containers alive across ten servers, who replaces them when they die, and who spreads traffic between them."},
   ch:[
-["01","01-why.html",0,18,75,"چرا کوبرنتیز؛ مسئله‌ای که داکر تنها حل نمی‌کند","کِی لازم است و — مهم‌تر — کِی لازم نیست.","Why Kubernetes; what Docker alone cannot do","When you need it and — more importantly — when you do not.","kubernetes orchestration why scale"],
-["02","02-architecture.html",0,18,80,"معماری کلاستر","control plane، node، etcd، scheduler و kubelet.","Cluster architecture","Control plane, nodes, etcd, scheduler and kubelet.","control plane etcd scheduler kubelet node"],
-["03","03-pod.html",0,18,75,"Pod: کوچک‌ترین واحد","چرا واحد اجرا Pod است و نه کانتینر.","Pods: the smallest unit","Why the unit of execution is a Pod and not a container.","pod sidecar init container"],
-["04","04-kubectl.html",0,18,75,"kubectl در عمل","get، describe، logs، exec، apply — و خواندن YAML.","kubectl in practice","get, describe, logs, exec, apply — and reading YAML.","kubectl apply describe logs context"],
-["05","05-deployment.html",0,18,80,"Deployment و ReplicaSet","اعلام وضعیت مطلوب، و به‌روزرسانی تدریجی.","Deployments and ReplicaSets","Declaring desired state, and rolling updates.","deployment replicaset rollout strategy"],
-["06","06-service.html",0,18,80,"Service و انواعش","ClusterIP، NodePort، LoadBalancer و DNS داخلی.","Services and their types","ClusterIP, NodePort, LoadBalancer and internal DNS.","service clusterip nodeport loadbalancer dns"],
-["07","07-ingress.html",0,18,80,"Ingress و مسیریابی HTTP","یک نقطهٔ ورود برای چند سرویس، با TLS.","Ingress and HTTP routing","One entry point for many services, with TLS.","ingress controller tls host path"],
-["08","08-config.html",0,18,70,"ConfigMap و Secret","پیکربندی بیرون از ایمیج، در سطح کلاستر.","ConfigMaps and Secrets","Configuration outside the image, at cluster level.","configmap secret env volume mount"],
-["09","09-storage.html",0,18,80,"دادهٔ ماندگار: PV، PVC، StorageClass","وقتی Pod می‌میرد، داده نباید بمیرد.","Persistent data: PV, PVC, StorageClass","When a Pod dies, the data must not.","persistentvolume pvc storageclass"],
-["10","10-resources.html",0,18,75,"منابع: request، limit و QoS","چرا Pod تو Pending مانده و چرا آن یکی کشته شد.","Resources: requests, limits and QoS","Why your Pod is Pending and why that other one got killed.","request limit qos oom pending"],
-["11","11-scaling.html",0,18,75,"مقیاس‌پذیری خودکار","HPA بر اساس CPU و متریک سفارشی.","Autoscaling","HPA on CPU and on custom metrics.","hpa autoscale metrics server"],
-["12","12-rbac.html",0,18,75,"Namespace، RBAC و ServiceAccount","چه کسی اجازهٔ چه کاری را دارد.","Namespaces, RBAC and ServiceAccounts","Who is allowed to do what.","namespace rbac role binding serviceaccount"],
-["13","13-probes.html",0,18,70,"Probe: liveness، readiness، startup","تفاوت «بالا هست» و «آمادهٔ ترافیک است».","Probes: liveness, readiness, startup","The difference between “it is up” and “it is ready for traffic”.","liveness readiness startup probe"],
-["14","14-workloads.html",0,18,80,"StatefulSet، DaemonSet، Job و CronJob","وقتی Deployment جواب نمی‌دهد.","StatefulSets, DaemonSets, Jobs and CronJobs","When a Deployment is the wrong shape.","statefulset daemonset job cronjob"],
-["15","15-helm.html",0,18,80,"Helm","بسته‌بندی و پیکربندی چند محیط با یک chart.","Helm","Packaging and configuring many environments from one chart.","helm chart values template release"],
-["16","16-debug.html",0,18,85,"عیب‌یابی: CrashLoopBackOff، Pending، ImagePullBackOff","هر وضعیت یک علت مشخص دارد.","Debugging: CrashLoopBackOff, Pending, ImagePullBackOff","Each status points at a specific cause.","crashloopbackoff imagepullbackoff pending evicted"],
-["17","17-cap1.html",0,5,70,"پروژهٔ ۱ — اولین اپ روی کلاستر","یک Deployment و یک Service، با کلاستر محلی.","Project 1 — your first app on a cluster","One Deployment and one Service on a local cluster.","capstone kind minikube",1],
-["18","18-cap2.html",0,7,110,"پروژهٔ ۲ — اپ سه‌سرویسه با Ingress","سه سرویس، پیکربندی، دادهٔ ماندگار و یک نقطهٔ ورود.","Project 2 — three services behind an Ingress","Three services, configuration, persistent data and one entry point.","capstone ingress configmap",2],
-["19","19-cap3.html",0,9,180,"پروژهٔ ۳ — کلاستر آمادهٔ production","با HPA، RBAC، probe، منابع محدود و مانیتورینگ.","Project 3 — a production-ready cluster","With HPA, RBAC, probes, resource limits and monitoring.","capstone production hpa rbac",3]
+["01","01-why.html",1,18,75,"چرا کوبرنتیز؛ مسئله‌ای که داکر تنها حل نمی‌کند","کِی لازم است و — مهم‌تر — کِی لازم نیست.","Why Kubernetes; what Docker alone cannot do","When you need it and — more importantly — when you do not.","kubernetes orchestration why scale"],
+["02","02-architecture.html",1,18,80,"معماری کلاستر","control plane، node، etcd، scheduler و kubelet.","Cluster architecture","Control plane, nodes, etcd, scheduler and kubelet.","control plane etcd scheduler kubelet node"],
+["03","03-pod.html",1,18,75,"Pod: کوچک‌ترین واحد","چرا واحد اجرا Pod است و نه کانتینر.","Pods: the smallest unit","Why the unit of execution is a Pod and not a container.","pod sidecar init container"],
+["04","04-kubectl.html",1,18,75,"kubectl در عمل","get، describe، logs، exec، apply — و خواندن YAML.","kubectl in practice","get, describe, logs, exec, apply — and reading YAML.","kubectl apply describe logs context"],
+["05","05-deployment.html",1,18,80,"Deployment و ReplicaSet","اعلام وضعیت مطلوب، و به‌روزرسانی تدریجی.","Deployments and ReplicaSets","Declaring desired state, and rolling updates.","deployment replicaset rollout strategy"],
+["06","06-service.html",1,18,80,"Service و انواعش","ClusterIP، NodePort، LoadBalancer و DNS داخلی.","Services and their types","ClusterIP, NodePort, LoadBalancer and internal DNS.","service clusterip nodeport loadbalancer dns"],
+["07","07-ingress.html",1,18,80,"Ingress و مسیریابی HTTP","یک نقطهٔ ورود برای چند سرویس، با TLS.","Ingress and HTTP routing","One entry point for many services, with TLS.","ingress controller tls host path"],
+["08","08-config.html",1,18,70,"ConfigMap و Secret","پیکربندی بیرون از ایمیج، در سطح کلاستر.","ConfigMaps and Secrets","Configuration outside the image, at cluster level.","configmap secret env volume mount"],
+["09","09-storage.html",1,18,80,"دادهٔ ماندگار: PV، PVC، StorageClass","وقتی Pod می‌میرد، داده نباید بمیرد.","Persistent data: PV, PVC, StorageClass","When a Pod dies, the data must not.","persistentvolume pvc storageclass"],
+["10","10-resources.html",1,18,75,"منابع: request، limit و QoS","چرا Pod تو Pending مانده و چرا آن یکی کشته شد.","Resources: requests, limits and QoS","Why your Pod is Pending and why that other one got killed.","request limit qos oom pending"],
+["11","11-scaling.html",1,18,75,"مقیاس‌پذیری خودکار","HPA بر اساس CPU و متریک سفارشی.","Autoscaling","HPA on CPU and on custom metrics.","hpa autoscale metrics server"],
+["12","12-rbac.html",1,18,75,"Namespace، RBAC و ServiceAccount","چه کسی اجازهٔ چه کاری را دارد.","Namespaces, RBAC and ServiceAccounts","Who is allowed to do what.","namespace rbac role binding serviceaccount"],
+["13","13-probes.html",1,18,70,"Probe: liveness، readiness، startup","تفاوت «بالا هست» و «آمادهٔ ترافیک است».","Probes: liveness, readiness, startup","The difference between “it is up” and “it is ready for traffic”.","liveness readiness startup probe"],
+["14","14-workloads.html",1,18,80,"StatefulSet، DaemonSet، Job و CronJob","وقتی Deployment جواب نمی‌دهد.","StatefulSets, DaemonSets, Jobs and CronJobs","When a Deployment is the wrong shape.","statefulset daemonset job cronjob"],
+["15","15-helm.html",1,18,80,"Helm","بسته‌بندی و پیکربندی چند محیط با یک chart.","Helm","Packaging and configuring many environments from one chart.","helm chart values template release"],
+["16","16-debug.html",1,18,85,"عیب‌یابی: CrashLoopBackOff، Pending، ImagePullBackOff","هر وضعیت یک علت مشخص دارد.","Debugging: CrashLoopBackOff, Pending, ImagePullBackOff","Each status points at a specific cause.","crashloopbackoff imagepullbackoff pending evicted"],
+["17","17-cap1.html",1,5,70,"پروژهٔ ۱ — اولین اپ روی کلاستر","یک Deployment و یک Service، با کلاستر محلی.","Project 1 — your first app on a cluster","One Deployment and one Service on a local cluster.","capstone kind minikube",1],
+["18","18-cap2.html",1,7,110,"پروژهٔ ۲ — اپ سه‌سرویسه با Ingress","سه سرویس، پیکربندی، دادهٔ ماندگار و یک نقطهٔ ورود.","Project 2 — three services behind an Ingress","Three services, configuration, persistent data and one entry point.","capstone ingress configmap",2],
+["19","19-cap3.html",1,9,180,"پروژهٔ ۳ — کلاستر آمادهٔ production","با HPA، RBAC، probe، منابع محدود و مانیتورینگ.","Project 3 — a production-ready cluster","With HPA, RBAC, probes, resource limits and monitoring.","capstone production hpa rbac",3]
 ]});
 
 /* ═══════════════ ۰۷ — معماری نرم‌افزار ═══════════════ */
@@ -430,9 +430,9 @@ C.push({
 ["14","14-structure.html",0,18,75,"ساختار پروژه در Go","الگوهای رایج، و اینکه چرا ساده‌تر بهتر است.","Project structure in Go","Common layouts, and why simpler is better.","project layout cmd internal pkg"],
 ["15","15-profiling.html",0,18,80,"پروفایلینگ با pprof","پیدا کردن گلوگاه واقعی.","Profiling with pprof","Finding the real bottleneck.","pprof profile cpu memory trace"],
 ["16","16-deploy.html",0,18,75,"کامپایل و استقرار","باینری تک‌فایل، کراس‌کامپایل و ایمیج کوچک.","Building and deploying","A single binary, cross-compilation and tiny images.","build cross compile scratch distroless"],
-["17","17-cap1.html",0,5,70,"پروژهٔ ۱ — ابزار خط فرمان","خواندن ورودی، پردازش موازی و خروجی تمیز.","Project 1 — a CLI tool","Reading input, parallel processing and clean output.","capstone cli",1],
-["18","18-cap2.html",0,7,120,"پروژهٔ ۲ — REST API با پایگاه‌داده","لایه‌بندی، تست و مدیریت خطا.","Project 2 — a REST API with a database","Layering, tests and error handling.","capstone api",2],
-["19","19-cap3.html",0,9,180,"پروژهٔ ۳ — سرویس همروند پرکار","worker pool، context، graceful shutdown و پروفایل.","Project 3 — a high-throughput concurrent service","Worker pools, context, graceful shutdown and profiling.","capstone concurrency",3]
+["17","17-cap1.html",1,5,70,"پروژهٔ ۱ — ابزار خط فرمان","خواندن ورودی، پردازش موازی و خروجی تمیز.","Project 1 — a CLI tool","Reading input, parallel processing and clean output.","capstone cli",1],
+["18","18-cap2.html",1,7,120,"پروژهٔ ۲ — REST API با پایگاه‌داده","لایه‌بندی، تست و مدیریت خطا.","Project 2 — a REST API with a database","Layering, tests and error handling.","capstone api",2],
+["19","19-cap3.html",1,9,180,"پروژهٔ ۳ — سرویس همروند پرکار","worker pool، context، graceful shutdown و پروفایل.","Project 3 — a high-throughput concurrent service","Worker pools, context, graceful shutdown and profiling.","capstone concurrency",3]
 ]});
 
 /* ═══════════════ ۱۲ — پایتون ═══════════════ */
@@ -460,9 +460,9 @@ C.push({
 ["14","14-async.html",0,18,85,"async در پایتون","asyncio، و کِی اصلاً کمک نمی‌کند.","async in Python","asyncio, and when it does not help at all.","asyncio await coroutine gil"],
 ["15","15-testing.html",0,18,80,"تست با pytest","fixture، parametrize و mock.","Testing with pytest","Fixtures, parametrize and mocking.","pytest fixture parametrize mock"],
 ["16","16-packaging.html",0,18,75,"بسته‌بندی و انتشار","pyproject، ساختار پروژه و انتشار روی PyPI.","Packaging and publishing","pyproject, project layout and publishing to PyPI.","pyproject packaging wheel pypi"],
-["17","17-cap1.html",0,5,70,"پروژهٔ ۱ — اسکریپت پردازش داده","خواندن CSV، پاک‌سازی و گزارش.","Project 1 — a data-processing script","Read a CSV, clean it, produce a report.","capstone script csv",1],
-["18","18-cap2.html",0,7,120,"پروژهٔ ۲ — کتابخانهٔ تست‌شده","API تمیز، type hint کامل و پوشش تست.","Project 2 — a tested library","A clean API, full type hints and test coverage.","capstone library",2],
-["19","19-cap3.html",0,9,170,"پروژهٔ ۳ — خط لولهٔ داده","generator، همروندی، لاگ و مدیریت خطا.","Project 3 — a data pipeline","Generators, concurrency, logging and error handling.","capstone pipeline",3]
+["17","17-cap1.html",1,5,70,"پروژهٔ ۱ — اسکریپت پردازش داده","خواندن CSV، پاک‌سازی و گزارش.","Project 1 — a data-processing script","Read a CSV, clean it, produce a report.","capstone script csv",1],
+["18","18-cap2.html",1,7,120,"پروژهٔ ۲ — کتابخانهٔ تست‌شده","API تمیز، type hint کامل و پوشش تست.","Project 2 — a tested library","A clean API, full type hints and test coverage.","capstone library",2],
+["19","19-cap3.html",1,9,170,"پروژهٔ ۳ — خط لولهٔ داده","generator، همروندی، لاگ و مدیریت خطا.","Project 3 — a data pipeline","Generators, concurrency, logging and error handling.","capstone pipeline",3]
 ]});
 
 /* ═══════════════ ۱۳ — جنگو ═══════════════ */
@@ -490,9 +490,9 @@ C.push({
 ["14","14-testing.html",0,18,80,"تست","TestCase، client و fixture.","Testing","TestCase, the test client and fixtures.","test testcase client factory pytest-django"],
 ["15","15-security.html",0,18,75,"امنیت","CSRF، XSS، SQL injection و تنظیمات production.","Security","CSRF, XSS, SQL injection and production settings.","csrf xss injection security settings"],
 ["16","16-deploy.html",0,18,85,"استقرار","Gunicorn، Nginx، فایل استاتیک و داکر.","Deployment","Gunicorn, Nginx, static files and Docker.","gunicorn nginx static whitenoise docker"],
-["17","17-cap1.html",0,5,80,"پروژهٔ ۱ — وبلاگ با admin","مدل، view، قالب و پنل مدیریت.","Project 1 — a blog with the admin","Models, views, templates and the admin panel.","capstone blog",1],
-["18","18-cap2.html",0,7,140,"پروژهٔ ۲ — REST API با DRF","احراز هویت، مجوز، صفحه‌بندی و تست.","Project 2 — a REST API with DRF","Authentication, permissions, pagination and tests.","capstone drf api",2],
-["19","19-cap3.html",0,9,200,"پروژهٔ ۳ — اپ کامل با صف و استقرار","کار پس‌زمینه، کش، کوئری بهینه و استقرار با داکر.","Project 3 — a full app with queues and deployment","Background work, caching, optimised queries and a Docker deployment.","capstone celery deploy",3]
+["17","17-cap1.html",1,5,80,"پروژهٔ ۱ — وبلاگ با admin","مدل، view، قالب و پنل مدیریت.","Project 1 — a blog with the admin","Models, views, templates and the admin panel.","capstone blog",1],
+["18","18-cap2.html",1,7,140,"پروژهٔ ۲ — REST API با DRF","احراز هویت، مجوز، صفحه‌بندی و تست.","Project 2 — a REST API with DRF","Authentication, permissions, pagination and tests.","capstone drf api",2],
+["19","19-cap3.html",1,9,200,"پروژهٔ ۳ — اپ کامل با صف و استقرار","کار پس‌زمینه، کش، کوئری بهینه و استقرار با داکر.","Project 3 — a full app with queues and deployment","Background work, caching, optimised queries and a Docker deployment.","capstone celery deploy",3]
 ]});
 
 /* ═══════════════ ۱۴ — فلسک ═══════════════ */
@@ -738,23 +738,23 @@ C.push({
   en:{name:"Proxies & VPNs", desc:"Practical network engineering: forward and reverse proxies, SOCKS5, tunnels, WireGuard and OpenVPN.",
       intro:"Proxies and VPNs do the same thing: send traffic another way. They differ in the layer they operate at. This track builds both from the ground up — with code, not only configuration."},
   ch:[
-["01","01-what.html",0,18,75,"پروکسی چیست","forward، reverse و transparent — سه چیز متفاوت با یک اسم.","What a proxy is","Forward, reverse and transparent — three different things, one name.","proxy forward reverse transparent"],
-["02","02-http-proxy.html",0,18,80,"HTTP proxy و متد CONNECT","چطور یک درخواست از پروکسی رد می‌شود.","HTTP proxies and the CONNECT method","How a request passes through a proxy.","http proxy connect tunnel header"],
-["03","03-socks.html",0,18,80,"SOCKS5","لایهٔ پایین‌تر، انعطاف بیشتر.","SOCKS5","A lower layer, more flexibility.","socks5 socks handshake udp"],
-["04","04-build-proxy.html",0,18,90,"ساخت یک پروکسی ساده با کد","سوکت، انتقال دوطرفه و همروندی.","Building a simple proxy in code","Sockets, bidirectional relaying and concurrency.","socket relay proxy implementation"],
-["05","05-tls.html",0,18,85,"TLS و termination","رمزنگاری، گواهی و جایی که رمز باز می‌شود.","TLS and termination","Encryption, certificates and where decryption happens.","tls sni termination certificate"],
-["06","06-chaining.html",0,18,75,"زنجیره‌کردن پروکسی","چند پرش، و هزینهٔ تأخیرش.","Chaining proxies","Multiple hops, and the latency they cost.","chain upstream hop latency"],
-["07","07-vpn-model.html",0,18,80,"VPN چیست: مدل تونل","تفاوت بنیادی با پروکسی، در لایهٔ شبکه.","What a VPN is: the tunnel model","How it fundamentally differs from a proxy, at the network layer.","vpn tunnel tun tap layer3"],
-["08","08-wireguard.html",0,18,90,"WireGuard","کلید، peer، و راه‌اندازی از صفر.","WireGuard","Keys, peers, and setting one up from scratch.","wireguard peer key allowedips"],
-["09","09-openvpn.html",0,18,85,"OpenVPN","گواهی، پیکربندی و مقایسه با WireGuard.","OpenVPN","Certificates, configuration and a comparison with WireGuard.","openvpn certificate config tls"],
-["10","10-routing.html",0,18,85,"مسیریابی و NAT","جدول مسیر، forwarding و masquerade.","Routing and NAT","Routing tables, forwarding and masquerading.","routing nat masquerade forward iptables"],
-["11","11-dns.html",0,18,80,"DNS در تونل","نشتی DNS و حل درستش.","DNS inside a tunnel","DNS leaks and how to fix them properly.","dns leak resolver split"],
-["12","12-performance.html",0,18,80,"کارایی","MTU، سربار رمزنگاری و اندازه‌گیری واقعی.","Performance","MTU, encryption overhead and real measurement.","mtu throughput overhead benchmark"],
+["01","01-what.html",1,18,75,"پروکسی چیست","forward، reverse و transparent — سه چیز متفاوت با یک اسم.","What a proxy is","Forward, reverse and transparent — three different things, one name.","proxy forward reverse transparent"],
+["02","02-http-proxy.html",1,18,80,"HTTP proxy و متد CONNECT","چطور یک درخواست از پروکسی رد می‌شود.","HTTP proxies and the CONNECT method","How a request passes through a proxy.","http proxy connect tunnel header"],
+["03","03-socks.html",1,18,80,"SOCKS5","لایهٔ پایین‌تر، انعطاف بیشتر.","SOCKS5","A lower layer, more flexibility.","socks5 socks handshake udp"],
+["04","04-build-proxy.html",1,18,90,"ساخت یک پروکسی ساده با کد","سوکت، انتقال دوطرفه و همروندی.","Building a simple proxy in code","Sockets, bidirectional relaying and concurrency.","socket relay proxy implementation"],
+["05","05-tls.html",1,18,85,"TLS و termination","رمزنگاری، گواهی و جایی که رمز باز می‌شود.","TLS and termination","Encryption, certificates and where decryption happens.","tls sni termination certificate"],
+["06","06-chaining.html",1,18,75,"زنجیره‌کردن پروکسی","چند پرش، و هزینهٔ تأخیرش.","Chaining proxies","Multiple hops, and the latency they cost.","chain upstream hop latency"],
+["07","07-vpn-model.html",1,18,80,"VPN چیست: مدل تونل","تفاوت بنیادی با پروکسی، در لایهٔ شبکه.","What a VPN is: the tunnel model","How it fundamentally differs from a proxy, at the network layer.","vpn tunnel tun tap layer3"],
+["08","08-wireguard.html",1,18,90,"WireGuard","کلید، peer، و راه‌اندازی از صفر.","WireGuard","Keys, peers, and setting one up from scratch.","wireguard peer key allowedips"],
+["09","09-openvpn.html",1,18,85,"OpenVPN","گواهی، پیکربندی و مقایسه با WireGuard.","OpenVPN","Certificates, configuration and a comparison with WireGuard.","openvpn certificate config tls"],
+["10","10-routing.html",1,18,85,"مسیریابی و NAT","جدول مسیر، forwarding و masquerade.","Routing and NAT","Routing tables, forwarding and masquerading.","routing nat masquerade forward iptables"],
+["11","11-dns.html",1,18,80,"DNS در تونل","نشتی DNS و حل درستش.","DNS inside a tunnel","DNS leaks and how to fix them properly.","dns leak resolver split"],
+["12","12-performance.html",1,18,80,"کارایی","MTU، سربار رمزنگاری و اندازه‌گیری واقعی.","Performance","MTU, encryption overhead and real measurement.","mtu throughput overhead benchmark"],
 ["13","13-monitoring.html",0,18,75,"پایش و لاگ","چه کسی وصل است و چقدر مصرف کرده.","Monitoring and logging","Who is connected and how much they used.","monitoring log metrics connection"],
-["14","14-hardening.html",0,18,80,"امنیت و سخت‌سازی","کلیدها، به‌روزرسانی و کمترین دسترسی.","Security and hardening","Keys, updates and least privilege.","hardening key rotation firewall"],
-["15","15-cap1.html",0,5,70,"پروژهٔ ۱ — پروکسی HTTP خودت","یک پروکسی کارا در کمتر از ۲۰۰ خط.","Project 1 — your own HTTP proxy","A working proxy in under 200 lines.","capstone proxy code",1],
-["16","16-cap2.html",0,7,120,"پروژهٔ ۲ — سرور WireGuard","راه‌اندازی، چند peer، مسیریابی و DNS.","Project 2 — a WireGuard server","Setup, multiple peers, routing and DNS.","capstone wireguard",2],
-["17","17-cap3.html",0,9,180,"پروژهٔ ۳ — دروازهٔ شبکهٔ کامل","پروکسی، تونل، فایروال، پایش و سخت‌سازی روی یک VPS.","Project 3 — a complete network gateway","Proxy, tunnel, firewall, monitoring and hardening on one VPS.","capstone gateway vps",3]
+["14","14-hardening.html",1,18,80,"امنیت و سخت‌سازی","کلیدها، به‌روزرسانی و کمترین دسترسی.","Security and hardening","Keys, updates and least privilege.","hardening key rotation firewall"],
+["15","15-cap1.html",1,5,70,"پروژهٔ ۱ — پروکسی HTTP خودت","یک پروکسی کارا در کمتر از ۲۰۰ خط.","Project 1 — your own HTTP proxy","A working proxy in under 200 lines.","capstone proxy code",1],
+["16","16-cap2.html",1,7,120,"پروژهٔ ۲ — سرور WireGuard","راه‌اندازی، چند peer، مسیریابی و DNS.","Project 2 — a WireGuard server","Setup, multiple peers, routing and DNS.","capstone wireguard",2],
+["17","17-cap3.html",1,9,180,"پروژهٔ ۳ — دروازهٔ شبکهٔ کامل","پروکسی، تونل، فایروال، پایش و سخت‌سازی روی یک VPS.","Project 3 — a complete network gateway","Proxy, tunnel, firewall, monitoring and hardening on one VPS.","capstone gateway vps",3]
 ]});
 
 /* ═══════════════ ۲۲ — مهارت‌های مهندس نرم‌افزار ═══════════════ */
@@ -1088,9 +1088,9 @@ C.push({
 ["14","14-testing.html",0,18,85,"تست با RSpec","تست مدل، درخواست و سیستم.","Testing with RSpec","Model, request and system specs.","rspec factory capybara spec"],
 ["15","15-performance.html",0,18,80,"کارایی","‎N+1‎، کش و ایندکس.","Performance","N+1 queries, caching and indexes.","n+1 cache index bullet"],
 ["16","16-deploy.html",0,18,80,"استقرار","Puma، داکر، دارایی‌ها و متغیر محیطی.","Deployment","Puma, Docker, assets and environment variables.","puma deploy docker credentials"],
-["17","17-cap1.html",0,5,70,"پروژهٔ ۱ — وبلاگ","‎CRUD‎، فرم و اعتبارسنجی.","Project 1 — a blog","CRUD, forms and validation.","capstone crud blog",1],
-["18","18-cap2.html",0,7,120,"پروژهٔ ۲ — ‎API‎ با احراز هویت","حالت ‎API-only‎، توکن و تست.","Project 2 — an authenticated API","API-only mode, tokens and tests.","capstone api auth",2],
-["19","19-cap3.html",0,9,170,"پروژهٔ ۳ — اپ کامل","کار پس‌زمینه، کش، جستجو و استقرار.","Project 3 — a complete app","Background jobs, caching, search and deployment.","capstone production",3]
+["17","17-cap1.html",1,5,70,"پروژهٔ ۱ — وبلاگ","‎CRUD‎، فرم و اعتبارسنجی.","Project 1 — a blog","CRUD, forms and validation.","capstone crud blog",1],
+["18","18-cap2.html",1,7,120,"پروژهٔ ۲ — ‎API‎ با احراز هویت","حالت ‎API-only‎، توکن و تست.","Project 2 — an authenticated API","API-only mode, tokens and tests.","capstone api auth",2],
+["19","19-cap3.html",1,9,170,"پروژهٔ ۳ — اپ کامل","کار پس‌زمینه، کش، جستجو و استقرار.","Project 3 — a complete app","Background jobs, caching, search and deployment.","capstone production",3]
 ]});
 
 /* ═══════════════ ۳۴ — Svelte ═══════════════ */
@@ -1433,9 +1433,9 @@ C.push({
 ["14","14-offline.html",0,18,90,"آفلاین و همگام‌سازی","صف تغییرات، تعارض و پس‌زمینه.","Offline and background sync","Mutation queues, conflicts and background sync.","offline background sync indexeddb conflict"],
 ["15","15-push.html",0,18,80,"اعلان push","‏Web Push، مجوز و پیاده‌سازی سمت سرور.","Push notifications","Web Push, permissions and the server side.","push notification vapid subscription"],
 ["16","16-seo.html",0,18,85,"‏SEO و رندر","چه چیزی را خزنده می‌بیند و چه چیزی را نه.","SEO and rendering","What a crawler sees and what it does not.","seo crawler meta og structured data"],
-["17","17-cap1.html",0,5,80,"پروژهٔ ۱ — یک اپ، چهار حالت رندر","همان صفحه را در CSR، SSR، SSG و ISR بساز و عدد بگیر.","Project 1 — one app, four rendering modes","Build the same page in CSR, SSR, SSG and ISR, then measure.","capstone rendering comparison",1],
-["18","18-cap2.html",0,7,140,"پروژهٔ ۲ — تبدیل به PWA","نصب‌پذیر، آفلاین‌کار و با اعلان.","Project 2 — turn it into a PWA","Installable, offline-capable and with notifications.","capstone pwa offline",2],
-["19","19-cap3.html",0,9,180,"پروژهٔ ۳ — بودجهٔ کارایی","یک سایت کند را با اندازه‌گیری به هدف برسان.","Project 3 — a performance budget","Take a slow site to target, driven by measurement.","capstone performance budget",3]
+["17","17-cap1.html",1,5,80,"پروژهٔ ۱ — یک اپ، چهار حالت رندر","همان صفحه را در CSR، SSR، SSG و ISR بساز و عدد بگیر.","Project 1 — one app, four rendering modes","Build the same page in CSR, SSR, SSG and ISR, then measure.","capstone rendering comparison",1],
+["18","18-cap2.html",1,7,140,"پروژهٔ ۲ — تبدیل به PWA","نصب‌پذیر، آفلاین‌کار و با اعلان.","Project 2 — turn it into a PWA","Installable, offline-capable and with notifications.","capstone pwa offline",2],
+["19","19-cap3.html",1,9,180,"پروژهٔ ۳ — بودجهٔ کارایی","یک سایت کند را با اندازه‌گیری به هدف برسان.","Project 3 — a performance budget","Take a slow site to target, driven by measurement.","capstone performance budget",3]
 ]});
 
 /* ═══════════════ ۵۰ — طراحی دامنه‌محور (DDD) ═══════════════ */
@@ -1558,9 +1558,9 @@ C.push({
 ["14","14-backup.html",0,18,80,"پشتیبان و بازیابی","‏mysqldump، binlog و بازیابی نقطه‌ای.","Backup and restore","mysqldump, binlogs and point-in-time recovery.","mysqldump xtrabackup binlog pitr"],
 ["15","15-security.html",0,18,75,"امنیت","کاربر، ‎GRANT‎، ‎TLS‎ و تزریق ‎SQL‎.","Security","Users, GRANT, TLS and SQL injection.","grant privilege tls injection prepared"],
 ["16","16-tuning.html",0,18,95,"بهینه‌سازی","‏slow log، buffer pool و کوئری کند واقعی.","Tuning","The slow log, the buffer pool and a genuinely slow query.","slowlog buffer pool tuning optimize"],
-["17","17-cap1.html",0,5,80,"پروژهٔ ۱ — طراحی شِما","از نیاز تا جدول، با کلید و ‎constraint‎ درست.","Project 1 — design a schema","From requirements to tables, with proper keys and constraints.","capstone schema",1],
-["18","18-cap2.html",0,7,140,"پروژهٔ ۲ — گزارش‌های تحلیلی","کوئری‌های پیچیده و ایندکس‌گذاری.","Project 2 — analytical reports","Complex queries and indexing.","capstone report",2],
-["19","19-cap3.html",0,9,190,"پروژهٔ ۳ — از کند به سریع","یک پایگاه‌دادهٔ میلیونی را به زیر یک ثانیه برسان.","Project 3 — from slow to fast","Take a million-row database under one second.","capstone performance",3]
+["17","17-cap1.html",1,5,80,"پروژهٔ ۱ — طراحی شِما","از نیاز تا جدول، با کلید و ‎constraint‎ درست.","Project 1 — design a schema","From requirements to tables, with proper keys and constraints.","capstone schema",1],
+["18","18-cap2.html",1,7,140,"پروژهٔ ۲ — گزارش‌های تحلیلی","کوئری‌های پیچیده و ایندکس‌گذاری.","Project 2 — analytical reports","Complex queries and indexing.","capstone report",2],
+["19","19-cap3.html",1,9,190,"پروژهٔ ۳ — از کند به سریع","یک پایگاه‌دادهٔ میلیونی را به زیر یک ثانیه برسان.","Project 3 — from slow to fast","Take a million-row database under one second.","capstone performance",3]
 ]});
 
 /* ═══════════════ ۵۴ — Cassandra ═══════════════ */
@@ -1767,9 +1767,9 @@ C.push({
 ["14","14-generative.html",0,18,90,"مدل‌های مولد","‏autoencoder، ‎GAN‎ و ‎diffusion‎ — مرور مفهومی.","Generative models","Autoencoders, GANs and diffusion — a conceptual tour.","gan vae diffusion generative"],
 ["15","15-training-real.html",0,18,95,"آموزش در عمل","‏GPU، حافظه، ‎mixed precision‎ و ‎checkpoint‎.","Training for real","GPUs, memory, mixed precision and checkpointing.","gpu cuda mixed precision checkpoint oom"],
 ["16","16-deploy.html",0,18,90,"استقرار مدل","‏ONNX، کوانتیزه‌سازی و استنتاج سریع.","Deploying a model","ONNX, quantisation and fast inference.","onnx quantization inference serving latency"],
-["17","17-cap1.html",0,5,110,"پروژهٔ ۱ — طبقه‌بندی تصویر","‏CNN از صفر، بعد با ‎transfer learning‎.","Project 1 — image classification","A CNN from scratch, then with transfer learning.","capstone cnn vision",1],
-["18","18-cap2.html",0,7,180,"پروژهٔ ۲ — تحلیل متن فارسی","‏tokenization فارسی، ‎fine-tune‎ و ارزیابی.","Project 2 — Persian text analysis","Persian tokenisation, fine-tuning and evaluation.","capstone nlp persian",2],
-["19","19-cap3.html",0,9,240,"پروژهٔ ۳ — ترنسفورمر کوچک از صفر","‏attention، آموزش و تولید متن.","Project 3 — a small transformer from scratch","Attention, training and text generation.","capstone transformer",3]
+["17","17-cap1.html",1,5,110,"پروژهٔ ۱ — طبقه‌بندی تصویر","‏CNN از صفر، بعد با ‎transfer learning‎.","Project 1 — image classification","A CNN from scratch, then with transfer learning.","capstone cnn vision",1],
+["18","18-cap2.html",1,7,180,"پروژهٔ ۲ — تحلیل متن فارسی","‏tokenization فارسی، ‎fine-tune‎ و ارزیابی.","Project 2 — Persian text analysis","Persian tokenisation, fine-tuning and evaluation.","capstone nlp persian",2],
+["19","19-cap3.html",1,9,240,"پروژهٔ ۳ — ترنسفورمر کوچک از صفر","‏attention، آموزش و تولید متن.","Project 3 — a small transformer from scratch","Attention, training and text generation.","capstone transformer",3]
 ]});
 
 /* ═══════════════ ۶۱ — مهندسی هوش مصنوعی ═══════════════ */
@@ -1810,8 +1810,8 @@ C.push({
   en:{name:"Virtual machines & distributions", desc:"VirtualBox, KVM/QEMU, Proxmox: installing several distributions, networking between them and snapshots.",
       intro:"Before you break a real server, it is better to break one that reverts with a click. That is what a virtual lab is for: several Linux distributions side by side, a private network between them, and snapshots that make every mistake reversible. This track builds that lab — the one you will then use throughout the Linux, networking and DevOps tracks."},
   ch:[
-["01","01-why.html",0,18,80,"مجازی‌سازی چیست","‏hypervisor نوع ۱ و ۲، و تفاوتش با کانتینر.","What virtualisation is","Type 1 and type 2 hypervisors, and how this differs from containers.","hypervisor type1 type2 container comparison"],
-["02","02-virtualbox.html",0,18,80,"‏VirtualBox","نصب، ساخت ماشین و ‎guest additions‎.","VirtualBox","Installing, creating a machine and guest additions.","virtualbox vm guest additions vdi"],
+["01","01-why.html",1,18,80,"مجازی‌سازی چیست","‏hypervisor نوع ۱ و ۲، و تفاوتش با کانتینر.","What virtualisation is","Type 1 and type 2 hypervisors, and how this differs from containers.","hypervisor type1 type2 container comparison"],
+["02","02-virtualbox.html",1,18,80,"‏VirtualBox","نصب، ساخت ماشین و ‎guest additions‎.","VirtualBox","Installing, creating a machine and guest additions.","virtualbox vm guest additions vdi"],
 ["03","03-kvm.html",0,18,90,"‏KVM و ‎QEMU‎","مجازی‌سازی بومی لینوکس با ‎virt-manager‎.","KVM and QEMU","Native Linux virtualisation with virt-manager.","kvm qemu libvirt virt-manager virsh"],
 ["04","04-resources.html",0,18,80,"منابع","‏CPU، RAM، دیسک و ‎overcommit‎.","Resources","CPU, RAM, disk and overcommitting.","vcpu ram disk overcommit balloon"],
 ["05","05-storage.html",0,18,85,"ذخیره‌سازی","‏qcow2، ‎thin provisioning‎ و افزودن دیسک.","Storage","qcow2, thin provisioning and adding disks.","qcow2 raw thin provisioning lvm"],
@@ -1854,9 +1854,9 @@ C.push({
 ["14","14-jira-advanced.html",0,18,90,"‏Jira پیشرفته","‏JQL، خودکارسازی، گزارش و ‎epic‎.","Jira: advanced","JQL, automation, reports and epics.","jql automation report epic filter dashboard"],
 ["15","15-feature-flow.html",0,18,95,"روند تحویل یک فیچر","از ایده تا production: هر مرحله و هر تحویل‌دادنی.","The path of a feature","From idea to production: every stage and every handover.","feature flow lifecycle handover release"],
 ["16","16-failures.html",0,18,85,"کجا اسکرام شکست می‌خورد","‏«اسکرام آبشاری»، و نشانه‌هایش.","Where Scrum fails","“Waterfall in sprints”, and how to spot it.","antipattern dark scrum zombie failure"],
-["17","17-cap1.html",0,5,80,"پروژهٔ ۱ — ‏backlog و داستان","یک محصول کوچک را به داستان بشکن و تخمین بزن.","Project 1 — backlog and stories","Break a small product into stories and estimate them.","capstone backlog story",1],
-["18","18-cap2.html",0,7,130,"پروژهٔ ۲ — یک اسپرینت کامل","برنامه‌ریزی، تابلو، معیارها و ‎retrospective‎.","Project 2 — a complete sprint","Planning, the board, metrics and a retrospective.","capstone sprint",2],
-["19","19-cap3.html",0,9,170,"پروژهٔ ۳ — راه‌اندازی جیرا برای یک تیم","‏workflow، خودکارسازی، گزارش و ‎DoD‎.","Project 3 — set up Jira for a team","Workflows, automation, reports and a Definition of Done.","capstone jira setup",3]
+["17","17-cap1.html",1,5,80,"پروژهٔ ۱ — ‏backlog و داستان","یک محصول کوچک را به داستان بشکن و تخمین بزن.","Project 1 — backlog and stories","Break a small product into stories and estimate them.","capstone backlog story",1],
+["18","18-cap2.html",1,7,130,"پروژهٔ ۲ — یک اسپرینت کامل","برنامه‌ریزی، تابلو، معیارها و ‎retrospective‎.","Project 2 — a complete sprint","Planning, the board, metrics and a retrospective.","capstone sprint",2],
+["19","19-cap3.html",1,9,170,"پروژهٔ ۳ — راه‌اندازی جیرا برای یک تیم","‏workflow، خودکارسازی، گزارش و ‎DoD‎.","Project 3 — set up Jira for a team","Workflows, automation, reports and a Definition of Done.","capstone jira setup",3]
 ]});
 
 /* ═══════════════ ۶۴ — سندنویسی فنی ═══════════════ */
@@ -2122,9 +2122,9 @@ C.push({
 ["14","14-async.html",0,18,85,"کار ناهمگام","‎@Async‎، ‎@Scheduled‎ و صف.","Async work","@Async, @Scheduled and queues.","async scheduled executor rabbitmq kafka"],
 ["15","15-observability.html",0,18,85,"مشاهده‌پذیری","‏Actuator، ‎Micrometer‎ و ‎trace‎.","Observability","Actuator, Micrometer and tracing.","actuator micrometer prometheus tracing"],
 ["16","16-deploy.html",0,18,85,"استقرار","‏JAR اجرایی، داکر و پیکربندی ‎production‎.","Deployment","Executable JARs, Docker and production configuration.","jar docker native image profile"],
-["17","17-cap1.html",0,5,90,"پروژهٔ ۱ — ‎REST API‎","‏CRUD با ‎JPA‎ و اعتبارسنجی.","Project 1 — a REST API","CRUD with JPA and validation.","capstone crud",1],
-["18","18-cap2.html",0,7,160,"پروژهٔ ۲ — سرویس امن","‏JWT، نقش و تست یکپارچه.","Project 2 — a secured service","JWT, roles and integration tests.","capstone security",2],
-["19","19-cap3.html",0,9,220,"پروژهٔ ۳ — سرویس ‎production‎","کش، صف، مشاهده‌پذیری و استقرار خودکار.","Project 3 — a production service","Caching, queues, observability and automated deployment.","capstone production",3]
+["17","17-cap1.html",1,5,90,"پروژهٔ ۱ — ‎REST API‎","‏CRUD با ‎JPA‎ و اعتبارسنجی.","Project 1 — a REST API","CRUD with JPA and validation.","capstone crud",1],
+["18","18-cap2.html",1,7,160,"پروژهٔ ۲ — سرویس امن","‏JWT، نقش و تست یکپارچه.","Project 2 — a secured service","JWT, roles and integration tests.","capstone security",2],
+["19","19-cap3.html",1,9,220,"پروژهٔ ۳ — سرویس ‎production‎","کش، صف، مشاهده‌پذیری و استقرار خودکار.","Project 3 — a production service","Caching, queues, observability and automated deployment.","capstone production",3]
 ]});
 
 /* ═══════════════ زبان PHP ═══════════════ */
