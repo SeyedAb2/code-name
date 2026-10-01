@@ -309,7 +309,7 @@ export const ROLE_ROADMAPS: Roadmap[] = [
             kind: "hard",
             whyFa: "پرتکرارترین گلوگاه هر سیستمی پایگاه‌داده است، و بیشترش از طراحی بد می‌آید.",
             whyEn: "The most common bottleneck in any system is the database, and most of it comes from bad design.",
-            tracks: ["05-sql", "53-mysql-mariadb"],
+            tracks: ["05-sql", "53-mysql", "53-mariadb"],
           },
           {
             fa: "طراحی API", en: "API design",

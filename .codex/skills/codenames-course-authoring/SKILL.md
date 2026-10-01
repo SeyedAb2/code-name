@@ -121,6 +121,15 @@ For visual QA, check both dark and light themes and both RTL prose/LTR code cont
 
 ## Exercises and labs
 
+### Database-course practical exercise contract
+
+- In database courses, every normal exercise must require the learner to produce or modify executable SQL or code that interacts with the database. A prose-only answer, definition, or multiple-choice response is not a complete exercise.
+- Conceptual prompts such as prediction, diagnosis, or design must still end in a runnable artifact: write the query, repair the statement, create the schema/index, run a transaction in an isolated setup, or provide a small script that gathers evidence.
+- Each exercise should specify the relevant schema/data or provide a reproducible fixture, state what to execute, and ask the learner to inspect a meaningful result (rows, changed state, plan, error, lock/replication/backup evidence). Do not ask for output that the setup cannot reproduce.
+- Solutions must include the SQL/code (or a minimal executable fragment), representative result/evidence, and a short explanation of why it answers the task. Explanation supports the practical answer; it does not replace it.
+- Vary the engineering work—query writing, query repair, schema/constraint design, index choice implemented and measured, EXPLAIN interpretation followed by a test, two-session concurrency, backup/restore verification, and incident diagnosis—while ensuring each has a code/query deliverable.
+- Keep destructive data exercises inside a disposable database or verified backup boundary. Projects may use milestones and acceptance evidence instead of generic question lists, but their deliverables should remain runnable and inspectable.
+
 Substantial Docker chapters normally contain exactly 18 exercises unless the course manifest explicitly says otherwise. Exercises must mix prediction, “what do you think happens?”, short narrative scenarios, debugging tickets, output comparison, model selection, deliberate experiments, explaining why a fix works, and identifying what is not yet proven. Do not make every solution follow the same labeled pattern.
 
 Exercises mix prediction, execution, output reading, explanation, debugging, command selection, and realistic scenarios. Keep the metadata count exactly aligned with actual `<div class="ex" id=...` blocks.

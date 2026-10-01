@@ -87,11 +87,18 @@ export const TECH_DATA_ROADMAPS: Roadmap[] = [
             tracks: ["05-sql"],
           },
           {
-            fa: "MySQL / MariaDB", en: "MySQL / MariaDB", kind: "hard", level: "alt",
-            whyFa: "پشت بخش بزرگی از وب — از وردپرس تا اپ‌های PHP؛ فرق‌هایش با PostgreSQL را باید بدانی.",
-            whyEn: "Behind a large part of the web — from WordPress to PHP apps; you should know how it differs from PostgreSQL.",
-            items: ["InnoDB", "Replication", "Differences from PostgreSQL"],
-            tracks: ["53-mysql-mariadb"],
+            fa: "MySQL", en: "MySQL", kind: "hard", level: "alt",
+            whyFa: "یک مسیر مستقل برای MySQL؛ از InnoDB و query تا replication و عملیات.",
+            whyEn: "A dedicated MySQL path, from InnoDB and queries to replication and operations.",
+            items: ["InnoDB", "MySQL replication", "MySQL Shell"],
+            tracks: ["53-mysql"],
+          },
+          {
+            fa: "MariaDB", en: "MariaDB", kind: "hard", level: "alt",
+            whyFa: "MariaDB مسیر توسعه و قابلیت‌های خودش را دارد؛ engine، replication و Galera را جداگانه یاد بگیر.",
+            whyEn: "MariaDB has its own development path and features; learn its engines, replication, and Galera separately.",
+            items: ["InnoDB و Aria", "System-versioned tables", "Galera"],
+            tracks: ["53-mariadb"],
           },
           {
             fa: "Oracle", en: "Oracle", kind: "hard", level: "opt",

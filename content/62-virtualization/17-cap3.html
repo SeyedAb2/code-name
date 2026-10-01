@@ -1,0 +1,214 @@
+<!--meta
+title: پروژهٔ ۳ — آزمایشگاه خودکار
+desc: سه VM رو با Vagrant از کد بساز، provisioning رو تکرارپذیر کن، یک بار کل آزمایشگاه رو destroy کن و از همون تعریف دوباره بالا بیاور.
+-->
+<div class="masthead">
+  <span class="eyebrow"><span class="dot"></span><span lang="fa">ماشین مجازی و توزیع‌ها · پروژهٔ ۳</span><span lang="en">Virtual machines &amp; distributions · Project 3</span></span>
+  <h1 lang="fa">پروژهٔ ۳ — آزمایشگاه خودکار</h1><h1 lang="en">Project 3 — an automated lab</h1>
+  <p class="sub" lang="fa">آخر مسیر، آزمایشگاه باید از حافظهٔ تو مستقل بشه. کل محیط سه‌ماشینه رو طوری تعریف می‌کنیم که پاکش کنی، دوباره بسازیش و نتیجه همون باشه.</p>
+  <p class="sub" lang="en">This time, deleting the lab must not mean rebuilding it from memory. Its definition stays beside your code so one command can bring it back.</p>
+  <div class="facts"><div class="fact"><b>۱۹۰</b><span lang="fa">دقیقه</span><span lang="en">minutes</span></div><div class="fact"><b>۹</b><span lang="fa">مرحله</span><span lang="en">checkpoints</span></div><div class="fact"><b>۳</b><span lang="fa">VM</span><span lang="en">VMs</span></div><div class="fact"><b>۱</b><span lang="fa">فرمان بازسازی</span><span lang="en">rebuild command</span></div></div>
+</div>
+<section id="mission"><h2><span lang="fa">مأموریت: آزمایشگاه رو از نو بساز</span><span lang="en">Mission: rebuild the lab from scratch</span></h2>
+  <p class="lede" lang="fa">پروژهٔ قبل سه ماشین قابل‌استفاده تحویل داد، ولی ساختنشان وقت گرفت و چند تنظیم فقط در یادداشت‌های تو ماند. این بار همون آزمایشگاه سه‌گرهی رو در یک پوشهٔ نسخه‌بندی‌شده تعریف می‌کنی: سه VM، یک شبکهٔ خصوصی، کاربر و SSH آماده، بسته‌های پایه، و یک آزمون که بعد از هر ساخت اجرا می‌شه.</p>
+  <p class="lede" lang="en">The previous project delivered three usable machines, but creating them took time and a few settings lived only in your notes. This time, define the same three-node lab in a version-controlled directory: three VMs, a private network, ready users and SSH, baseline packages, and a check that runs after every build.</p>
+  <p lang="fa">شرط قبولی یک بار <code>vagrant up</code> نیست. باید آزمایشگاه رو سالم بسازی، خرابی provisioning رو پیدا کنی، provisioning رو دوباره اجرا کنی، همهٔ VMها رو از بین ببری و دوباره بسازی؛ بعد نشان بدی همون hostname، IP، سرویس و آزمون شبکه برگشته‌اند.</p>
+  <p lang="en">Passing once with <code>vagrant up</code> is not enough. Build the lab, diagnose a provisioning defect, rerun provisioning, destroy every VM, and recreate them; then prove that hostnames, addresses, services, and network checks came back as defined.</p>
+  <div class="note safe"><p lang="fa"><strong>قید ایمنی:</strong> همه‌چیز باید داخل یک پوشهٔ آزمایشگاهی تازه و VMهای Vagrant بمونه. قبل از <code>vagrant destroy</code>، <code>vagrant status</code> و نام محیط رو بررسی کن. روی VM یا دیسک واقعی/مهم این دستورها رو آزمایش نکن؛ اطلاعات محرمانه واقعی هم وارد فایل‌ها نمی‌شه.</p><p lang="en"><strong>Safety constraint:</strong> keep everything inside a fresh lab directory and its Vagrant VMs. Before <code>vagrant destroy</code>, inspect <code>vagrant status</code> and the environment name. Never test these commands against an important VM or disk; no real secrets belong in these files.</p></div>
+</section>
+<section id="contract"><h2><span lang="fa">قرارداد پروژه و نقشهٔ خروجی</span><span lang="en">Project contract and output map</span></h2>
+  <p lang="fa">برای اینکه بازسازی قابل‌تکرار بمونه، هر سه node رو روی یک box ثابت Ubuntu می‌سازیم؛ تفاوت توزیع‌ها رو در پروژهٔ قبل آزمودیم. وقتی ساخت و آزمون‌ها پاس شد، عوض‌کردن boxهای Debian و Fedora توسعهٔ بعدی هست. نسخهٔ دقیق box رو از فهرست انتخاب و pin کن؛ نام box به‌تنهایی تضمین نمی‌کنه همیشه به یک image تغییرناپذیر اشاره کنه.</p>
+  <p lang="en">For a repeatable rebuild, this project uses one Ubuntu box for all three nodes; distribution differences were tested in the previous project. Once creation and tests pass, swapping in Debian and Fedora boxes is a follow-up. Select and pin the exact box version from its catalog; a box name alone does not guarantee one immutable image.</p>
+  <div class="table-wrap"><table><thead><tr><th lang="fa">فایل</th><th lang="en">File</th><th lang="fa">مسئولیت</th><th lang="en">Responsibility</th></tr></thead><tbody><tr><td><code>Vagrantfile</code></td><td><code>Vagrantfile</code></td><td lang="fa">سه VM، provider، منابع و شبکه</td><td lang="en">Three VMs, provider, resources, and network</td></tr><tr><td><code>.box-version</code></td><td><code>.box-version</code></td><td lang="fa">نسخهٔ دقیق box انتخاب‌شده</td><td lang="en">Exact selected box version</td></tr><tr><td><code>scripts/bootstrap.sh</code></td><td><code>scripts/bootstrap.sh</code></td><td lang="fa">تنظیم guest و بسته‌ها</td><td lang="en">Guest and package setup</td></tr><tr><td><code>scripts/verify.sh</code></td><td><code>scripts/verify.sh</code></td><td lang="fa">آزمون یکسان هر سه node</td><td lang="en">Same checks on every node</td></tr><tr><td><code>README.md</code></td><td><code>README.md</code></td><td lang="fa">نیازمندی‌ها، اجرا و پاک‌سازی امن</td><td lang="en">Prerequisites, usage, and safe cleanup</td></tr></tbody></table></div>
+  <p lang="fa">Vagrant چرخهٔ عمر VM رو مدیریت می‌کنه؛ provider ماشین رو می‌سازه؛ provisioner دستورهای راه‌اندازی رو اجرا می‌کنه. cloud-init درون guest، دادهٔ آغازین رو از datasource می‌خونه. این‌ها جای هم نیستن. در مأموریت اصلی از shell provisioner استفاده کن تا روی box عمومی روشن باشه چی اجرا می‌شه؛ cloud-init فقط وقتی مناسب هست که image و datasource واقعاً پشتیبانی‌اش کنند.</p>
+  <p lang="en">Vagrant manages VM lifecycle; a provider creates the machine; a provisioner runs setup commands. cloud-init reads instance data from a datasource inside the guest. These are not interchangeable. Use the shell provisioner in the main mission so setup on a general Vagrant box is explicit; use cloud-init only when the image and datasource actually support it.</p>
+</section>
+<section id="flow"><h2><span lang="fa">از فایل تعریف تا آزمون دوباره</span><span lang="en">From definition file to repeated verification</span></h2>
+  <div class="diagram"><svg viewBox="0 0 1000 310" role="img" aria-labelledby="v17-title v17-desc"><title id="v17-title">Automated lab lifecycle</title><desc id="v17-desc">Version-controlled definitions feed Vagrant, which asks a provider to create three virtual machines. Provisioning configures each guest, then a verification suite checks it.</desc><defs><marker id="v17-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 10 5 0 10z" class="dg-arrow-b"/></marker></defs>
+    <rect x="20" y="28" width="960" height="250" rx="20" class="dg-fill" stroke="var(--line-strong)" stroke-width="2"/>
+    <rect x="52" y="103" width="190" height="104" rx="16" class="dg-fill-b"/><text x="147" y="143" text-anchor="middle" class="dg-t">Versioned files</text><text x="147" y="175" text-anchor="middle" class="dg-ts">Vagrantfile · scripts</text>
+    <rect x="290" y="103" width="170" height="104" rx="16" class="dg-fill-v"/><text x="375" y="143" text-anchor="middle" class="dg-t">Vagrant</text><text x="375" y="175" text-anchor="middle" class="dg-ts">lifecycle</text>
+    <rect x="510" y="103" width="180" height="104" rx="16" class="dg-fill-w"/><text x="600" y="143" text-anchor="middle" class="dg-t">Provider</text><text x="600" y="175" text-anchor="middle" class="dg-ts">creates 3 VMs</text>
+    <rect x="740" y="64" width="205" height="75" rx="14" class="dg-fill-g"/><text x="842" y="96" text-anchor="middle" class="dg-t">Provision</text><text x="842" y="121" text-anchor="middle" class="dg-ts">user · packages · SSH</text>
+    <rect x="740" y="169" width="205" height="75" rx="14" class="dg-fill-b"/><text x="842" y="201" text-anchor="middle" class="dg-t">Verify</text><text x="842" y="226" text-anchor="middle" class="dg-ts">IPs · names · services</text>
+    <path d="M242 155H282M460 155H502M690 126H732M842 139V161" class="dg-stroke-b" stroke-width="3" marker-end="url(#v17-arrow)"/>
+  </svg><p class="diagram-cap" lang="fa">فایل‌های نسخه‌دار VM می‌سازن؛ provisioning مهمان رو آماده می‌کنه؛ بررسی ثابت می‌کنه نتیجه واقعاً آماده هست.</p><p class="diagram-cap" lang="en">Versioned files create VMs; provisioning prepares guests; verification proves the result is actually ready.</p></div>
+  <p lang="fa">ابر خصوصی این پروژه روی لپ‌تاپ توست؛ اگه provider، box یا virtualization میزبان در دسترس نباشه، فایل‌ها به‌تنهایی ماشین تولید نمی‌کنن. شکست هر مرحله رو از خروجی همون مرحله پیدا کن—مثلاً خطای box با SSH داخل guest حل نمی‌شه.</p><p lang="en">This project's private cloud is your laptop. If the provider, box, or host virtualization is unavailable, files alone cannot create machines. Diagnose each stage from its own output—a box error, for example, cannot be fixed by changing guest SSH.</p>
+</section>
+<section id="checkpoint-1"><h2><span lang="fa">مرحله ۱ — محیط رو قبل از کدنویسی آماده کن</span><span lang="en">Checkpoint 1 — prepare the environment before coding</span></h2>
+  <p lang="fa">داخل یک پوشهٔ تازه، ابزارها رو بررسی کن: <code>vagrant --version</code>، <code>VBoxManage --version</code> و <code>VBoxManage list hostonlyifs</code>. انتظار داری Vagrant، VirtualBox و دست‌کم یک Host-only شبکه دیده بشن. این فقط نصب ابزار و وجود interface رو ثابت می‌کنه؛ سلامت VT-x/AMD-V یا فضای کافی رو هنوز نه. اگه VirtualBox نمی‌تونه VM بسازد، خطای همون provider رو قبل از ادامه حل کن.</p>
+  <p lang="en">In a fresh directory, inspect <code>vagrant --version</code>, <code>VBoxManage --version</code>, and <code>VBoxManage list hostonlyifs</code>. You should see Vagrant, VirtualBox, and at least one Host-only network. This proves the tools and interface exist, not that hardware virtualization or free disk space is healthy. If VirtualBox cannot create a VM, resolve that provider error before proceeding.</p>
+  <p lang="fa">موجودی پروژهٔ قبل رو کنار دستت بذار: سه hostname و IP. subnet رو با LAN/VPN میزبان تطبیق بده و یک subnet غیرمتداخل انتخاب کن. README از همین اول باید نیازمندی‌ها و پاک‌سازی امن رو ثبت کنه؛ هنوز <code>destroy</code> نزن.</p><p lang="en">Keep the previous project's inventory nearby: three hostnames and addresses. Check the subnet against the host LAN/VPN and choose a non-overlapping range. Start the README with prerequisites and safe cleanup instructions; do not run <code>destroy</code> yet.</p>
+  <details class="capsule"><summary><span lang="fa">راهنمای پله‌ای</span><span lang="en">Progressive hint</span></summary><p lang="fa">اگه provider آماده نیست، Vagrant اون رو از داخل Vagrantfile نصب نمی‌کنه. نسخهٔ VirtualBox، Vagrant و box رو جدا یادداشت کن تا بعداً معلوم باشه بازسازی روی چه ترکیبی انجام شده.</p><p lang="en">If a provider is missing, the Vagrantfile does not install it. Record Vagrant, VirtualBox, and box versions separately so the rebuild's environment is known.</p></details>
+  <p lang="fa"><strong>شاهد:</strong> نسخهٔ ابزارها، نام Host-only شبکه، subnet و فضای آزاد میزبان.</p><p lang="en"><strong>Evidence:</strong> tool versions, Host-only network name, subnet, and free host disk space.</p>
+</section>
+<section id="checkpoint-2"><h2><span lang="fa">مرحله ۲ — نسخهٔ box رو شناور نگذار</span><span lang="en">Checkpoint 2 — do not let the box version float</span></h2>
+  <p lang="fa">یک box سازگار با Ubuntu Server و provider VirtualBox انتخاب کن. نسخهٔ دقیق رو در <code>.box-version</code> ثبت و همراه Vagrantfile در Git نگه دار. نسخه رو از فهرست تأیید کن؛ مقدار ساختگی ممکنه وجود نداشته باشه یا برای provider دیگری باشه. اسم، version و provider رو در README ثبت کن.</p>
+  <p lang="en">Choose an Ubuntu Server box compatible with the VirtualBox provider. Record the exact version in <code>.box-version</code> and commit it beside the Vagrantfile. Verify the version in its catalog; a made-up value may not exist or may target another provider. Record name, version, and provider in the README.</p>
+  <p lang="fa">پروژه رو به Git اضافه و وضعیت رو ببین. تعریف‌ها باید version-control بشن؛ دیسک VM، خصوصی key و اطلاعات محرمانه رو commit نمی‌کنی. اگه box خصوصی هست، دسترسی رو از credential امن Vagrant تأمین کن، نه از متن Vagrantfile.</p><p lang="en">Put the project under Git and inspect status. Definitions belong in version control; VM disks, private keys, and secrets do not. If the box is private, use Vagrant's secure credentials rather than embedding access material in the Vagrantfile.</p>
+  <details class="capsule"><summary><span lang="fa">راهنمای پله‌ای</span><span lang="en">Progressive hint</span></summary><p lang="fa">box محلی ممکنه cache قدیمی باشه؛ اون رو با فهرست یکی نگیر. نام، version و provider سه مشخصهٔ جدا هستن.</p><p lang="en">A local box may be an old cache; do not confuse it with the catalog. Name, version, and provider are separate properties.</p></details>
+  <p lang="fa"><strong>شاهد:</strong> مشخصات box در README و diff فایل‌های تعریف، بدون دیسک یا credential.</p><p lang="en"><strong>Evidence:</strong> box details in the README and a diff of definitions, with no disks or credentials.</p>
+</section>
+<section id="checkpoint-3"><h2><span lang="fa">مرحله ۳ — سه ماشین رو در Vagrantfile تعریف کن</span><span lang="en">Checkpoint 3 — define three machines in the Vagrantfile</span></h2>
+  <p lang="fa">برای هر node یک نام، IP خصوصی و منابع روشن تعیین کن. نمونهٔ یک ماشین؛ همین pattern رو برای دو node دیگر تکرار کن. subnet رو با آزمایشگاه واقعی هماهنگ کن. NAT پیش‌فرض Vagrant برای خروجی می‌مونه و خصوصی شبکه ارتباط میزبان/VMها رو می‌ده.</p><p lang="en">Give each node a name, private IP, and explicit resources. This example shows one machine; repeat it for the other two. Match the subnet to your lab. Vagrant's default NAT remains for outbound access, while the private network connects host and VMs.</p>
+  <pre dir="ltr"><code>Vagrant.configure("2") do |config|
+  config.vm.define "lab-a" do |vm|
+    vm.vm.box = "ubuntu/noble64"
+    vm.vm.box_version = File.read(File.join(__dir__, ".box-version")).strip
+    vm.vm.hostname = "lab-a"
+    vm.vm.network "private_network", ip: "192.168.77.21"
+    vm.vm.provider "virtualbox" do |vb|
+      vb.cpus = 1
+      vb.memory = 1536
+    end
+  end
+end</code></pre>
+  <p lang="fa">وقتی سه تعریف رو نوشتی، اول <code>vagrant validate</code> رو اجرا کن؛ syntax رو می‌سنجد ولی وجود box یا آزادبودن IP رو تضمین نمی‌کنه. بعد <code>vagrant status</code> و برای شروع فقط <code>vagrant up lab-a</code>. اگه boot شد دو node دیگر رو بساز؛ اگه نه، خطای provider، box metadata و subnet رو جدا بررسی کن.</p>
+  <p lang="en">After writing all three definitions, run <code>vagrant validate</code>; it checks syntax but does not guarantee the box exists or the IP is free. Then inspect <code>vagrant status</code> and start with <code>vagrant up lab-a</code>. Add the other nodes after it boots; otherwise inspect provider errors, box metadata, and subnet separately.</p>
+  <p lang="fa">در اجرای گروهی، <code>vagrant up</code> همهٔ ماشین‌های تعریف‌شده رو بالا می‌آورد. خروجی provider و وضعیت باید هر سه رو نشون بده؛ این هنوز شبکه یا provisioning کامل رو ثابت نمی‌کنه.</p><p lang="en">For the group, <code>vagrant up</code> starts every defined machine. Provider output and status should show all three; this does not yet prove networking or provisioning is complete.</p>
+  <details class="capsule"><summary><span lang="fa">راهنمای پله‌ای</span><span lang="en">Progressive hint</span></summary><p lang="fa">گزینه‌های CPU و RAM در block بالا مخصوص VirtualBox هستن. برای provider دیگر block رو با تنظیم همون provider عوض کن؛ فقط نامش رو تغییر نده و سازگاری رو فرض نکن.</p><p lang="en">The CPU and RAM options shown are VirtualBox-specific. For another provider, use that provider's configuration rather than merely changing its name and assuming compatibility.</p></details>
+  <p lang="fa"><strong>شاهد:</strong> خروجی validate، وضعیت سه VM و IP خصوصی هر کدوم.</p><p lang="en"><strong>Evidence:</strong> validate output, status of all three VMs, and each private address.</p>
+</section>
+<section id="checkpoint-4"><h2><span lang="fa">مرحله ۴ — guestها رو با provisioning آماده کن</span><span lang="en">Checkpoint 4 — prepare guests with provisioning</span></h2>
+  <p lang="fa">هر guest به ابزار شبکه، SSH و نام ثابت نیاز داره. shell provisioner رو به هر node وصل کن تا hostname رو تنظیم کنه، بسته‌های پایه رو نصب و SSH رو فعال کنه. provisioner داخل guest اجرا می‌شه؛ دستورهای privileged رو فقط در VM آزمایشگاهی اجرا کن.</p>
+  <p lang="en">Each guest needs network tools, SSH, and a stable name. Attach a shell provisioner to every node to set its hostname, install baseline packages, and enable SSH. The provisioner runs inside the guest; run privileged commands only in disposable lab VMs.</p>
+  <p lang="fa">برای Ubuntu box، فایل <code>scripts/bootstrap.sh</code> رو بساز. دور اول عمداً marker رو append می‌کنه تا اثر اجرای دوباره رو ببینی؛ هنوز راه‌حل نهایی نیست.</p><p lang="en">For the Ubuntu box, create <code>scripts/bootstrap.sh</code>. The first iteration deliberately appends a marker so you can observe a second run; this is not the final solution.</p>
+  <pre dir="ltr"><code>#!/usr/bin/env bash
+set -euo pipefail
+NODE="$1"
+test -n "$NODE"
+hostnamectl set-hostname "$NODE"
+apt-get update
+DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server iproute2 iputils-ping
+systemctl enable --now ssh
+install -d -m 0755 /etc/lab
+printf 'configured: %s\n' "$NODE" &gt;&gt; /etc/lab/provision.log</code></pre>
+  <p lang="fa">در هر block با <code>vm.vm.provision "shell", path: "scripts/bootstrap.sh", args: ["lab-a"], privileged: true</code> اجرا کن؛ برای هر node آرگومان hostname خودش رو بده. یک بار <code>vagrant provision lab-a</code> بزن و <code>sudo cat /etc/lab/provision.log</code> رو بخون؛ بار دوم هم اجرا و تعداد خط‌ها رو مقایسه کن. آیا وضعیت مطلوب هست؟</p>
+  <p lang="en">Call it from each block with <code>vm.vm.provision "shell", path: "scripts/bootstrap.sh", args: ["lab-a"], privileged: true</code>, passing that node's hostname. Run <code>vagrant provision lab-a</code>, inspect <code>sudo cat /etc/lab/provision.log</code>, then run it again and compare line counts. Is this the desired state?</p>
+  <p lang="fa">Vagrant shell provisioner و cloud-init یکی نیستن. اگه box در اولین بوت datasource cloud-init داشته باشه، ترتیب اجرای اون با provisioner رو از رفتار image بررسی کن؛ حدس نزن. در مأموریت اصلی یک منبع تنظیمات نگه دار تا دو ابزار برای یک کاربر یا بسته با هم رقابت نکنن.</p>
+  <p lang="en">Vagrant's shell provisioner and cloud-init are different. If a box has a cloud-init datasource on first boot, check that image's ordering relative to the provisioner; do not guess. Keep one configuration source in the main mission so two tools do not compete over a user or package.</p>
+  <p lang="fa">برای SSH، box معمولاً یک کاربر مدیریتی و مسیر ورود مورد انتظار Vagrant داره؛ اسم و کلید رو حدس نزن. <code>vagrant ssh-config lab-a</code> نشون می‌ده Vagrant الان با کدوم <code>User</code> و <code>IdentityFile</code> وصل می‌شه. این خصوصی key رو از مسیر cache کپی نکن و وارد Git نکن. اگه کاربر دیگری لازم داری، فقط عمومی key رو با سازوکار مشخص provisioning به guest بده و خصوصی key رو روی میزبان نگه دار.</p>
+  <p lang="en">For SSH, a box usually provides a management user and login path expected by Vagrant; do not guess the username or key. <code>vagrant ssh-config lab-a</code> shows the current <code>User</code> and <code>IdentityFile</code>. Do not copy that private key from its cache or commit it. If you need another user, provision only its public key into the guest and keep the private key on the host.</p>
+  <details class="capsule"><summary><span lang="fa">راهنمای پله‌ای</span><span lang="en">Progressive hint</span></summary><p lang="fa">اجرای دوم چه تغییری باید بده؟ اگه جواب «هیچ خط اضافه‌ای» هست، append کور مناسب نیست. برای cloud-init هم datasource و وضعیت رو ثابت کن؛ نصب بسته به‌تنهایی کافی نیست.</p><p lang="en">What should the second run change? If the answer is “no extra line,” blind append is wrong. For cloud-init, prove the datasource and status; package installation alone is not enough.</p></details>
+  <p lang="fa"><strong>شاهد:</strong> خروجی provisioning اول و دوم، marker، hostname و وضعیت سرویس.</p><p lang="en"><strong>Evidence:</strong> first and second provisioning output, marker, hostname, and service state.</p>
+</section>
+<section id="checkpoint-5"><h2><span lang="fa">مرحله ۵ — شبکه و سرویس رو بعد از build ثابت کن</span><span lang="en">Checkpoint 5 — verify network and services after build</span></h2>
+  <p lang="fa">بعد از <code>vagrant up</code>، IP خصوصی رو با <code>ip -4 -brief address</code> داخل guest بخون و از هر node دو peer رو ping کن. روی host، <code>vagrant ssh lab-a -c "hostname; systemctl is-active ssh"</code> شاهد hostname و SSH هست. سه IP باید یکتا باشن؛ خروجی سبز Vagrant به‌تنهایی این رو ثابت نمی‌کنه.</p>
+  <p lang="en">After <code>vagrant up</code>, inspect each private address with <code>ip -4 -brief address</code> inside the guest and ping both peers from each node. On the host, <code>vagrant ssh lab-a -c "hostname; systemctl is-active ssh"</code> verifies hostname and SSH. The three IPs must be unique; successful Vagrant output alone does not prove that.</p>
+  <p lang="fa">فایل <code>scripts/verify.sh</code> رو روی host اجرا کن تا وضعیت VMها رو بخونه و با <code>vagrant ssh</code> hostname، آدرس و SSH رو از هرکدام بپرسد. اگه SSH شکست خورد، اول وضعیت VM، بعد IP/فایروال و سپس سرویس guest رو بررسی کن؛ همه رو با هم عوض نکن.</p><p lang="en">Run <code>scripts/verify.sh</code> on the host to inspect VM states and query hostname, address, and SSH through <code>vagrant ssh</code>. If SSH fails, check VM state first, then IP/firewall, then the guest service; do not change them all at once.</p>
+  <pre dir="ltr"><code>#!/usr/bin/env bash
+set -euo pipefail
+for node in lab-a lab-b lab-c; do
+  echo "== $node =="
+  vagrant status "$node"
+  vagrant ssh "$node" -c 'hostname; ip -4 -brief address; systemctl is-active ssh'
+done</code></pre>
+  <p lang="fa">این check ورود SSH مدیریت‌شدهٔ Vagrant و فعال بودن unit رو ثابت می‌کنه. برای اثبات guest-to-guest، آزمون peer رو داخل هر ماشین هم اجرا کن؛ مسیر host→guest مسیر guest→guest رو ثابت نمی‌کنه.</p><p lang="en">This check proves Vagrant-managed SSH access and an active unit. To prove guest-to-guest reachability, run the peer check inside each machine too; host-to-guest does not prove guest-to-guest.</p>
+  <details class="capsule"><summary><span lang="fa">راهنمای پله‌ای</span><span lang="en">Progressive hint</span></summary><p lang="fa">اگه box نام unit دیگری داره، با <code>systemctl list-unit-files</code> پیدایش کن و بررسی رو با واقعیت هماهنگ کن.</p><p lang="en">If the box uses a different unit name, find it with <code>systemctl list-unit-files</code> and make verification match reality.</p></details>
+  <p lang="fa"><strong>شاهد:</strong> گزارش بررسی، IP یکتا، SSH قابل‌استفاده و دسترسی هر node به دو peer.</p><p lang="en"><strong>Evidence:</strong> verification report, unique IPs, working SSH, and reachability from each node to both peers.</p>
+</section>
+<section id="checkpoint-6"><h2><span lang="fa">مرحله ۶ — بازسازی رو از حافظه مستقل کن</span><span lang="en">Checkpoint 6 — remove the memory dependency</span></h2>
+  <p lang="fa">خرابی عمدی: فقط روی <code>lab-b</code> دستی یک بسته نصب یا یک تنظیم شبکه اضافه کرده‌ای؛ تغییر در فایل‌های پروژه نیست. پیش‌بینی کن بعد از destroy چه می‌شه. شاهد رو ثبت و مطمئن شو داده‌ای لازم داخل guest نیست. سبعد از پوشهٔ پروژه <code>vagrant status</code> رو بخون و فقط همین environment آزمایشگاهی رو با <code>vagrant destroy</code> حذف کن.</p>
+  <p lang="en">Deliberate defect: you manually installed a package or added a network setting only on <code>lab-b</code>; it is absent from project files. Predict what happens after destroy. Record evidence and confirm no needed guest data remains. From the project directory, inspect <code>vagrant status</code> and destroy only this lab environment with <code>vagrant destroy</code>.</p>
+  <p lang="fa">بعد از تأیید prompt، وضعیت باید ماشین‌ها رو ساخته‌نشده/خاموش نشون بده ولی فایل‌های منبع بمانند. از همون directory <code>vagrant up</code> و همون آزمون رو تکرار کن. اگه تغییر دستی از بین رفت، ابزار خراب نشده؛ تعریف ناقص بوده.</p><p lang="en">After confirming the prompt, status should show machines as absent or powered off while source files remain. Run <code>vagrant up</code> from the same directory and repeat the checks. If the manual change is gone, the tool did not fail; the definition was incomplete.</p>
+  <p lang="fa">حالا با شاهد تصمیم بگیر اون بسته یا تنظیم لازمه یا نه. اگه لازمه وارد bootstrap/Vagrantfile بشه؛ اگه نه، در README دلیل حذفش رو بنویس. هر دو از «یادم می‌مونه» مطمئن‌ترند.</p><p lang="en">Use evidence to decide whether that package or setting is needed. If so, encode it in bootstrap/Vagrantfile; otherwise document why it is excluded. Both are safer than “I'll remember.”</p>
+  <details class="capsule"><summary><span lang="fa">راهنمای پله‌ای</span><span lang="en">Progressive hint</span></summary><p lang="fa">قبل از destroy پوشه، نام environment، وضعیت VM و آزمایشی بودن داده رو بررسی کن. این دستور VMهای همون environment رو حذف می‌کنه، نه Vagrantfile و اسکریپت رو.</p><p lang="en">Before destroy, verify directory, environment name, VM state, and disposable data. The command removes machines for that environment, not the Vagrantfile or scripts.</p></details>
+  <p lang="fa"><strong>شاهد:</strong> وضعیت قبل/بعد، فایل‌های تعریف باقی‌مانده، تغییر دستی ازدست‌رفته و آزمون بعد از ساخت دوباره.</p><p lang="en"><strong>Evidence:</strong> status before/after, surviving definition files, lost manual change, and post-rebuild verification.</p>
+</section>
+<section id="checkpoint-7"><h2><span lang="fa">مرحله ۷ — provisioning رو idempotent کن</span><span lang="en">Checkpoint 7 — make provisioning idempotent</span></h2>
+  <p lang="fa">در دور اول marker رو append کردیم. اجرای provisioning باید چندبار تکرار بشه بی‌آنکه وضعیت خراب‌تر یا فایل بلندتر بشه. به‌جای append، فایل رو به وضعیت مطلوب برسان:</p><p lang="en">The first pass appended a marker. Provisioning should be repeatable without worsening state or growing files. Instead of appending, write the desired state:</p>
+  <pre dir="ltr"><code>install -d -m 0755 /etc/lab
+printf 'configured: %s\n' "$NODE" &gt; /etc/lab/node</code></pre>
+  <p lang="fa">این رو در bootstrap بذار، بعد <code>vagrant provision lab-b</code> رو دو بار اجرا و هر بار <code>sudo cat /etc/lab/node</code> رو بخون. باید همون یک خط بمونه. بسته‌ها نصب و SSH فعال باشه. اگه اجرا شکست خورد، خروجی provisioner و <code>systemctl status ssh</code> رو ببین.</p><p lang="en">Put this in bootstrap, run <code>vagrant provision lab-b</code> twice, and inspect <code>sudo cat /etc/lab/node</code> each time. It should remain one line. Packages should be installed and SSH enabled. If execution fails, inspect provisioner output and <code>systemctl status ssh</code>.</p>
+  <p lang="fa">cloud-init هم moduleها رو بر اساس frequency و instance identity اجرا می‌کنه؛ «یک بار» رو با «هر boot» یکی نگیر. در قابلیت مبتنی بر NoCloud، کاربر-data/meta-data، datasource و رفتار اجرای دوباره رو جدا بررسی کن. در مأموریت حاضر shell provisioner منبع واحد تنظیمات هست.</p><p lang="en">cloud-init modules also follow frequency and instance identity; “once” is not the same as “every boot.” In a NoCloud extension, verify user-data/meta-data, datasource, and rerun behavior separately. In this mission, the shell provisioner is the single configuration source.</p>
+  <details class="capsule"><summary><span lang="fa">راهنمای پله‌ای</span><span lang="en">Progressive hint</span></summary><p lang="fa">سبز بودن exit وضعیت کافی نیست. فایل، تعداد خط‌ها، hostname و سرویس باید بعد از اجرای دوم همچنان درست باشن.</p><p lang="en">A successful exit code is not enough. Files, line counts, hostname, and service must remain correct after the second run.</p></details>
+  <p lang="fa"><strong>شاهد:</strong> دو اجرای provisioning، فایل وضعیت تک‌خطی و آزمون سرویس بعد از هر اجرا.</p><p lang="en"><strong>Evidence:</strong> two provisioning runs, a one-line state file, and service verification after each.</p>
+</section>
+<section id="checkpoint-8"><h2><span lang="fa">مرحله ۸ — همه رو پاک کن و همون نتیجه رو پس بگیر</span><span lang="en">Checkpoint 8 — destroy all and recover the same result</span></h2>
+  <p lang="fa">آزمون اصلی reproducibility هست. گزارش بررسی رو ذخیره کن و Git وضعیت رو ببین تا فقط تعریف‌ها و مستندات tracked باشن. دوباره پوشه و <code>vagrant status</code> رو کنترل کن؛ سپس با آگاهی <code>vagrant destroy</code> رو تأیید. بعد <code>vagrant up</code> باید هر سه VM رو از box نسخه‌دار بسازد و provisioning رو اجرا کنه.</p>
+  <p lang="en">This is the reproducibility test. Save the verification report and inspect Git status so only definitions and documentation are tracked. Reconfirm the directory and <code>vagrant status</code>, then knowingly approve <code>vagrant destroy</code>. Next, <code>vagrant up</code> should build all three VMs from the versioned box and run provisioning.</p>
+  <p lang="fa">همون بررسی اسکریپت رو بدون تغییر اجرا کن و hostname، IP، بسته، SSH و ارتباط peerها رو با گزارش قبلی بسنج. اگه فرق دارن، ورودی پنهان رو پیدا کن: box version، provider، subnet اشغال‌شده یا تنظیمی که دستی مانده بود.</p><p lang="en">Run the same verification script unchanged and compare hostnames, IPs, packages, SSH, and peer reachability with the earlier report. If they differ, find the hidden input: box version, provider, occupied subnet, or a manual setting.</p>
+  <p lang="fa">موفقیت روی لپ‌تاپ فقط همین provider و نسخه‌ها رو تأیید می‌کنه؛ سازگاری با hypervisor دیگر یا شبکهٔ واقعی رو ثابت نمی‌کنه. این مرز رو در README بنویس.</p><p lang="en">Success on this laptop validates only these provider and box versions; it does not prove compatibility with another hypervisor or a real network. Document that boundary.</p>
+  <details class="capsule"><summary><span lang="fa">راهنمای پله‌ای</span><span lang="en">Progressive hint</span></summary><p lang="fa">قبل/بعد رو از نظر وضعیت قابل‌قبول مقایسه کن، نه UUID یا MAC تصادفی. IPهای تعریف‌شده باید ثابت باشن؛ شناسه‌های ساخته‌شده لزوماً نه.</p><p lang="en">Compare acceptable state, not random UUIDs or MACs. Defined IPs should stay fixed; generated identifiers need not.</p></details>
+  <p lang="fa"><strong>شاهد:</strong> لاگ پاک‌سازی، ساخت تازه، خروجی بررسی و مقایسه با وضعیت پایه.</p><p lang="en"><strong>Evidence:</strong> destroy log, fresh build, verification output, and baseline comparison.</p>
+</section>
+<section id="checkpoint-9"><h2><span lang="fa">مرحله ۹ — تحویل بدون کلید و فایل حجیم</span><span lang="en">Checkpoint 9 — hand off without keys or large artifacts</span></h2>
+  <p lang="fa">README رو طوری تمام کن که هم‌تیمی‌ات بداند نسخه‌های لازم و box کدوم‌اند، چطور <code>vagrant up</code> و بررسی رو اجرا کنه و در کدوم پوشه با خیال راحت destroy کند. روشن کن کدوم بخش shell provisioner هست و cloud-init چه زمانی جایگزین مناسبی می‌شه.</p><p lang="en">Finish the README so a teammate knows required versions and box, how to run <code>vagrant up</code> and verification, and which directory is safe to destroy. Explain which part uses the shell provisioner and when cloud-init is a suitable alternative.</p>
+  <p lang="fa">در پایان <code>git status --short</code> و diff رو مرور کن: Vagrantfile، version، scripts و README باشن؛ دیسک VM، cache، خصوصی key، password و cloud credential بیرون repository بمانند. اطلاعات محرمانه واقعی در image یا Git ننویس.</p><p lang="en">Finally review <code>git status --short</code> and the diff: include the Vagrantfile, version, scripts, and README; keep VM disks, caches, private keys, passwords, and cloud credentials outside the repository. Never put a real secret in an image or Git.</p>
+  <div class="note"><p lang="fa"><strong>قبولی نهایی:</strong> clone تازهٔ repository با ابزارهای مستند و box pin‌شده باید هر سه VM رو بسازد؛ بررسی رو پاس کنه؛ اجرای دوباره وضعیت تکراری نسازد؛ destroy فایل منبع رو پاک نکنه؛ و up بعدی همون پذیرش رو دوباره پاس کنه.</p><p lang="en"><strong>Final acceptance:</strong> a fresh repository clone with documented tools and a pinned box must create all three VMs, pass verification, avoid duplicate state on rerun, preserve source files after destroy, and pass the same acceptance after the next up.</p></div>
+</section>
+<section id="hints"><h2><span lang="fa">وقتی بازسازی گیر می‌کنه، کدوم مرحله؟</span><span lang="en">When rebuild stalls, identify the stage</span></h2>
+  <details class="capsule"><summary><span lang="fa">Vagrant ماشین نمی‌سازه</span><span lang="en">Vagrant cannot create a machine</span></summary><p lang="fa">اول <code>vagrant validate</code> و <code>vagrant status</code>، بعد provider/VirtualBox و box version. اگه خطا قبل از boot هست، SSH guest هنوز وارد ماجرا نشده.</p><p lang="en">Start with <code>vagrant validate</code> and <code>vagrant status</code>, then provider/VirtualBox and box version. If failure precedes boot, guest SSH is not involved.</p></details>
+  <details class="capsule"><summary><span lang="fa">VM بالا هست ولی SSH نمی‌شه</span><span lang="en">The VM is up but SSH fails</span></summary><p lang="fa">با <code>vagrant ssh lab-a</code> وارد شو و hostname، unit SSH، IP و فایروال رو بررسی کن. SSH مدیریت‌شدهٔ Vagrant و SSH مستقیم به IP خصوصی دو مسیر متفاوت‌اند.</p><p lang="en">Enter with <code>vagrant ssh lab-a</code> and inspect hostname, SSH unit, IP, and firewall. Vagrant-managed SSH and direct SSH to the private IP are different paths.</p></details>
+  <details class="capsule"><summary><span lang="fa">اجرای دوم فایل رو شلوغ‌تر کرد</span><span lang="en">The second run made files messier</span></summary><p lang="fa">فایل‌های اسکریپت رو مقایسه کن. append کور، ساخت تکراری کاربر یا نصب دستی بیرون تعریف نشانهٔ رفتار غیرتکرارپذیر هست. desired وضعیت رو مشخص و اجرای دوباره رو ثابت کن.</p><p lang="en">Compare files written by the script. Blind append, duplicate users, or manual setup outside the definition indicate non-repeatable behavior. Specify desired state and prove the rerun.</p></details>
+  <details class="capsule"><summary><span lang="fa">cloud-init اجرا نشد</span><span lang="en">cloud-init did not run</span></summary><p lang="fa">بررسی کن image cloud-init داره، datasource حاضر هست، کاربر-data تحویل شده و instance identity درست هست. <code>cloud-init status --long</code> و لاگها رو بخون. این مأموریت shell provisioner و cloud-init رو برای یک کار هم‌زمان روشن نمی‌کنه.</p><p lang="en">Check that the image includes cloud-init, a datasource exists, user-data was delivered, and instance identity is correct. Read <code>cloud-init status --long</code> and logs. This mission does not use both mechanisms for the same task.</p></details>
+</section>
+<section id="reference"><h2><span lang="fa">Runbook مرجع — بازسازی کامل</span><span lang="en">Reference runbook — complete rebuild</span></h2>
+  <p lang="fa">این یک مسیر برای Vagrant، VirtualBox و Ubuntu box هست؛ نسخهٔ دقیق box رو از فهرست معتبر بردار و ثبت کن. گزینه‌های provider دیگر الزاماً همین رفتار رو ندارن.</p><p lang="en">This path targets Vagrant, VirtualBox, and an Ubuntu box; select and record the exact version from its authoritative catalog. Other providers may behave differently.</p>
+  <ol><li lang="fa">پوشهٔ تازه و Vagrantfile، .box-version، scripts/bootstrap.sh، scripts/بررسی.sh و README بساز.</li><li lang="en">Create a fresh directory with Vagrantfile, .box-version, scripts/bootstrap.sh, scripts/verify.sh, and README.</li>
+  <li lang="fa">سه block ماشین با box و version یکسان، hostnameهای lab-a/b/c، IP خصوصی یکتا و منابع VirtualBox تعریف کن؛ اول <code>vagrant validate</code>.</li><li lang="en">Define three machine blocks with the same box/version, hostnames lab-a/b/c, unique private IPs, and VirtualBox resources; run <code>vagrant validate</code> first.</li>
+  <li lang="fa">shell provisioner رو وصل کن: بسته‌های لازم، hostname، SSH و فایل وضعیت idempotent؛ اطلاعات محرمانه در فایل نباشه.</li><li lang="en">Attach the shell provisioner for packages, hostname, SSH, and idempotent state; keep secrets out of files.</li>
+  <li lang="fa"><code>vagrant up</code> و بررسی از host؛ آزمون peer از هر guest. خطای provider، شبکه، provisioning و سرویس رو جدا کن.</li><li lang="en">Run <code>vagrant up</code> and host verification, then peer checks from each guest. Separate provider, network, provisioning, and service errors.</li>
+  <li lang="fa"><code>vagrant provision lab-b</code> رو دوبار اجرا کن و نبود وضعیت تکراری رو ثابت کن؛ append آزمایشی رو اصلاح کن.</li><li lang="en">Run <code>vagrant provision lab-b</code> twice and prove no duplicate state; repair the deliberate append.</li>
+  <li lang="fa">بعد از تأیید environment و آزمایشی بودن داده، <code>vagrant destroy</code> و <code>vagrant up</code>؛ همون بررسی اسکریپت رو بدون تغییر پاس کن.</li><li lang="en">After confirming the environment and disposable data, run <code>vagrant destroy</code> and <code>vagrant up</code>; pass the unchanged verification script.</li>
+  <li lang="fa">versionها، نیازمندی‌ها، خطاهای شناخته‌شده و مرز provider/cloud-init رو در README ثبت کن؛ credential و دیسک رو از Git بیرون نگه دار.</li><li lang="en">Document versions, prerequisites, known errors, and the provider/cloud-init boundary; keep credentials and disks out of Git.</li></ol>
+  <details class="capsule"><summary><span lang="fa">فایل‌های مرجع کامل</span><span lang="en">Complete reference files</span></summary>
+    <p lang="fa">این Vagrantfile هر سه node رو با یک box نسخه‌دار می‌سازه. مقدار <code>.box-version</code> باید نسخهٔ واقعی انتخاب‌شده از فهرست باشه؛ placeholder رو عیناً اجرا نکن.</p><p lang="en">This Vagrantfile creates all three nodes from one versioned box. The <code>.box-version</code> value must be the real release selected from the catalog; do not run a placeholder literally.</p>
+    <pre dir="ltr"><code>Vagrant.configure("2") do |config|
+  box_version = File.read(File.join(__dir__, ".box-version")).strip
+  nodes = {
+    "lab-a" =&gt; "192.168.77.21",
+    "lab-b" =&gt; "192.168.77.22",
+    "lab-c" =&gt; "192.168.77.23"
+  }
+
+  nodes.each do |name, address|
+    config.vm.define name do |vm|
+      vm.vm.box = "ubuntu/noble64"
+      vm.vm.box_version = box_version
+      vm.vm.hostname = name
+      vm.vm.network "private_network", ip: address
+      vm.vm.provider "virtualbox" do |vb|
+        vb.cpus = 1
+        vb.memory = 1536
+      end
+      vm.vm.provision "shell",
+        path: "scripts/bootstrap.sh",
+        args: [name],
+        privileged: true
+    end
+  end
+end</code></pre>
+    <p lang="fa"><code>scripts/bootstrap.sh</code> در نسخهٔ نهایی باید marker رو به‌جای append بازنویسی کنه و mapping سه peer رو فقط وقتی اضافه کنه که وجود نداره؛ بعد بسته و SSH رو آماده کنه.</p><p lang="en">In the final version, <code>scripts/bootstrap.sh</code> should overwrite its marker instead of appending and add each peer mapping only if absent, then prepare packages and SSH.</p>
+    <pre dir="ltr"><code>#!/usr/bin/env bash
+set -euo pipefail
+NODE="$1"
+test -n "$NODE"
+hostnamectl set-hostname "$NODE"
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get install -y openssh-server iproute2 iputils-ping
+systemctl enable --now ssh
+install -d -m 0755 /etc/lab
+printf 'configured: %s\n' "$NODE" &gt; /etc/lab/node
+for entry in \
+  "192.168.77.21 lab-a" \
+  "192.168.77.22 lab-b" \
+  "192.168.77.23 lab-c"; do
+  grep -qxF "$entry" /etc/hosts || printf '%s\n' "$entry" &gt;&gt; /etc/hosts
+done</code></pre>
+    <p lang="fa">فایل <code>scripts/verify.sh</code> روی host اجرا می‌شه. خروجی اون وضعیت و وضعیت guest رو می‌سنجد؛ peer check جدا داخل هر VM اجرا می‌شه تا مسیر بین nodeها هم واقعاً آزمایش بشه.</p><p lang="en">Run <code>scripts/verify.sh</code> on the host. It checks VM and guest state; run the peer check inside each VM separately to exercise node-to-node traffic too.</p>
+    <pre dir="ltr"><code>#!/usr/bin/env bash
+set -euo pipefail
+for node in lab-a lab-b lab-c; do
+  echo "== $node =="
+  vagrant status "$node"
+  vagrant ssh "$node" -c 'hostname; ip -4 -brief address; systemctl is-active ssh'
+  vagrant ssh "$node" -c 'for peer in lab-a lab-b lab-c; do [ "$peer" = "$(hostname)" ] &amp;&amp; continue; ping -c 2 -W 2 "$peer"; done'
+done</code></pre>
+  </details>
+  <div class="note"><p lang="fa"><strong>یادداشت مهندسی:</strong> تعریف نسخه‌دار فقط وقتی ارزش داره که بعد از حذف ماشین هم کار کنه. بازسازی کامل نشون می‌ده کدوم تنظیم کد شده و کدوم به حافظه، cache یا دست‌کاری دستی وابسته بوده.</p><p lang="en"><strong>Engineering note:</strong> a versioned definition matters only if it still works after the machines are gone. A full rebuild reveals which settings were encoded and which depended on memory, cache, or manual edits.</p></div>
+</section>
+<section id="closing"><h2><span lang="fa">این آزمایشگاه حالا مال پروژه هست</span><span lang="en">The lab now belongs to the project</span></h2><p lang="fa">این مسیر از یک VM دستی شروع شد، به شبکهٔ چندماشینه رسید و حالا به تعریفی ختم شد که می‌توان پاکش کرد و دوباره ساخت. برای تمرین Linux، شبکه و DevOps محیط برگشت‌پذیر داری—به شرط اینکه آزمون‌ها و نسخه‌ها رو کنار تعریف نگه داری.</p><p lang="en">This track began with one manually built VM, grew into a multi-machine network, and ends with a definition you can destroy and recreate. You now have a reversible environment for Linux, networking, and DevOps—provided you keep tests and versions beside the definition.</p>
+  <p lang="fa">از یک VM دستی شروع کردیم و رسیدیم به آزمایشگاهی که تعریفش کنار پروژه می‌مونه. حالا ارزش کار رو وقتی می‌بینی که همه‌چیز رو پاک می‌کنی، دوباره می‌سازی و همون hostname، IP، سرویس و آزمون برمی‌گرده.</p>
+  <p lang="en">For version-sensitive details, compare the installed release with the official docs for <a href="https://developer.hashicorp.com/vagrant/docs/multi-machine">Vagrant multi-machine</a>, the <a href="https://developer.hashicorp.com/vagrant/docs/provisioning/shell">shell provisioner</a>, <a href="https://developer.hashicorp.com/vagrant/docs/providers/virtualbox/configuration">VirtualBox provider configuration</a>, and the <a href="https://cloudinit.readthedocs.io/en/latest/reference/datasources/nocloud.html">cloud-init NoCloud datasource</a>.</p></section>

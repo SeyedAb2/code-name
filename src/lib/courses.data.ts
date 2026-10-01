@@ -691,11 +691,11 @@ export const TRACKS: Track[] = [
         "mins": 75,
         "fa": {
           "t": "عیب‌یابی ۴۰۳/۵۰۲/۵۰۴",
-          "d": "هر کد خطا یک علت مشخص دارد."
+          "d": "با شواهد، مرز خراب را پیدا کن؛ یک status به‌تنهایی علت قطعی نیست."
         },
         "en": {
           "t": "Debugging 403/502/504",
-          "d": "Each status code points at a specific cause."
+          "d": "Use evidence to locate the failing boundary; a status alone is not a diagnosis."
         },
         "kw": "403 502 504 permission upstream timeout selinux",
         "cap": 0
@@ -1404,13 +1404,13 @@ export const TRACKS: Track[] = [
     "locked": false,
     "fa": {
       "name": "SQL و SQL Server",
-      "desc": "از SELECT تا خواندن execution plan و درمان کوئری کند — با تمرین روی دادهٔ واقعی.",
-      "intro": "نوشتن کوئری که جواب بدهد آسان است. نوشتن کوئری که روی ده میلیون سطر هم جواب بدهد، مهارت دیگری است. این مسیر هر دستور را با دلیلش می‌دهد: چرا بهینه‌ساز این نقشه را انتخاب کرد، چرا این ایندکس کمک می‌کند و آن یکی نه، و چرا این کوئری که درست به نظر می‌رسد سطرها را تکثیر می‌کند. کد کپی‌کردنی همه‌جا هست؛ چیزی که کم است، فهمیدن آن است."
+      "desc": "آموزش کامل SQL از مدل رابطه‌ای تا query، طراحی، transaction و tuning؛ بعد هم پیاده‌سازی عمیق همین مفاهیم در SQL Server.",
+      "intro": "از یک دیتابیس کوچک و قابل‌فهم شروع می‌کنیم؛ بعد همان مدل را تا plan، transaction، امنیت و عملیات SQL Server جلو می‌بریم. هر مرحله چیزی به مرحلهٔ قبل اضافه می‌کند: اول query درست، بعد فهمیدن رفتار آن زیر بار و در شرایط واقعی."
     },
     "en": {
       "name": "SQL & SQL Server",
-      "desc": "From SELECT to reading an execution plan and fixing a slow query — practised on real data.",
-      "intro": "Writing a query that returns the right answer is easy. Writing one that still answers over ten million rows is a different skill. This track teaches both and spends most of its time on the second."
+      "desc": "A complete SQL path from the relational model through queries, design, transactions, and tuning, followed by an in-depth SQL Server implementation.",
+      "intro": "Start with a small, understandable database, then carry the same model into SQL Server plans, transactions, security, and operations. Each stage builds on the last: first correctness, then behaviour under load and in real conditions."
     },
     "chapters": [
       {
@@ -1449,126 +1449,313 @@ export const TRACKS: Track[] = [
       },
       {
         "n": "03",
-        "file": "03-select.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 80,
-        "fa": {
-          "t": "‏SELECT",
-          "d": "ترتیب واقعی اجرا — چرا ‎WHERE‎ قبل از ‎SELECT‎ اجرا می‌شود."
-        },
-        "en": {
-          "t": "SELECT",
-          "d": "The real order of execution — why WHERE runs before SELECT."
-        },
-        "kw": "select from where logical order projection",
-        "cap": 0
-      },
-      {
-        "n": "04",
-        "file": "04-filtering.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 85,
-        "fa": {
-          "t": "فیلتر کردن",
-          "d": "‏WHERE، ‎IN‎، ‎BETWEEN‎، ‎LIKE‎ و منطق سه‌مقداری."
-        },
-        "en": {
-          "t": "Filtering",
-          "d": "WHERE, IN, BETWEEN, LIKE and three-valued logic."
-        },
-        "kw": "where in between like predicate",
-        "cap": 0
-      },
-      {
-        "n": "05",
-        "file": "05-null.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 85,
-        "fa": {
-          "t": "‏NULL",
-          "d": "نه صفر است نه رشتهٔ خالی — و چرا ‎= NULL‎ هیچ‌وقت درست نیست."
-        },
-        "en": {
-          "t": "NULL",
-          "d": "Neither zero nor empty string — and why = NULL is never right."
-        },
-        "kw": "null is unknown three-valued coalesce isnull",
-        "cap": 0
-      },
-      {
-        "n": "06",
-        "file": "06-sorting.html",
+        "file": "03-sql-server-shop-fixture.html",
         "ready": false,
         "ex": 18,
         "mins": 75,
         "fa": {
-          "t": "مرتب‌سازی و صفحه‌بندی",
-          "d": "‏ORDER BY، ‎OFFSET/FETCH‎ و ‎collation‎ فارسی."
+          "t": "دادهٔ تمرینی Shop و محیط قابل‌بازتولید",
+          "d": "یک fixture کوچک و قابل‌تکرار می‌سازیم تا queryهای دوره روی دادهٔ یکسان اجرا شوند و نتیجه قابل مقایسه باشد."
         },
         "en": {
-          "t": "Sorting and paging",
-          "d": "ORDER BY, OFFSET/FETCH and Persian collation."
+          "t": "The shop fixture and a reproducible environment",
+          "d": "Create a small, repeatable fixture so the course queries run against the same data and results can be compared."
         },
-        "kw": "order by offset fetch top collation",
+        "kw": "sql server shop fixture sample data reproducible",
+        "cap": 0
+      },
+      {
+        "n": "04",
+        "file": "04-select-from-and-projection.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 75,
+        "fa": {
+          "t": "SELECT، FROM و انتخاب ستون‌ها",
+          "d": "از یک جدول فقط ستون‌های لازم را می‌گیریم؛ alias و عبارت محاسباتی می‌سازیم و ترتیب منطقی اجرای query را با نتیجه می‌سنجیم."
+        },
+        "en": {
+          "t": "SELECT, FROM, and projection",
+          "d": "Select only the needed columns; use aliases and expressions, then verify the logical query order against the result."
+        },
+        "kw": "select from projection alias expression query order",
+        "cap": 0
+      },
+      {
+        "n": "05",
+        "file": "05-where-and-comparison-predicates.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 75,
+        "fa": {
+          "t": "WHERE و شرط‌های مقایسه‌ای",
+          "d": "شرط‌های مقایسه‌ای و ترکیب AND و OR را روی دادهٔ Shop اجرا می‌کنیم؛ با پرانتز نشان می‌دهیم اولویت عملگرها چطور نتیجه را عوض می‌کند."
+        },
+        "en": {
+          "t": "WHERE and comparison predicates",
+          "d": "Run comparison predicates and combine AND with OR; use parentheses to see how precedence changes the result."
+        },
+        "kw": "where comparison and or predicate precedence",
+        "cap": 0
+      },
+      {
+        "n": "06",
+        "file": "06-in-between-and-like.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 75,
+        "fa": {
+          "t": "IN، BETWEEN و LIKE",
+          "d": "برای مجموعه، بازه و الگوی متنی سه شکل شرط را انتخاب می‌کنیم؛ مرزهای BETWEEN و wildcardهای LIKE را با دادهٔ واقعی می‌آزماییم."
+        },
+        "en": {
+          "t": "IN, BETWEEN, and LIKE",
+          "d": "Choose predicates for sets, ranges, and text patterns; test BETWEEN boundaries and LIKE wildcards against real rows."
+        },
+        "kw": "in between like wildcard pattern range",
         "cap": 0
       },
       {
         "n": "07",
-        "file": "07-joins-1.html",
+        "file": "07-null-in-predicates-and-results.html",
         "ready": false,
         "ex": 18,
-        "mins": 95,
+        "mins": 75,
         "fa": {
-          "t": "‏JOIN ۱",
-          "d": "‏INNER و ‎LEFT‎ — با نمودار، و اینکه ‎ON‎ دقیقاً چه می‌کند."
+          "t": "NULL در شرط و نتیجه",
+          "d": "فرق مقدار نامعلوم با صفر و رشتهٔ خالی را با IS NULL، منطق سه‌مقداری و اثر NULL روی فیلترها و توابع تجمیعی می‌سنجیم."
         },
         "en": {
-          "t": "JOINs 1",
-          "d": "INNER and LEFT — with diagrams, and what ON really does."
+          "t": "NULL in predicates and results",
+          "d": "Distinguish unknown from zero and empty text; test IS NULL, three-valued logic, and NULL in filters and aggregates."
         },
-        "kw": "join inner left on cartesian",
+        "kw": "null is null three valued logic unknown",
         "cap": 0
       },
       {
         "n": "08",
-        "file": "08-joins-2.html",
+        "file": "08-distinct-and-duplicate-rows.html",
         "ready": false,
         "ex": 18,
-        "mins": 95,
+        "mins": 75,
         "fa": {
-          "t": "‏JOIN ۲",
-          "d": "‏RIGHT، ‎FULL‎، ‎CROSS‎، ‎self join‎ و تکثیر ناخواستهٔ سطرها."
+          "t": "DISTINCT و سطرهای تکراری",
+          "d": "می‌بینیم DISTINCT کدام تکرار را حذف می‌کند، چرا چند ستون با هم معیارند و چه وقت GROUP BY یا اصلاح JOIN راه درست‌تری است."
         },
         "en": {
-          "t": "JOINs 2",
-          "d": "RIGHT, FULL, CROSS, self joins, and accidental row multiplication."
+          "t": "DISTINCT and duplicate rows",
+          "d": "See which duplicates DISTINCT removes, how multiple columns define uniqueness, and when fixing a join or grouping is better."
         },
-        "kw": "right full cross self join duplicate fanout",
+        "kw": "distinct duplicates projection unique rows",
         "cap": 0
       },
       {
         "n": "09",
-        "file": "09-aggregate.html",
+        "file": "09-order-by-and-deterministic-sorting.html",
         "ready": false,
         "ex": 18,
-        "mins": 90,
+        "mins": 75,
         "fa": {
-          "t": "تجمیع",
-          "d": "‏GROUP BY، ‎HAVING‎، و تفاوت آن با ‎WHERE‎."
+          "t": "ORDER BY و ترتیب قابل‌اعتماد",
+          "d": "مرتب‌سازی صعودی و نزولی، ترتیب چندستونی و تعیین tie-breaker را اجرا می‌کنیم؛ بدون ORDER BY دربارهٔ ترتیب خروجی ادعایی نمی‌کنیم."
         },
         "en": {
-          "t": "Aggregation",
-          "d": "GROUP BY, HAVING, and how it differs from WHERE."
+          "t": "ORDER BY and deterministic sorting",
+          "d": "Use ascending and descending order, multiple sort keys, and a tie-breaker; never assume output order without ORDER BY."
         },
-        "kw": "group by having count sum avg min max",
+        "kw": "order by asc desc sorting deterministic tie breaker",
         "cap": 0
       },
       {
         "n": "10",
-        "file": "10-subqueries.html",
+        "file": "10-top-offset-fetch-and-pagination.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 75,
+        "fa": {
+          "t": "TOP، OFFSET/FETCH و صفحه‌بندی",
+          "d": "در SQL Server با TOP و OFFSET/FETCH صفحه می‌گیریم؛ ترتیب یکتا، صفحهٔ خالی و هزینهٔ جابه‌جایی به صفحه‌های عمیق را بررسی می‌کنیم."
+        },
+        "en": {
+          "t": "TOP, OFFSET/FETCH, and pagination",
+          "d": "Page through results in SQL Server with TOP and OFFSET/FETCH; check unique ordering, empty pages, and deep-page cost."
+        },
+        "kw": "sql server top offset fetch pagination order",
+        "cap": 0
+      },
+      {
+        "n": "11",
+        "file": "11-join-and-the-on-predicate.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 75,
+        "fa": {
+          "t": "JOIN و شرط اتصال ON",
+          "d": "دو جدول را با کلید مرتبط وصل می‌کنیم؛ شرط ON را از فیلتر WHERE جدا می‌کنیم و اثر جابه‌جایی شرط را در LEFT JOIN می‌بینیم."
+        },
+        "en": {
+          "t": "JOIN and the ON predicate",
+          "d": "Connect related tables by key, distinguish ON from WHERE, and observe how moving a condition affects an outer join."
+        },
+        "kw": "join on predicate where relationship",
+        "cap": 0
+      },
+      {
+        "n": "12",
+        "file": "12-inner-join.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 75,
+        "fa": {
+          "t": "INNER JOIN",
+          "d": "فقط ردیف‌های دارای تطبیق را برمی‌گردانیم؛ با دادهٔ یتیم نشان می‌دهیم چرا نبودن نتیجه لزوماً به معنی نبودن رکورد نیست."
+        },
+        "en": {
+          "t": "INNER JOIN",
+          "d": "Return only matching rows and use an orphaned row to show why a missing result does not prove a record is absent."
+        },
+        "kw": "inner join matching rows orphan",
+        "cap": 0
+      },
+      {
+        "n": "13",
+        "file": "13-left-outer-join.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 75,
+        "fa": {
+          "t": "LEFT OUTER JOIN",
+          "d": "همهٔ ردیف‌های سمت چپ را نگه می‌داریم؛ ردیف بی‌تطبیق را تشخیص می‌دهیم و مراقب فیلتر WHERE برای ستون سمت راست هستیم."
+        },
+        "en": {
+          "t": "LEFT OUTER JOIN",
+          "d": "Keep every left-side row, identify unmatched rows, and avoid accidentally filtering the right side in WHERE."
+        },
+        "kw": "left outer join unmatched null",
+        "cap": 0
+      },
+      {
+        "n": "14",
+        "file": "14-right-outer-join.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 75,
+        "fa": {
+          "t": "RIGHT OUTER JOIN",
+          "d": "RIGHT JOIN را روی یک مثال می‌خوانیم و همان query را با جابه‌جایی جدول‌ها به LEFT JOIN تبدیل می‌کنیم تا جهت حفظ ردیف‌ها روشن شود."
+        },
+        "en": {
+          "t": "RIGHT OUTER JOIN",
+          "d": "Read a RIGHT JOIN, then swap table order to express the same result as LEFT JOIN and make preservation explicit."
+        },
+        "kw": "right outer join preserved rows",
+        "cap": 0
+      },
+      {
+        "n": "15",
+        "file": "15-full-outer-join.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 75,
+        "fa": {
+          "t": "FULL OUTER JOIN",
+          "d": "ردیف‌های matchشده و بی‌تطبیق هر دو طرف را می‌گیریم؛ خروجی را بر اساس NULLهای هر سمت دسته‌بندی می‌کنیم."
+        },
+        "en": {
+          "t": "FULL OUTER JOIN",
+          "d": "Return matched and unmatched rows from both sides, then classify results by which side contains NULLs."
+        },
+        "kw": "full outer join unmatched both sides",
+        "cap": 0
+      },
+      {
+        "n": "16",
+        "file": "16-cross-join-and-cartesian-products.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 75,
+        "fa": {
+          "t": "CROSS JOIN و ضرب دکارتی",
+          "d": "CROSS JOIN را عمداً روی دو مجموعهٔ کوچک اجرا می‌کنیم، تعداد خروجی را پیش‌بینی می‌کنیم و جلوی ضرب ناخواستهٔ ردیف‌ها را می‌گیریم."
+        },
+        "en": {
+          "t": "CROSS JOIN and Cartesian products",
+          "d": "Run CROSS JOIN intentionally on small sets, predict its row count, and prevent accidental row multiplication."
+        },
+        "kw": "cross join cartesian product combinations",
+        "cap": 0
+      },
+      {
+        "n": "17",
+        "file": "17-self-joins-and-within-table-relationships.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 75,
+        "fa": {
+          "t": "Self JOIN و رابطهٔ یک جدول با خودش",
+          "d": "یک جدول سلسله‌مراتبی مثل کارمند و مدیر را به خودش وصل می‌کنیم؛ aliasها و شرط اتصال را طوری می‌نویسیم که دو نقش قاطی نشوند."
+        },
+        "en": {
+          "t": "Self joins and within-table relationships",
+          "d": "Join a hierarchy such as employees and managers to itself, using aliases to keep each role clear."
+        },
+        "kw": "self join hierarchy alias employee manager",
+        "cap": 0
+      },
+      {
+        "n": "18",
+        "file": "18-join-fan-out-and-cardinality.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 75,
+        "fa": {
+          "t": "تکثیر ردیف در JOIN و cardinality",
+          "d": "قبل از اتصال تعداد ردیف‌های هر سمت را می‌سنجیم؛ رابطهٔ یک‌به‌چند و چندبه‌چند را از خروجی می‌خوانیم و جمع‌های بادکرده را اصلاح می‌کنیم."
+        },
+        "en": {
+          "t": "JOIN fan-out and cardinality",
+          "d": "Measure rows on both sides before joining; identify one-to-many and many-to-many fan-out and fix inflated aggregates."
+        },
+        "kw": "join cardinality fanout one to many duplicates",
+        "cap": 0
+      },
+      {
+        "n": "19",
+        "file": "19-aggregate-functions-and-group-by.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 75,
+        "fa": {
+          "t": "توابع تجمیعی و GROUP BY",
+          "d": "COUNT، SUM، AVG، MIN و MAX را جداگانه و گروهی اجرا می‌کنیم؛ اثر COUNT(*) در برابر COUNT(column) را روی NULL می‌بینیم."
+        },
+        "en": {
+          "t": "Aggregate functions and GROUP BY",
+          "d": "Run COUNT, SUM, AVG, MIN, and MAX with and without grouping; compare COUNT(*) with COUNT(column) when NULLs exist."
+        },
+        "kw": "group by aggregate count sum avg min max null",
+        "cap": 0
+      },
+      {
+        "n": "20",
+        "file": "20-having-versus-where.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 75,
+        "fa": {
+          "t": "HAVING در برابر WHERE",
+          "d": "WHERE را برای ردیف‌ها و HAVING را برای گروه‌ها به کار می‌بریم؛ query را مرحله‌به‌مرحله می‌خوانیم تا شرط زودهنگام یا دیرهنگام نسازیم."
+        },
+        "en": {
+          "t": "HAVING versus WHERE",
+          "d": "Use WHERE to filter rows and HAVING to filter groups; trace each stage to put predicates in the right place."
+        },
+        "kw": "having where group filter aggregate predicate",
+        "cap": 0
+      },
+      {
+        "n": "21",
+        "file": "21-subqueries.html",
         "ready": false,
         "ex": 18,
         "mins": 90,
@@ -1584,8 +1771,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "11",
-        "file": "11-cte.html",
+        "n": "22",
+        "file": "22-cte.html",
         "ready": false,
         "ex": 18,
         "mins": 90,
@@ -1601,8 +1788,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "12",
-        "file": "12-window-1.html",
+        "n": "23",
+        "file": "23-window-1.html",
         "ready": false,
         "ex": 18,
         "mins": 100,
@@ -1618,8 +1805,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "13",
-        "file": "13-window-2.html",
+        "n": "24",
+        "file": "24-window-2.html",
         "ready": false,
         "ex": 18,
         "mins": 100,
@@ -1635,25 +1822,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "14",
-        "file": "14-pivot.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 80,
-        "fa": {
-          "t": "‏PIVOT و شرط",
-          "d": "چرخاندن سطر به ستون، و ‎CASE‎ در تجمیع."
-        },
-        "en": {
-          "t": "PIVOT and conditionals",
-          "d": "Turning rows into columns, and CASE inside aggregates."
-        },
-        "kw": "pivot unpivot case conditional aggregate",
-        "cap": 0
-      },
-      {
-        "n": "15",
-        "file": "15-set-ops.html",
+        "n": "25",
+        "file": "25-set-ops.html",
         "ready": false,
         "ex": 18,
         "mins": 75,
@@ -1669,8 +1839,25 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "16",
-        "file": "16-insert.html",
+        "n": "26",
+        "file": "26-pivot.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 80,
+        "fa": {
+          "t": "‏PIVOT و شرط",
+          "d": "چرخاندن سطر به ستون، و ‎CASE‎ در تجمیع."
+        },
+        "en": {
+          "t": "PIVOT and conditionals",
+          "d": "Turning rows into columns, and CASE inside aggregates."
+        },
+        "kw": "pivot unpivot case conditional aggregate",
+        "cap": 0
+      },
+      {
+        "n": "27",
+        "file": "27-insert.html",
         "ready": false,
         "ex": 18,
         "mins": 80,
@@ -1686,8 +1873,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "17",
-        "file": "17-update-delete.html",
+        "n": "28",
+        "file": "28-update-delete.html",
         "ready": false,
         "ex": 18,
         "mins": 90,
@@ -1703,8 +1890,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "18",
-        "file": "18-merge.html",
+        "n": "29",
+        "file": "29-merge.html",
         "ready": false,
         "ex": 18,
         "mins": 80,
@@ -1720,8 +1907,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "19",
-        "file": "19-datatypes.html",
+        "n": "30",
+        "file": "30-datatypes.html",
         "ready": false,
         "ex": 18,
         "mins": 95,
@@ -1737,8 +1924,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "20",
-        "file": "20-constraints.html",
+        "n": "31",
+        "file": "31-constraints.html",
         "ready": false,
         "ex": 18,
         "mins": 90,
@@ -1754,8 +1941,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "21",
-        "file": "21-design.html",
+        "n": "32",
+        "file": "32-design.html",
         "ready": false,
         "ex": 18,
         "mins": 95,
@@ -1771,8 +1958,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "22",
-        "file": "22-normalization.html",
+        "n": "33",
+        "file": "33-normalization.html",
         "ready": false,
         "ex": 18,
         "mins": 95,
@@ -1788,8 +1975,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "23",
-        "file": "23-denormalization.html",
+        "n": "34",
+        "file": "34-denormalization.html",
         "ready": false,
         "ex": 18,
         "mins": 85,
@@ -1805,263 +1992,42 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "24",
-        "file": "24-indexes-1.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 100,
-        "fa": {
-          "t": "ایندکس ۱",
-          "d": "ساختار ‎B-tree‎، ‎clustered‎ در برابر ‎nonclustered‎."
-        },
-        "en": {
-          "t": "Indexes 1",
-          "d": "The B-tree structure, clustered versus nonclustered."
-        },
-        "kw": "index btree clustered nonclustered heap",
-        "cap": 0
-      },
-      {
-        "n": "25",
-        "file": "25-indexes-2.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 100,
-        "fa": {
-          "t": "ایندکس ۲",
-          "d": "ترتیب ستون، ‎covering‎، ‎INCLUDE‎ و ایندکس فیلترشده."
-        },
-        "en": {
-          "t": "Indexes 2",
-          "d": "Column order, covering indexes, INCLUDE and filtered indexes."
-        },
-        "kw": "covering include filtered column order selectivity",
-        "cap": 0
-      },
-      {
-        "n": "26",
-        "file": "26-indexes-3.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 95,
-        "fa": {
-          "t": "ایندکس ۳",
-          "d": "هزینهٔ ایندکس: کندی نوشتن، ‎fragmentation‎ و نگه‌داری."
-        },
-        "en": {
-          "t": "Indexes 3",
-          "d": "The cost of indexes: slower writes, fragmentation and maintenance."
-        },
-        "kw": "fragmentation rebuild reorganize fillfactor cost",
-        "cap": 0
-      },
-      {
-        "n": "27",
-        "file": "27-plan-1.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 105,
-        "fa": {
-          "t": "برنامهٔ اجرا ۱",
-          "d": "خواندن نقشه: ‎scan‎ در برابر ‎seek‎، و جهت خواندن."
-        },
-        "en": {
-          "t": "Execution plans 1",
-          "d": "Reading the map: scan versus seek, and which way to read it."
-        },
-        "kw": "execution plan scan seek estimated actual",
-        "cap": 0
-      },
-      {
-        "n": "28",
-        "file": "28-plan-2.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 105,
-        "fa": {
-          "t": "برنامهٔ اجرا ۲",
-          "d": "‏nested loop، ‎hash‎، ‎merge‎ — و تخمین اشتباه بهینه‌ساز."
-        },
-        "en": {
-          "t": "Execution plans 2",
-          "d": "Nested loops, hash and merge joins — and bad optimiser estimates."
-        },
-        "kw": "nested loop hash merge cardinality estimate spill",
-        "cap": 0
-      },
-      {
-        "n": "29",
-        "file": "29-statistics.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 85,
-        "fa": {
-          "t": "آمار",
-          "d": "بهینه‌ساز از کجا می‌داند چند سطر برمی‌گردد."
-        },
-        "en": {
-          "t": "Statistics",
-          "d": "How the optimiser knows how many rows will come back."
-        },
-        "kw": "statistics histogram cardinality update auto",
-        "cap": 0
-      },
-      {
-        "n": "30",
-        "file": "30-transactions.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 95,
-        "fa": {
-          "t": "تراکنش",
-          "d": "‏ACID در عمل، ‎COMMIT‎، ‎ROLLBACK‎ و تراکنش تودرتو."
-        },
-        "en": {
-          "t": "Transactions",
-          "d": "ACID in practice, COMMIT, ROLLBACK and nesting."
-        },
-        "kw": "transaction acid commit rollback savepoint xact",
-        "cap": 0
-      },
-      {
-        "n": "31",
-        "file": "31-isolation.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 100,
-        "fa": {
-          "t": "سطوح ایزوله",
-          "d": "‏dirty read تا ‎serializable‎ — با آزمایش عملی هر کدام."
-        },
-        "en": {
-          "t": "Isolation levels",
-          "d": "From dirty reads to serializable — demonstrated for each."
-        },
-        "kw": "isolation dirty phantom repeatable snapshot rcsi",
-        "cap": 0
-      },
-      {
-        "n": "32",
-        "file": "32-locking.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 100,
-        "fa": {
-          "t": "قفل و ‎deadlock‎",
-          "d": "چه چیزی قفل می‌شود، چرا، و باز کردن گره."
-        },
-        "en": {
-          "t": "Locking and deadlocks",
-          "d": "What gets locked, why, and how to untangle it."
-        },
-        "kw": "lock escalation deadlock graph blocking wait",
-        "cap": 0
-      },
-      {
-        "n": "33",
-        "file": "33-procedures.html",
+        "n": "35",
+        "file": "35-views-and-indexed-views.html",
         "ready": false,
         "ex": 18,
         "mins": 90,
         "fa": {
-          "t": "‏stored procedure",
-          "d": "پارامتر، خروجی، و ‎parameter sniffing‎."
+          "t": "View، indexed view و Row-Level Security",
+          "d": "View را برای abstraction و دسترسی محدود می‌سازیم؛ شرط‌های indexed view و RLS را در نسخه و edition مشخص با query می‌سنجیم."
         },
         "en": {
-          "t": "Stored procedures",
-          "d": "Parameters, output, and parameter sniffing."
+          "t": "Views, indexed views, and row-level security",
+          "d": "Use views for abstraction and scoped access; test indexed-view and RLS behaviour against the target version and edition."
         },
-        "kw": "procedure parameter sniffing recompile output",
-        "cap": 0
-      },
-      {
-        "n": "34",
-        "file": "34-functions.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 85,
-        "fa": {
-          "t": "تابع",
-          "d": "‏scalar در برابر ‎table-valued‎ — و چرا ‎scalar‎ کند است."
-        },
-        "en": {
-          "t": "Functions",
-          "d": "Scalar versus table-valued — and why scalar functions are slow."
-        },
-        "kw": "function scalar inline table-valued udf",
-        "cap": 0
-      },
-      {
-        "n": "35",
-        "file": "35-triggers.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 80,
-        "fa": {
-          "t": "‏trigger",
-          "d": "قدرت پنهان، و اینکه چرا معمولاً بد است."
-        },
-        "en": {
-          "t": "Triggers",
-          "d": "Hidden power, and why it is usually a bad idea."
-        },
-        "kw": "trigger after instead of inserted deleted",
+        "kw": "view schemabinding indexed view security abstraction",
         "cap": 0
       },
       {
         "n": "36",
-        "file": "36-tsql-1.html",
+        "file": "36-sequences-computed-columns-and-rowversion.html",
         "ready": false,
         "ex": 18,
-        "mins": 85,
+        "mins": 90,
         "fa": {
-          "t": "‏T-SQL ۱",
-          "d": "متغیر، شرط، حلقه و جدول موقت."
+          "t": "Sequence، computed column و rowversion",
+          "d": "مقدارهای تولیدی را برای چند کاربرد مقایسه می‌کنیم و با SQL می‌سنجیم rowversion زمان نیست."
         },
         "en": {
-          "t": "T-SQL 1",
-          "d": "Variables, conditionals, loops and temp tables."
+          "t": "Sequences, computed columns, and rowversion",
+          "d": "Compare generated values for different uses and use SQL to prove that rowversion is not a clock."
         },
-        "kw": "declare if while temp table variable",
+        "kw": "sequence computed column rowversion identity generated value",
         "cap": 0
       },
       {
         "n": "37",
-        "file": "37-tsql-2.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 85,
-        "fa": {
-          "t": "‏T-SQL ۲",
-          "d": "‏TRY/CATCH، ‎THROW‎ و مدیریت خطای تراکنشی."
-        },
-        "en": {
-          "t": "T-SQL 2",
-          "d": "TRY/CATCH, THROW and transactional error handling."
-        },
-        "kw": "try catch throw error xact_abort",
-        "cap": 0
-      },
-      {
-        "n": "38",
-        "file": "38-dynamic-sql.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 85,
-        "fa": {
-          "t": "‏SQL پویا",
-          "d": "‏sp_executesql، و تزریق ‎SQL‎ در سمت پایگاه‌داده."
-        },
-        "en": {
-          "t": "Dynamic SQL",
-          "d": "sp_executesql, and SQL injection on the database side."
-        },
-        "kw": "dynamic sql sp_executesql injection quotename",
-        "cap": 0
-      },
-      {
-        "n": "39",
-        "file": "39-json-xml.html",
+        "file": "37-json-xml.html",
         "ready": false,
         "ex": 18,
         "mins": 80,
@@ -2077,8 +2043,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "40",
-        "file": "40-partitioning.html",
+        "n": "38",
+        "file": "38-partitioning.html",
         "ready": false,
         "ex": 18,
         "mins": 85,
@@ -2094,76 +2060,178 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "41",
-        "file": "41-security.html",
+        "n": "39",
+        "file": "39-pages-extents-and-database-files.html",
         "ready": false,
         "ex": 18,
         "mins": 90,
         "fa": {
-          "t": "امنیت",
-          "d": "‏login، ‎user‎، ‎role‎، ‎schema‎ و کمترین دسترسی."
+          "t": "Page، extent و فایل‌های پایگاه‌داده",
+          "d": "page و extent را به data file و filegroup وصل می‌کنیم و رشد فایل را از metadata می‌خوانیم."
         },
         "en": {
-          "t": "Security",
-          "d": "Logins, users, roles, schemas and least privilege."
+          "t": "Pages, extents, and database files",
+          "d": "Relate pages and extents to data files and filegroups, and inspect file growth through metadata."
         },
-        "kw": "login user role grant schema tde encryption",
+        "kw": "page extent data file filegroup mdf ndf",
+        "cap": 0
+      },
+      {
+        "n": "40",
+        "file": "40-engine-buffer-pool-and-write-ahead-log.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Engine، buffer pool و ثبت پیش‌نویس تغییر",
+          "d": "مسیر یک تغییر را از حافظه تا transaction log دنبال می‌کنیم تا checkpoint و recovery معنی پیدا کند."
+        },
+        "en": {
+          "t": "The engine, buffer pool, and write-ahead log",
+          "d": "Trace a change from memory to the transaction log so checkpoints and recovery have practical meaning."
+        },
+        "kw": "engine buffer pool write ahead logging checkpoint recovery",
+        "cap": 0
+      },
+      {
+        "n": "41",
+        "file": "41-indexes-1.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "ایندکس ۱",
+          "d": "ساختار ‎B-tree‎، ‎clustered‎ در برابر ‎nonclustered‎."
+        },
+        "en": {
+          "t": "Indexes 1",
+          "d": "The B-tree structure, clustered versus nonclustered."
+        },
+        "kw": "index btree clustered nonclustered heap",
         "cap": 0
       },
       {
         "n": "42",
-        "file": "42-backup.html",
+        "file": "42-indexes-2.html",
         "ready": false,
         "ex": 18,
-        "mins": 95,
+        "mins": 100,
         "fa": {
-          "t": "پشتیبان و بازیابی",
-          "d": "‏full، ‎differential‎، ‎log‎ و بازیابی نقطه‌ای واقعی."
+          "t": "ایندکس ۲",
+          "d": "ترتیب ستون، ‎covering‎، ‎INCLUDE‎ و ایندکس فیلترشده."
         },
         "en": {
-          "t": "Backup and recovery",
-          "d": "Full, differential, log backups and real point-in-time recovery."
+          "t": "Indexes 2",
+          "d": "Column order, covering indexes, INCLUDE and filtered indexes."
         },
-        "kw": "backup restore recovery model log pitr",
+        "kw": "covering include filtered column order selectivity",
         "cap": 0
       },
       {
         "n": "43",
-        "file": "43-maintenance.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 85,
-        "fa": {
-          "t": "نگه‌داری",
-          "d": "ایندکس، آمار، ‎DBCC‎ و کار زمان‌بندی‌شده."
-        },
-        "en": {
-          "t": "Maintenance",
-          "d": "Indexes, statistics, DBCC and scheduled jobs."
-        },
-        "kw": "maintenance dbcc checkdb agent job rebuild",
-        "cap": 0
-      },
-      {
-        "n": "44",
-        "file": "44-monitoring.html",
+        "file": "43-indexes-3.html",
         "ready": false,
         "ex": 18,
         "mins": 95,
         "fa": {
-          "t": "مانیتورینگ",
-          "d": "‏DMV، ‎Query Store‎ و ‎wait statistics‎."
+          "t": "ایندکس ۳",
+          "d": "هزینهٔ ایندکس: کندی نوشتن، ‎fragmentation‎ و نگه‌داری."
         },
         "en": {
-          "t": "Monitoring",
-          "d": "DMVs, the Query Store and wait statistics."
+          "t": "Indexes 3",
+          "d": "The cost of indexes: slower writes, fragmentation and maintenance."
         },
-        "kw": "dmv query store wait stats extended events",
+        "kw": "fragmentation rebuild reorganize fillfactor cost",
+        "cap": 0
+      },
+      {
+        "n": "44",
+        "file": "44-sql-server-columnstore.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Columnstore برای workload تحلیلی",
+          "d": "یک query تحلیلی را با rowstore و columnstore اجرا می‌کنیم و از plan و زمان می‌سنجیم کدام workload از آن سود می‌برد."
+        },
+        "en": {
+          "t": "Columnstore for analytical workloads",
+          "d": "Run an analytical query against rowstore and columnstore, then use plans and timing to identify when the workload benefits."
+        },
+        "kw": "sql server columnstore rowstore analytical workload batch mode",
         "cap": 0
       },
       {
         "n": "45",
-        "file": "45-tuning-1.html",
+        "file": "45-plan-1.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 105,
+        "fa": {
+          "t": "برنامهٔ اجرا ۱",
+          "d": "خواندن نقشه: ‎scan‎ در برابر ‎seek‎، و جهت خواندن."
+        },
+        "en": {
+          "t": "Execution plans 1",
+          "d": "Reading the map: scan versus seek, and which way to read it."
+        },
+        "kw": "execution plan scan seek estimated actual",
+        "cap": 0
+      },
+      {
+        "n": "46",
+        "file": "46-plan-2.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 105,
+        "fa": {
+          "t": "برنامهٔ اجرا ۲",
+          "d": "‏nested loop، ‎hash‎، ‎merge‎ — و تخمین اشتباه بهینه‌ساز."
+        },
+        "en": {
+          "t": "Execution plans 2",
+          "d": "Nested loops, hash and merge joins — and bad optimiser estimates."
+        },
+        "kw": "nested loop hash merge cardinality estimate spill",
+        "cap": 0
+      },
+      {
+        "n": "47",
+        "file": "47-statistics.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "آمار",
+          "d": "بهینه‌ساز از کجا می‌داند چند سطر برمی‌گردد."
+        },
+        "en": {
+          "t": "Statistics",
+          "d": "How the optimiser knows how many rows will come back."
+        },
+        "kw": "statistics histogram cardinality update auto",
+        "cap": 0
+      },
+      {
+        "n": "48",
+        "file": "48-plan-cache-parameter-sensitivity-and-versions.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 105,
+        "fa": {
+          "t": "Plan cache و حساسیت پارامتر در نسخه‌های مختلف",
+          "d": "ورودی‌های نامتوازن را آزمایش می‌کنیم و رفتار parameter-sensitive plan را با نسخهٔ SQL Server برچسب می‌زنیم."
+        },
+        "en": {
+          "t": "Plan cache and parameter sensitivity across versions",
+          "d": "Test skewed inputs and label parameter-sensitive plan behaviour by SQL Server version."
+        },
+        "kw": "plan cache parameter sniffing parameter sensitive plan recompile optimize for version",
+        "cap": 0
+      },
+      {
+        "n": "49",
+        "file": "49-tuning-1.html",
         "ready": false,
         "ex": 18,
         "mins": 105,
@@ -2179,8 +2247,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "46",
-        "file": "46-tuning-2.html",
+        "n": "50",
+        "file": "50-tuning-2.html",
         "ready": false,
         "ex": 18,
         "mins": 105,
@@ -2196,8 +2264,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "47",
-        "file": "47-antipatterns.html",
+        "n": "51",
+        "file": "51-antipatterns.html",
         "ready": false,
         "ex": 18,
         "mins": 90,
@@ -2213,8 +2281,365 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "48",
-        "file": "48-app-integration.html",
+        "n": "52",
+        "file": "52-large-data-batches-and-pagination.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "دادهٔ حجیم، batch و صفحه‌بندی عمیق",
+          "d": "روی دادهٔ ساختگیِ کنترل‌شده، صفحه‌بندی عمیق و batch را اجرا می‌کنیم و از plan و زمان می‌فهمیم کدام هزینه غالب است."
+        },
+        "en": {
+          "t": "Large datasets, batches, and deep pagination",
+          "d": "Run deep paging and batches against a bounded generated dataset, then use plans and timings to identify the dominant cost."
+        },
+        "kw": "sql server large data batch keyset pagination performance",
+        "cap": 0
+      },
+      {
+        "n": "53",
+        "file": "53-transactions.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "تراکنش",
+          "d": "‏ACID در عمل، ‎COMMIT‎، ‎ROLLBACK‎ و تراکنش تودرتو."
+        },
+        "en": {
+          "t": "Transactions",
+          "d": "ACID in practice, COMMIT, ROLLBACK and nesting."
+        },
+        "kw": "transaction acid commit rollback savepoint xact",
+        "cap": 0
+      },
+      {
+        "n": "54",
+        "file": "54-isolation.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "سطوح ایزوله",
+          "d": "‏dirty read تا ‎serializable‎ — با آزمایش عملی هر کدام."
+        },
+        "en": {
+          "t": "Isolation levels",
+          "d": "From dirty reads to serializable — demonstrated for each."
+        },
+        "kw": "isolation dirty phantom repeatable snapshot rcsi",
+        "cap": 0
+      },
+      {
+        "n": "55",
+        "file": "55-locking.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "قفل و ‎deadlock‎",
+          "d": "چه چیزی قفل می‌شود، چرا، و باز کردن گره."
+        },
+        "en": {
+          "t": "Locking and deadlocks",
+          "d": "What gets locked, why, and how to untangle it."
+        },
+        "kw": "lock escalation deadlock graph blocking wait",
+        "cap": 0
+      },
+      {
+        "n": "56",
+        "file": "56-row-versioning-and-snapshot-isolation.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "Row versioning، Snapshot و RCSI",
+          "d": "خواننده و نویسنده را در دو نشست هم‌زمان اجرا می‌کنیم و اثر انتخاب isolation بر tempdb را بررسی می‌کنیم."
+        },
+        "en": {
+          "t": "Row versioning, Snapshot, and RCSI",
+          "d": "Run a reader and writer in two sessions and inspect how isolation choices affect tempdb."
+        },
+        "kw": "row versioning snapshot rcsi isolation tempdb",
+        "cap": 0
+      },
+      {
+        "n": "57",
+        "file": "57-two-session-concurrency-and-deadlock-lab.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "آزمایش دو نشست: blocking و deadlock",
+          "d": "blocking و deadlock را فقط در دیتابیس disposable می‌سازیم، evidence را می‌خوانیم و ترتیب دسترسی را اصلاح می‌کنیم."
+        },
+        "en": {
+          "t": "Two-session lab: blocking and deadlocks",
+          "d": "Reproduce blocking and deadlocks only in a disposable database, inspect evidence, and fix access ordering."
+        },
+        "kw": "two session blocking deadlock graph disposable lock order",
+        "cap": 0
+      },
+      {
+        "n": "58",
+        "file": "58-tempdb-temp-objects-and-spills.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "tempdb، جدول موقت و spill",
+          "d": "#temp، table variable و spill را اجرا می‌کنیم؛ CTE را با جدول موقت از روی رفتار واقعی مقایسه می‌کنیم."
+        },
+        "en": {
+          "t": "tempdb, temporary objects, and spills",
+          "d": "Run #temp, table variables, and spills; compare CTEs with temporary tables by observed behaviour."
+        },
+        "kw": "tempdb temp table table variable cte spill row versioning",
+        "cap": 0
+      },
+      {
+        "n": "59",
+        "file": "59-procedures.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "‏stored procedure",
+          "d": "پارامتر، خروجی، و ‎parameter sniffing‎."
+        },
+        "en": {
+          "t": "Stored procedures",
+          "d": "Parameters, output, and parameter sniffing."
+        },
+        "kw": "procedure parameter sniffing recompile output",
+        "cap": 0
+      },
+      {
+        "n": "60",
+        "file": "60-functions.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "تابع",
+          "d": "‏scalar در برابر ‎table-valued‎ — و چرا ‎scalar‎ کند است."
+        },
+        "en": {
+          "t": "Functions",
+          "d": "Scalar versus table-valued — and why scalar functions are slow."
+        },
+        "kw": "function scalar inline table-valued udf",
+        "cap": 0
+      },
+      {
+        "n": "61",
+        "file": "61-triggers.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 80,
+        "fa": {
+          "t": "‏trigger",
+          "d": "قدرت پنهان، و اینکه چرا معمولاً بد است."
+        },
+        "en": {
+          "t": "Triggers",
+          "d": "Hidden power, and why it is usually a bad idea."
+        },
+        "kw": "trigger after instead of inserted deleted",
+        "cap": 0
+      },
+      {
+        "n": "62",
+        "file": "62-tsql-1.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "‏T-SQL ۱",
+          "d": "متغیر، شرط، حلقه و جدول موقت."
+        },
+        "en": {
+          "t": "T-SQL 1",
+          "d": "Variables, conditionals, loops and temp tables."
+        },
+        "kw": "declare if while temp table variable",
+        "cap": 0
+      },
+      {
+        "n": "63",
+        "file": "63-tsql-2.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "‏T-SQL ۲",
+          "d": "‏TRY/CATCH، ‎THROW‎ و مدیریت خطای تراکنشی."
+        },
+        "en": {
+          "t": "T-SQL 2",
+          "d": "TRY/CATCH, THROW and transactional error handling."
+        },
+        "kw": "try catch throw error xact_abort",
+        "cap": 0
+      },
+      {
+        "n": "64",
+        "file": "64-dynamic-sql.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "‏SQL پویا",
+          "d": "‏sp_executesql، و تزریق ‎SQL‎ در سمت پایگاه‌داده."
+        },
+        "en": {
+          "t": "Dynamic SQL",
+          "d": "sp_executesql, and SQL injection on the database side."
+        },
+        "kw": "dynamic sql sp_executesql injection quotename",
+        "cap": 0
+      },
+      {
+        "n": "65",
+        "file": "65-security.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "امنیت",
+          "d": "‏login، ‎user‎، ‎role‎، ‎schema‎ و کمترین دسترسی."
+        },
+        "en": {
+          "t": "Security",
+          "d": "Logins, users, roles, schemas and least privilege."
+        },
+        "kw": "login user role grant schema tde encryption",
+        "cap": 0
+      },
+      {
+        "n": "66",
+        "file": "66-encryption-auditing-and-secret-boundaries.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "رمزگذاری، Audit و مرز Secret",
+          "d": "یک سناریو را با گزینهٔ درست پوشش می‌دهیم و محدودیت TDE، Always Encrypted و masking را از روی نتیجه توضیح می‌دهیم."
+        },
+        "en": {
+          "t": "Encryption, auditing, and secret boundaries",
+          "d": "Choose controls for a scenario and verify the limits of TDE, Always Encrypted, and masking."
+        },
+        "kw": "tde always encrypted masking audit secret backup encryption",
+        "cap": 0
+      },
+      {
+        "n": "67",
+        "file": "67-sql-injection-and-parameterization.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "SQL Injection و مرز پارامترگذاری",
+          "d": "ورودی خطرناک را فقط روی fixture بی‌خطر آزمایش می‌کنیم و نسخهٔ پارامتری را با همان ورودی و نتیجه مقایسه می‌کنیم."
+        },
+        "en": {
+          "t": "SQL injection and the parameterisation boundary",
+          "d": "Test hostile input only against a safe fixture and compare a parameterised query using the same input and result."
+        },
+        "kw": "sql injection parameterized query prepared statement application",
+        "cap": 0
+      },
+      {
+        "n": "68",
+        "file": "68-view-security-and-row-level-access.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "مرز دسترسی: View و Row-Level Security",
+          "d": "کاربر محدود می‌سازیم و با query اثبات می‌کنیم چه ردیف‌هایی را می‌بیند و کدام راه دورزدن باقی است."
+        },
+        "en": {
+          "t": "Access boundaries: views and row-level security",
+          "d": "Create a restricted user and query which rows it can see, including the limits of the control."
+        },
+        "kw": "view security row level security rls predicate user",
+        "cap": 0
+      },
+      {
+        "n": "69",
+        "file": "69-instance-networking-and-sql-browser.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Instance، TCP/IP و SQL Server Browser",
+          "d": "اتصال به instance پیش‌فرض و نام‌دار را می‌آزماییم و خطای پورت را از خطای احراز هویت جدا می‌کنیم."
+        },
+        "en": {
+          "t": "Instances, TCP/IP, and SQL Server Browser",
+          "d": "Test default and named instances, distinguishing port failures from authentication failures."
+        },
+        "kw": "instance tcp ip port sql server browser connection",
+        "cap": 0
+      },
+      {
+        "n": "70",
+        "file": "70-docker-and-cross-host-sql-connectivity.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "شبکهٔ Docker و اتصال از ماشین دیگر",
+          "d": "اپ را با نام سرویس به SQL Server وصل می‌کنیم و تفاوت localhost در container و میزبان را اثبات می‌کنیم."
+        },
+        "en": {
+          "t": "Docker networking and cross-host SQL connectivity",
+          "d": "Connect an app to SQL Server by service name and prove how localhost differs inside a container and on the host."
+        },
+        "kw": "docker network service name localhost host remote sql server",
+        "cap": 0
+      },
+      {
+        "n": "71",
+        "file": "71-tls-certificates-and-remote-access.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "اتصال راه‌دور، TLS و گواهی",
+          "d": "اتصال رمزگذاری‌شده را بررسی می‌کنیم و با شواهد، encryption را از اعتبار گواهی جدا می‌کنیم."
+        },
+        "en": {
+          "t": "Remote access, TLS, and certificates",
+          "d": "Inspect an encrypted connection and use evidence to distinguish encryption from certificate validation."
+        },
+        "kw": "remote access tls certificate encryption trust validate",
+        "cap": 0
+      },
+      {
+        "n": "72",
+        "file": "72-linked-servers-and-openquery.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Linked Server، نام چهارقسمتی و OPENQUERY",
+          "d": "پرس‌وجوی توزیع‌شده را در lab اجرا می‌کنیم و محدودیت امنیت، pushdown و کارایی را می‌سنجیم."
+        },
+        "en": {
+          "t": "Linked servers, four-part names, and OPENQUERY",
+          "d": "Run a distributed query in a lab and assess security, pushdown, and performance limits."
+        },
+        "kw": "linked server four part name openquery distributed query",
+        "cap": 0
+      },
+      {
+        "n": "73",
+        "file": "73-app-integration.html",
         "ready": false,
         "ex": 18,
         "mins": 85,
@@ -2230,61 +2655,248 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "49",
-        "file": "49-cap1.html",
+        "n": "74",
+        "file": "74-connection-pools-timeouts-and-retries.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Pool، timeout و retry در اتصال برنامه",
+          "d": "connection timeout و command timeout را جدا می‌کنیم و retry را فقط برای عملیات امن و تکرارپذیر می‌آزماییم."
+        },
+        "en": {
+          "t": "Pools, timeouts, and application retries",
+          "d": "Separate connection and command timeouts, and test retries only for safe, repeatable operations."
+        },
+        "kw": "connection pool connection timeout command timeout retry idempotent",
+        "cap": 0
+      },
+      {
+        "n": "75",
+        "file": "75-orm-n-plus-one-and-bulk-operations.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "ORM، N+1 و عملیات دسته‌ای",
+          "d": "تعداد queryهای یک workload را از log می‌شماریم و راهکار eager loading یا bulk را با نتیجه می‌سنجیم."
+        },
+        "en": {
+          "t": "ORMs, N+1, and bulk operations",
+          "d": "Count workload queries from logs and measure eager-loading or bulk alternatives."
+        },
+        "kw": "orm n+1 eager loading bulk operation query log",
+        "cap": 0
+      },
+      {
+        "n": "76",
+        "file": "76-schema-migrations-expand-contract.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "Migration و الگوی Expand/Contract",
+          "d": "تغییر schema را بین دو نسخهٔ اپ مرحله‌بندی می‌کنیم و rollback واقعی را در محیط تمرین می‌آزماییم."
+        },
+        "en": {
+          "t": "Migrations and expand/contract",
+          "d": "Stage a schema change across two app versions and test what rollback really means in a lab."
+        },
+        "kw": "schema migration expand contract online ddl backward compatible rollback",
+        "cap": 0
+      },
+      {
+        "n": "77",
+        "file": "77-backup.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "پشتیبان و بازیابی",
+          "d": "‏full، ‎differential‎، ‎log‎ و بازیابی نقطه‌ای واقعی."
+        },
+        "en": {
+          "t": "Backup and recovery",
+          "d": "Full, differential, log backups and real point-in-time recovery."
+        },
+        "kw": "backup restore recovery model log pitr",
+        "cap": 0
+      },
+      {
+        "n": "78",
+        "file": "78-backup-restore-validation-rpo-rto.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 105,
+        "fa": {
+          "t": "Restore drill، اعتبار backup و RPO/RTO",
+          "d": "دادهٔ شناخته‌شده را به محیط جدا restore می‌کنیم و وجود artifact به‌تنهایی را مدرک backup سالم حساب نمی‌کنیم."
+        },
+        "en": {
+          "t": "Restore drills, backup validation, and RPO/RTO",
+          "d": "Restore a known record into an isolated environment; do not treat an artifact's existence as proof of a valid backup."
+        },
+        "kw": "backup restore drill verify rpo rto checksum retention",
+        "cap": 0
+      },
+      {
+        "n": "79",
+        "file": "79-sql-server-agent-jobs-and-maintenance.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "SQL Server Agent، Job و سابقهٔ اجرا",
+          "d": "job زمان‌بندی‌شده می‌سازیم، شکستش را ثبت می‌کنیم و history را برای علت‌یابی می‌خوانیم؛ نه تعمیر کورکورانه."
+        },
+        "en": {
+          "t": "SQL Server Agent jobs and maintenance",
+          "d": "Schedule a job, capture a failure, and use job history to diagnose it instead of applying blind maintenance."
+        },
+        "kw": "sql server agent job schedule history backup maintenance",
+        "cap": 0
+      },
+      {
+        "n": "80",
+        "file": "80-maintenance.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "نگه‌داری",
+          "d": "ایندکس، آمار، ‎DBCC‎ و کار زمان‌بندی‌شده."
+        },
+        "en": {
+          "t": "Maintenance",
+          "d": "Indexes, statistics, DBCC and scheduled jobs."
+        },
+        "kw": "maintenance dbcc checkdb agent job rebuild",
+        "cap": 0
+      },
+      {
+        "n": "81",
+        "file": "81-monitoring.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "مانیتورینگ",
+          "d": "‏DMV، ‎Query Store‎ و ‎wait statistics‎."
+        },
+        "en": {
+          "t": "Monitoring",
+          "d": "DMVs, the Query Store and wait statistics."
+        },
+        "kw": "dmv query store wait stats extended events",
+        "cap": 0
+      },
+      {
+        "n": "82",
+        "file": "82-extended-events-error-log-and-waits.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "Extended Events، Error Log و Wait",
+          "d": "رخداد کنترل‌شده را ضبط می‌کنیم و زمان، query و wait را کنار هم می‌گذاریم تا فرضیهٔ قابل‌آزمایش بسازیم."
+        },
+        "en": {
+          "t": "Extended Events, the error log, and waits",
+          "d": "Capture a controlled event and correlate time, query, and wait to form a testable hypothesis."
+        },
+        "kw": "extended events error log wait statistics deadlock",
+        "cap": 0
+      },
+      {
+        "n": "83",
+        "file": "83-sql-server-incident-diagnosis.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "عیب‌یابی رخداد SQL Server با شواهد",
+          "d": "از نشانه به درخواست فعال، wait، plan، log و تغییر اخیر می‌رویم و قبل از دست‌زدن به داده یک فرضیهٔ آزمون‌پذیر می‌سازیم."
+        },
+        "en": {
+          "t": "Evidence-based SQL Server incident diagnosis",
+          "d": "Trace a symptom through active requests, waits, plans, logs, and recent changes; form a testable hypothesis before touching data."
+        },
+        "kw": "sql server incident diagnosis active request wait plan log",
+        "cap": 0
+      },
+      {
+        "n": "84",
+        "file": "84-high-availability-and-disaster-recovery.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 105,
+        "fa": {
+          "t": "High Availability و انتخاب راهکار Disaster Recovery",
+          "d": "backup/restore، log shipping، replication و Availability Groups را بر اساس RPO، RTO و نوع خرابی مقایسه می‌کنیم."
+        },
+        "en": {
+          "t": "High availability and disaster recovery choices",
+          "d": "Compare backup/restore, log shipping, replication, and Availability Groups against RPO, RTO, and failure scenarios."
+        },
+        "kw": "high availability log shipping replication availability groups failover rpo rto",
+        "cap": 0
+      },
+      {
+        "n": "85",
+        "file": "85-project-1-schema.html",
         "ready": false,
         "ex": 5,
         "mins": 90,
         "fa": {
-          "t": "پروژهٔ ۱ — طراحی شِما",
-          "d": "از نیاز تا جدول، با کلید و ‎constraint‎ درست."
+          "t": "پروژهٔ ۱ — طراحی schema برای SQL Server",
+          "d": "نیازهای مبهم فروشگاه را به schema، constraint و دادهٔ آزمایشی تبدیل کن؛ queryهای SQL Server باید درستی را ثابت کنند."
         },
         "en": {
-          "t": "Project 1 — design a schema",
-          "d": "From requirements to tables, with correct keys and constraints."
+          "t": "Project 1 — design a SQL Server schema",
+          "d": "Turn an ambiguous shop brief into a schema, constraints, and fixtures; use SQL Server queries to prove correctness."
         },
         "kw": "capstone schema design",
         "cap": 1
       },
       {
-        "n": "50",
-        "file": "50-cap2.html",
+        "n": "86",
+        "file": "86-project-2-analytical-reporting.html",
         "ready": false,
         "ex": 7,
         "mins": 170,
         "fa": {
-          "t": "پروژهٔ ۲ — گزارش تحلیلی",
-          "d": "‏window، ‎CTE‎ و ‎PIVOT‎ روی دادهٔ واقعی."
+          "t": "پروژهٔ ۲ — گزارش تحلیلی و plan در SQL Server",
+          "d": "گزارش را با JOIN، CTE و window function بساز؛ index و execution plan را با شواهد بهبود بده."
         },
         "en": {
-          "t": "Project 2 — analytical reporting",
-          "d": "Windows, CTEs and PIVOT over real data."
+          "t": "Project 2 — SQL Server analytics and plans",
+          "d": "Build reports with joins, CTEs, and windows; improve indexes and execution plans with evidence."
         },
         "kw": "capstone report analytics",
         "cap": 2
       },
       {
-        "n": "51",
-        "file": "51-cap3.html",
+        "n": "87",
+        "file": "87-project-3-production-incident.html",
         "ready": false,
         "ex": 9,
         "mins": 260,
         "fa": {
-          "t": "پروژهٔ ۳ — پایگاه‌دادهٔ فروش با دادهٔ حجیم",
-          "d": "بارگذاری میلیون‌ها سطر و رساندن کوئری به زیر یک ثانیه."
+          "t": "پروژهٔ ۳ — رخداد production در SQL Server",
+          "d": "روی دادهٔ حجیم رخدادهای کندی و blocking را تشخیص بده، backup را restore کن و نتیجه را با query و مدرک عملیاتی تحویل بده."
         },
         "en": {
-          "t": "Project 3 — a sales database at scale",
-          "d": "Load millions of rows and get the query under one second."
+          "t": "Project 3 — a SQL Server production incident",
+          "d": "Diagnose slowdowns and blocking on large data, restore a backup, and hand off query and operational evidence."
         },
         "kw": "capstone performance tuning",
         "cap": 3
       }
     ],
     "stats": {
-      "chapters": 51,
-      "exercises": 885,
-      "minutes": 4840,
+      "chapters": 87,
+      "exercises": 1533,
+      "minutes": 7985,
       "capstones": 3,
       "ready": 0
     }
@@ -18114,354 +18726,1759 @@ export const TRACKS: Track[] = [
     }
   },
   {
-    "id": "53-mysql-mariadb",
-    "dir": "53-mysql-mariadb",
+    "id": "53-mysql",
+    "dir": "53-mysql",
     "accent": "#00758F",
     "accentDark": null,
     "cat": "data",
     "ico": "<ellipse cx=\"12\" cy=\"6.2\" rx=\"7.6\" ry=\"3.2\"/><path d=\"M4.4 6.2v11.6c0 1.8 3.4 3.2 7.6 3.2s7.6-1.4 7.6-3.2V6.2\"/><path d=\"M4.4 12c0 1.8 3.4 3.2 7.6 3.2s7.6-1.4 7.6-3.2\" opacity=\".6\"/>",
     "locked": false,
     "fa": {
-      "name": "MySQL و MariaDB",
-      "desc": "از ‎SELECT‎ تا ایندکس، ‎EXPLAIN‎، تراکنش، replication و بهینه‌سازی کوئری کند.",
-      "intro": "‏MySQL پرکاربردترین پایگاه‌دادهٔ رابطه‌ای دنیاست و MariaDB شاخهٔ آزاد آن. این مسیر فرض نمی‌کند ‎SQL‎ بلدی — از مدل رابطه‌ای شروع می‌کند — اما خیلی زود می‌رود سراغ چیزی که واقعاً فرق می‌گذارد: اینکه چرا آن کوئری کند است و ایندکس درست کدام است."
+      "name": "MySQL",
+      "desc": "بعد از دورهٔ SQL، سراغ رفتار ویژهٔ MySQL می‌رویم: InnoDB، index، plan، امنیت، backup و replication؛ تمرین‌ها همگی اجرایی‌اند.",
+      "intro": "مبانی SQL در دورهٔ «SQL و SQL Server» است. اینجا بعد از آن سراغ خود MySQL می‌رویم: InnoDB، رفتار optimizer، JSON، احراز هویت، backup و replication. تمرین‌ها روی نسخهٔ مشخص اجرا می‌شوند و نتیجه را با query یا مدرک عملیاتی می‌سنجی."
     },
     "en": {
-      "name": "MySQL & MariaDB",
-      "desc": "From SELECT to indexes, EXPLAIN, transactions, replication and fixing slow queries.",
-      "intro": "MySQL is the most widely deployed relational database in the world, and MariaDB is its free fork. This track does not assume you know SQL — it starts from the relational model — but it moves quickly to what actually matters: why that query is slow and which index is the right one."
+      "name": "MySQL",
+      "desc": "After the SQL foundations track, focus on MySQL-specific behaviour: InnoDB, indexes, plans, security, backups, and replication—with runnable exercises.",
+      "intro": "SQL foundations are covered in the separate SQL and SQL Server track. This course focuses on MySQL-specific behaviour, from server configuration through storage engines, optimizer choices, security, recovery, and operations. Version- and tool-dependent behaviour is labelled where it matters."
     },
     "chapters": [
       {
         "n": "01",
-        "file": "01-relational.html",
+        "file": "01-mysql-architecture-and-version-boundaries.html",
         "ready": false,
         "ex": 18,
         "mins": 75,
         "fa": {
-          "t": "مدل رابطه‌ای و نصب",
-          "d": "جدول، کلید، و راه‌اندازی با داکر."
+          "t": "معماری MySQL، نسخه و مرز سازگاری",
+          "d": "نسخه و توزیع MySQL را از خود سرور می‌خوانیم و می‌بینیم کدام رفتارها به نسخه وابسته‌اند؛ این مسیر وارد آموزش SQL پایه نمی‌شود."
         },
         "en": {
-          "t": "The relational model and setup",
-          "d": "Tables, keys, and getting started with Docker."
+          "t": "MySQL architecture, versions, and compatibility boundaries",
+          "d": "Inspect the server version and identify version-dependent behaviour; this track focuses on MySQL rather than reteaching SQL foundations."
         },
-        "kw": "relational install docker workbench",
+        "kw": "mysql architecture version distribution server compatibility",
         "cap": 0
       },
       {
         "n": "02",
-        "file": "02-select.html",
+        "file": "02-installing-and-connecting-to-the-server.html",
         "ready": false,
         "ex": 18,
         "mins": 80,
         "fa": {
-          "t": "‏SELECT و فیلتر",
-          "d": "‏WHERE، ORDER BY، LIMIT و ‎NULL‎."
+          "t": "نصب و اتصال به سرور",
+          "d": "نصب و اتصال به سرور را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
         },
         "en": {
-          "t": "SELECT and filtering",
-          "d": "WHERE, ORDER BY, LIMIT and NULL."
+          "t": "Installing and Connecting to the Server",
+          "d": "Practice installing and connecting to the server with runnable SQL, database code, or commands and inspect the result."
         },
-        "kw": "select where order limit null",
+        "kw": "installing and connecting to the server practice installing and connecting to the server with runnable sql, database code, or commands and inspect the result. نصب و اتصال به سرور",
         "cap": 0
       },
       {
         "n": "03",
-        "file": "03-joins.html",
+        "file": "03-servers-databases-and-schemas.html",
         "ready": false,
         "ex": 18,
-        "mins": 85,
+        "mins": 75,
         "fa": {
-          "t": "‏JOIN",
-          "d": "‏inner، left، و اشتباهی که سطرها را تکثیر می‌کند."
+          "t": "سرور، دیتابیس و schema",
+          "d": "سرور، دیتابیس و schema را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
         },
         "en": {
-          "t": "JOINs",
-          "d": "Inner, left, and the mistake that multiplies rows."
+          "t": "Servers, Databases, and Schemas",
+          "d": "Practice servers, databases, and schemas with runnable SQL, database code, or commands and inspect the result."
         },
-        "kw": "join inner left cross duplicate",
+        "kw": "servers, databases, and schemas practice servers, databases, and schemas with runnable sql, database code, or commands and inspect the result. سرور، دیتابیس و schema",
         "cap": 0
       },
       {
         "n": "04",
-        "file": "04-aggregate.html",
+        "file": "04-generated-columns-and-table-evolution.html",
         "ready": false,
         "ex": 18,
-        "mins": 80,
+        "mins": 85,
         "fa": {
-          "t": "تجمیع",
-          "d": "‏GROUP BY، HAVING و توابع پنجره‌ای."
+          "t": "Generated Column و تغییر جدول",
+          "d": "Generated Column و تغییر جدول را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
         },
         "en": {
-          "t": "Aggregation",
-          "d": "GROUP BY, HAVING and window functions."
+          "t": "Generated Columns and Table Evolution",
+          "d": "Practice generated columns and table evolution with runnable SQL, database code, or commands and inspect the result."
         },
-        "kw": "group having window over",
+        "kw": "generated columns and table evolution practice generated columns and table evolution with runnable sql, database code, or commands and inspect the result. generated column و تغییر جدول",
         "cap": 0
       },
       {
         "n": "05",
-        "file": "05-subquery.html",
+        "file": "05-views-as-data-interfaces.html",
         "ready": false,
         "ex": 18,
-        "mins": 80,
+        "mins": 75,
         "fa": {
-          "t": "زیرکوئری و ‎CTE‎",
-          "d": "کوئری خوانا به‌جای تودرتو."
+          "t": "View، DEFINER و SQL SECURITY در MySQL",
+          "d": "View را برای یک نقش MySQL می‌سازیم و رفتار DEFINER و SQL SECURITY را با کاربر محدود آزمایش می‌کنیم."
         },
         "en": {
-          "t": "Subqueries and CTEs",
-          "d": "Readable queries instead of nested ones."
+          "t": "Views, DEFINER, and SQL SECURITY in MySQL",
+          "d": "Create a view for a MySQL role and test DEFINER and SQL SECURITY behaviour with a restricted account."
         },
-        "kw": "cte subquery with exists",
+        "kw": "views as data interfaces practice views as data interfaces with runnable sql, database code, or commands and inspect the result. view به‌عنوان رابط داده",
         "cap": 0
       },
       {
         "n": "06",
-        "file": "06-dml.html",
+        "file": "06-temporary-and-derived-data.html",
         "ready": false,
         "ex": 18,
-        "mins": 75,
+        "mins": 85,
         "fa": {
-          "t": "تغییر داده",
-          "d": "‏INSERT، UPDATE، DELETE، ‎UPSERT‎."
+          "t": "Temporary table و دادهٔ موقت در MySQL",
+          "d": "عمر و scope جدول موقت را در دو connection می‌سنجیم و با query نشان می‌دهیم چرا بعد از بستن نشست ناپدید می‌شود."
         },
         "en": {
-          "t": "Changing data",
-          "d": "INSERT, UPDATE, DELETE and UPSERT."
+          "t": "Temporary tables and transient data in MySQL",
+          "d": "Test temporary-table scope across two connections and query why the table disappears when its session ends."
         },
-        "kw": "insert update delete upsert replace",
+        "kw": "temporary and derived data practice temporary and derived data with runnable sql, database code, or commands and inspect the result. دادهٔ موقت و derived data",
         "cap": 0
       },
       {
         "n": "07",
-        "file": "07-design.html",
+        "file": "07-json-in-mysql.html",
         "ready": false,
         "ex": 18,
-        "mins": 85,
+        "mins": 90,
         "fa": {
-          "t": "طراحی جدول",
-          "d": "نوع داده، کلید، ‎constraint‎ و ‎charset‎ فارسی."
+          "t": "JSON در MySQL",
+          "d": "JSON را با نوع داده و تابع‌های خود MySQL می‌خوانیم و رفتار indexing و جست‌وجو را با query می‌سنجیم."
         },
         "en": {
-          "t": "Table design",
-          "d": "Data types, keys, constraints and Persian character sets."
+          "t": "JSON in MySQL",
+          "d": "Query MySQL's JSON type and functions, then test indexing and search behaviour with runnable SQL."
         },
-        "kw": "datatype key constraint utf8mb4 collation",
+        "kw": "mysql json data type functions indexing search",
         "cap": 0
       },
       {
         "n": "08",
-        "file": "08-normalization.html",
+        "file": "08-storage-engines-and-innodb.html",
         "ready": false,
         "ex": 18,
-        "mins": 80,
+        "mins": 85,
         "fa": {
-          "t": "نرمال‌سازی",
-          "d": "سه فرم اول، و ‎denormalization‎ آگاهانه."
+          "t": "Storage Engine و InnoDB",
+          "d": "Storage Engine و InnoDB را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
         },
         "en": {
-          "t": "Normalisation",
-          "d": "The first three forms, and deliberate denormalisation."
+          "t": "Storage Engines and InnoDB",
+          "d": "Practice storage engines and innodb with runnable SQL, database code, or commands and inspect the result."
         },
-        "kw": "normalization 1nf 2nf 3nf",
+        "kw": "storage engines and innodb practice storage engines and innodb with runnable sql, database code, or commands and inspect the result. storage engine و innodb",
         "cap": 0
       },
       {
         "n": "09",
-        "file": "09-indexes.html",
+        "file": "09-innodb-index-layout.html",
         "ready": false,
         "ex": 18,
-        "mins": 95,
+        "mins": 90,
         "fa": {
-          "t": "ایندکس",
-          "d": "‏B-tree، ترکیبی، پوششی و ترتیب ستون‌ها."
+          "t": "ساختار index در InnoDB",
+          "d": "ساختار index در InnoDB را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
         },
         "en": {
-          "t": "Indexes",
-          "d": "B-trees, composite, covering, and column order."
+          "t": "InnoDB Index Layout",
+          "d": "Practice innodb index layout with runnable SQL, database code, or commands and inspect the result."
         },
-        "kw": "index btree composite covering prefix",
+        "kw": "innodb index layout practice innodb index layout with runnable sql, database code, or commands and inspect the result. ساختار index در innodb",
         "cap": 0
       },
       {
         "n": "10",
-        "file": "10-explain.html",
+        "file": "10-pages-and-the-buffer-pool.html",
         "ready": false,
         "ex": 18,
-        "mins": 95,
+        "mins": 85,
         "fa": {
-          "t": "‏EXPLAIN",
-          "d": "خواندن برنامهٔ اجرا و تشخیص ‎full scan‎."
+          "t": "Page و Buffer Pool",
+          "d": "Page و Buffer Pool را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
         },
         "en": {
-          "t": "EXPLAIN",
-          "d": "Reading the plan and spotting full scans."
+          "t": "Pages and the Buffer Pool",
+          "d": "Practice pages and the buffer pool with runnable SQL, database code, or commands and inspect the result."
         },
-        "kw": "explain analyze plan type rows filtered",
+        "kw": "pages and the buffer pool practice pages and the buffer pool with runnable sql, database code, or commands and inspect the result. page و buffer pool",
         "cap": 0
       },
       {
         "n": "11",
-        "file": "11-transactions.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 85,
-        "fa": {
-          "t": "تراکنش و قفل",
-          "d": "سطوح ایزوله، ‎deadlock‎ و ‎InnoDB‎."
-        },
-        "en": {
-          "t": "Transactions and locking",
-          "d": "Isolation levels, deadlocks and InnoDB."
-        },
-        "kw": "transaction isolation deadlock innodb mvcc",
-        "cap": 0
-      },
-      {
-        "n": "12",
-        "file": "12-procedures.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 75,
-        "fa": {
-          "t": "‏procedure، function، trigger",
-          "d": "کِی مفیدند و کِی دردسر."
-        },
-        "en": {
-          "t": "Procedures, functions, triggers",
-          "d": "When they help and when they hurt."
-        },
-        "kw": "procedure function trigger event",
-        "cap": 0
-      },
-      {
-        "n": "13",
-        "file": "13-replication.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 85,
-        "fa": {
-          "t": "‏replication",
-          "d": "‏master-replica، تأخیر و خواندن از replica."
-        },
-        "en": {
-          "t": "Replication",
-          "d": "Primary/replica, lag, and reading from replicas."
-        },
-        "kw": "replication binlog lag gtid failover",
-        "cap": 0
-      },
-      {
-        "n": "14",
-        "file": "14-backup.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 80,
-        "fa": {
-          "t": "پشتیبان و بازیابی",
-          "d": "‏mysqldump، binlog و بازیابی نقطه‌ای."
-        },
-        "en": {
-          "t": "Backup and restore",
-          "d": "mysqldump, binlogs and point-in-time recovery."
-        },
-        "kw": "mysqldump xtrabackup binlog pitr",
-        "cap": 0
-      },
-      {
-        "n": "15",
-        "file": "15-security.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 75,
-        "fa": {
-          "t": "امنیت",
-          "d": "کاربر، ‎GRANT‎، ‎TLS‎ و تزریق ‎SQL‎."
-        },
-        "en": {
-          "t": "Security",
-          "d": "Users, GRANT, TLS and SQL injection."
-        },
-        "kw": "grant privilege tls injection prepared",
-        "cap": 0
-      },
-      {
-        "n": "16",
-        "file": "16-tuning.html",
+        "file": "11-redo-undo-purge-and-checkpoints.html",
         "ready": false,
         "ex": 18,
         "mins": 95,
         "fa": {
-          "t": "بهینه‌سازی",
-          "d": "‏slow log، buffer pool و کوئری کند واقعی."
+          "t": "Redo، Undo، purge و checkpoint",
+          "d": "Redo، Undo، purge و checkpoint را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
         },
         "en": {
-          "t": "Tuning",
-          "d": "The slow log, the buffer pool and a genuinely slow query."
+          "t": "Redo, Undo, Purge, and Checkpoints",
+          "d": "Practice redo, undo, purge, and checkpoints with runnable SQL, database code, or commands and inspect the result."
         },
-        "kw": "slowlog buffer pool tuning optimize",
+        "kw": "redo, undo, purge, and checkpoints practice redo, undo, purge, and checkpoints with runnable sql, database code, or commands and inspect the result. redo، undo، purge و checkpoint",
+        "cap": 0
+      },
+      {
+        "n": "12",
+        "file": "12-b-trees-and-index-basics.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "B+ Tree و index پایه",
+          "d": "B+ Tree و index پایه را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "B+ Trees and Index Basics",
+          "d": "Practice b+ trees and index basics with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "b+ trees and index basics practice b+ trees and index basics with runnable sql, database code, or commands and inspect the result. b+ tree و index پایه",
+        "cap": 0
+      },
+      {
+        "n": "13",
+        "file": "13-composite-index-column-order.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Composite Index و ترتیب ستون",
+          "d": "Composite Index و ترتیب ستون را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Composite Index Column Order",
+          "d": "Practice composite index column order with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "composite index column order practice composite index column order with runnable sql, database code, or commands and inspect the result. composite index و ترتیب ستون",
+        "cap": 0
+      },
+      {
+        "n": "14",
+        "file": "14-selectivity-and-covering-indexes.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Selectivity و covering index",
+          "d": "Selectivity و covering index را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Selectivity and Covering Indexes",
+          "d": "Practice selectivity and covering indexes with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "selectivity and covering indexes practice selectivity and covering indexes with runnable sql, database code, or commands and inspect the result. selectivity و covering index",
+        "cap": 0
+      },
+      {
+        "n": "15",
+        "file": "15-prefix-functional-and-invisible-indexes.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Prefix، functional و invisible index",
+          "d": "Prefix، functional و invisible index را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Prefix, Functional, and Invisible Indexes",
+          "d": "Practice prefix, functional, and invisible indexes with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "prefix, functional, and invisible indexes practice prefix, functional, and invisible indexes with runnable sql, database code, or commands and inspect the result. prefix، functional و invisible index",
+        "cap": 0
+      },
+      {
+        "n": "16",
+        "file": "16-fulltext-and-pattern-search.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "FULLTEXT و جست‌وجوی الگو",
+          "d": "FULLTEXT و جست‌وجوی الگو را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "FULLTEXT and Pattern Search",
+          "d": "Practice fulltext and pattern search with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "fulltext and pattern search practice fulltext and pattern search with runnable sql, database code, or commands and inspect the result. fulltext و جست‌وجوی الگو",
         "cap": 0
       },
       {
         "n": "17",
-        "file": "17-cap1.html",
-        "ready": true,
-        "ex": 5,
-        "mins": 80,
+        "file": "17-index-write-cost-and-page-splits.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
         "fa": {
-          "t": "پروژهٔ ۱ — طراحی شِما",
-          "d": "از نیاز تا جدول، با کلید و ‎constraint‎ درست."
+          "t": "هزینهٔ نوشتن و page split",
+          "d": "هزینهٔ نوشتن و page split را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
         },
         "en": {
-          "t": "Project 1 — design a schema",
-          "d": "From requirements to tables, with proper keys and constraints."
+          "t": "Index Write Cost and Page Splits",
+          "d": "Practice index write cost and page splits with runnable SQL, database code, or commands and inspect the result."
         },
-        "kw": "capstone schema",
-        "cap": 1
+        "kw": "index write cost and page splits practice index write cost and page splits with runnable sql, database code, or commands and inspect the result. هزینهٔ نوشتن و page split",
+        "cap": 0
       },
       {
         "n": "18",
-        "file": "18-cap2.html",
-        "ready": true,
-        "ex": 7,
-        "mins": 140,
+        "file": "18-index-maintenance.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 80,
         "fa": {
-          "t": "پروژهٔ ۲ — گزارش‌های تحلیلی",
-          "d": "کوئری‌های پیچیده و ایندکس‌گذاری."
+          "t": "نگهداری ایندکس",
+          "d": "نگهداری ایندکس را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
         },
         "en": {
-          "t": "Project 2 — analytical reports",
-          "d": "Complex queries and indexing."
+          "t": "Index Maintenance",
+          "d": "Practice index maintenance with runnable SQL, database code, or commands and inspect the result."
         },
-        "kw": "capstone report",
-        "cap": 2
+        "kw": "index maintenance practice index maintenance with runnable sql, database code, or commands and inspect the result. نگهداری ایندکس",
+        "cap": 0
       },
       {
         "n": "19",
-        "file": "19-cap3.html",
-        "ready": true,
-        "ex": 9,
-        "mins": 190,
+        "file": "19-explain-for-a-specific-question.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
         "fa": {
-          "t": "پروژهٔ ۳ — از کند به سریع",
-          "d": "یک پایگاه‌دادهٔ میلیونی را به زیر یک ثانیه برسان."
+          "t": "EXPLAIN برای سؤال مشخص",
+          "d": "EXPLAIN برای سؤال مشخص را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
         },
         "en": {
-          "t": "Project 3 — from slow to fast",
-          "d": "Take a million-row database under one second."
+          "t": "EXPLAIN for a Specific Question",
+          "d": "Practice explain for a specific question with runnable SQL, database code, or commands and inspect the result."
         },
-        "kw": "capstone performance",
+        "kw": "explain for a specific question practice explain for a specific question with runnable sql, database code, or commands and inspect the result. explain برای سؤال مشخص",
+        "cap": 0
+      },
+      {
+        "n": "20",
+        "file": "20-reading-json-plans.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "EXPLAIN FORMAT=JSON",
+          "d": "EXPLAIN FORMAT=JSON را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Reading JSON Plans",
+          "d": "Practice reading json plans with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "reading json plans practice reading json plans with runnable sql, database code, or commands and inspect the result. explain format=json",
+        "cap": 0
+      },
+      {
+        "n": "21",
+        "file": "21-runtime-plan-evidence.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "EXPLAIN ANALYZE و ANALYZE",
+          "d": "EXPLAIN ANALYZE و ANALYZE را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Runtime Plan Evidence",
+          "d": "Practice runtime plan evidence with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "runtime plan evidence practice runtime plan evidence with runnable sql, database code, or commands and inspect the result. explain analyze و analyze",
+        "cap": 0
+      },
+      {
+        "n": "22",
+        "file": "22-access-paths-and-explain-fields.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Access type، join order و Extra",
+          "d": "Access type، join order و Extra را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Access Paths and EXPLAIN Fields",
+          "d": "Practice access paths and explain fields with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "access paths and explain fields practice access paths and explain fields with runnable sql, database code, or commands and inspect the result. access type، join order و extra",
+        "cap": 0
+      },
+      {
+        "n": "23",
+        "file": "23-statistics-and-histograms.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "آمار و تخمین ردیف",
+          "d": "آمار و تخمین ردیف را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Statistics and Histograms",
+          "d": "Practice statistics and histograms with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "statistics and histograms practice statistics and histograms with runnable sql, database code, or commands and inspect the result. آمار و تخمین ردیف",
+        "cap": 0
+      },
+      {
+        "n": "24",
+        "file": "24-understanding-optimizer-decisions.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "تصمیم optimizer بدون افسانه",
+          "d": "تصمیم optimizer بدون افسانه را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Understanding Optimizer Decisions",
+          "d": "Practice understanding optimizer decisions with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "understanding optimizer decisions practice understanding optimizer decisions with runnable sql, database code, or commands and inspect the result. تصمیم optimizer بدون افسانه",
+        "cap": 0
+      },
+      {
+        "n": "25",
+        "file": "25-acid-and-transaction-boundaries.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "ACID و مرز تراکنش",
+          "d": "ACID و مرز تراکنش را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "ACID and Transaction Boundaries",
+          "d": "Practice acid and transaction boundaries with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "acid and transaction boundaries practice acid and transaction boundaries with runnable sql, database code, or commands and inspect the result. acid و مرز تراکنش",
+        "cap": 0
+      },
+      {
+        "n": "26",
+        "file": "26-savepoints-and-transaction-recovery.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 80,
+        "fa": {
+          "t": "SAVEPOINT و بازیابی خطا",
+          "d": "SAVEPOINT و بازیابی خطا را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Savepoints and Transaction Recovery",
+          "d": "Practice savepoints and transaction recovery with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "savepoints and transaction recovery practice savepoints and transaction recovery with runnable sql, database code, or commands and inspect the result. savepoint و بازیابی خطا",
+        "cap": 0
+      },
+      {
+        "n": "27",
+        "file": "27-isolation-and-consistent-reads.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Isolation و consistent read",
+          "d": "Isolation و consistent read را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Isolation and Consistent Reads",
+          "d": "Practice isolation and consistent reads with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "isolation and consistent reads practice isolation and consistent reads with runnable sql, database code, or commands and inspect the result. isolation و consistent read",
+        "cap": 0
+      },
+      {
+        "n": "28",
+        "file": "28-locking-reads-and-innodb-locks.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Locking read و قفل‌های InnoDB",
+          "d": "Locking read و قفل‌های InnoDB را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Locking Reads and InnoDB Locks",
+          "d": "Practice locking reads and innodb locks with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "locking reads and innodb locks practice locking reads and innodb locks with runnable sql, database code, or commands and inspect the result. locking read و قفل‌های innodb",
+        "cap": 0
+      },
+      {
+        "n": "29",
+        "file": "29-metadata-locks-and-blocking.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Metadata lock و blocking",
+          "d": "Metadata lock و blocking را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Metadata Locks and Blocking",
+          "d": "Practice metadata locks and blocking with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "metadata locks and blocking practice metadata locks and blocking with runnable sql, database code, or commands and inspect the result. metadata lock و blocking",
+        "cap": 0
+      },
+      {
+        "n": "30",
+        "file": "30-deadlocks-evidence-and-retries.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "Deadlock، evidence و retry",
+          "d": "Deadlock، evidence و retry را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Deadlocks, Evidence, and Retries",
+          "d": "Practice deadlocks, evidence, and retries with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "deadlocks, evidence, and retries practice deadlocks, evidence, and retries with runnable sql, database code, or commands and inspect the result. deadlock، evidence و retry",
+        "cap": 0
+      },
+      {
+        "n": "31",
+        "file": "31-stored-procedures.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "Stored Procedure",
+          "d": "Stored Procedure را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Stored Procedures",
+          "d": "Practice stored procedures with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "stored procedures practice stored procedures with runnable sql, database code, or commands and inspect the result. stored procedure",
+        "cap": 0
+      },
+      {
+        "n": "32",
+        "file": "32-stored-functions.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 80,
+        "fa": {
+          "t": "Stored Function",
+          "d": "Stored Function را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Stored Functions",
+          "d": "Practice stored functions with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "stored functions practice stored functions with runnable sql, database code, or commands and inspect the result. stored function",
+        "cap": 0
+      },
+      {
+        "n": "33",
+        "file": "33-triggers-and-multi-row-changes.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Trigger و تغییر چندردیفی",
+          "d": "Trigger و تغییر چندردیفی را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Triggers and Multi-row Changes",
+          "d": "Practice triggers and multi-row changes with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "triggers and multi-row changes practice triggers and multi-row changes with runnable sql, database code, or commands and inspect the result. trigger و تغییر چندردیفی",
+        "cap": 0
+      },
+      {
+        "n": "34",
+        "file": "34-the-event-scheduler.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "Event Scheduler",
+          "d": "Event Scheduler را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "The Event Scheduler",
+          "d": "Practice the event scheduler with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "the event scheduler practice the event scheduler with runnable sql, database code, or commands and inspect the result. event scheduler",
+        "cap": 0
+      },
+      {
+        "n": "35",
+        "file": "35-prepared-and-dynamic-sql.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Prepared و Dynamic SQL",
+          "d": "Prepared و Dynamic SQL را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Prepared and Dynamic SQL",
+          "d": "Practice prepared and dynamic sql with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "prepared and dynamic sql practice prepared and dynamic sql with runnable sql, database code, or commands and inspect the result. prepared و dynamic sql",
+        "cap": 0
+      },
+      {
+        "n": "36",
+        "file": "36-routine-error-handling.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Handler و خطایابی routine",
+          "d": "Handler و خطایابی routine را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Routine Error Handling",
+          "d": "Practice routine error handling with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "routine error handling practice routine error handling with runnable sql, database code, or commands and inspect the result. handler و خطایابی routine",
+        "cap": 0
+      },
+      {
+        "n": "37",
+        "file": "37-mysql-version-upgrade-lab.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "آزمایش ارتقای نسخهٔ MySQL",
+          "d": "یک تغییر رفتاری بین نسخه‌ها را در محیط آزمایشی پیدا می‌کنیم و با query سازگاری برنامه را ثابت می‌کنیم."
+        },
+        "en": {
+          "t": "MySQL Version Upgrade Lab",
+          "d": "Investigate a version-dependent behaviour in a test environment and prove application compatibility with queries."
+        },
+        "kw": "mysql version upgrade compatibility deprecation test",
+        "cap": 0
+      },
+      {
+        "n": "38",
+        "file": "38-accounts-hosts-and-authentication.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "Account، host و authentication",
+          "d": "Account، host و authentication را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Accounts, Hosts, and Authentication",
+          "d": "Practice accounts, hosts, and authentication with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "accounts, hosts, and authentication practice accounts, hosts, and authentication with runnable sql, database code, or commands and inspect the result. account، host و authentication",
+        "cap": 0
+      },
+      {
+        "n": "39",
+        "file": "39-grant-roles-and-least-privilege.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "GRANT، Role و کمترین دسترسی",
+          "d": "GRANT، Role و کمترین دسترسی را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "GRANT, Roles, and Least Privilege",
+          "d": "Practice grant, roles, and least privilege with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "grant, roles, and least privilege practice grant, roles, and least privilege with runnable sql, database code, or commands and inspect the result. grant، role و کمترین دسترسی",
+        "cap": 0
+      },
+      {
+        "n": "40",
+        "file": "40-tls-and-application-credentials.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "TLS و credential برنامه",
+          "d": "TLS و credential برنامه را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "TLS and Application Credentials",
+          "d": "Practice tls and application credentials with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "tls and application credentials practice tls and application credentials with runnable sql, database code, or commands and inspect the result. tls و credential برنامه",
+        "cap": 0
+      },
+      {
+        "n": "41",
+        "file": "41-sql-injection-at-the-application-boundary.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "پارامترگذاری امن در اپ متصل به MySQL",
+          "d": "ورودی را از syntax جدا می‌کنیم، placeholderهای driver را اجرا می‌کنیم و اثر رشته‌سازی ناامن را فقط در fixture می‌بینیم."
+        },
+        "en": {
+          "t": "Safe parameterisation for MySQL applications",
+          "d": "Separate data from syntax, run the driver's placeholders, and observe unsafe string building only in a safe fixture."
+        },
+        "kw": "sql injection at the application boundary practice sql injection at the application boundary with runnable sql, database code, or commands and inspect the result. sql injection در مرز برنامه",
+        "cap": 0
+      },
+      {
+        "n": "42",
+        "file": "42-ports-dns-and-firewalls.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "پورت 3306، DNS و Firewall",
+          "d": "پورت 3306، DNS و Firewall را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Ports, DNS, and Firewalls",
+          "d": "Practice ports, dns, and firewalls with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "ports, dns, and firewalls practice ports, dns, and firewalls with runnable sql, database code, or commands and inspect the result. پورت 3306، dns و firewall",
+        "cap": 0
+      },
+      {
+        "n": "43",
+        "file": "43-docker-networking-and-database-hosts.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Docker Networking و میزبان",
+          "d": "Docker Networking و میزبان را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Docker Networking and Database Hosts",
+          "d": "Practice docker networking and database hosts with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "docker networking and database hosts practice docker networking and database hosts with runnable sql, database code, or commands and inspect the result. docker networking و میزبان",
+        "cap": 0
+      },
+      {
+        "n": "44",
+        "file": "44-connection-strings-pools-and-timeouts.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "Connection string، pool و timeout",
+          "d": "Connection string، pool و timeout را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Connection Strings, Pools, and Timeouts",
+          "d": "Practice connection strings, pools, and timeouts with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "connection strings, pools, and timeouts practice connection strings, pools, and timeouts with runnable sql, database code, or commands and inspect the result. connection string، pool و timeout",
+        "cap": 0
+      },
+      {
+        "n": "45",
+        "file": "45-multiple-databases-and-servers.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "چند دیتابیس و چند سرور",
+          "d": "چند دیتابیس و چند سرور را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Multiple Databases and Servers",
+          "d": "Practice multiple databases and servers with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "multiple databases and servers practice multiple databases and servers with runnable sql, database code, or commands and inspect the result. چند دیتابیس و چند سرور",
+        "cap": 0
+      },
+      {
+        "n": "46",
+        "file": "46-server-and-session-configuration.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "تنظیمات Server و Session",
+          "d": "تنظیمات Server و Session را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Server and Session Configuration",
+          "d": "Practice server and session configuration with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "server and session configuration practice server and session configuration with runnable sql, database code, or commands and inspect the result. تنظیمات server و session",
+        "cap": 0
+      },
+      {
+        "n": "47",
+        "file": "47-schema-migrations-and-online-ddl.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Migration و Online DDL",
+          "d": "Migration و Online DDL را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Schema Migrations and Online DDL",
+          "d": "Practice schema migrations and online ddl with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "schema migrations and online ddl practice schema migrations and online ddl with runnable sql, database code, or commands and inspect the result. migration و online ddl",
+        "cap": 0
+      },
+      {
+        "n": "48",
+        "file": "48-logical-backups.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Logical Backup",
+          "d": "Logical Backup را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Logical Backups",
+          "d": "Practice logical backups with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "logical backups practice logical backups with runnable sql, database code, or commands and inspect the result. logical backup",
+        "cap": 0
+      },
+      {
+        "n": "49",
+        "file": "49-physical-backups.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "Physical Backup",
+          "d": "Physical Backup را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Physical Backups",
+          "d": "Practice physical backups with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "physical backups practice physical backups with runnable sql, database code, or commands and inspect the result. physical backup",
+        "cap": 0
+      },
+      {
+        "n": "50",
+        "file": "50-restore-and-point-in-time-recovery.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 105,
+        "fa": {
+          "t": "Restore، Binlog و PITR",
+          "d": "Restore، Binlog و PITR را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Restore and Point-in-Time Recovery",
+          "d": "Practice restore and point-in-time recovery with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "restore and point-in-time recovery practice restore and point-in-time recovery with runnable sql, database code, or commands and inspect the result. restore، binlog و pitr",
+        "cap": 0
+      },
+      {
+        "n": "51",
+        "file": "51-asynchronous-replication-and-binlogs.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 105,
+        "fa": {
+          "t": "Replication ناهمگام و Binlog",
+          "d": "Replication ناهمگام و Binlog را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Asynchronous Replication and Binlogs",
+          "d": "Practice asynchronous replication and binlogs with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "asynchronous replication and binlogs practice asynchronous replication and binlogs with runnable sql, database code, or commands and inspect the result. replication ناهمگام و binlog",
+        "cap": 0
+      },
+      {
+        "n": "52",
+        "file": "52-gtid-lag-and-read-after-write.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "GTID، lag و Read-after-Write",
+          "d": "GTID، lag و Read-after-Write را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "GTID, Lag, and Read-after-Write",
+          "d": "Practice gtid, lag, and read-after-write with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "gtid, lag, and read-after-write practice gtid, lag, and read-after-write with runnable sql, database code, or commands and inspect the result. gtid، lag و read-after-write",
+        "cap": 0
+      },
+      {
+        "n": "53",
+        "file": "53-high-availability-architectures.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 110,
+        "fa": {
+          "t": "معماری‌های High Availability",
+          "d": "معماری‌های High Availability را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "High Availability Architectures",
+          "d": "Practice high availability architectures with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "high availability architectures practice high availability architectures with runnable sql, database code, or commands and inspect the result. معماری‌های high availability",
+        "cap": 0
+      },
+      {
+        "n": "54",
+        "file": "54-monitoring-the-database.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "پایش MySQL",
+          "d": "وضعیت server، queryهای کند و منابع را از ابزارهای خود MySQL می‌خوانیم و یک نشانهٔ واقعی را پیگیری می‌کنیم."
+        },
+        "en": {
+          "t": "Monitoring MySQL",
+          "d": "Inspect server state, slow queries, and resource evidence with MySQL's own instrumentation."
+        },
+        "kw": "mysql monitoring server status slow query performance schema",
+        "cap": 0
+      },
+      {
+        "n": "55",
+        "file": "55-database-incident-diagnosis.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "عیب‌یابی رخداد دیتابیس",
+          "d": "عیب‌یابی رخداد دیتابیس را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Database Incident Diagnosis",
+          "d": "Practice database incident diagnosis with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "database incident diagnosis practice database incident diagnosis with runnable sql, database code, or commands and inspect the result. عیب‌یابی رخداد دیتابیس",
+        "cap": 0
+      },
+      {
+        "n": "56",
+        "file": "56-partitioning-and-large-table-operations.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 105,
+        "fa": {
+          "t": "Partitioning و جدول بزرگ",
+          "d": "Partitioning و جدول بزرگ را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Partitioning and Large-table Operations",
+          "d": "Practice partitioning and large-table operations with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "partitioning and large-table operations practice partitioning and large-table operations with runnable sql, database code, or commands and inspect the result. partitioning و جدول بزرگ",
+        "cap": 0
+      },
+      {
+        "n": "57",
+        "file": "57-evidence-based-query-tuning.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 110,
+        "fa": {
+          "t": "بهینه‌سازی query بر پایهٔ evidence",
+          "d": "بهینه‌سازی query بر پایهٔ evidence را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+        },
+        "en": {
+          "t": "Evidence-based Query Tuning",
+          "d": "Practice evidence-based query tuning with runnable SQL, database code, or commands and inspect the result."
+        },
+        "kw": "evidence-based query tuning practice evidence-based query tuning with runnable sql, database code, or commands and inspect the result. بهینه‌سازی query بر پایهٔ evidence",
+        "cap": 0
+      },
+      {
+        "n": "58",
+        "file": "58-project-1-design-a-shop-schema.html",
+        "ready": false,
+        "ex": 5,
+        "mins": 90,
+        "fa": {
+          "t": "پروژهٔ ۱ — سرویس تراکنشی با MySQL",
+          "d": "یک schema را روی InnoDB پیاده کن، constraint و transactionها را با SQL آزمایش کن و اتصال برنامه را بدون secret ثابت کن."
+        },
+        "en": {
+          "t": "Project 1 — a transactional service with MySQL",
+          "d": "Implement a schema on InnoDB, test constraints and transactions with SQL, and verify application connectivity without exposing secrets."
+        },
+        "kw": "project 1 — design a shop schema practice project 1 — design a shop schema with runnable sql, database code, or commands and inspect the result. پروژهٔ ۱ — طراحی schema فروشگاه",
+        "cap": 1
+      },
+      {
+        "n": "59",
+        "file": "59-project-2-analytical-reporting.html",
+        "ready": false,
+        "ex": 7,
+        "mins": 150,
+        "fa": {
+          "t": "پروژهٔ ۲ — تحلیل و tuning روی MySQL",
+          "d": "گزارش واقعی را با index و EXPLAIN بهبود بده و نتیجهٔ نسخهٔ اولیه و نهایی را اندازه بگیر."
+        },
+        "en": {
+          "t": "Project 2 — MySQL analytics and tuning",
+          "d": "Improve a real report with indexes and EXPLAIN, then measure the baseline and final result."
+        },
+        "kw": "project 2 — analytical reporting practice project 2 — analytical reporting with runnable sql, database code, or commands and inspect the result. پروژهٔ ۲ — گزارش تحلیلی",
+        "cap": 2
+      },
+      {
+        "n": "60",
+        "file": "60-project-3-from-slow-to-measurably-faster.html",
+        "ready": false,
+        "ex": 9,
+        "mins": 210,
+        "fa": {
+          "t": "پروژهٔ ۳ — بازیابی و replication در MySQL",
+          "d": "با backup و binlog یک رخداد را بازیابی کن، سلامت replication را بسنج و شواهد عملیاتی تحویل بده."
+        },
+        "en": {
+          "t": "Project 3 — MySQL recovery and replication",
+          "d": "Recover an event with backups and binlogs, verify replication health, and hand off operational evidence."
+        },
+        "kw": "project 3 — from slow to measurably faster practice project 3 — from slow to measurably faster with runnable sql, database code, or commands and inspect the result. پروژهٔ ۳ — از کند به قابل‌اندازه‌گیری",
         "cap": 3
       }
     ],
     "stats": {
-      "chapters": 19,
-      "exercises": 309,
-      "minutes": 1735,
+      "chapters": 60,
+      "exercises": 1047,
+      "minutes": 5570,
       "capstones": 3,
-      "ready": 3
+      "ready": 0
+    }
+  },
+  {
+    "id": "53-mariadb",
+    "dir": "53-mariadb",
+    "accent": "#C0765A",
+    "accentDark": null,
+    "cat": "data",
+    "ico": "<path d=\"M4 15c2-5 6-8 13-8l3 3-4 2c-1 5-5 8-10 7l2-4-4 1z\"/><circle cx=\"10\" cy=\"12\" r=\"1\"/>",
+    "locked": false,
+    "fa": {
+      "name": "MariaDB",
+      "desc": "پس از مبانی SQL، روی رفتارهای مختص MariaDB تمرکز می‌کنیم: storage engine، Aria، versioning، replication، Galera و بازیابی.",
+      "intro": "MariaDB محصولی مستقل با مسیر توسعه و رفتارهای ویژهٔ خودش است. این دوره پس از مبانی SQL روی خود MariaDB تمرکز دارد: موتورهای ذخیره‌سازی، نسخه‌گذاری سیستم، replication، Galera و ابزارهای عملیاتی آن."
+    },
+    "en": {
+      "name": "MariaDB",
+      "desc": "After SQL foundations, focus on MariaDB-specific engines, Aria, versioning, replication, Galera, and recovery through runnable exercises.",
+      "intro": "SQL foundations belong to the separate SQL and SQL Server track. This course then focuses on MariaDB itself: its storage engines, system versioning, replication, Galera, and operational tooling, with runnable checks throughout."
+    },
+    "chapters": [
+      {
+        "n": "01",
+        "file": "01-mariadb-and-version-boundaries.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 75,
+        "fa": {
+          "t": "MariaDB چیست و با MySQL چه نسبتی دارد؟",
+          "d": "نسخه و محصول را قبل از نوشتن query مشخص می‌کنیم؛ سازگاری را فرض نمی‌گیریم و یک تفاوت قابل‌آزمایش پیدا می‌کنیم."
+        },
+        "en": {
+          "t": "MariaDB and its relationship to MySQL",
+          "d": "Identify the exact product and version before querying; test a concrete compatibility boundary instead of assuming interchangeability."
+        },
+        "kw": "mariadb mysql fork divergence version compatibility",
+        "cap": 0
+      },
+      {
+        "n": "02",
+        "file": "02-install-and-connect.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 80,
+        "fa": {
+          "t": "راه‌اندازی MariaDB و اتصال امن",
+          "d": "یک سرور آزمایشی MariaDB راه می‌اندازیم، وصل می‌شویم و نسخه و تنظیمات مؤثر را از خود سرور می‌خوانیم."
+        },
+        "en": {
+          "t": "Installing and connecting to MariaDB",
+          "d": "Start a disposable MariaDB server, connect to it, and inspect its version and effective settings."
+        },
+        "kw": "mariadb install client version server setup",
+        "cap": 0
+      },
+      {
+        "n": "03",
+        "file": "03-server-database-and-users.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 80,
+        "fa": {
+          "t": "Server، database و کاربرها",
+          "d": "database و حساب محدود می‌سازیم و دسترسی مؤثر را با query بررسی می‌کنیم."
+        },
+        "en": {
+          "t": "Servers, databases, and users",
+          "d": "Create a database and a restricted account, then query its effective access."
+        },
+        "kw": "mariadb database user account create",
+        "cap": 0
+      },
+      {
+        "n": "04",
+        "file": "04-json-and-mysql-compatibility-boundaries.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "JSON در MariaDB و مرز سازگاری با MySQL",
+          "d": "JSON را با query بررسی می‌کنیم و تفاوت نمایش/ذخیره‌سازی را به‌جای فرض سازگاری، با نسخه‌ها می‌سنجیم."
+        },
+        "en": {
+          "t": "JSON in MariaDB and MySQL compatibility boundaries",
+          "d": "Query JSON and test storage and representation differences across versions instead of assuming compatibility."
+        },
+        "kw": "mariadb json mysql compatibility version",
+        "cap": 0
+      },
+      {
+        "n": "05",
+        "file": "05-storage-engines-overview.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "معماری Storage Engine در MariaDB",
+          "d": "engineهای فعال را از metadata می‌خوانیم و انتخاب engine را براساس رفتار لازم توجیه می‌کنیم."
+        },
+        "en": {
+          "t": "MariaDB storage engine architecture",
+          "d": "Inspect available engines through metadata and justify an engine choice from required behaviour."
+        },
+        "kw": "mariadb storage engine show engines",
+        "cap": 0
+      },
+      {
+        "n": "06",
+        "file": "06-innodb-transactions-and-recovery.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "InnoDB، تراکنش و بازیابی",
+          "d": "یک workload تراکنشی را اجرا می‌کنیم و قفل ردیفی و recovery را در حد شواهد MariaDB می‌سنجیم."
+        },
+        "en": {
+          "t": "InnoDB, transactions, and recovery",
+          "d": "Run a transactional workload and inspect row locking and recovery evidence in MariaDB."
+        },
+        "kw": "mariadb innodb transaction row lock recovery",
+        "cap": 0
+      },
+      {
+        "n": "07",
+        "file": "07-aria-and-legacy-engines.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Aria و موتورهای قدیمی",
+          "d": "Aria را با InnoDB و موتور legacy مقایسه می‌کنیم و از شواهد تصمیم می‌گیریم کجا گزینهٔ مناسبی نیست."
+        },
+        "en": {
+          "t": "Aria and legacy engines",
+          "d": "Compare Aria, InnoDB, and a legacy engine, using evidence to identify unsuitable use cases."
+        },
+        "kw": "mariadb aria myisam engine comparison",
+        "cap": 0
+      },
+      {
+        "n": "08",
+        "file": "08-indexes-and-explain.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Index و EXPLAIN در MariaDB",
+          "d": "برای یک query ایندکس می‌سازیم و EXPLAIN را پیش و پس از تغییر مقایسه می‌کنیم."
+        },
+        "en": {
+          "t": "Indexes and EXPLAIN in MariaDB",
+          "d": "Index a query and compare EXPLAIN output before and after the change."
+        },
+        "kw": "mariadb index explain key rows",
+        "cap": 0
+      },
+      {
+        "n": "09",
+        "file": "09-explain-analyze-and-optimizer-statistics.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "EXPLAIN ANALYZE و آمار optimizer",
+          "d": "زمان و ردیف تخمینی را با رفتار واقعی مقایسه می‌کنیم؛ قابلیت وابسته به نسخه را مشخص می‌کنیم."
+        },
+        "en": {
+          "t": "EXPLAIN ANALYZE and optimizer statistics",
+          "d": "Compare estimates with observed execution and mark version-dependent capabilities."
+        },
+        "kw": "mariadb explain analyze optimizer statistics version",
+        "cap": 0
+      },
+      {
+        "n": "10",
+        "file": "10-composite-covering-and-fulltext-indexes.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Composite، covering و FULLTEXT index",
+          "d": "چند طراحی ایندکس را روی query جست‌وجو می‌آزماییم و هزینهٔ نوشتن را هم ثبت می‌کنیم."
+        },
+        "en": {
+          "t": "Composite, covering, and FULLTEXT indexes",
+          "d": "Test alternative indexes for a search query and record the write cost as well."
+        },
+        "kw": "mariadb composite covering fulltext index",
+        "cap": 0
+      },
+      {
+        "n": "11",
+        "file": "11-index-maintenance-and-query-tuning.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "نگه‌داری ایندکس و tuning مبتنی بر شاهد",
+          "d": "baseline می‌گیریم، یک تغییر را اعمال می‌کنیم و از روی EXPLAIN و زمان نتیجه می‌گیریم."
+        },
+        "en": {
+          "t": "Index maintenance and evidence-based tuning",
+          "d": "Capture a baseline, change one thing, and assess the result from EXPLAIN and timing."
+        },
+        "kw": "mariadb index maintenance query tuning baseline",
+        "cap": 0
+      },
+      {
+        "n": "12",
+        "file": "12-generated-columns-and-functional-indexing.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Generated column و ایندکس‌کردن expression",
+          "d": "ستون محاسباتی را برای یک predicate می‌سازیم و دسترسی query را قبل و بعد می‌سنجیم."
+        },
+        "en": {
+          "t": "Generated columns and indexing expressions",
+          "d": "Create a generated column for a predicate and measure query access before and after."
+        },
+        "kw": "mariadb generated column functional index",
+        "cap": 0
+      },
+      {
+        "n": "13",
+        "file": "13-sequences-and-identifiers.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "Sequence و شناسه‌گذاری در MariaDB",
+          "d": "Sequence را کنار AUTO_INCREMENT اجرا می‌کنیم و برای نیازهای متفاوت انتخاب مستدل انجام می‌دهیم."
+        },
+        "en": {
+          "t": "Sequences and identifiers in MariaDB",
+          "d": "Run a sequence beside AUTO_INCREMENT and justify choices for different requirements."
+        },
+        "kw": "mariadb sequence auto_increment identifier",
+        "cap": 0
+      },
+      {
+        "n": "14",
+        "file": "14-partitioning-and-large-tables.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "Partitioning و جدول‌های بزرگ",
+          "d": "یک جدول آزمایشی را partition می‌کنیم و pruning و هزینهٔ عملیات را با query و plan بررسی می‌کنیم."
+        },
+        "en": {
+          "t": "Partitioning and large tables",
+          "d": "Partition a test table and inspect pruning and operational cost with queries and plans."
+        },
+        "kw": "mariadb partitioning pruning large table",
+        "cap": 0
+      },
+      {
+        "n": "15",
+        "file": "15-views-and-routine-interfaces.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "View و مرز دسترسی به داده",
+          "d": "view گزارش را می‌سازیم و با grant محدود می‌کنیم؛ دسترسی واقعی کاربر را با query بررسی می‌کنیم."
+        },
+        "en": {
+          "t": "Views and data-access boundaries",
+          "d": "Create a reporting view and restrict it with grants; query the user's effective access."
+        },
+        "kw": "mariadb view grant security",
+        "cap": 0
+      },
+      {
+        "n": "16",
+        "file": "16-stored-procedures-functions-and-handlers.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Procedure، function و handler",
+          "d": "routine می‌نویسیم، خطا را با handler مدیریت می‌کنیم و نتیجه را در transaction آزمایشی می‌سنجیم."
+        },
+        "en": {
+          "t": "Procedures, functions, and handlers",
+          "d": "Write a routine, handle an error, and inspect the result in a test transaction."
+        },
+        "kw": "mariadb procedure function handler sqlstate",
+        "cap": 0
+      },
+      {
+        "n": "17",
+        "file": "17-triggers-and-event-scheduler.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Trigger و Event Scheduler",
+          "d": "رویداد را در setup محدود اجرا می‌کنیم و اثر پنهان trigger را با queryهای قبل/بعد آشکار می‌کنیم."
+        },
+        "en": {
+          "t": "Triggers and the Event Scheduler",
+          "d": "Run a bounded scheduled event and expose a trigger's hidden effects with before-and-after queries."
+        },
+        "kw": "mariadb trigger event scheduler",
+        "cap": 0
+      },
+      {
+        "n": "18",
+        "file": "18-prepared-statements-and-dynamic-sql.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Prepared statement و SQL پویا",
+          "d": "پارامتر داده را امن bind می‌کنیم و مرز پارامتردهی identifier را با query نشان می‌دهیم."
+        },
+        "en": {
+          "t": "Prepared statements and dynamic SQL",
+          "d": "Bind data safely and use queries to show the boundary around identifier parameterisation."
+        },
+        "kw": "mariadb prepared statement dynamic sql parameter",
+        "cap": 0
+      },
+      {
+        "n": "19",
+        "file": "19-temporary-tables-and-cte-tradeoffs.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Temporary table و CTE؛ انتخاب با آزمایش",
+          "d": "دو راه‌حل را روی یک دادهٔ میانی اجرا می‌کنیم و رفتارشان را از نتیجه و plan مقایسه می‌کنیم."
+        },
+        "en": {
+          "t": "Temporary tables and CTE trade-offs",
+          "d": "Run both approaches against an intermediate dataset and compare results and plans."
+        },
+        "kw": "mariadb temporary table cte materialization",
+        "cap": 0
+      },
+      {
+        "n": "20",
+        "file": "20-system-versioned-tables.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "System-versioned table و تاریخچهٔ ردیف",
+          "d": "تغییرات یک ردیف را ثبت می‌کنیم و با پرس‌وجوی زمان‌مند مقدار گذشته را بازیابی می‌کنیم."
+        },
+        "en": {
+          "t": "System-versioned tables and row history",
+          "d": "Record row changes and query a prior value by time in a disposable table."
+        },
+        "kw": "mariadb system versioning for system_time history temporal",
+        "cap": 0
+      },
+      {
+        "n": "21",
+        "file": "21-application-time-and-bitemporal-data.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "Application-time و دادهٔ bitemporal",
+          "d": "زمان اعتبار کسب‌وکار را از زمان ثبت در سرور جدا می‌کنیم و هر دو محور را query می‌کنیم."
+        },
+        "en": {
+          "t": "Application-time and bitemporal data",
+          "d": "Separate business-valid time from system-recorded time and query both dimensions."
+        },
+        "kw": "mariadb application time bitemporal period",
+        "cap": 0
+      },
+      {
+        "n": "22",
+        "file": "22-accounts-authentication-and-roles.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Account، authentication و Role",
+          "d": "کاربر محدود می‌سازیم، grantهای دقیق می‌دهیم و دسترسی مؤثر را با account همان کاربر می‌سنجیم."
+        },
+        "en": {
+          "t": "Accounts, authentication, and roles",
+          "d": "Create a restricted account, grant exact privileges, and verify effective access as that user."
+        },
+        "kw": "mariadb account authentication role grant revoke",
+        "cap": 0
+      },
+      {
+        "n": "23",
+        "file": "23-least-privilege-and-auditing.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "کمترین دسترسی و audit",
+          "d": "مجوزهای اضافه را پیدا می‌کنیم و رخداد موردنیاز را با ابزار یا plugin متناسب ثبت می‌کنیم."
+        },
+        "en": {
+          "t": "Least privilege and auditing",
+          "d": "Find excess privileges and record a required event with an appropriate MariaDB facility."
+        },
+        "kw": "mariadb least privilege audit plugin privileges",
+        "cap": 0
+      },
+      {
+        "n": "24",
+        "file": "24-tls-and-client-connections.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "TLS و اتصال Client",
+          "d": "اتصال رمزگذاری‌شده را بررسی می‌کنیم و از مدرک connection تفاوت encryption و اعتبار گواهی را می‌فهمیم."
+        },
+        "en": {
+          "t": "TLS and client connections",
+          "d": "Inspect an encrypted connection and distinguish encryption from certificate validation using connection evidence."
+        },
+        "kw": "mariadb tls ssl certificate client connection",
+        "cap": 0
+      },
+      {
+        "n": "25",
+        "file": "25-server-configuration-and-sessions.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "تنظیمات Server و Session",
+          "d": "متغیرهای مؤثر را در دو scope می‌خوانیم و یک تنظیم را در session آزمایش می‌کنیم."
+        },
+        "en": {
+          "t": "Server and session configuration",
+          "d": "Inspect effective variables at two scopes and test one setting in a session."
+        },
+        "kw": "mariadb variables global session configuration",
+        "cap": 0
+      },
+      {
+        "n": "26",
+        "file": "26-networking-dns-ports-and-firewalls.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "DNS، پورت و Firewall دیتابیس",
+          "d": "مسیر اتصال client تا MariaDB را آزمایش می‌کنیم و timeout شبکه را از خطای login جدا می‌کنیم."
+        },
+        "en": {
+          "t": "Database DNS, ports, and firewalls",
+          "d": "Test the client-to-MariaDB path and distinguish network timeouts from login errors."
+        },
+        "kw": "mariadb networking dns port firewall connection",
+        "cap": 0
+      },
+      {
+        "n": "27",
+        "file": "27-slow-query-log-and-performance-schema.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Slow Query Log و Performance Schema",
+          "d": "یک query کند تولید می‌کنیم، شواهدش را پیدا می‌کنیم و محدودیت هر منبع پایش را توضیح می‌دهیم."
+        },
+        "en": {
+          "t": "The slow query log and Performance Schema",
+          "d": "Generate a slow query, find its evidence, and state what each monitoring source cannot prove."
+        },
+        "kw": "mariadb slow query log performance schema",
+        "cap": 0
+      },
+      {
+        "n": "28",
+        "file": "28-mariadb-monitoring-and-incident-diagnosis.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "پایش و عیب‌یابی رخداد MariaDB",
+          "d": "از symptom به وضعیت connection، query، lock و resource evidence می‌رویم و پیش از restart علت را محدود می‌کنیم."
+        },
+        "en": {
+          "t": "Monitoring and diagnosing MariaDB incidents",
+          "d": "Trace symptoms through connections, queries, locks, and resource evidence before considering a restart."
+        },
+        "kw": "mariadb monitoring incident diagnose status locks",
+        "cap": 0
+      },
+      {
+        "n": "29",
+        "file": "29-logical-backup-with-mariadb-dump.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Logical backup با mariadb-dump",
+          "d": "backup سازگار می‌گیریم، فایل را inspect و در دیتابیس جدا restore می‌کنیم."
+        },
+        "en": {
+          "t": "Logical backups with mariadb-dump",
+          "d": "Create a consistent backup, inspect it, and restore it into a separate database."
+        },
+        "kw": "mariadb-dump logical backup restore",
+        "cap": 0
+      },
+      {
+        "n": "30",
+        "file": "30-physical-backup-with-mariabackup.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "Physical backup با mariabackup",
+          "d": "backup فیزیکی را در محیط disposable prepare و restore می‌کنیم و پیش‌شرط نسخه را ثبت می‌کنیم."
+        },
+        "en": {
+          "t": "Physical backups with mariabackup",
+          "d": "Prepare and restore a physical backup in a disposable environment, recording version prerequisites."
+        },
+        "kw": "mariabackup physical backup prepare restore",
+        "cap": 0
+      },
+      {
+        "n": "31",
+        "file": "31-binlogs-and-point-in-time-recovery.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 105,
+        "fa": {
+          "t": "Binlog و بازیابی نقطه‌ای",
+          "d": "یک رخداد آزمایشی را تا زمان مشخص بازسازی می‌کنیم و ترتیب backup و binlog را می‌سنجیم."
+        },
+        "en": {
+          "t": "Binlogs and point-in-time recovery",
+          "d": "Reconstruct a test event to a chosen time and verify the backup and binlog sequence."
+        },
+        "kw": "mariadb binlog point in time recovery restore",
+        "cap": 0
+      },
+      {
+        "n": "32",
+        "file": "32-replication-basics-and-health.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "Replication پایه و بررسی سلامت",
+          "d": "primary و replica آزمایشی می‌سازیم، تغییر را دنبال می‌کنیم و lag و وضعیت threadها را می‌خوانیم."
+        },
+        "en": {
+          "t": "Replication basics and health checks",
+          "d": "Create a test primary and replica, follow a change, and inspect lag and thread state."
+        },
+        "kw": "mariadb replication primary replica lag status",
+        "cap": 0
+      },
+      {
+        "n": "33",
+        "file": "33-gtid-and-replication-recovery.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "GTID و بازیابی Replication",
+          "d": "موقعیت replication را با GTID بررسی می‌کنیم و پس از توقف کنترل‌شده، همگام‌سازی را اثبات می‌کنیم."
+        },
+        "en": {
+          "t": "GTID and replication recovery",
+          "d": "Inspect replication position with GTID and prove resynchronisation after a controlled stop."
+        },
+        "kw": "mariadb gtid replication recovery position",
+        "cap": 0
+      },
+      {
+        "n": "34",
+        "file": "34-multi-source-replication.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "Multi-source replication و مرز استفاده",
+          "d": "دو منبع را در آزمایش محدود وصل می‌کنیم و برخورد نام/داده را به‌جای فرض ادغام خودکار می‌سنجیم."
+        },
+        "en": {
+          "t": "Multi-source replication and its limits",
+          "d": "Connect two sources in a bounded lab and test data/name collisions rather than assuming automatic merging."
+        },
+        "kw": "mariadb multi source replication channel conflict",
+        "cap": 0
+      },
+      {
+        "n": "35",
+        "file": "35-galera-cluster-consistency-and-quorum.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 110,
+        "fa": {
+          "t": "Galera، consistency و quorum",
+          "d": "یک cluster آزمایشی را مشاهده می‌کنیم و با قطع کنترل‌شده، وضعیت quorum و شرط نوشتن را ثبت می‌کنیم."
+        },
+        "en": {
+          "t": "Galera, consistency, and quorum",
+          "d": "Observe a test cluster and record quorum and write conditions after a controlled interruption."
+        },
+        "kw": "mariadb galera cluster quorum wsrep consistency",
+        "cap": 0
+      },
+      {
+        "n": "36",
+        "file": "36-online-ddl-and-schema-migrations.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "Online DDL و migration سازگار",
+          "d": "migration را روی جدول آزمایشی اجرا می‌کنیم و lock، مدت اجرا و سازگاری نسخهٔ اپ را بررسی می‌کنیم."
+        },
+        "en": {
+          "t": "Online DDL and compatible migrations",
+          "d": "Run a migration on a test table and inspect locking, duration, and application-version compatibility."
+        },
+        "kw": "mariadb online ddl migration lock algorithm inplace",
+        "cap": 0
+      },
+      {
+        "n": "37",
+        "file": "37-upgrade-and-mysql-migration-compatibility.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 105,
+        "fa": {
+          "t": "ارتقای MariaDB و مهاجرت از MySQL",
+          "d": "یک schema نمونه را بررسی می‌کنیم، موارد ناسازگار را با query پیدا می‌کنیم و مسیر مهاجرت را مستند می‌کنیم."
+        },
+        "en": {
+          "t": "MariaDB upgrades and MySQL migration compatibility",
+          "d": "Inspect a sample schema, find incompatibilities with queries, and document a migration path."
+        },
+        "kw": "mariadb upgrade mysql migration compatibility differences",
+        "cap": 0
+      },
+      {
+        "n": "38",
+        "file": "38-project-1-mariadb-shop-schema.html",
+        "ready": false,
+        "ex": 5,
+        "mins": 120,
+        "fa": {
+          "t": "پروژهٔ ۱ — مهاجرت آزمایشی MySQL به MariaDB",
+          "d": "یک کپی disposable را منتقل کن، تفاوت‌های schema و JSON را با query پیدا کن و صحت ردیف‌های کلیدی را ثابت کن."
+        },
+        "en": {
+          "t": "Project 1 — a test migration from MySQL to MariaDB",
+          "d": "Migrate a disposable copy, find schema and JSON differences with queries, and prove key rows remain correct."
+        },
+        "kw": "project mariadb schema constraints validation",
+        "cap": 1
+      },
+      {
+        "n": "39",
+        "file": "39-project-2-mariadb-analytics.html",
+        "ready": false,
+        "ex": 7,
+        "mins": 180,
+        "fa": {
+          "t": "پروژهٔ ۲ — tuning و engine در MariaDB",
+          "d": "یک workload را روی InnoDB و گزینهٔ مناسب دیگر آزمایش کن؛ plan و زمان را ثبت و انتخابت را توجیه کن."
+        },
+        "en": {
+          "t": "Project 2 — MariaDB tuning and storage engines",
+          "d": "Test a workload on InnoDB and another justified engine; record plans and timings and defend the choice."
+        },
+        "kw": "project mariadb analytics query index explain",
+        "cap": 2
+      },
+      {
+        "n": "40",
+        "file": "40-project-3-mariadb-operations-and-recovery.html",
+        "ready": false,
+        "ex": 9,
+        "mins": 240,
+        "fa": {
+          "t": "پروژهٔ ۳ — backup و خوشهٔ MariaDB",
+          "d": "backup را در محیط جدا restore کن، سپس replication یا Galera را راه بینداز و سلامت آن را با evidence نشان بده."
+        },
+        "en": {
+          "t": "Project 3 — MariaDB backup and clustering",
+          "d": "Restore a backup into an isolated target, then configure replication or Galera and prove health with evidence."
+        },
+        "kw": "project mariadb operations backup restore replication galera",
+        "cap": 3
+      }
+    ],
+    "stats": {
+      "chapters": 40,
+      "exercises": 687,
+      "minutes": 4040,
+      "capstones": 3,
+      "ready": 0
     }
   },
   {
@@ -21379,7 +23396,7 @@ export const TRACKS: Track[] = [
       {
         "n": "09",
         "file": "09-distros.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -21396,7 +23413,7 @@ export const TRACKS: Track[] = [
       {
         "n": "10",
         "file": "10-install.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -21413,7 +23430,7 @@ export const TRACKS: Track[] = [
       {
         "n": "11",
         "file": "11-automation.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -21430,7 +23447,7 @@ export const TRACKS: Track[] = [
       {
         "n": "12",
         "file": "12-proxmox.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -21447,7 +23464,7 @@ export const TRACKS: Track[] = [
       {
         "n": "13",
         "file": "13-wsl.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -21464,7 +23481,7 @@ export const TRACKS: Track[] = [
       {
         "n": "14",
         "file": "14-troubleshoot.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -21481,8 +23498,8 @@ export const TRACKS: Track[] = [
       {
         "n": "15",
         "file": "15-cap1.html",
-        "ready": false,
-        "ex": 5,
+        "ready": true,
+        "ex": 0,
         "mins": 80,
         "fa": {
           "t": "پروژهٔ ۱ — اولین ماشین",
@@ -21498,8 +23515,8 @@ export const TRACKS: Track[] = [
       {
         "n": "16",
         "file": "16-cap2.html",
-        "ready": false,
-        "ex": 7,
+        "ready": true,
+        "ex": 0,
         "mins": 140,
         "fa": {
           "t": "پروژهٔ ۲ — آزمایشگاه سه‌ماشینه",
@@ -21515,8 +23532,8 @@ export const TRACKS: Track[] = [
       {
         "n": "17",
         "file": "17-cap3.html",
-        "ready": false,
-        "ex": 9,
+        "ready": true,
+        "ex": 0,
         "mins": 190,
         "fa": {
           "t": "پروژهٔ ۳ — آزمایشگاه خودکار",
@@ -21532,10 +23549,10 @@ export const TRACKS: Track[] = [
     ],
     "stats": {
       "chapters": 17,
-      "exercises": 273,
+      "exercises": 252,
       "minutes": 1615,
       "capstones": 3,
-      "ready": 8
+      "ready": 17
     }
   },
   {
