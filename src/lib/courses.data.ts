@@ -1416,7 +1416,7 @@ export const TRACKS: Track[] = [
       {
         "n": "01",
         "file": "01-relational.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
@@ -1433,26 +1433,26 @@ export const TRACKS: Track[] = [
       {
         "n": "02",
         "file": "02-install.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 75,
+        "mins": 90,
         "fa": {
-          "t": "نصب و ابزار",
-          "d": "‏SQL Server با داکر، ‎SSMS‎ و ‎Azure Data Studio‎."
+          "t": "نصب SQL Server و انتخاب ابزار درست",
+          "d": "SQL Server 2025 را در container لینوکسی x64 بالا می‌آوریم؛ ابزار رسمی و مسیر اتصال را می‌سنجیم. Azure Data Studio بازنشسته شده و جایگزین‌های فعلی را معرفی می‌کنیم."
         },
         "en": {
-          "t": "Installation and tooling",
-          "d": "SQL Server on Docker, SSMS and Azure Data Studio."
+          "t": "Installing SQL Server and choosing the right tools",
+          "d": "Run SQL Server 2025 in an x64 Linux container and verify the official tools and connection path. Azure Data Studio is retired; this chapter uses current alternatives."
         },
-        "kw": "install docker ssms azure data studio sqlcmd",
+        "kw": "sql server 2025 docker x64 sqlcmd ssms vscode mssql azure data studio retired install tooling connection",
         "cap": 0
       },
       {
         "n": "03",
         "file": "03-sql-server-shop-fixture.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 75,
+        "mins": 90,
         "fa": {
           "t": "دادهٔ تمرینی Shop و محیط قابل‌بازتولید",
           "d": "یک fixture کوچک و قابل‌تکرار می‌سازیم تا queryهای دوره روی دادهٔ یکسان اجرا شوند و نتیجه قابل مقایسه باشد."
@@ -1467,92 +1467,92 @@ export const TRACKS: Track[] = [
       {
         "n": "04",
         "file": "04-select-from-and-projection.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
           "t": "SELECT، FROM و انتخاب ستون‌ها",
-          "d": "از یک جدول فقط ستون‌های لازم را می‌گیریم؛ alias و عبارت محاسباتی می‌سازیم و ترتیب منطقی اجرای query را با نتیجه می‌سنجیم."
+          "d": "از Shop ستون‌های لازم را برمی‌گردانیم، expression و alias می‌سازیم و می‌سنجیم چرا ترتیب bind شدن با ترتیب نوشتن query فرق دارد."
         },
         "en": {
           "t": "SELECT, FROM, and projection",
-          "d": "Select only the needed columns; use aliases and expressions, then verify the logical query order against the result."
+          "d": "Project selected Shop columns, create expressions and aliases, and test why logical binding differs from written query order."
         },
-        "kw": "select from projection alias expression query order",
+        "kw": "select from projection alias expression query order sql server 2025",
         "cap": 0
       },
       {
         "n": "05",
         "file": "05-where-and-comparison-predicates.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
           "t": "WHERE و شرط‌های مقایسه‌ای",
-          "d": "شرط‌های مقایسه‌ای و ترکیب AND و OR را روی دادهٔ Shop اجرا می‌کنیم؛ با پرانتز نشان می‌دهیم اولویت عملگرها چطور نتیجه را عوض می‌کند."
+          "d": "ردیف‌های Shop را با شرط‌های عددی، متنی و زمانی فیلتر می‌کنیم و دام AND/OR را با یک گزارش واقعی اصلاح می‌کنیم."
         },
         "en": {
           "t": "WHERE and comparison predicates",
-          "d": "Run comparison predicates and combine AND with OR; use parentheses to see how precedence changes the result."
+          "d": "Filter Shop rows by numeric, text, and date predicates, then repair an AND/OR precedence bug in a realistic report."
         },
-        "kw": "where comparison and or predicate precedence",
+        "kw": "where comparison and or predicate precedence sql server",
         "cap": 0
       },
       {
         "n": "06",
         "file": "06-in-between-and-like.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
           "t": "IN، BETWEEN و LIKE",
-          "d": "برای مجموعه، بازه و الگوی متنی سه شکل شرط را انتخاب می‌کنیم؛ مرزهای BETWEEN و wildcardهای LIKE را با دادهٔ واقعی می‌آزماییم."
+          "d": "IN را برای مجموعه، BETWEEN را با endpointهای inclusive و LIKE را با wildcard و ESCAPE روی Shop آزمایش می‌کنیم."
         },
         "en": {
           "t": "IN, BETWEEN, and LIKE",
-          "d": "Choose predicates for sets, ranges, and text patterns; test BETWEEN boundaries and LIKE wildcards against real rows."
+          "d": "Test IN for sets, inclusive BETWEEN endpoints, and LIKE wildcards with ESCAPE against the Shop fixture."
         },
-        "kw": "in between like wildcard pattern range",
+        "kw": "in between like wildcard pattern range sql server escape null semantics",
         "cap": 0
       },
       {
         "n": "07",
         "file": "07-null-in-predicates-and-results.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 75,
+        "mins": 80,
         "fa": {
           "t": "NULL در شرط و نتیجه",
-          "d": "فرق مقدار نامعلوم با صفر و رشتهٔ خالی را با IS NULL، منطق سه‌مقداری و اثر NULL روی فیلترها و توابع تجمیعی می‌سنجیم."
+          "d": "مقدار نامعلوم را از صفر و رشتهٔ خالی جدا می‌کنیم و اثر منطق سه‌حالته را روی WHERE، NOT IN و COUNT با fixture موقت می‌سنجیم."
         },
         "en": {
           "t": "NULL in predicates and results",
-          "d": "Distinguish unknown from zero and empty text; test IS NULL, three-valued logic, and NULL in filters and aggregates."
+          "d": "Distinguish unknown from zero and empty text; test three-valued logic in WHERE, NOT IN, and COUNT with a temporary fixture."
         },
-        "kw": "null is null three valued logic unknown",
+        "kw": "null is null three valued logic unknown count not in sql server",
         "cap": 0
       },
       {
         "n": "08",
         "file": "08-distinct-and-duplicate-rows.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
           "t": "DISTINCT و سطرهای تکراری",
-          "d": "می‌بینیم DISTINCT کدام تکرار را حذف می‌کند، چرا چند ستون با هم معیارند و چه وقت GROUP BY یا اصلاح JOIN راه درست‌تری است."
+          "d": "فرق تکرار یک مقدار و تکرار کل projection را روی Shop می‌بینیم و بررسی می‌کنیم DISTINCT چه وقت duplicate واقعی یا join اشتباه را پنهان می‌کند."
         },
         "en": {
           "t": "DISTINCT and duplicate rows",
-          "d": "See which duplicates DISTINCT removes, how multiple columns define uniqueness, and when fixing a join or grouping is better."
+          "d": "Compare repeated values with repeated projections on Shop, and see when DISTINCT hides real duplicates or a faulty join."
         },
-        "kw": "distinct duplicates projection unique rows",
+        "kw": "distinct duplicates projection unique rows group by sql server",
         "cap": 0
       },
       {
         "n": "09",
-        "file": "09-order-by-and-deterministic-sorting.html",
-        "ready": false,
+        "file": "09-order-by-and-deterministic-ordering.html",
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
@@ -1560,7 +1560,7 @@ export const TRACKS: Track[] = [
           "d": "مرتب‌سازی صعودی و نزولی، ترتیب چندستونی و تعیین tie-breaker را اجرا می‌کنیم؛ بدون ORDER BY دربارهٔ ترتیب خروجی ادعایی نمی‌کنیم."
         },
         "en": {
-          "t": "ORDER BY and deterministic sorting",
+          "t": "ORDER BY and deterministic ordering",
           "d": "Use ascending and descending order, multiple sort keys, and a tie-breaker; never assume output order without ORDER BY."
         },
         "kw": "order by asc desc sorting deterministic tie breaker",
@@ -1569,279 +1569,279 @@ export const TRACKS: Track[] = [
       {
         "n": "10",
         "file": "10-top-offset-fetch-and-pagination.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 75,
+        "mins": 80,
         "fa": {
           "t": "TOP، OFFSET/FETCH و صفحه‌بندی",
-          "d": "در SQL Server با TOP و OFFSET/FETCH صفحه می‌گیریم؛ ترتیب یکتا، صفحهٔ خالی و هزینهٔ جابه‌جایی به صفحه‌های عمیق را بررسی می‌کنیم."
+          "d": "با TOP و OFFSET/FETCH تعداد و نقطهٔ شروع را کنترل می‌کنیم؛ ترتیب یکتا، WITH TIES، صفحهٔ خالی و تغییر داده میان درخواست‌ها را می‌سنجیم."
         },
         "en": {
           "t": "TOP, OFFSET/FETCH, and pagination",
-          "d": "Page through results in SQL Server with TOP and OFFSET/FETCH; check unique ordering, empty pages, and deep-page cost."
+          "d": "Control row count and starting position with TOP and OFFSET/FETCH; test unique ordering, WITH TIES, empty pages, and data changes between requests."
         },
-        "kw": "sql server top offset fetch pagination order",
+        "kw": "sql server top offset fetch pagination with ties unique order",
         "cap": 0
       },
       {
         "n": "11",
         "file": "11-join-and-the-on-predicate.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 75,
+        "mins": 80,
         "fa": {
           "t": "JOIN و شرط اتصال ON",
-          "d": "دو جدول را با کلید مرتبط وصل می‌کنیم؛ شرط ON را از فیلتر WHERE جدا می‌کنیم و اثر جابه‌جایی شرط را در LEFT JOIN می‌بینیم."
+          "d": "گزارش چندجدولی را با کلید رابطه می‌سازیم؛ ON را از فیلتر WHERE جدا می‌کنیم و می‌بینیم جای شرط در LEFT JOIN چرا مهم است."
         },
         "en": {
           "t": "JOIN and the ON predicate",
-          "d": "Connect related tables by key, distinguish ON from WHERE, and observe how moving a condition affects an outer join."
+          "d": "Build multi-table reports from relationship keys, distinguish ON from WHERE, and see why predicate placement matters in LEFT JOIN."
         },
-        "kw": "join on predicate where relationship",
+        "kw": "join on predicate where relationship outer join cardinality",
         "cap": 0
       },
       {
         "n": "12",
         "file": "12-inner-join.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
-          "t": "INNER JOIN",
-          "d": "فقط ردیف‌های دارای تطبیق را برمی‌گردانیم؛ با دادهٔ یتیم نشان می‌دهیم چرا نبودن نتیجه لزوماً به معنی نبودن رکورد نیست."
+          "t": "INNER JOIN؛ فقط matchها",
+          "d": "فقط جفت‌های دارای match را برمی‌گردانیم؛ ردیف پایه، شرط اتصال و cardinality را بررسی می‌کنیم تا نبودن در گزارش را با حذف‌شدن داده اشتباه نگیریم."
         },
         "en": {
-          "t": "INNER JOIN",
-          "d": "Return only matching rows and use an orphaned row to show why a missing result does not prove a record is absent."
+          "t": "INNER JOIN: matching rows only",
+          "d": "Return matching pairs only; inspect base rows, join predicates, and cardinality before mistaking an absent result for deleted data."
         },
-        "kw": "inner join matching rows orphan",
+        "kw": "inner join matching rows orphan cardinality",
         "cap": 0
       },
       {
         "n": "13",
         "file": "13-left-outer-join.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 75,
+        "mins": 80,
         "fa": {
-          "t": "LEFT OUTER JOIN",
-          "d": "همهٔ ردیف‌های سمت چپ را نگه می‌داریم؛ ردیف بی‌تطبیق را تشخیص می‌دهیم و مراقب فیلتر WHERE برای ستون سمت راست هستیم."
+          "t": "LEFT JOIN؛ حفظ همهٔ ردیف‌های سمت چپ",
+          "d": "همهٔ ردیف‌های سمت چپ را نگه می‌داریم؛ مشتری بی‌سفارش را پیدا می‌کنیم و اثر شرط سمت راست در ON در برابر WHERE را با دادهٔ Shop می‌سنجیم."
         },
         "en": {
-          "t": "LEFT OUTER JOIN",
-          "d": "Keep every left-side row, identify unmatched rows, and avoid accidentally filtering the right side in WHERE."
+          "t": "LEFT JOIN: preserve every left-side row",
+          "d": "Preserve all left-side rows, find customers without orders, and test right-side predicates in ON versus WHERE against Shop."
         },
-        "kw": "left outer join unmatched null",
+        "kw": "left outer join unmatched null anti join predicate on where",
         "cap": 0
       },
       {
         "n": "14",
         "file": "14-right-outer-join.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
-          "t": "RIGHT OUTER JOIN",
-          "d": "RIGHT JOIN را روی یک مثال می‌خوانیم و همان query را با جابه‌جایی جدول‌ها به LEFT JOIN تبدیل می‌کنیم تا جهت حفظ ردیف‌ها روشن شود."
+          "t": "RIGHT JOIN؛ حفظ سمت راست",
+          "d": "سمت حفظ‌شونده را در RIGHT JOIN تشخیص می‌دهیم و همان نیاز را با جابه‌جایی ورودی‌ها به LEFT JOIN خواناتر بازنویسی می‌کنیم؛ اثر WHERE را هم می‌سنجیم."
         },
         "en": {
-          "t": "RIGHT OUTER JOIN",
-          "d": "Read a RIGHT JOIN, then swap table order to express the same result as LEFT JOIN and make preservation explicit."
+          "t": "RIGHT JOIN: preserve the right side",
+          "d": "Identify the preserved input in RIGHT JOIN, rewrite the same requirement more clearly with LEFT JOIN, and test WHERE predicate effects."
         },
-        "kw": "right outer join preserved rows",
+        "kw": "right outer join preserved rows left join where predicate",
         "cap": 0
       },
       {
         "n": "15",
         "file": "15-full-outer-join.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 75,
+        "mins": 80,
         "fa": {
-          "t": "FULL OUTER JOIN",
-          "d": "ردیف‌های matchشده و بی‌تطبیق هر دو طرف را می‌گیریم؛ خروجی را بر اساس NULLهای هر سمت دسته‌بندی می‌کنیم."
+          "t": "FULL OUTER JOIN؛ تطبیق دو سمت",
+          "d": "هم matchها و هم ردیف‌های فقط-A و فقط-B را گزارش می‌کنیم؛ NULL سمت غایب را از NULL مقدار واقعی جدا می‌کنیم و قبل از تغییر داده اختلاف را مستند می‌کنیم."
         },
         "en": {
-          "t": "FULL OUTER JOIN",
-          "d": "Return matched and unmatched rows from both sides, then classify results by which side contains NULLs."
+          "t": "FULL OUTER JOIN: reconcile both sides",
+          "d": "Report matches and A-only/B-only rows, distinguish absent rows from nullable values, and document discrepancies before changing data."
         },
-        "kw": "full outer join unmatched both sides",
+        "kw": "full outer join reconcile unmatched both sides null coalesce",
         "cap": 0
       },
       {
         "n": "16",
         "file": "16-cross-join-and-cartesian-products.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
           "t": "CROSS JOIN و ضرب دکارتی",
-          "d": "CROSS JOIN را عمداً روی دو مجموعهٔ کوچک اجرا می‌کنیم، تعداد خروجی را پیش‌بینی می‌کنیم و جلوی ضرب ناخواستهٔ ردیف‌ها را می‌گیریم."
+          "d": "ترکیب همهٔ عضوهای دو مجموعه را فقط وقتی آگاهانه لازم است می‌سازیم؛ تعداد خروجی را پیش‌بینی می‌کنیم و CROSS JOIN ناخواسته را از شرط اتصال فراموش‌شده تشخیص می‌دهیم."
         },
         "en": {
           "t": "CROSS JOIN and Cartesian products",
-          "d": "Run CROSS JOIN intentionally on small sets, predict its row count, and prevent accidental row multiplication."
+          "d": "Create every pair only when intended, predict result size, and distinguish an accidental Cartesian product from a missing relationship predicate."
         },
-        "kw": "cross join cartesian product combinations",
+        "kw": "cross join cartesian product combinations cardinality",
         "cap": 0
       },
       {
         "n": "17",
         "file": "17-self-joins-and-within-table-relationships.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 75,
+        "mins": 80,
         "fa": {
           "t": "Self JOIN و رابطهٔ یک جدول با خودش",
-          "d": "یک جدول سلسله‌مراتبی مثل کارمند و مدیر را به خودش وصل می‌کنیم؛ aliasها و شرط اتصال را طوری می‌نویسیم که دو نقش قاطی نشوند."
+          "d": "کارمند و مدیر را در دو نقش از یک جدول وصل می‌کنیم؛ aliasها، self-reference و ردیف‌های بی‌مدیر را با fixture موقت می‌سنجیم."
         },
         "en": {
           "t": "Self joins and within-table relationships",
-          "d": "Join a hierarchy such as employees and managers to itself, using aliases to keep each role clear."
+          "d": "Join employee and manager roles from one table; test aliases, self-references, and employees without managers in a temporary fixture."
         },
-        "kw": "self join hierarchy alias employee manager",
+        "kw": "self join hierarchy alias employee manager recursive cycle",
         "cap": 0
       },
       {
         "n": "18",
         "file": "18-join-fan-out-and-cardinality.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 75,
+        "mins": 85,
         "fa": {
           "t": "تکثیر ردیف در JOIN و cardinality",
-          "d": "قبل از اتصال تعداد ردیف‌های هر سمت را می‌سنجیم؛ رابطهٔ یک‌به‌چند و چندبه‌چند را از خروجی می‌خوانیم و جمع‌های بادکرده را اصلاح می‌کنیم."
+          "d": "grain هر ردیف را مشخص می‌کنیم، matchها را می‌شماریم و جمع بادکرده را با aggregate در سطح درست اصلاح می‌کنیم؛ DISTINCT را جای درمان علت نمی‌گذاریم."
         },
         "en": {
           "t": "JOIN fan-out and cardinality",
-          "d": "Measure rows on both sides before joining; identify one-to-many and many-to-many fan-out and fix inflated aggregates."
+          "d": "Define row grain, count matches, and repair inflated totals by aggregating at the correct level; do not use DISTINCT to hide the cause."
         },
-        "kw": "join cardinality fanout one to many duplicates",
+        "kw": "join cardinality fanout one to many duplicates aggregation grain",
         "cap": 0
       },
       {
         "n": "19",
         "file": "19-aggregate-functions-and-group-by.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 75,
+        "mins": 90,
         "fa": {
           "t": "توابع تجمیعی و GROUP BY",
-          "d": "COUNT، SUM، AVG، MIN و MAX را جداگانه و گروهی اجرا می‌کنیم؛ اثر COUNT(*) در برابر COUNT(column) را روی NULL می‌بینیم."
+          "d": "از دادهٔ Shop آمار قابل‌توضیح می‌سازیم؛ COUNT و SUM و AVG و MIN و MAX را مقایسه می‌کنیم، grain گروه را مشخص می‌کنیم و اثر NULL را می‌سنجیم."
         },
         "en": {
           "t": "Aggregate functions and GROUP BY",
-          "d": "Run COUNT, SUM, AVG, MIN, and MAX with and without grouping; compare COUNT(*) with COUNT(column) when NULLs exist."
+          "d": "Build explainable Shop metrics with COUNT, SUM, AVG, MIN, and MAX; define each group’s grain and test how NULL affects results."
         },
-        "kw": "group by aggregate count sum avg min max null",
+        "kw": "group by aggregate count sum avg min max null grain",
         "cap": 0
       },
       {
         "n": "20",
         "file": "20-having-versus-where.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 75,
+        "mins": 80,
         "fa": {
           "t": "HAVING در برابر WHERE",
-          "d": "WHERE را برای ردیف‌ها و HAVING را برای گروه‌ها به کار می‌بریم؛ query را مرحله‌به‌مرحله می‌خوانیم تا شرط زودهنگام یا دیرهنگام نسازیم."
+          "d": "WHERE را برای ردیف‌ها و HAVING را برای گروه‌ها به کار می‌بریم؛ اثر جابه‌جایی predicate را روی metric، LEFT JOIN و count صفر با دادهٔ Shop می‌سنجیم."
         },
         "en": {
           "t": "HAVING versus WHERE",
-          "d": "Use WHERE to filter rows and HAVING to filter groups; trace each stage to put predicates in the right place."
+          "d": "Use WHERE for rows and HAVING for groups; test how predicate placement changes metrics, LEFT JOIN results, and zero counts."
         },
-        "kw": "having where group filter aggregate predicate",
+        "kw": "having where group filter aggregate predicate left join",
         "cap": 0
       },
       {
         "n": "21",
         "file": "21-subqueries.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
-          "t": "زیرکوئری",
-          "d": "‏scalar، ‎IN‎، ‎EXISTS‎ و زیرکوئری همبسته."
+          "t": "زیرکوئری؛ scalar، IN و EXISTS",
+          "d": "وقتی نتیجهٔ یک query ورودی query دیگری است، شکل scalar و IN و EXISTS را انتخاب می‌کنیم؛ تعداد ردیف، NULL و وابستگی به ردیف بیرونی را می‌سنجیم."
         },
         "en": {
-          "t": "Subqueries",
-          "d": "Scalar, IN, EXISTS and correlated subqueries."
+          "t": "Subqueries: scalar, IN, and EXISTS",
+          "d": "Choose scalar, IN, or EXISTS when one query feeds another; test row count, NULL behavior, and correlation."
         },
-        "kw": "subquery correlated exists in any all",
+        "kw": "subquery correlated exists in any all not exists null",
         "cap": 0
       },
       {
         "n": "22",
         "file": "22-cte.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
-          "t": "‏CTE",
-          "d": "کوئری خوانا به‌جای تودرتو، و ‎CTE‎ بازگشتی."
+          "t": "CTE؛ query چندمرحله‌ای خوانا",
+          "d": "query شلوغ را با CTEهای نام‌دار و grain روشن می‌کنیم؛ scope یک statement، تفاوت با temp table و recursion محدود را می‌سنجیم."
         },
         "en": {
-          "t": "CTEs",
-          "d": "Readable queries instead of nested ones, plus recursive CTEs."
+          "t": "CTEs: readable multi-step queries",
+          "d": "Name query stages with explicit grain; test one-statement scope, the difference from temp tables, and bounded recursion."
         },
-        "kw": "cte with recursive anchor readable",
+        "kw": "cte with recursive anchor readable scope materialization",
         "cap": 0
       },
       {
         "n": "23",
-        "file": "23-window-1.html",
-        "ready": false,
+        "file": "23-window-functions-1.html",
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
-          "t": "‏window function ۱",
-          "d": "‏OVER، ‎PARTITION BY‎ — تجمیع بدون از دست دادن سطرها."
+          "t": "Window functionها؛ OVER و PARTITION BY",
+          "d": "aggregate و رتبه را کنار ردیف‌های جزئیات می‌آوریم؛ PARTITION BY محدودهٔ محاسبه را تعیین می‌کند و ترتیب پنجره را از ترتیب نهایی جدا نگه می‌داریم."
         },
         "en": {
-          "t": "Window functions 1",
-          "d": "OVER and PARTITION BY — aggregating without losing rows."
+          "t": "Window functions: OVER and PARTITION BY",
+          "d": "Add aggregates and ranks beside detail rows; use PARTITION BY to define scope and distinguish window order from final output order."
         },
-        "kw": "over partition window rank row_number",
+        "kw": "over partition window rank row_number dense_rank grouping grain",
         "cap": 0
       },
       {
         "n": "24",
         "file": "24-window-2.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
-          "t": "‏window function ۲",
-          "d": "‏LAG، ‎LEAD‎، مجموع تجمعی و قاب پنجره."
+          "t": "Window functionها؛ LAG، LEAD و frame",
+          "d": "ردیف قبلی و بعدی را با LAG و LEAD می‌خوانیم، running total می‌سازیم و تفاوت ROWS و RANGE را با ترتیب tieدار بررسی می‌کنیم."
         },
         "en": {
-          "t": "Window functions 2",
-          "d": "LAG, LEAD, running totals and window frames."
+          "t": "Window functions: LAG, LEAD, and frames",
+          "d": "Read neighboring rows with LAG/LEAD, build running totals, and compare ROWS with RANGE under tied ordering."
         },
-        "kw": "lag lead running total frame rows range",
+        "kw": "lag lead running total frame rows range tie deterministic order",
         "cap": 0
       },
       {
         "n": "25",
         "file": "25-set-ops.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 75,
+        "mins": 80,
         "fa": {
-          "t": "عملگرهای مجموعه‌ای",
-          "d": "‏UNION، ‎INTERSECT‎، ‎EXCEPT‎ و ‎UNION ALL‎."
+          "t": "عملگرهای مجموعه‌ای؛ UNION، INTERSECT و EXCEPT",
+          "d": "دو query هم‌شکل را ترکیب یا مقایسه می‌کنیم؛ رفتار duplicate، جهت EXCEPT، سازگاری type و ترتیب نهایی را آزمایش می‌کنیم."
         },
         "en": {
-          "t": "Set operators",
-          "d": "UNION, INTERSECT, EXCEPT and UNION ALL."
+          "t": "Set operators: UNION, INTERSECT, and EXCEPT",
+          "d": "Combine or compare compatible query results; test duplicate behavior, EXCEPT direction, type compatibility, and final ordering."
         },
-        "kw": "union intersect except all distinct",
+        "kw": "union intersect except all distinct compatible columns types",
         "cap": 0
       },
       {
         "n": "26",
         "file": "26-pivot.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -1858,7 +1858,7 @@ export const TRACKS: Track[] = [
       {
         "n": "27",
         "file": "27-insert.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -1875,7 +1875,7 @@ export const TRACKS: Track[] = [
       {
         "n": "28",
         "file": "28-update-delete.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -1892,7 +1892,7 @@ export const TRACKS: Track[] = [
       {
         "n": "29",
         "file": "29-merge.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -1909,7 +1909,7 @@ export const TRACKS: Track[] = [
       {
         "n": "30",
         "file": "30-datatypes.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -1926,7 +1926,7 @@ export const TRACKS: Track[] = [
       {
         "n": "31",
         "file": "31-constraints.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -1943,7 +1943,7 @@ export const TRACKS: Track[] = [
       {
         "n": "32",
         "file": "32-design.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -1960,7 +1960,7 @@ export const TRACKS: Track[] = [
       {
         "n": "33",
         "file": "33-normalization.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -1977,7 +1977,7 @@ export const TRACKS: Track[] = [
       {
         "n": "34",
         "file": "34-denormalization.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
@@ -1994,7 +1994,7 @@ export const TRACKS: Track[] = [
       {
         "n": "35",
         "file": "35-views-and-indexed-views.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -2011,7 +2011,7 @@ export const TRACKS: Track[] = [
       {
         "n": "36",
         "file": "36-sequences-computed-columns-and-rowversion.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -2028,7 +2028,7 @@ export const TRACKS: Track[] = [
       {
         "n": "37",
         "file": "37-json-xml.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -2045,7 +2045,7 @@ export const TRACKS: Track[] = [
       {
         "n": "38",
         "file": "38-partitioning.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
@@ -2062,7 +2062,7 @@ export const TRACKS: Track[] = [
       {
         "n": "39",
         "file": "39-pages-extents-and-database-files.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -2079,7 +2079,7 @@ export const TRACKS: Track[] = [
       {
         "n": "40",
         "file": "40-engine-buffer-pool-and-write-ahead-log.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -2096,7 +2096,7 @@ export const TRACKS: Track[] = [
       {
         "n": "41",
         "file": "41-indexes-1.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -2113,7 +2113,7 @@ export const TRACKS: Track[] = [
       {
         "n": "42",
         "file": "42-indexes-2.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -2130,7 +2130,7 @@ export const TRACKS: Track[] = [
       {
         "n": "43",
         "file": "43-indexes-3.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -2147,7 +2147,7 @@ export const TRACKS: Track[] = [
       {
         "n": "44",
         "file": "44-sql-server-columnstore.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -2164,7 +2164,7 @@ export const TRACKS: Track[] = [
       {
         "n": "45",
         "file": "45-plan-1.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 105,
         "fa": {
@@ -2181,7 +2181,7 @@ export const TRACKS: Track[] = [
       {
         "n": "46",
         "file": "46-plan-2.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 105,
         "fa": {
@@ -2198,7 +2198,7 @@ export const TRACKS: Track[] = [
       {
         "n": "47",
         "file": "47-statistics.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
@@ -2215,7 +2215,7 @@ export const TRACKS: Track[] = [
       {
         "n": "48",
         "file": "48-plan-cache-parameter-sensitivity-and-versions.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 105,
         "fa": {
@@ -2232,7 +2232,7 @@ export const TRACKS: Track[] = [
       {
         "n": "49",
         "file": "49-tuning-1.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 105,
         "fa": {
@@ -2249,7 +2249,7 @@ export const TRACKS: Track[] = [
       {
         "n": "50",
         "file": "50-tuning-2.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 105,
         "fa": {
@@ -2266,7 +2266,7 @@ export const TRACKS: Track[] = [
       {
         "n": "51",
         "file": "51-antipatterns.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -2283,7 +2283,7 @@ export const TRACKS: Track[] = [
       {
         "n": "52",
         "file": "52-large-data-batches-and-pagination.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -2300,7 +2300,7 @@ export const TRACKS: Track[] = [
       {
         "n": "53",
         "file": "53-transactions.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -2317,7 +2317,7 @@ export const TRACKS: Track[] = [
       {
         "n": "54",
         "file": "54-isolation.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -2334,7 +2334,7 @@ export const TRACKS: Track[] = [
       {
         "n": "55",
         "file": "55-locking.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -2351,7 +2351,7 @@ export const TRACKS: Track[] = [
       {
         "n": "56",
         "file": "56-row-versioning-and-snapshot-isolation.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -2368,7 +2368,7 @@ export const TRACKS: Track[] = [
       {
         "n": "57",
         "file": "57-two-session-concurrency-and-deadlock-lab.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -2385,7 +2385,7 @@ export const TRACKS: Track[] = [
       {
         "n": "58",
         "file": "58-tempdb-temp-objects-and-spills.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -2402,7 +2402,7 @@ export const TRACKS: Track[] = [
       {
         "n": "59",
         "file": "59-procedures.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -2419,7 +2419,7 @@ export const TRACKS: Track[] = [
       {
         "n": "60",
         "file": "60-functions.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
@@ -2436,7 +2436,7 @@ export const TRACKS: Track[] = [
       {
         "n": "61",
         "file": "61-triggers.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -2453,7 +2453,7 @@ export const TRACKS: Track[] = [
       {
         "n": "62",
         "file": "62-tsql-1.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
@@ -2470,7 +2470,7 @@ export const TRACKS: Track[] = [
       {
         "n": "63",
         "file": "63-tsql-2.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
@@ -2487,7 +2487,7 @@ export const TRACKS: Track[] = [
       {
         "n": "64",
         "file": "64-dynamic-sql.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
@@ -2504,7 +2504,7 @@ export const TRACKS: Track[] = [
       {
         "n": "65",
         "file": "65-security.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -2521,7 +2521,7 @@ export const TRACKS: Track[] = [
       {
         "n": "66",
         "file": "66-encryption-auditing-and-secret-boundaries.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -2538,7 +2538,7 @@ export const TRACKS: Track[] = [
       {
         "n": "67",
         "file": "67-sql-injection-and-parameterization.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -2555,7 +2555,7 @@ export const TRACKS: Track[] = [
       {
         "n": "68",
         "file": "68-view-security-and-row-level-access.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -2572,7 +2572,7 @@ export const TRACKS: Track[] = [
       {
         "n": "69",
         "file": "69-instance-networking-and-sql-browser.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -2589,7 +2589,7 @@ export const TRACKS: Track[] = [
       {
         "n": "70",
         "file": "70-docker-and-cross-host-sql-connectivity.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -2606,7 +2606,7 @@ export const TRACKS: Track[] = [
       {
         "n": "71",
         "file": "71-tls-certificates-and-remote-access.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -2623,7 +2623,7 @@ export const TRACKS: Track[] = [
       {
         "n": "72",
         "file": "72-linked-servers-and-openquery.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -2640,7 +2640,7 @@ export const TRACKS: Track[] = [
       {
         "n": "73",
         "file": "73-app-integration.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
@@ -2657,7 +2657,7 @@ export const TRACKS: Track[] = [
       {
         "n": "74",
         "file": "74-connection-pools-timeouts-and-retries.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -2674,7 +2674,7 @@ export const TRACKS: Track[] = [
       {
         "n": "75",
         "file": "75-orm-n-plus-one-and-bulk-operations.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -2691,7 +2691,7 @@ export const TRACKS: Track[] = [
       {
         "n": "76",
         "file": "76-schema-migrations-expand-contract.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -2708,7 +2708,7 @@ export const TRACKS: Track[] = [
       {
         "n": "77",
         "file": "77-backup.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -2725,7 +2725,7 @@ export const TRACKS: Track[] = [
       {
         "n": "78",
         "file": "78-backup-restore-validation-rpo-rto.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 105,
         "fa": {
@@ -2742,7 +2742,7 @@ export const TRACKS: Track[] = [
       {
         "n": "79",
         "file": "79-sql-server-agent-jobs-and-maintenance.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -2759,7 +2759,7 @@ export const TRACKS: Track[] = [
       {
         "n": "80",
         "file": "80-maintenance.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
@@ -2776,7 +2776,7 @@ export const TRACKS: Track[] = [
       {
         "n": "81",
         "file": "81-monitoring.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -2793,7 +2793,7 @@ export const TRACKS: Track[] = [
       {
         "n": "82",
         "file": "82-extended-events-error-log-and-waits.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -2810,7 +2810,7 @@ export const TRACKS: Track[] = [
       {
         "n": "83",
         "file": "83-sql-server-incident-diagnosis.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -2827,7 +2827,7 @@ export const TRACKS: Track[] = [
       {
         "n": "84",
         "file": "84-high-availability-and-disaster-recovery.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 105,
         "fa": {
@@ -2844,8 +2844,8 @@ export const TRACKS: Track[] = [
       {
         "n": "85",
         "file": "85-project-1-schema.html",
-        "ready": false,
-        "ex": 5,
+        "ready": true,
+        "ex": 0,
         "mins": 90,
         "fa": {
           "t": "پروژهٔ ۱ — طراحی schema برای SQL Server",
@@ -2861,8 +2861,8 @@ export const TRACKS: Track[] = [
       {
         "n": "86",
         "file": "86-project-2-analytical-reporting.html",
-        "ready": false,
-        "ex": 7,
+        "ready": true,
+        "ex": 0,
         "mins": 170,
         "fa": {
           "t": "پروژهٔ ۲ — گزارش تحلیلی و plan در SQL Server",
@@ -2878,8 +2878,8 @@ export const TRACKS: Track[] = [
       {
         "n": "87",
         "file": "87-project-3-production-incident.html",
-        "ready": false,
-        "ex": 9,
+        "ready": true,
+        "ex": 0,
         "mins": 260,
         "fa": {
           "t": "پروژهٔ ۳ — رخداد production در SQL Server",
@@ -2895,10 +2895,10 @@ export const TRACKS: Track[] = [
     ],
     "stats": {
       "chapters": 87,
-      "exercises": 1533,
-      "minutes": 7985,
+      "exercises": 1512,
+      "minutes": 8080,
       "capstones": 3,
-      "ready": 0
+      "ready": 87
     }
   },
   {
@@ -3261,14 +3261,14 @@ export const TRACKS: Track[] = [
     "ico": "<path d=\"M3 20h18M5 20V9l7-5 7 5v11\"/><path d=\"M9.5 20v-5.5h5V20\"/><path d=\"M9.5 11h5\" stroke-linecap=\"round\"/>",
     "locked": false,
     "fa": {
-      "name": "معماری نرم‌افزار و تحلیل سیستم",
-      "desc": "SOLID، الگوهای طراحی، معماری لایه‌ای، شش‌ضلعی و Clean، DDD مقدماتی و هرم تست — با مثال در چند زبان.",
-      "intro": "معماری یعنی تصمیم‌هایی که عوض کردنشان بعداً گران است. این مسیر یادت می‌دهد کدام تصمیم‌ها این‌طورند، چطور بگیری‌شان، و چطور کدی بنویسی که شش ماه بعد هم بشود عوضش کرد. مثال‌ها در ‎C#‎، پایتون، تایپ‌اسکریپت و Go می‌آیند."
+      "name": "معماری نرم‌افزار",
+      "desc": "از ویژگی‌های کیفی و تصمیم‌های معماری تا SOLID، معماری‌های لایه‌ای، شش‌ضلعی و Clean، الگوها، تست و مستندسازی.",
+      "intro": "معماری یعنی تصمیم‌هایی که عوض‌کردنشان بعداً گران می‌شود. این دوره روی مرزها، جهت وابستگی و هزینهٔ انتخاب‌ها تمرکز می‌کند؛ تحلیل نیاز و مدل‌کردن مسئله مسیر جداگانهٔ خودش را دارد. مثال‌ها را با C#، پایتون، TypeScript و Go می‌بینیم."
     },
     "en": {
-      "name": "Software architecture & system analysis",
-      "desc": "SOLID, design patterns, layered/hexagonal/clean architecture, introductory DDD and the test pyramid — with examples in several languages.",
-      "intro": "Architecture is the set of decisions that are expensive to change later. This track teaches you which decisions those are, how to make them, and how to write code you can still change in six months. Examples come in C#, Python, TypeScript and Go."
+      "name": "Software Architecture",
+      "desc": "From quality attributes and architectural decisions to SOLID, layered, hexagonal and clean architectures, patterns, testing and documentation.",
+      "intro": "Architecture concerns decisions that become expensive to change later. This course focuses on boundaries, dependency direction, and the cost of choices; requirements analysis and problem modelling have their own track. Examples use C#, Python, TypeScript, and Go."
     },
     "chapters": [
       {
@@ -3290,19 +3290,19 @@ export const TRACKS: Track[] = [
       },
       {
         "n": "02",
-        "file": "02-analysis.html",
+        "file": "02-architecture-drivers.html",
         "ready": false,
         "ex": 18,
         "mins": 85,
         "fa": {
-          "t": "تحلیل سیستم: از نیاز تا مدل",
-          "d": "استخراج نیاز، ‎use case‎ و اولین مدل دامنه."
+          "t": "محرک‌های معماری و مرز مسئله",
+          "d": "نیازهای کسب‌وکار را به فشارهای معماری تبدیل کن؛ قبل از انتخاب سبک، مسئله را دقیق صورت‌بندی کن."
         },
         "en": {
-          "t": "System analysis: from requirement to model",
-          "d": "Eliciting requirements, use cases and a first domain model."
+          "t": "Architecture drivers and problem boundaries",
+          "d": "Translate business needs into architectural forces; frame the problem before choosing a style."
         },
-        "kw": "analysis requirement usecase domain model",
+        "kw": "architecture drivers constraints context scope decision",
         "cap": 0
       },
       {
@@ -18747,7 +18747,7 @@ export const TRACKS: Track[] = [
       {
         "n": "01",
         "file": "01-mysql-architecture-and-version-boundaries.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
@@ -18764,7 +18764,7 @@ export const TRACKS: Track[] = [
       {
         "n": "02",
         "file": "02-installing-and-connecting-to-the-server.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -18781,222 +18781,222 @@ export const TRACKS: Track[] = [
       {
         "n": "03",
         "file": "03-servers-databases-and-schemas.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 75,
+        "mins": 90,
         "fa": {
-          "t": "سرور، دیتابیس و schema",
-          "d": "سرور، دیتابیس و schema را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "t": "سرور، دیتابیس و schema در MySQL",
+          "d": "مقصد و context هر نشست را query کن؛ معنی schema، تنظیم character set و collation و محدودیت visibility فهرست databaseها را روی MySQL 9.7.2 بسنج."
         },
         "en": {
-          "t": "Servers, Databases, and Schemas",
-          "d": "Practice servers, databases, and schemas with runnable SQL, database code, or commands and inspect the result."
+          "t": "Servers, databases, and schemas in MySQL",
+          "d": "Query each session’s target; test schema semantics, character set and collation, and privilege-filtered database visibility on MySQL 9.7.2."
         },
-        "kw": "servers, databases, and schemas practice servers, databases, and schemas with runnable sql, database code, or commands and inspect the result. سرور، دیتابیس و schema",
+        "kw": "mysql server database schema context session use information_schema charset collation privileges case sensitivity",
         "cap": 0
       },
       {
         "n": "04",
         "file": "04-generated-columns-and-table-evolution.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
-          "t": "Generated Column و تغییر جدول",
-          "d": "Generated Column و تغییر جدول را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "t": "ستون‌های محاسباتی و تکامل جدول در MySQL",
+          "d": "ستون generated را با دادهٔ واقعی آزمایش می‌کنیم، VIRTUAL و STORED را مقایسه می‌کنیم و تغییر جدول را از روی metadata می‌سنجیم."
         },
         "en": {
-          "t": "Generated Columns and Table Evolution",
-          "d": "Practice generated columns and table evolution with runnable SQL, database code, or commands and inspect the result."
+          "t": "Generated Columns and Table Evolution in MySQL",
+          "d": "Test generated columns with real rows, compare VIRTUAL and STORED, and verify table changes through metadata."
         },
-        "kw": "generated columns and table evolution practice generated columns and table evolution with runnable sql, database code, or commands and inspect the result. generated column و تغییر جدول",
+        "kw": "mysql generated columns virtual stored information_schema table evolution",
         "cap": 0
       },
       {
         "n": "05",
         "file": "05-views-as-data-interfaces.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
           "t": "View، DEFINER و SQL SECURITY در MySQL",
-          "d": "View را برای یک نقش MySQL می‌سازیم و رفتار DEFINER و SQL SECURITY را با کاربر محدود آزمایش می‌کنیم."
+          "d": "یک view گزارش می‌سازیم و با account محدود ثابت می‌کنیم MySQL مجوز DEFINER یا INVOKER را کجا بررسی می‌کند."
         },
         "en": {
           "t": "Views, DEFINER, and SQL SECURITY in MySQL",
-          "d": "Create a view for a MySQL role and test DEFINER and SQL SECURITY behaviour with a restricted account."
+          "d": "Build a reporting view and prove with a restricted account where MySQL checks DEFINER or INVOKER privileges."
         },
-        "kw": "views as data interfaces practice views as data interfaces with runnable sql, database code, or commands and inspect the result. view به‌عنوان رابط داده",
+        "kw": "mysql view definer sql security invoker access control grants",
         "cap": 0
       },
       {
         "n": "06",
         "file": "06-temporary-and-derived-data.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
           "t": "Temporary table و دادهٔ موقت در MySQL",
-          "d": "عمر و scope جدول موقت را در دو connection می‌سنجیم و با query نشان می‌دهیم چرا بعد از بستن نشست ناپدید می‌شود."
+          "d": "دو connection را مقایسه می‌کنیم، نام هم‌پوشان را در fixture آزمایش می‌کنیم و temporary table را از CTE جدا می‌کنیم."
         },
         "en": {
           "t": "Temporary tables and transient data in MySQL",
-          "d": "Test temporary-table scope across two connections and query why the table disappears when its session ends."
+          "d": "Compare two connections, test name shadowing in a fixture, and distinguish temporary tables from CTEs."
         },
-        "kw": "temporary and derived data practice temporary and derived data with runnable sql, database code, or commands and inspect the result. دادهٔ موقت و derived data",
+        "kw": "mysql temporary table session scope connection cte derived table visibility",
         "cap": 0
       },
       {
         "n": "07",
         "file": "07-json-in-mysql.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
           "t": "JSON در MySQL",
-          "d": "JSON را با نوع داده و تابع‌های خود MySQL می‌خوانیم و رفتار indexing و جست‌وجو را با query می‌سنجیم."
+          "d": "یک payload واقعی را در نوع بومی JSON ذخیره می‌کنیم، path و نوع خروجی را query می‌کنیم و مرز اعتبار syntax و قاعدهٔ کسب‌وکار را می‌سنجیم."
         },
         "en": {
           "t": "JSON in MySQL",
-          "d": "Query MySQL's JSON type and functions, then test indexing and search behaviour with runnable SQL."
+          "d": "Store a payload in MySQL’s native JSON type, query paths and result types, and distinguish syntax validation from business rules."
         },
-        "kw": "mysql json data type functions indexing search",
+        "kw": "mysql json native type json_value json_table path extract update validation",
         "cap": 0
       },
       {
         "n": "08",
         "file": "08-storage-engines-and-innodb.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
-          "t": "Storage Engine و InnoDB",
-          "d": "Storage Engine و InnoDB را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "t": "Storage Engineها و InnoDB",
+          "d": "با آزمایش rollback و metadata فرق InnoDB، MyISAM و MEMORY را می‌سنجیم و می‌بینیم engine هر table چه اثری روی عملیات چندمرحله‌ای دارد."
         },
         "en": {
           "t": "Storage Engines and InnoDB",
-          "d": "Practice storage engines and innodb with runnable SQL, database code, or commands and inspect the result."
+          "d": "Use rollback experiments and metadata to compare InnoDB, MyISAM, and MEMORY, and see how table engines affect multi-step operations."
         },
-        "kw": "storage engines and innodb practice storage engines and innodb with runnable sql, database code, or commands and inspect the result. storage engine و innodb",
+        "kw": "mysql storage engine innodb myisam memory rollback transaction metadata",
         "cap": 0
       },
       {
         "n": "09",
         "file": "09-innodb-index-layout.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
           "t": "ساختار index در InnoDB",
-          "d": "ساختار index در InnoDB را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "d": "با diagram و EXPLAIN مسیر clustered و secondary index را دنبال می‌کنیم و اثر کلید اصلی را روی ساختار indexهای دیگر می‌سنجیم."
         },
         "en": {
           "t": "InnoDB Index Layout",
-          "d": "Practice innodb index layout with runnable SQL, database code, or commands and inspect the result."
+          "d": "Trace clustered and secondary index lookups with a diagram and EXPLAIN, then assess how the primary key affects other indexes."
         },
-        "kw": "innodb index layout practice innodb index layout with runnable sql, database code, or commands and inspect the result. ساختار index در innodb",
+        "kw": "mysql innodb clustered secondary index primary key layout explain",
         "cap": 0
       },
       {
         "n": "10",
         "file": "10-pages-and-the-buffer-pool.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
-          "t": "Page و Buffer Pool",
-          "d": "Page و Buffer Pool را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "t": "Pageها و Buffer Pool",
+          "d": "با snapshotهای InnoDB page size، cache، dirty page و محدودیت hit rate را می‌خوانیم تا از یک اجرای سریع نتیجهٔ tuning نگیریم."
         },
         "en": {
           "t": "Pages and the Buffer Pool",
-          "d": "Practice pages and the buffer pool with runnable SQL, database code, or commands and inspect the result."
+          "d": "Read InnoDB snapshots for page size, cache, dirty pages, and hit-rate limits without treating one fast run as tuning evidence."
         },
-        "kw": "pages and the buffer pool practice pages and the buffer pool with runnable sql, database code, or commands and inspect the result. page و buffer pool",
+        "kw": "mysql innodb page buffer pool hit rate dirty page status metrics",
         "cap": 0
       },
       {
         "n": "11",
         "file": "11-redo-undo-purge-and-checkpoints.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
           "t": "Redo، Undo، purge و checkpoint",
-          "d": "Redo، Undo، purge و checkpoint را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "d": "با دو نشست InnoDB نسخهٔ قدیمی و commit تازه را می‌سنجیم و مسیر redo، undo، purge و checkpoint را با status از هم جدا می‌کنیم."
         },
         "en": {
           "t": "Redo, Undo, Purge, and Checkpoints",
-          "d": "Practice redo, undo, purge, and checkpoints with runnable SQL, database code, or commands and inspect the result."
+          "d": "Use two InnoDB sessions to inspect old and committed versions, then distinguish redo, undo, purge, and checkpoint evidence."
         },
-        "kw": "redo, undo, purge, and checkpoints practice redo, undo, purge, and checkpoints with runnable sql, database code, or commands and inspect the result. redo، undo، purge و checkpoint",
+        "kw": "mysql innodb redo undo mvcc purge checkpoint lsn history list",
         "cap": 0
       },
       {
         "n": "12",
         "file": "12-b-trees-and-index-basics.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
           "t": "B+ Tree و index پایه",
-          "d": "B+ Tree و index پایه را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "d": "با lookup دقیق، range و prefix روی fixture می‌بینیم B+ Tree چه مسیرهایی پشتیبانی می‌کند و EXPLAIN چه چیزی را ثابت نمی‌کند."
         },
         "en": {
-          "t": "B+ Trees and Index Basics",
-          "d": "Practice b+ trees and index basics with runnable SQL, database code, or commands and inspect the result."
+          "t": "B+ Trees and Basic Indexes",
+          "d": "Use exact lookups, ranges, and prefixes on a fixture to see what B+ trees support and what EXPLAIN cannot prove."
         },
-        "kw": "b+ trees and index basics practice b+ trees and index basics with runnable sql, database code, or commands and inspect the result. b+ tree و index پایه",
+        "kw": "mysql b+ tree b-tree index range scan prefix explain optimizer lookup innodb",
         "cap": 0
       },
       {
         "n": "13",
         "file": "13-composite-index-column-order.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
           "t": "Composite Index و ترتیب ستون",
-          "d": "Composite Index و ترتیب ستون را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "d": "با queryهای customer، status و بازهٔ زمانی، leftmost prefix و اثر ترتیب ستون‌های index را با EXPLAIN می‌سنجیم."
         },
         "en": {
-          "t": "Composite Index Column Order",
-          "d": "Practice composite index column order with runnable SQL, database code, or commands and inspect the result."
+          "t": "Composite Indexes and Column Order",
+          "d": "Use customer, status, and date-range queries to test leftmost prefixes and column-order effects with EXPLAIN."
         },
-        "kw": "composite index column order practice composite index column order with runnable sql, database code, or commands and inspect the result. composite index و ترتیب ستون",
+        "kw": "mysql composite index leftmost prefix column order equality range order by explain optimizer workload",
         "cap": 0
       },
       {
         "n": "14",
         "file": "14-selectivity-and-covering-indexes.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
           "t": "Selectivity و covering index",
-          "d": "Selectivity و covering index را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "d": "توزیع واقعی را با Cardinality تخمینی جدا می‌کنیم و از روی query و EXPLAIN می‌سنجیم covering index چه lookupهایی را حذف می‌کند."
         },
         "en": {
           "t": "Selectivity and Covering Indexes",
-          "d": "Practice selectivity and covering indexes with runnable SQL, database code, or commands and inspect the result."
+          "d": "Separate actual data distribution from estimated cardinality, then use queries and EXPLAIN to inspect which lookups a covering index can avoid."
         },
-        "kw": "selectivity and covering indexes practice selectivity and covering indexes with runnable sql, database code, or commands and inspect the result. selectivity و covering index",
+        "kw": "mysql selectivity cardinality covering index innodb using index explain statistics analyze table",
         "cap": 0
       },
       {
         "n": "15",
         "file": "15-prefix-functional-and-invisible-indexes.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
           "t": "Prefix، functional و invisible index",
-          "d": "Prefix، functional و invisible index را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "d": "جست‌وجوی ابتدای URL، index روی LOWER(email) و آزمایش برگشت‌پذیر visibility را از نظر query، metadata و هزینه مقایسه می‌کنیم."
         },
         "en": {
           "t": "Prefix, Functional, and Invisible Indexes",
-          "d": "Practice prefix, functional, and invisible indexes with runnable SQL, database code, or commands and inspect the result."
+          "d": "Compare URL-prefix lookup, an index on LOWER(email), and a reversible visibility test through queries, metadata, and costs."
         },
-        "kw": "prefix, functional, and invisible indexes practice prefix, functional, and invisible indexes with runnable sql, database code, or commands and inspect the result. prefix، functional و invisible index",
+        "kw": "mysql prefix index functional index expression lower email invisible index visibility show index",
         "cap": 0
       },
       {
@@ -19768,9 +19768,9 @@ export const TRACKS: Track[] = [
     "stats": {
       "chapters": 60,
       "exercises": 1047,
-      "minutes": 5570,
+      "minutes": 5585,
       "capstones": 3,
-      "ready": 0
+      "ready": 15
     }
   },
   {
@@ -19795,52 +19795,52 @@ export const TRACKS: Track[] = [
       {
         "n": "01",
         "file": "01-mariadb-and-version-boundaries.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 75,
+        "mins": 95,
         "fa": {
           "t": "MariaDB چیست و با MySQL چه نسبتی دارد؟",
-          "d": "نسخه و محصول را قبل از نوشتن query مشخص می‌کنیم؛ سازگاری را فرض نمی‌گیریم و یک تفاوت قابل‌آزمایش پیدا می‌کنیم."
+          "d": "با MariaDB 11.8.9 هویت Server، تنظیم‌های مؤثر و یک تفاوت قابل‌مشاهده با MySQL را از خود connection و DDL بررسی می‌کنیم."
         },
         "en": {
-          "t": "MariaDB and its relationship to MySQL",
-          "d": "Identify the exact product and version before querying; test a concrete compatibility boundary instead of assuming interchangeability."
+          "t": "What is MariaDB, and how is it related to MySQL?",
+          "d": "Use MariaDB 11.8.9 to inspect server identity, effective settings, and one observable MySQL divergence through the connection and DDL."
         },
-        "kw": "mariadb mysql fork divergence version compatibility",
+        "kw": "mariadb mysql relationship version 11.8.9 json divergence server client storage engine",
         "cap": 0
       },
       {
         "n": "02",
         "file": "02-install-and-connect.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
           "t": "راه‌اندازی MariaDB و اتصال امن",
-          "d": "یک سرور آزمایشی MariaDB راه می‌اندازیم، وصل می‌شویم و نسخه و تنظیمات مؤثر را از خود سرور می‌خوانیم."
+          "d": "یک MariaDB 11.8 دورریختنی اجرا می‌کنیم و شکست Engine، آمادگی، port و authentication را با شاهد جدا می‌کنیم."
         },
         "en": {
           "t": "Installing and connecting to MariaDB",
-          "d": "Start a disposable MariaDB server, connect to it, and inspect its version and effective settings."
+          "d": "Start a disposable MariaDB 11.8 server and distinguish Engine, readiness, port, and authentication failures with evidence."
         },
-        "kw": "mariadb install client version server setup",
+        "kw": "mariadb install client version server setup connection docker readiness",
         "cap": 0
       },
       {
         "n": "03",
         "file": "03-server-database-and-users.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
           "t": "Server، database و کاربرها",
-          "d": "database و حساب محدود می‌سازیم و دسترسی مؤثر را با query بررسی می‌کنیم."
+          "d": "در MariaDB database و حساب محدود می‌سازیم و مجوز مؤثر را با اتصال واقعی و query می‌سنجیم."
         },
         "en": {
           "t": "Servers, databases, and users",
-          "d": "Create a database and a restricted account, then query its effective access."
+          "d": "Create a MariaDB database and restricted account, then verify effective privileges through a real connection and query."
         },
-        "kw": "mariadb database user account create",
+        "kw": "mariadb database user account create grant charset collation",
         "cap": 0
       },
       {
@@ -20476,9 +20476,9 @@ export const TRACKS: Track[] = [
     "stats": {
       "chapters": 40,
       "exercises": 687,
-      "minutes": 4040,
+      "minutes": 4060,
       "capstones": 3,
-      "ready": 0
+      "ready": 3
     }
   },
   {
@@ -27729,6 +27729,1818 @@ export const TRACKS: Track[] = [
       "chapters": 21,
       "exercises": 345,
       "minutes": 2025,
+      "capstones": 3,
+      "ready": 0
+    }
+  },
+  {
+    "id": "75-postgresql",
+    "dir": "75-postgresql",
+    "accent": "#4169E1",
+    "accentDark": null,
+    "cat": "data",
+    "ico": "<path d=\"M7 19c-2.4-1-3.4-3.7-3.1-7.2C4.3 6.5 7.4 3.3 12 3.3s7.7 3.2 8.1 8.5c.3 3.5-.7 6.2-3.1 7.2-1.3.5-2.5-.1-2.5-1.4v-2.2H9.5v2.2c0 1.3-1.2 1.9-2.5 1.4Z\"/><circle cx=\"9\" cy=\"9\" r=\".8\"/><circle cx=\"15\" cy=\"9\" r=\".8\"/>",
+    "locked": false,
+    "fa": {
+      "name": "PostgreSQL",
+      "desc": "از MVCC و WAL تا JSONB، planner، امنیت، پشتیبان‌گیری و replication؛ با آزمایش روی سرور نسخه‌دار.",
+      "intro": "PostgreSQL فقط جایی نیست که queryها را اجرا کنیم؛ رفتار نسخه، MVCC، نوع‌های داده، planner و ابزارهای بازیابی‌اش روی طراحی برنامه اثر می‌گذارند. این مسیر از SQL پایه عبور می‌کند و با یک فروشگاه نمونه، تفاوت‌های خود PostgreSQL را با مدرک می‌سنجد."
+    },
+    "en": {
+      "name": "PostgreSQL",
+      "desc": "From MVCC and WAL to JSONB, the planner, security, backup, and replication—tested on a pinned server version.",
+      "intro": "PostgreSQL is more than a place to run queries: its version behaviour, MVCC, data types, planner, and recovery tools shape application design. This track assumes SQL foundations and uses a shared shop workload to investigate PostgreSQL-specific behaviour with evidence."
+    },
+    "chapters": [
+      {
+        "n": "01",
+        "file": "01-postgresql-and-version-boundaries.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 75,
+        "fa": {
+          "t": "معماری PostgreSQL و مرز نسخه",
+          "d": "از یک connection واقعی، نسخه، build و تنظیمات مؤثر را بخوان و تفاوت Client و Server را جدا کن."
+        },
+        "en": {
+          "t": "PostgreSQL architecture and version boundaries",
+          "d": "Read the version, build, and effective settings from a live connection; distinguish client and server."
+        },
+        "kw": "postgresql architecture version server client",
+        "cap": 0
+      },
+      {
+        "n": "02",
+        "file": "02-installing-and-connecting.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "نصب، اجرا و اتصال",
+          "d": "یک Server یک‌بارمصرف بالا بیاور، از Client وصل شو و مسیر اتصال را با evidence ثبت کن."
+        },
+        "en": {
+          "t": "Installation, startup, and connection",
+          "d": "Start a disposable server, connect from a client, and record the connection path as evidence."
+        },
+        "kw": "postgresql install docker psql connection",
+        "cap": 0
+      },
+      {
+        "n": "03",
+        "file": "03-clusters-databases-and-schemas.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 80,
+        "fa": {
+          "t": "Cluster، database و schema",
+          "d": "با psql مقصد را مشخص کن و مرز cluster، database و schema را روی یک محیط آزمایشی ببین."
+        },
+        "en": {
+          "t": "Clusters, databases, and schemas",
+          "d": "Identify the psql target and inspect cluster, database, and schema boundaries in a lab."
+        },
+        "kw": "postgresql cluster database schema psql",
+        "cap": 0
+      },
+      {
+        "n": "04",
+        "file": "04-roles-authentication-and-pg-hba.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Role، authentication و pg_hba.conf",
+          "d": "ورود محلی و شبکه‌ای را جدا کن و با یک role محدود، نتیجهٔ مجوز را از خود اتصال بسنج."
+        },
+        "en": {
+          "t": "Roles, authentication, and pg_hba.conf",
+          "d": "Separate local and network authentication and test effective access with a restricted role."
+        },
+        "kw": "postgresql role authentication pg_hba",
+        "cap": 0
+      },
+      {
+        "n": "05",
+        "file": "05-types-casts-and-collations.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "نوع‌ها، cast و collation",
+          "d": "چند دادهٔ مرزی را وارد کن و ببین type و collation چه اثری بر مقایسه و تبدیل می‌گذارند."
+        },
+        "en": {
+          "t": "Types, casts, and collations",
+          "d": "Insert boundary values and test how types and collations affect comparison and conversion."
+        },
+        "kw": "postgresql types casts collation",
+        "cap": 0
+      },
+      {
+        "n": "06",
+        "file": "06-constraints-and-table-design.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Constraint و طراحی جدول",
+          "d": "قیدهای واقعی فروشگاه را اعمال کن و خطای دادهٔ نامعتبر را از خطای query جدا بخوان."
+        },
+        "en": {
+          "t": "Constraints and table design",
+          "d": "Enforce shop constraints and distinguish invalid-data errors from query errors."
+        },
+        "kw": "postgresql constraints check unique foreign key",
+        "cap": 0
+      },
+      {
+        "n": "07",
+        "file": "07-jsonb-and-document-queries.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "JSON و JSONB",
+          "d": "دادهٔ JSON را query کن، عملگرهای JSONB را مقایسه کن و ببین کجا سند نیمه‌ساخت‌یافته ارزش دارد."
+        },
+        "en": {
+          "t": "JSON and JSONB",
+          "d": "Query JSON data, compare JSONB operators, and identify where semi-structured documents fit."
+        },
+        "kw": "postgresql json jsonb operators",
+        "cap": 0
+      },
+      {
+        "n": "08",
+        "file": "08-arrays-ranges-and-special-types.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Array، Range و نوع‌های ویژه",
+          "d": "یک مدل ساده را با type ویژه پیاده کن و هزینهٔ query و محدودیت مدل را بسنج."
+        },
+        "en": {
+          "t": "Arrays, ranges, and special types",
+          "d": "Model a small case with a special type, then measure query behaviour and modelling limits."
+        },
+        "kw": "postgresql arrays ranges daterange enum",
+        "cap": 0
+      },
+      {
+        "n": "09",
+        "file": "09-mvcc-and-row-visibility.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "MVCC و دیدن نسخهٔ ردیف",
+          "d": "در دو session تغییر بده و بخوان؛ از خروجی واقعی بفهم هر transaction کدام نسخه را می‌بیند."
+        },
+        "en": {
+          "t": "MVCC and row visibility",
+          "d": "Change and read data in two sessions; use the observed rows to identify each transaction’s visible version."
+        },
+        "kw": "postgresql mvcc snapshot transaction",
+        "cap": 0
+      },
+      {
+        "n": "10",
+        "file": "10-vacuum-autovacuum-and-bloat.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "VACUUM، autovacuum و bloat",
+          "d": "ردیف updateشده را بررسی کن و بفهم چرا cleanup با حذف سادهٔ فایل یکی نیست."
+        },
+        "en": {
+          "t": "VACUUM, autovacuum, and bloat",
+          "d": "Inspect updated rows and see why cleanup is not the same as simply deleting file space."
+        },
+        "kw": "postgresql vacuum autovacuum bloat dead tuples",
+        "cap": 0
+      },
+      {
+        "n": "11",
+        "file": "11-heap-and-index-structure.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Heap، صفحه و ساختار index",
+          "d": "رابطهٔ table storage و index را با catalogها ببین؛ از یک اندازهٔ تقریبی نتیجهٔ فیزیکی قطعی نگیر."
+        },
+        "en": {
+          "t": "Heap, pages, and index structure",
+          "d": "Inspect table storage and indexes through catalogs without treating an estimate as exact physical truth."
+        },
+        "kw": "postgresql heap page index catalog",
+        "cap": 0
+      },
+      {
+        "n": "12",
+        "file": "12-btree-indexes-and-lookup.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "B-tree و جست‌وجوی پایه",
+          "d": "یک query پرتکرار را قبل و بعد از index اندازه بگیر و ببین lookup چه بخشی از هزینه را کم می‌کند."
+        },
+        "en": {
+          "t": "B-tree indexes and basic lookups",
+          "d": "Measure a common query before and after indexing and identify which part of the lookup cost changes."
+        },
+        "kw": "postgresql btree index lookup",
+        "cap": 0
+      },
+      {
+        "n": "13",
+        "file": "13-composite-partial-and-expression-indexes.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "Composite، partial و expression index",
+          "d": "سه predicate را روی دادهٔ کافی اجرا کن و طراحی index را با plan و selectivity توجیه کن."
+        },
+        "en": {
+          "t": "Composite, partial, and expression indexes",
+          "d": "Run three predicates against enough rows and justify index design using plans and selectivity."
+        },
+        "kw": "postgresql composite partial expression index",
+        "cap": 0
+      },
+      {
+        "n": "14",
+        "file": "14-gin-gist-and-specialized-indexes.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 105,
+        "fa": {
+          "t": "GIN، GiST و indexهای تخصصی",
+          "d": "برای JSONB یا بازه، index مناسب را انتخاب کن و هزینهٔ write و اندازه را هم ثبت کن."
+        },
+        "en": {
+          "t": "GIN, GiST, and specialized indexes",
+          "d": "Choose an index for JSONB or ranges and record write cost and index size as well."
+        },
+        "kw": "postgresql gin gist jsonb range index",
+        "cap": 0
+      },
+      {
+        "n": "15",
+        "file": "15-full-text-search.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "جست‌وجوی متن",
+          "d": "بردارسازی و query متنی را روی متن نمونه اجرا کن و پیکربندی زبان را با نتیجه مقایسه کن."
+        },
+        "en": {
+          "t": "Full-text search",
+          "d": "Build and query text vectors, then compare language configurations using actual results."
+        },
+        "kw": "postgresql full text tsvector tsquery",
+        "cap": 0
+      },
+      {
+        "n": "16",
+        "file": "16-explain-and-query-plans.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "EXPLAIN و خواندن plan",
+          "d": "از یک پرس‌وجوی واقعی سؤال مشخص بپرس و nodeهای plan را به predicateها وصل کن."
+        },
+        "en": {
+          "t": "EXPLAIN and reading query plans",
+          "d": "Ask a specific question of a real query and connect plan nodes to its predicates."
+        },
+        "kw": "postgresql explain plan scan join",
+        "cap": 0
+      },
+      {
+        "n": "17",
+        "file": "17-explain-analyze-buffers-and-timing.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "EXPLAIN ANALYZE، buffers و زمان",
+          "d": "plan تخمینی را با اجرای واقعی مقایسه کن و مراقب باش ANALYZE چه اثری بر queryهای تغییردهنده دارد."
+        },
+        "en": {
+          "t": "EXPLAIN ANALYZE, buffers, and timing",
+          "d": "Compare estimates with execution and understand the effect of ANALYZE on data-changing statements."
+        },
+        "kw": "postgresql explain analyze buffers timing",
+        "cap": 0
+      },
+      {
+        "n": "18",
+        "file": "18-statistics-planner-and-extended-statistics.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "آمار، planner و آمار چندستونی",
+          "d": "یک تخمین اشتباه را پیدا کن، statistics را تازه کن و فقط یک علت را در هر آزمایش تغییر بده."
+        },
+        "en": {
+          "t": "Statistics, the planner, and extended statistics",
+          "d": "Find a bad estimate, refresh statistics, and change one cause at a time."
+        },
+        "kw": "postgresql planner statistics analyze extended statistics",
+        "cap": 0
+      },
+      {
+        "n": "19",
+        "file": "19-transactions-isolation-and-serializable.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "Transaction و isolation",
+          "d": "دو session باز کن و read/writeها را مرحله‌به‌مرحله اجرا کن؛ دربارهٔ رفتار isolation از مشاهده نتیجه بگیر."
+        },
+        "en": {
+          "t": "Transactions and isolation",
+          "d": "Open two sessions and step through reads and writes; infer isolation behaviour from observations."
+        },
+        "kw": "postgresql transaction isolation serializable",
+        "cap": 0
+      },
+      {
+        "n": "20",
+        "file": "20-locking-and-deadlocks.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 105,
+        "fa": {
+          "t": "قفل، انتظار و deadlock",
+          "d": "قفل را عمداً در محیط disposable نگه دار، session منتظر را پیدا کن و deadlock را با شاهد تشخیص بده."
+        },
+        "en": {
+          "t": "Locks, waits, and deadlocks",
+          "d": "Hold a lock in a disposable lab, find the waiting session, and diagnose a deadlock from evidence."
+        },
+        "kw": "postgresql locks wait deadlock pg_locks",
+        "cap": 0
+      },
+      {
+        "n": "21",
+        "file": "21-functions-procedures-and-triggers.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "Function، Procedure و Trigger",
+          "d": "یک تغییر را اجرا کن، اثر trigger را دنبال کن و تفاوت routineها را با نسخهٔ جاری مستند کن."
+        },
+        "en": {
+          "t": "Functions, procedures, and triggers",
+          "d": "Run a change, trace a trigger side effect, and verify routine behaviour against the selected version."
+        },
+        "kw": "postgresql function procedure trigger",
+        "cap": 0
+      },
+      {
+        "n": "22",
+        "file": "22-extensions-and-pg-stat-statements.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Extension و pg_stat_statements",
+          "d": "extension را در lab فعال کن، queryهای ثبت‌شده را پیدا کن و محدودیت آمار تجمعی را توضیح بده."
+        },
+        "en": {
+          "t": "Extensions and pg_stat_statements",
+          "d": "Enable an extension in a lab, inspect tracked queries, and explain the limits of cumulative statistics."
+        },
+        "kw": "postgresql extensions pg_stat_statements",
+        "cap": 0
+      },
+      {
+        "n": "23",
+        "file": "23-schema-migrations-and-lock-impact.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "Migration و اثر قفل DDL",
+          "d": "migration سازگار را روی جدول disposable اجرا کن و مدت و قفل را با یک session دوم بسنج."
+        },
+        "en": {
+          "t": "Migrations and DDL lock impact",
+          "d": "Run a compatible migration on a disposable table and inspect lock and duration from a second session."
+        },
+        "kw": "postgresql migration ddl lock",
+        "cap": 0
+      },
+      {
+        "n": "24",
+        "file": "24-connection-pooling-and-saturation.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Connection pool و اشباع اتصال",
+          "d": "connectionهای کنترل‌شده بساز و ظرفیت، انتظار و نقش PgBouncer را از رفتار اندازه بگیر."
+        },
+        "en": {
+          "t": "Connection pools and saturation",
+          "d": "Create bounded connections and measure capacity and waits; understand where PgBouncer fits."
+        },
+        "kw": "postgresql connection pool pgbouncer saturation",
+        "cap": 0
+      },
+      {
+        "n": "25",
+        "file": "25-networking-tls-and-client-settings.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "شبکه، TLS و تنظیم Client",
+          "d": "خطای DNS، ردشدن اتصال و اعتبار گواهی را از هم جدا کن؛ encryption را با هویت‌سنجی یکی نگیر."
+        },
+        "en": {
+          "t": "Networking, TLS, and client settings",
+          "d": "Distinguish DNS failure, rejected connections, and certificate validation; encryption alone is not identity verification."
+        },
+        "kw": "postgresql network tls ssl certificate",
+        "cap": 0
+      },
+      {
+        "n": "26",
+        "file": "26-privileges-row-level-security.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 105,
+        "fa": {
+          "t": "مجوزها و Row-Level Security",
+          "d": "با دو role آزمایشی همان query را اجرا کن و مدرک بده هر role کدام ردیف‌ها را می‌بیند."
+        },
+        "en": {
+          "t": "Privileges and row-level security",
+          "d": "Run the same query as two lab roles and prove which rows each role can see."
+        },
+        "kw": "postgresql privileges row level security policy",
+        "cap": 0
+      },
+      {
+        "n": "27",
+        "file": "27-logical-backup-with-pg-dump.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "پشتیبان منطقی با pg_dump",
+          "d": "dump بگیر، فایل را inspect کن و به database جدا restore کن؛ موفقیت command را با restore ثابت کن."
+        },
+        "en": {
+          "t": "Logical backups with pg_dump",
+          "d": "Create and inspect a dump, restore it into a separate database, and prove recovery rather than trusting command success."
+        },
+        "kw": "postgresql pg_dump pg_restore logical backup",
+        "cap": 0
+      },
+      {
+        "n": "28",
+        "file": "28-physical-backup-wal-and-pitr.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 110,
+        "fa": {
+          "t": "پشتیبان فیزیکی، WAL و PITR",
+          "d": "در کلاستر disposable base backup و WAL را نگه دار، به نقطهٔ زمانی هدف restore کن و ردیف شناخته‌شده را بررسی کن."
+        },
+        "en": {
+          "t": "Physical backups, WAL, and PITR",
+          "d": "Keep a base backup and WAL in a disposable cluster, restore to a target time, and verify a known row."
+        },
+        "kw": "postgresql physical backup wal pitr",
+        "cap": 0
+      },
+      {
+        "n": "29",
+        "file": "29-streaming-replication-and-slots.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 110,
+        "fa": {
+          "t": "Streaming replication و replication slot",
+          "d": "تغییر را از primary تا standby دنبال کن و اثر slot عقب‌مانده بر WAL را اندازه بگیر."
+        },
+        "en": {
+          "t": "Streaming replication and replication slots",
+          "d": "Trace a change from primary to standby and measure how a lagging slot affects WAL retention."
+        },
+        "kw": "postgresql streaming replication slot wal",
+        "cap": 0
+      },
+      {
+        "n": "30",
+        "file": "30-replica-lag-and-read-after-write.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Lag و Read-after-Write",
+          "d": "تاخیر آزمایشی ایجاد کن و نشان بده چرا نوشتن موفق روی primary تضمین خواندن فوری از replica نیست."
+        },
+        "en": {
+          "t": "Lag and read-after-write",
+          "d": "Create controlled lag and show why a successful primary write does not guarantee an immediate replica read."
+        },
+        "kw": "postgresql replication lag consistency",
+        "cap": 0
+      },
+      {
+        "n": "31",
+        "file": "31-high-availability-and-failover.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 110,
+        "fa": {
+          "t": "High Availability و failover",
+          "d": "سناریوهای failover را با failure model، RPO، RTO و خطر دو primary مقایسه کن."
+        },
+        "en": {
+          "t": "High availability and failover",
+          "d": "Compare failover designs by failure model, RPO, RTO, and split-brain risk."
+        },
+        "kw": "postgresql high availability failover rpo rto",
+        "cap": 0
+      },
+      {
+        "n": "32",
+        "file": "32-partitioning-and-large-tables.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "Partitioning و جدول بزرگ",
+          "d": "جدول آزمایشی را partition کن و pruning، constraintها و محدودیت index را روی query بسنج."
+        },
+        "en": {
+          "t": "Partitioning and large tables",
+          "d": "Partition a test table and inspect pruning, constraints, and index trade-offs with queries."
+        },
+        "kw": "postgresql partitioning pruning large table",
+        "cap": 0
+      },
+      {
+        "n": "33",
+        "file": "33-monitoring-and-slow-queries.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 105,
+        "fa": {
+          "t": "پایش، لاگ کند و مصرف منابع",
+          "d": "query کند و اتصال منتظر بساز و قبل از restart از viewها و logها evidence جمع کن."
+        },
+        "en": {
+          "t": "Monitoring, slow queries, and resource use",
+          "d": "Create a slow query and a waiting connection; gather evidence from views and logs before considering a restart."
+        },
+        "kw": "postgresql monitoring slow query log activity",
+        "cap": 0
+      },
+      {
+        "n": "34",
+        "file": "34-incident-diagnosis.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 105,
+        "fa": {
+          "t": "عیب‌یابی رخداد PostgreSQL",
+          "d": "از علامت به connection، lock، disk و WAL برو؛ یک علت محتمل را با آزمایش جدا کن."
+        },
+        "en": {
+          "t": "Diagnosing PostgreSQL incidents",
+          "d": "Trace a symptom through connections, locks, disk, and WAL; isolate one likely cause with a discriminating test."
+        },
+        "kw": "postgresql incident diagnostics disk wal",
+        "cap": 0
+      },
+      {
+        "n": "35",
+        "file": "35-performance-tuning-workflow.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 110,
+        "fa": {
+          "t": "روش tuning مبتنی بر اندازه‌گیری",
+          "d": "baseline ثبت کن، یک تغییر بده، همان workload را تکرار کن و هزینهٔ نگه‌داری را هم گزارش بده."
+        },
+        "en": {
+          "t": "An evidence-based tuning workflow",
+          "d": "Capture a baseline, make one change, repeat the same workload, and report maintenance cost too."
+        },
+        "kw": "postgresql tuning benchmark baseline",
+        "cap": 0
+      },
+      {
+        "n": "36",
+        "file": "36-operations-and-upgrade-checklist.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "عملیات روزمره و چک‌لیست ارتقا",
+          "d": "نسخه و extensionها را ثبت کن و ترتیب backup، rehearsal، compatibility و rollback را طراحی کن."
+        },
+        "en": {
+          "t": "Routine operations and upgrade checklist",
+          "d": "Record version and extensions, then plan backup, rehearsal, compatibility, and rollback in order."
+        },
+        "kw": "postgresql upgrade operations extension",
+        "cap": 0
+      },
+      {
+        "n": "37",
+        "file": "37-project-1-transactional-shop.html",
+        "ready": false,
+        "ex": 5,
+        "mins": 150,
+        "fa": {
+          "t": "پروژهٔ ۱ — سرویس تراکنشی فروشگاه",
+          "d": "schema و transaction فروش را بساز؛ نقش محدود و اتصال برنامه را آزمایش کن و integrity را با query ثابت کن."
+        },
+        "en": {
+          "t": "Project 1 — a transactional shop service",
+          "d": "Build the schema and checkout transaction; test a restricted role and application connection, then prove integrity with queries."
+        },
+        "kw": "postgresql project transactional shop",
+        "cap": 1
+      },
+      {
+        "n": "38",
+        "file": "38-project-2-measured-query-tuning.html",
+        "ready": false,
+        "ex": 7,
+        "mins": 180,
+        "fa": {
+          "t": "پروژهٔ ۲ — بهینه‌سازی قابل‌اندازه‌گیری",
+          "d": "workload را baseline کن، plan و buffers بخوان و tuning را با داده و آزمون قبل/بعد دفاع کن."
+        },
+        "en": {
+          "t": "Project 2 — measurable query tuning",
+          "d": "Baseline a workload, inspect plans and buffers, and defend tuning with before/after evidence."
+        },
+        "kw": "postgresql project explain tuning",
+        "cap": 2
+      },
+      {
+        "n": "39",
+        "file": "39-project-3-restore-and-replication.html",
+        "ready": false,
+        "ex": 9,
+        "mins": 240,
+        "fa": {
+          "t": "پروژهٔ ۳ — بازیابی و replication",
+          "d": "backup را restore کن، replication آزمایشی بساز و سلامت، lag و نقطهٔ بازیابی را تحویل بده."
+        },
+        "en": {
+          "t": "Project 3 — recovery and replication",
+          "d": "Restore a backup, build lab replication, and hand off evidence for health, lag, and recovery point."
+        },
+        "kw": "postgresql project backup restore replication",
+        "cap": 3
+      }
+    ],
+    "stats": {
+      "chapters": 39,
+      "exercises": 669,
+      "minutes": 4070,
+      "capstones": 3,
+      "ready": 0
+    }
+  },
+  {
+    "id": "76-system-analysis",
+    "dir": "76-system-analysis",
+    "accent": "#0F766E",
+    "accentDark": null,
+    "cat": "arch",
+    "ico": "<circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"m15.5 15.5 5 5M7.5 10.5h6M10.5 7.5v6\" stroke-linecap=\"round\"/>",
+    "locked": false,
+    "fa": {
+      "name": "تحلیل سیستم",
+      "desc": "از مسئله و ذی‌نفع تا نیاز، فرایند، مدل دامنه، معیار پذیرش و تحویل قابل‌ساخت.",
+      "intro": "قبل از اینکه بپرسیم «چه معماری بسازیم؟» باید بفهمیم اصلاً چه مسئله‌ای را حل می‌کنیم. در این مسیر نقش تحلیل‌گر را تمرین می‌کنی: سؤال درست می‌پرسی، تناقض‌ها را پیدا می‌کنی و نیاز مبهم را به چیزی تبدیل می‌کنی که تیم بتواند بسازد و آزمایش کند."
+    },
+    "en": {
+      "name": "System Analysis",
+      "desc": "From problem and stakeholders to requirements, processes, domain models, acceptance criteria, and buildable hand-offs.",
+      "intro": "Before asking “What architecture should we build?”, we need to understand the problem we are solving. This track practises the analyst’s work: asking useful questions, exposing contradictions, and turning ambiguity into something a team can build and verify."
+    },
+    "chapters": [
+      {
+        "n": "01",
+        "file": "01-problem-framing.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 75,
+        "fa": {
+          "t": "مسئله را درست صورت‌بندی کن",
+          "d": "نشانهٔ درخواست‌شده را از مسئلهٔ واقعی جدا کن و فرض‌ها را قابل‌آزمایش بنویس."
+        },
+        "en": {
+          "t": "Frame the problem",
+          "d": "Separate a requested feature from the underlying problem and make assumptions testable."
+        },
+        "kw": "system analysis problem framing assumptions",
+        "cap": 0
+      },
+      {
+        "n": "02",
+        "file": "02-system-boundary-and-context.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 80,
+        "fa": {
+          "t": "مرز سیستم و نمودار context",
+          "d": "سامانه، actorها و سیستم‌های بیرونی را طوری رسم کن که مرز مسئولیت‌ها گم نشود."
+        },
+        "en": {
+          "t": "System boundary and context diagrams",
+          "d": "Map the system, actors, and external systems without blurring ownership boundaries."
+        },
+        "kw": "system context boundary actors",
+        "cap": 0
+      },
+      {
+        "n": "03",
+        "file": "03-stakeholders-and-influence.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 80,
+        "fa": {
+          "t": "ذی‌نفع‌ها و اثرشان",
+          "d": "برای یک قابلیت واقعی مشخص کن چه کسی تصمیم می‌گیرد، استفاده می‌کند، پشتیبانی می‌کند یا ریسک می‌پذیرد."
+        },
+        "en": {
+          "t": "Stakeholders and influence",
+          "d": "Identify who decides, uses, supports, or bears risk for a real capability."
+        },
+        "kw": "stakeholder map influence analysis",
+        "cap": 0
+      },
+      {
+        "n": "04",
+        "file": "04-elicitation-interviews.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "کشف نیاز با مصاحبه",
+          "d": "مصاحبه را از راه‌حل پیشنهادی شروع نکن؛ سؤال‌هایی طراحی کن که رفتار و درد واقعی را روشن کنند."
+        },
+        "en": {
+          "t": "Eliciting needs through interviews",
+          "d": "Do not begin with a proposed solution; ask questions that reveal actual behaviour and pain."
+        },
+        "kw": "requirements elicitation interview",
+        "cap": 0
+      },
+      {
+        "n": "05",
+        "file": "05-workshops-observation.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "کارگاه، مشاهده و دادهٔ موجود",
+          "d": "مصاحبه را با مشاهدهٔ کار واقعی و نمونهٔ داده بسنج تا حرف و عمل را یکی فرض نکنی."
+        },
+        "en": {
+          "t": "Workshops, observation, and existing data",
+          "d": "Compare interviews with observed work and sample data instead of assuming stated and actual behaviour match."
+        },
+        "kw": "requirements workshop observation",
+        "cap": 0
+      },
+      {
+        "n": "06",
+        "file": "06-functional-requirements.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "نیازمندی عملکردی دقیق",
+          "d": "نیاز را با actor، محرک، نتیجه و حالت خطا بنویس؛ جمله‌های مبهم را به سؤال تبدیل کن."
+        },
+        "en": {
+          "t": "Precise functional requirements",
+          "d": "Describe an actor, trigger, outcome, and failure path; turn vague statements into questions."
+        },
+        "kw": "functional requirements use case",
+        "cap": 0
+      },
+      {
+        "n": "07",
+        "file": "07-nonfunctional-requirements.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "نیازهای کیفی و قابل‌اندازه‌گیری",
+          "d": "«سریع و امن» را به سناریو و معیار قابل‌سنجش تبدیل کن و trade-off را ثبت کن."
+        },
+        "en": {
+          "t": "Measurable quality requirements",
+          "d": "Turn “fast and secure” into measurable scenarios and record trade-offs."
+        },
+        "kw": "nonfunctional requirements quality attributes",
+        "cap": 0
+      },
+      {
+        "n": "08",
+        "file": "08-use-cases-and-scenarios.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Use case و سناریو",
+          "d": "مسیر اصلی، جایگزین و شکست را برای یک کاربر واقعی مدل کن."
+        },
+        "en": {
+          "t": "Use cases and scenarios",
+          "d": "Model the main, alternative, and failure paths for a real user goal."
+        },
+        "kw": "use case scenario alternate flow",
+        "cap": 0
+      },
+      {
+        "n": "09",
+        "file": "09-user-stories-and-acceptance.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "User story و معیار پذیرش",
+          "d": "story را به رفتار آزمون‌پذیر وصل کن؛ معیار پذیرش را از راه‌حل فنی جدا نگه دار."
+        },
+        "en": {
+          "t": "User stories and acceptance criteria",
+          "d": "Connect a story to testable behaviour while keeping acceptance criteria separate from implementation."
+        },
+        "kw": "user story acceptance criteria",
+        "cap": 0
+      },
+      {
+        "n": "10",
+        "file": "10-process-modeling-bpmn.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "مدل‌کردن فرایند با BPMN",
+          "d": "فرایند فعلی و مطلوب را رسم کن و تصمیم، مسئولیت، انتظار و مسیر خطا را نشان بده."
+        },
+        "en": {
+          "t": "Process modelling with BPMN",
+          "d": "Model the current and target process, including decisions, ownership, waits, and failure paths."
+        },
+        "kw": "bpmn process model swimlane",
+        "cap": 0
+      },
+      {
+        "n": "11",
+        "file": "11-domain-language-and-glossary.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "واژه‌نامه و زبان مشترک دامنه",
+          "d": "واژه‌های متناقض تیم را پیدا کن و برای هر term یک تعریف و مثال مرزی بساز."
+        },
+        "en": {
+          "t": "Domain language and glossary",
+          "d": "Find conflicting team terms and define each with a boundary example."
+        },
+        "kw": "domain glossary ubiquitous language",
+        "cap": 0
+      },
+      {
+        "n": "12",
+        "file": "12-domain-concepts-and-rules.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "مفهوم‌ها و قانون‌های دامنه",
+          "d": "موجودیت‌ها و قانون‌های کسب‌وکار را از جدول‌های فعلی دیتابیس استخراج نکن؛ با شاهد کسب‌وکار بساز."
+        },
+        "en": {
+          "t": "Domain concepts and business rules",
+          "d": "Derive concepts and business rules from business evidence, not merely from existing database tables."
+        },
+        "kw": "domain model business rules",
+        "cap": 0
+      },
+      {
+        "n": "13",
+        "file": "13-state-sequence-and-lifecycle.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "چرخهٔ عمر، state و sequence",
+          "d": "رفتار یک سفارش را با حالت‌ها و تعامل actorها نشان بده و حالت ناممکن را آشکار کن."
+        },
+        "en": {
+          "t": "Lifecycle, state, and sequence",
+          "d": "Model an order’s states and actor interactions; expose impossible transitions."
+        },
+        "kw": "state diagram sequence lifecycle",
+        "cap": 0
+      },
+      {
+        "n": "14",
+        "file": "14-data-rules-and-information.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "داده، مالکیت و کیفیت اطلاعات",
+          "d": "منبع حقیقت، حساسیت، عمر نگه‌داری و قانون کیفیت هر داده را مشخص کن."
+        },
+        "en": {
+          "t": "Data ownership and information quality",
+          "d": "Specify the source of truth, sensitivity, retention, and quality rules for each data set."
+        },
+        "kw": "data ownership quality retention",
+        "cap": 0
+      },
+      {
+        "n": "15",
+        "file": "15-integration-and-interface-contracts.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "یکپارچه‌سازی و قرارداد interface",
+          "d": "ورودی، خروجی، خطا و مالک هر interface را بنویس؛ فرض نکن دو سیستم یک واژه را یکسان معنا می‌کنند."
+        },
+        "en": {
+          "t": "Integration and interface contracts",
+          "d": "Specify inputs, outputs, errors, and ownership; do not assume two systems use terms identically."
+        },
+        "kw": "integration interface contract api",
+        "cap": 0
+      },
+      {
+        "n": "16",
+        "file": "16-requirement-traceability.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "ردیابی نیاز تا آزمون",
+          "d": "برای چند نیاز مسیر stakeholder تا معیار پذیرش و test را بساز و شکاف‌های بی‌مدرک را پیدا کن."
+        },
+        "en": {
+          "t": "Requirement traceability",
+          "d": "Trace several requirements from stakeholder to acceptance criterion and test; find unsupported gaps."
+        },
+        "kw": "requirements traceability test",
+        "cap": 0
+      },
+      {
+        "n": "17",
+        "file": "17-prototyping-and-validation.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Prototype و اعتبارسنجی",
+          "d": "prototype را برای آزمودن فرض طراحی کن، نه برای جا زدن ظاهر آماده به‌جای محصول."
+        },
+        "en": {
+          "t": "Prototyping and validation",
+          "d": "Design a prototype to test an assumption, not to pass a polished mock-up off as a finished product."
+        },
+        "kw": "prototype validation usability",
+        "cap": 0
+      },
+      {
+        "n": "18",
+        "file": "18-prioritization-and-scope.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "اولویت‌بندی و مرز دامنه",
+          "d": "اثر، هزینه، ریسک و وابستگی را کنار هم بگذار و حذف‌های آگاهانه را ثبت کن."
+        },
+        "en": {
+          "t": "Prioritisation and scope boundaries",
+          "d": "Balance impact, cost, risk, and dependency; record deliberate exclusions."
+        },
+        "kw": "prioritization scope moscow",
+        "cap": 0
+      },
+      {
+        "n": "19",
+        "file": "19-change-impact-and-versioning.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "تغییر نیاز و تحلیل اثر",
+          "d": "یک نیاز را تغییر بده و ببین کدام فرآیند، داده، interface و آزمون باید بازبینی شود."
+        },
+        "en": {
+          "t": "Requirement change and impact analysis",
+          "d": "Change one requirement and identify affected processes, data, interfaces, and tests."
+        },
+        "kw": "change impact requirement versioning",
+        "cap": 0
+      },
+      {
+        "n": "20",
+        "file": "20-review-validation-and-uat.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "بازبینی، اعتبارسنجی و UAT",
+          "d": "با ذی‌نفع سناریوی پذیرش را اجرا کن و خطای نیاز را از خطای پیاده‌سازی جدا کن."
+        },
+        "en": {
+          "t": "Review, validation, and UAT",
+          "d": "Run acceptance scenarios with stakeholders and distinguish requirement defects from implementation defects."
+        },
+        "kw": "requirements review validation uat",
+        "cap": 0
+      },
+      {
+        "n": "21",
+        "file": "21-analysis-handoff-and-ready.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "تحویل تحلیل آمادهٔ پیاده‌سازی",
+          "d": "بسته‌ای بده که تیم بتواند سؤال باز، تصمیم، معیار موفقیت و وابستگی را ببیند."
+        },
+        "en": {
+          "t": "An implementation-ready analysis hand-off",
+          "d": "Deliver a package exposing open questions, decisions, success criteria, and dependencies."
+        },
+        "kw": "analysis handoff ready",
+        "cap": 0
+      },
+      {
+        "n": "22",
+        "file": "22-analyst-toolkit-and-anti-patterns.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "ابزار تحلیل‌گر و دام‌های رایج",
+          "d": "یک سند واقعی را بازبینی کن و نشانه‌های راه‌حل‌زدگی، ابهام و معیار غیرقابل‌آزمون را پیدا کن."
+        },
+        "en": {
+          "t": "Analyst toolkit and common traps",
+          "d": "Review a real artefact for solution bias, ambiguity, and untestable criteria."
+        },
+        "kw": "analysis toolkit anti patterns",
+        "cap": 0
+      },
+      {
+        "n": "23",
+        "file": "23-project-1-requirements-pack.html",
+        "ready": false,
+        "ex": 5,
+        "mins": 120,
+        "fa": {
+          "t": "پروژهٔ ۱ — بستهٔ نیازمندی یک فروشگاه",
+          "d": "برای سفارش آنلاین، context، stakeholder، نیاز، سناریو و معیار پذیرش قابل‌بررسی تحویل بده."
+        },
+        "en": {
+          "t": "Project 1 — a shop requirements pack",
+          "d": "Deliver reviewable context, stakeholder, requirements, scenarios, and acceptance criteria for online ordering."
+        },
+        "kw": "system analysis project requirements",
+        "cap": 1
+      },
+      {
+        "n": "24",
+        "file": "24-project-2-process-and-domain.html",
+        "ready": false,
+        "ex": 7,
+        "mins": 150,
+        "fa": {
+          "t": "پروژهٔ ۲ — فرایند و مدل دامنه",
+          "d": "فرایند سفارش را از وضعیت فعلی تا مدل هدف ببر و قانون‌های کسب‌وکار را به trace وصل کن."
+        },
+        "en": {
+          "t": "Project 2 — process and domain model",
+          "d": "Move an order process from current state to target model and trace business rules to evidence."
+        },
+        "kw": "system analysis project process domain",
+        "cap": 2
+      },
+      {
+        "n": "25",
+        "file": "25-project-3-change-and-acceptance.html",
+        "ready": false,
+        "ex": 9,
+        "mins": 180,
+        "fa": {
+          "t": "پروژهٔ ۳ — تغییر نیاز تا پذیرش",
+          "d": "درخواست تغییر را تحلیل کن، اثرها را بسنج و جلسهٔ UAT را با شواهد تحویل بده."
+        },
+        "en": {
+          "t": "Project 3 — from change request to acceptance",
+          "d": "Analyse a change request, assess impacts, and hand off a UAT session with evidence."
+        },
+        "kw": "system analysis capstone change uat",
+        "cap": 3
+      }
+    ],
+    "stats": {
+      "chapters": 25,
+      "exercises": 417,
+      "minutes": 2365,
+      "capstones": 3,
+      "ready": 0
+    }
+  },
+  {
+    "id": "77-dotnet-kafka",
+    "dir": "77-dotnet-kafka",
+    "accent": "#231F20",
+    "accentDark": null,
+    "cat": "backend",
+    "ico": "<path d=\"M5 4h14M5 12h14M5 20h14\"/><circle cx=\"8\" cy=\"4\" r=\"2\"/><circle cx=\"16\" cy=\"12\" r=\"2\"/><circle cx=\"10\" cy=\"20\" r=\"2\"/>",
+    "locked": false,
+    "fa": {
+      "name": "Apache Kafka با .NET",
+      "desc": "تولید و مصرف event با C#، partition و consumer group، offset، retry و عملیات قابل‌اندازه‌گیری.",
+      "intro": "Kafka را با یک صف ساده اشتباه نگیریم: داده در log ماندگار می‌ماند و مصرف‌کننده با offset خودش پیش می‌رود. در این مسیر broker را محلی بالا می‌آوری، با client دات‌نت event می‌فرستی و با توقف کنترل‌شده می‌بینی چه چیزی تحویل، تکرار یا عقب می‌افتد."
+    },
+    "en": {
+      "name": "Apache Kafka with .NET",
+      "desc": "Produce and consume events in C#, understand partitions, consumer groups, and offsets, and practise retries and measurable operations.",
+      "intro": "Kafka is not simply a queue: records remain in a log and consumers progress through their own offsets. Run a local broker, publish with a .NET client, and use controlled interruptions to observe delivery, duplicates, and lag."
+    },
+    "chapters": [
+      {
+        "n": "01",
+        "file": "01-kafka-model-and-use-cases.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 80,
+        "fa": {
+          "t": "مدل Kafka و مسئله‌ای که حل می‌کند",
+          "d": "یک جریان رویداد را از صف کاری جدا کن و دلیل انتخاب Kafka را با نیاز retention و replay توضیح بده."
+        },
+        "en": {
+          "t": "Kafka’s model and the problem it solves",
+          "d": "Distinguish an event log from a work queue and justify Kafka using retention and replay needs."
+        },
+        "kw": "kafka model log retention replay",
+        "cap": 0
+      },
+      {
+        "n": "02",
+        "file": "02-local-broker-and-dotnet-client.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Broker محلی و Client دات‌نت",
+          "d": "محیط disposable بساز، package سازگار را pin کن و اتصال producer را از readiness broker جدا بسنج."
+        },
+        "en": {
+          "t": "Local broker and the .NET client",
+          "d": "Create a disposable environment, pin a compatible client package, and distinguish producer connectivity from broker readiness."
+        },
+        "kw": "kafka docker dotnet client",
+        "cap": 0
+      },
+      {
+        "n": "03",
+        "file": "03-topics-partitions-and-replication.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Topic، partition و replica",
+          "d": "پیام‌ها را به partition نگاشت کن و اثر تعداد partition و replica را در metadata ببین."
+        },
+        "en": {
+          "t": "Topics, partitions, and replicas",
+          "d": "Map records to partitions and inspect how partition and replica counts affect metadata."
+        },
+        "kw": "kafka topic partition replica",
+        "cap": 0
+      },
+      {
+        "n": "04",
+        "file": "04-producer-keys-and-ordering.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Producer، key و ترتیب",
+          "d": "با keyهای متفاوت publish کن و ترتیب تضمین‌شده را فقط در مرز partition ادعا کن."
+        },
+        "en": {
+          "t": "Producers, keys, and ordering",
+          "d": "Publish with different keys and claim ordering only within its actual partition boundary."
+        },
+        "kw": "kafka producer key ordering",
+        "cap": 0
+      },
+      {
+        "n": "05",
+        "file": "05-serialization-and-schemas.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "Serialization و تغییر schema",
+          "d": "پیام نسخه‌دار بفرست و consumer قدیمی را در برابر فیلد تازه آزمایش کن."
+        },
+        "en": {
+          "t": "Serialization and schema evolution",
+          "d": "Publish a versioned event and test an older consumer against a new field."
+        },
+        "kw": "kafka serialization schema evolution",
+        "cap": 0
+      },
+      {
+        "n": "06",
+        "file": "06-consumer-groups-and-assignment.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "Consumer group و تقسیم کار",
+          "d": "چند consumer اجرا کن و partition assignment را تغییر بده؛ consumerها را با workerهای مستقل اشتباه نگیر."
+        },
+        "en": {
+          "t": "Consumer groups and assignment",
+          "d": "Run multiple consumers and change assignments without confusing consumers with independent work queues."
+        },
+        "kw": "kafka consumer group assignment",
+        "cap": 0
+      },
+      {
+        "n": "07",
+        "file": "07-offsets-commit-and-delivery.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 105,
+        "fa": {
+          "t": "Offset، commit و ضمانت تحویل",
+          "d": "زمان commit را عوض کن، توقف کنترل‌شده بساز و duplicate یا از‌دست‌رفتن پردازش را توضیح بده."
+        },
+        "en": {
+          "t": "Offsets, commits, and delivery semantics",
+          "d": "Change commit timing, interrupt consumption safely, and explain duplicates or lost processing."
+        },
+        "kw": "kafka offset commit delivery semantics",
+        "cap": 0
+      },
+      {
+        "n": "08",
+        "file": "08-rebalance-and-cooperative-consumers.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "Rebalance و توقف consumer",
+          "d": "یک consumer را اضافه یا متوقف کن و مدت و اثر rebalance را از لاگ client ثبت کن."
+        },
+        "en": {
+          "t": "Rebalancing and consumer pauses",
+          "d": "Add or stop a consumer and use client logs to inspect rebalance duration and effects."
+        },
+        "kw": "kafka rebalance consumer",
+        "cap": 0
+      },
+      {
+        "n": "09",
+        "file": "09-retries-idempotency-and-transactions.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 110,
+        "fa": {
+          "t": "Retry، idempotency و transaction",
+          "d": "خطای موقت و دائمی را جدا کن و اثر retry را روی side effect برنامه با کلید idempotency کنترل کن."
+        },
+        "en": {
+          "t": "Retries, idempotency, and transactions",
+          "d": "Separate transient from permanent failures and control retry side effects with an application idempotency key."
+        },
+        "kw": "kafka retry idempotency transaction",
+        "cap": 0
+      },
+      {
+        "n": "10",
+        "file": "10-dead-letter-and-recovery-design.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "پیام خراب و مسیر بازیابی",
+          "d": "پیام poison را تشخیص بده، آن را بی‌نهایت retry نکن و مسیر quarantine/replay را با evidence طراحی کن."
+        },
+        "en": {
+          "t": "Poison records and recovery paths",
+          "d": "Identify a poison record, avoid infinite retries, and design a quarantine/replay path with evidence."
+        },
+        "kw": "kafka poison message retry recovery",
+        "cap": 0
+      },
+      {
+        "n": "11",
+        "file": "11-dotnet-hosted-service-integration.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 105,
+        "fa": {
+          "t": "اتصال به ASP.NET Core Hosted Service",
+          "d": "consumer را با چرخهٔ عمر Host هماهنگ کن و shutdown تمیز را با cancellation token آزمایش کن."
+        },
+        "en": {
+          "t": "Integrating with an ASP.NET Core hosted service",
+          "d": "Align consumer lifetime with the host and test graceful shutdown using cancellation tokens."
+        },
+        "kw": "dotnet kafka backgroundservice hostedservice",
+        "cap": 0
+      },
+      {
+        "n": "12",
+        "file": "12-outbox-and-database-consistency.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 105,
+        "fa": {
+          "t": "Outbox و هماهنگی با دیتابیس",
+          "d": "dual-write کنترل‌نشده را بازسازی کن و سپس ثبت business row و event را با outbox اتمیک کن."
+        },
+        "en": {
+          "t": "Outbox and database consistency",
+          "d": "Reproduce an unsafe dual write, then make the business row and event atomic with an outbox."
+        },
+        "kw": "dotnet kafka outbox database",
+        "cap": 0
+      },
+      {
+        "n": "13",
+        "file": "13-security-and-configuration.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "تنظیم، credential و امنیت اتصال",
+          "d": "secret را از کد بیرون نگه دار و خطای auth، TLS و network را با نشانه‌های جدا تشخیص بده."
+        },
+        "en": {
+          "t": "Configuration, credentials, and connection security",
+          "d": "Keep secrets out of code and distinguish authentication, TLS, and network failures using separate signals."
+        },
+        "kw": "kafka dotnet security tls credentials",
+        "cap": 0
+      },
+      {
+        "n": "14",
+        "file": "14-observability-lag-and-throughput.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "Lag، throughput و لاگ برنامه",
+          "d": "نرخ تولید و مصرف را محدود اندازه بگیر و lag را با backlog یا کندی کل سامانه یکی نگیر."
+        },
+        "en": {
+          "t": "Lag, throughput, and application logs",
+          "d": "Measure bounded production and consumption rates; do not equate lag with total-system latency."
+        },
+        "kw": "kafka lag throughput dotnet",
+        "cap": 0
+      },
+      {
+        "n": "15",
+        "file": "15-testing-and-failure-drills.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "تست و تمرین خرابی",
+          "d": "producer و consumer را با broker آزمایشی تست کن و قطع، duplicate و پیام ناسازگار را بازتولید کن."
+        },
+        "en": {
+          "t": "Testing and failure drills",
+          "d": "Test producers and consumers against a lab broker and reproduce outages, duplicates, and incompatible records."
+        },
+        "kw": "dotnet kafka integration test failure",
+        "cap": 0
+      },
+      {
+        "n": "16",
+        "file": "16-project-1-order-events.html",
+        "ready": false,
+        "ex": 5,
+        "mins": 130,
+        "fa": {
+          "t": "پروژهٔ ۱ — جریان رویداد سفارش",
+          "d": "API دات‌نت event نسخه‌دار منتشر کند و consumer نتیجه را idempotent ذخیره کند."
+        },
+        "en": {
+          "t": "Project 1 — order event stream",
+          "d": "Build a .NET API that publishes versioned events and an idempotent consumer."
+        },
+        "kw": "dotnet kafka project orders",
+        "cap": 1
+      },
+      {
+        "n": "17",
+        "file": "17-project-2-reliable-consumer.html",
+        "ready": false,
+        "ex": 7,
+        "mins": 170,
+        "fa": {
+          "t": "پروژهٔ ۲ — Consumer قابل‌بازیابی",
+          "d": "retry، پیام poison، commit و shutdown را با failure drill و evidence تحویل بده."
+        },
+        "en": {
+          "t": "Project 2 — a recoverable consumer",
+          "d": "Deliver retries, poison-message handling, commits, and shutdown with failure-drill evidence."
+        },
+        "kw": "dotnet kafka project consumer recovery",
+        "cap": 2
+      },
+      {
+        "n": "18",
+        "file": "18-project-3-outbox-pipeline.html",
+        "ready": false,
+        "ex": 9,
+        "mins": 220,
+        "fa": {
+          "t": "پروژهٔ ۳ — Outbox تا مصرف‌کننده",
+          "d": "یک جریان از transaction دیتابیس تا Kafka و consumer بساز و duplicate، lag و replay را گزارش کن."
+        },
+        "en": {
+          "t": "Project 3 — from outbox to consumer",
+          "d": "Build a path from a database transaction through Kafka to a consumer; report duplicates, lag, and replay."
+        },
+        "kw": "dotnet kafka project outbox",
+        "cap": 3
+      }
+    ],
+    "stats": {
+      "chapters": 18,
+      "exercises": 291,
+      "minutes": 2005,
+      "capstones": 3,
+      "ready": 0
+    }
+  },
+  {
+    "id": "78-dotnet-rabbitmq",
+    "dir": "78-dotnet-rabbitmq",
+    "accent": "#FF6600",
+    "accentDark": null,
+    "cat": "backend",
+    "ico": "<path d=\"M4 7h16M4 12h16M4 17h16\" stroke-linecap=\"round\"/><path d=\"M7 4v6M12 9v6M17 14v6\" stroke-linecap=\"round\"/>",
+    "locked": false,
+    "fa": {
+      "name": "RabbitMQ با .NET",
+      "desc": "AMQP، exchange و routing، تأیید تحویل، retry، dead letter و الگوهای worker با C#.",
+      "intro": "یک message را فرستادیم؛ آیا واقعاً به دست worker رسید؟ آیا کار انجام شد یا فقط پیام دریافت شد؟ این دوره همین فاصله را روشن می‌کند: از exchange و routing تا ack، retry و dead letter، با broker آزمایشی و برنامهٔ دات‌نت قابل اجرا."
+    },
+    "en": {
+      "name": "RabbitMQ with .NET",
+      "desc": "AMQP, exchanges and routing, delivery acknowledgements, retries, dead letters, and C# worker patterns.",
+      "intro": "We sent a message—but did a worker receive it, and did the work finish or was the message merely delivered? This course makes that boundary visible through exchanges, routing, acknowledgements, retries, and dead letters using a runnable .NET application and lab broker."
+    },
+    "chapters": [
+      {
+        "n": "01",
+        "file": "01-amqp-and-rabbitmq-model.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 80,
+        "fa": {
+          "t": "مدل AMQP و RabbitMQ",
+          "d": "exchange، queue و consumer را از هم جدا کن و مسیر پیام را قبل از کدنویسی رسم کن."
+        },
+        "en": {
+          "t": "The AMQP and RabbitMQ model",
+          "d": "Distinguish exchanges, queues, and consumers; trace a message before writing code."
+        },
+        "kw": "rabbitmq amqp exchange queue consumer",
+        "cap": 0
+      },
+      {
+        "n": "02",
+        "file": "02-local-broker-and-dotnet-client.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Broker محلی و Client دات‌نت",
+          "d": "RabbitMQ disposable را بالا بیاور و connection، channel و recovery را از هم تشخیص بده."
+        },
+        "en": {
+          "t": "Local broker and the .NET client",
+          "d": "Start disposable RabbitMQ and distinguish connections, channels, and recovery behaviour."
+        },
+        "kw": "rabbitmq docker dotnet client",
+        "cap": 0
+      },
+      {
+        "n": "03",
+        "file": "03-exchanges-routing-keys-and-bindings.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Exchange، routing key و binding",
+          "d": "پیام را با direct، topic و fanout route کن و با queueها ثابت کن چه چیزی match شده است."
+        },
+        "en": {
+          "t": "Exchanges, routing keys, and bindings",
+          "d": "Route messages with direct, topic, and fanout exchanges; prove matches by inspecting queues."
+        },
+        "kw": "rabbitmq exchange routing key binding",
+        "cap": 0
+      },
+      {
+        "n": "04",
+        "file": "04-queues-durability-and-message-properties.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Queue، durability و خاصیت پیام",
+          "d": "broker را کنترل‌شده restart کن و بفهم durable queue و persistent message تضمین‌های متفاوت‌اند."
+        },
+        "en": {
+          "t": "Queues, durability, and message properties",
+          "d": "Restart the broker safely and learn why durable queues and persistent messages are distinct guarantees."
+        },
+        "kw": "rabbitmq durable persistent queue",
+        "cap": 0
+      },
+      {
+        "n": "05",
+        "file": "05-publish-confirms-and-reliability.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "Publish confirm و اطمینان ارسال",
+          "d": "پیام را publish کن، confirm را بررسی کن و مرز آن را با انجام business work روشن کن."
+        },
+        "en": {
+          "t": "Publisher confirms and reliable publishing",
+          "d": "Publish a message, inspect confirms, and distinguish broker acceptance from completed business work."
+        },
+        "kw": "rabbitmq publisher confirms",
+        "cap": 0
+      },
+      {
+        "n": "06",
+        "file": "06-consumer-ack-prefetch-and-redelivery.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 105,
+        "fa": {
+          "t": "Consumer ack، prefetch و تحویل دوباره",
+          "d": "ack را عمداً عقب بینداز، consumer را متوقف کن و redelivery و محدودیت prefetch را ببین."
+        },
+        "en": {
+          "t": "Consumer acknowledgements, prefetch, and redelivery",
+          "d": "Delay acknowledgements, stop a consumer, and inspect redelivery and prefetch limits."
+        },
+        "kw": "rabbitmq ack prefetch redelivery",
+        "cap": 0
+      },
+      {
+        "n": "07",
+        "file": "07-dotnet-worker-lifecycle.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "Worker دات‌نت و چرخهٔ عمر Host",
+          "d": "consumer را با BackgroundService راه بینداز و cancellation و shutdown را بدون گم‌کردن پیام آزمایش کن."
+        },
+        "en": {
+          "t": ".NET workers and host lifecycle",
+          "d": "Run a consumer with BackgroundService and test cancellation and shutdown without silently losing messages."
+        },
+        "kw": "dotnet rabbitmq backgroundservice hostedservice",
+        "cap": 0
+      },
+      {
+        "n": "08",
+        "file": "08-retry-and-dead-letter-exchanges.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 105,
+        "fa": {
+          "t": "Retry و Dead Letter Exchange",
+          "d": "retry فوری را از retry با فاصله جدا کن و پیام ناموفق را به چرخهٔ بی‌نهایت نینداز."
+        },
+        "en": {
+          "t": "Retries and dead-letter exchanges",
+          "d": "Separate immediate from delayed retries and prevent failed messages entering an infinite loop."
+        },
+        "kw": "rabbitmq retry dlx dead letter",
+        "cap": 0
+      },
+      {
+        "n": "09",
+        "file": "09-poison-messages-and-idempotency.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "Poison message و idempotency",
+          "d": "پیام همیشه‌ناموفق را قرنطینه کن و side effect را در برابر تحویل تکراری مقاوم بساز."
+        },
+        "en": {
+          "t": "Poison messages and idempotency",
+          "d": "Quarantine a consistently failing message and make side effects safe under redelivery."
+        },
+        "kw": "rabbitmq poison message idempotency",
+        "cap": 0
+      },
+      {
+        "n": "10",
+        "file": "10-quorum-queues-and-availability.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 110,
+        "fa": {
+          "t": "Quorum Queue و دسترس‌پذیری",
+          "d": "نوع queue را با failure model و هزینهٔ replica انتخاب کن؛ یک node قطع‌شده را در lab بررسی کن."
+        },
+        "en": {
+          "t": "Quorum queues and availability",
+          "d": "Choose queue type using the failure model and replication cost; inspect one controlled node outage."
+        },
+        "kw": "rabbitmq quorum queue availability",
+        "cap": 0
+      },
+      {
+        "n": "11",
+        "file": "11-topology-and-startup-order.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Topology و ترتیب آماده‌شدن سرویس‌ها",
+          "d": "اعلان topology را idempotent طراحی کن و آماده‌بودن broker را از زنده‌بودن container جدا کن."
+        },
+        "en": {
+          "t": "Topology and service startup order",
+          "d": "Declare topology idempotently and distinguish broker readiness from container liveness."
+        },
+        "kw": "rabbitmq topology readiness compose",
+        "cap": 0
+      },
+      {
+        "n": "12",
+        "file": "12-outbox-and-database-boundary.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 105,
+        "fa": {
+          "t": "Outbox و مرز دیتابیس",
+          "d": "خرابی میان commit دیتابیس و publish را بازتولید کن و الگوی outbox را با duplicate-safe consumer کامل کن."
+        },
+        "en": {
+          "t": "Outbox and the database boundary",
+          "d": "Reproduce failure between database commit and publish, then complete an outbox with a duplicate-safe consumer."
+        },
+        "kw": "dotnet rabbitmq outbox database",
+        "cap": 0
+      },
+      {
+        "n": "13",
+        "file": "13-security-tls-and-secrets.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "کاربر، TLS و نگه‌داری امن secret",
+          "d": "کاربر محدود بساز، TLS را بررسی کن و credential را از repository و image بیرون نگه دار."
+        },
+        "en": {
+          "t": "Users, TLS, and secret handling",
+          "d": "Create a restricted user, inspect TLS, and keep credentials out of repositories and images."
+        },
+        "kw": "rabbitmq security tls credentials",
+        "cap": 0
+      },
+      {
+        "n": "14",
+        "file": "14-monitoring-and-incident-evidence.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "Queue depth و evidence رخداد",
+          "d": "consumer را عقب بینداز و از metrics، management API و لاگ‌ها علت رشد صف را پیدا کن."
+        },
+        "en": {
+          "t": "Queue depth and incident evidence",
+          "d": "Slow a consumer and use metrics, the management API, and logs to explain queue growth."
+        },
+        "kw": "rabbitmq monitoring queue depth",
+        "cap": 0
+      },
+      {
+        "n": "15",
+        "file": "15-testing-and-failure-drills.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "تست integration و تمرین خرابی",
+          "d": "قطع broker، redelivery و عدم دسترسی را با تست بازتولید کن و هر بار همان acceptance test را تکرار کن."
+        },
+        "en": {
+          "t": "Integration tests and failure drills",
+          "d": "Reproduce broker outages, redelivery, and unavailable dependencies; rerun the same acceptance test after repair."
+        },
+        "kw": "dotnet rabbitmq integration test failure",
+        "cap": 0
+      },
+      {
+        "n": "16",
+        "file": "16-project-1-background-work.html",
+        "ready": false,
+        "ex": 5,
+        "mins": 130,
+        "fa": {
+          "t": "پروژهٔ ۱ — کار پس‌زمینهٔ قابل‌پیگیری",
+          "d": "یک API سفارش بساز که کار پس‌زمینه را publish کند و وضعیت انجام کار قابل‌مشاهده باشد."
+        },
+        "en": {
+          "t": "Project 1 — observable background work",
+          "d": "Build an order API that publishes background work with an inspectable completion state."
+        },
+        "kw": "dotnet rabbitmq project background worker",
+        "cap": 1
+      },
+      {
+        "n": "17",
+        "file": "17-project-2-reliable-delivery.html",
+        "ready": false,
+        "ex": 7,
+        "mins": 170,
+        "fa": {
+          "t": "پروژهٔ ۲ — تحویل قابل‌اعتماد",
+          "d": "confirm، ack، retry و DLX را کنار idempotency بگذار و failure drill را مستند کن."
+        },
+        "en": {
+          "t": "Project 2 — reliable delivery",
+          "d": "Combine confirms, acknowledgements, retries, DLX, and idempotency; document failure drills."
+        },
+        "kw": "dotnet rabbitmq project reliable delivery",
+        "cap": 2
+      },
+      {
+        "n": "18",
+        "file": "18-project-3-order-processing.html",
+        "ready": false,
+        "ex": 9,
+        "mins": 220,
+        "fa": {
+          "t": "پروژهٔ ۳ — پردازش سفارش در چند worker",
+          "d": "سامانهٔ چند worker را با صف پایدار، بازیابی، پایش و مسیر outbox تحویل بده."
+        },
+        "en": {
+          "t": "Project 3 — multi-worker order processing",
+          "d": "Deliver a multi-worker system with durable queues, recovery, monitoring, and an outbox path."
+        },
+        "kw": "dotnet rabbitmq project order processing",
+        "cap": 3
+      }
+    ],
+    "stats": {
+      "chapters": 18,
+      "exercises": 291,
+      "minutes": 2000,
       "capstones": 3,
       "ready": 0
     }

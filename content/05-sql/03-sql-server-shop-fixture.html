@@ -1,0 +1,345 @@
+<!--meta
+title: دادهٔ تمرینی Shop و محیط قابل‌بازتولید
+desc: یک فروشگاه کوچک و یکسان برای همهٔ queryهای دوره می‌سازیم؛ schema، کلیدها، constraintها، seed قابل‌تکرار و اثبات نتیجه را تمرین می‌کنیم.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">SQL و SQL Server · فصل ۳</span><span lang="en">SQL &amp; SQL Server · Chapter 3</span></span>
+<h1 lang="fa">دادهٔ تمرینی Shop و محیط قابل‌بازتولید</h1>
+<h1 lang="en">The Shop fixture and a reproducible environment</h1>
+<p class="sub" lang="fa">فصل قبل موتور رو بالا آوردیم و اتصال رو با query ثابت کردیم. حالا سؤال عملی‌تری داریم: اگه هر نفر دادهٔ متفاوت داشته باشه، چطور بفهمیم تفاوت نتیجه از query هست یا از داده؟ یک فروشگاه کوچک می‌سازیم که در فصل‌های بعد هم همراه ما می‌مونه.</p>
+<p class="sub" lang="en">Last chapter we started the engine and proved the connection with a query. Now a more practical question: if everyone has different data, how can we tell whether a result changed because of the query or the data? We will create a small shop that stays with us through later chapters.</p>
+<div class="facts"><span><span lang="fa">پیش‌نیاز</span><span lang="en">Prerequisite</span>: فصل ۲ · اتصال SQL Server</span><span><span lang="fa">نسخهٔ مرجع</span><span lang="en">Baseline</span>: SQL Server 2025 · T-SQL</span><span><span lang="fa">زمان</span><span lang="en">Time</span>: ۹۰ دقیقه · ۱۸ تمرین</span></div>
+</div><section id="colleague-story"><h2><span lang="fa">قبل از دستورها، اول زمین بازی رو بشناس</span><span lang="en">Before the commands, understand the ground you are standing on</span></h2><p class="lede" lang="fa">فرض کن روز اول کاریته و یکی از بچه‌های تیم پروژه رو باز کرده و می‌گه «این دیتابیس ماست». قبل از اینکه چیزی حفظ کنی، باید بفهمی دقیقاً با چه چیزی طرفی، کجا قراره آزمایش کنی و چطور مطمئن بشی نتیجه‌ای که می‌بینی واقعاً از همون محیطیه که فکر می‌کنی. موضوع «دادهٔ تمرینی Shop و محیط قابل‌بازتولید» رو هم از همین زاویه جلو می‌بریم: کم‌کم، با دست خودمون و با خروجی‌ای که می‌شه بهش استناد کرد.</p><p class="lede" lang="en">Imagine it is your first day on the team and someone opens the project and says, “this is our database.” Before memorising commands, you need to know what you are looking at, where the experiment runs, and how to prove the result came from the environment you think it did. We approach “The Shop fixture and a reproducible environment” the same way: hands-on, incremental, and evidence-driven.</p><div class="note"><div class="note-t"><span lang="fa">قرارمون توی این فصل</span><span lang="en">Our rule for this chapter</span></div><p lang="fa">هرجا query یا command می‌زنیم، همون‌جا می‌گیم چرا زدیمش، کدوم قسمت خروجی مهمه و اگه نتیجه فرق داشت اول چی رو چک کنی. قرار نیست چیزی رو فقط چون «معمولاً این‌طوریه» قبول کنیم.</p><p lang="en">Whenever we run a query or command, we state why, identify the important evidence, and say what to check first if the result differs. We do not accept behaviour merely because it is “usually like that.”</p></div></section>
+<section id="story">
+<h2><span lang="fa">دو نفر یک query می‌زنند؛ چرا جواب‌ها فرق داره؟</span><span lang="en">Two people run one query; why are the answers different?</span></h2>
+<p class="lede" lang="fa">تیم می‌گه query فروش ماهانه خراب هست. تو اجرا می‌کنی و عدد ۲۳ رو می‌بینی؛ همکارت ۲۷ می‌بینه. معلوم می‌شه هر دو روی جدول‌هایی با دادهٔ دستی خودشان کار می‌کرده‌اند. هنوز نمی‌دانیم query اشتباهه یا نمونه‌داده‌ها یکی نیستند.</p>
+<p class="lede" lang="en">The team says the monthly-sales query is broken. You run it and see 23; your teammate sees 27. It turns out each person used tables populated by hand. We still do not know whether the query is wrong or the sample data differs.</p>
+<p lang="fa">به‌جای اینکه از روی یک عدد حدس بزنیم، یک دادهٔ تمرینی می‌سازیم: schema مشخص، کلیدها و رابطه‌های روشن، دادهٔ کم اما حساب‌شده، و چند query که نتیجهٔ مورد انتظارشان رو می‌دانیم. دادهٔ تمرینی یعنی داده و ساختار کنترل‌شده‌ای که آزمایش رو قابل‌تکرار می‌کنه؛ نه دیتابیس production و نه مجموعه‌دادهٔ تصادفی.</p>
+<p lang="en">Instead of guessing from one number, we create a fixture: a known schema, explicit keys and relationships, a small but deliberate dataset, and queries whose expected results we can calculate. A fixture is controlled structure and data for repeatable tests—not a production database and not random sample data.</p>
+</section>
+<section id="design">
+<h2><span lang="fa">قبل از ساخت جدول، مسئلهٔ فروشگاه رو کوچک کنیم</span><span lang="en">Keep the shop problem small before creating tables</span></h2>
+<p lang="fa">در این دوره یک فروشگاه ساده رو مدل می‌کنیم: مشتری، محصول، سفارش و ردیف‌های سفارش. یک سفارش به یک مشتری تعلق داره؛ هر سفارش یک یا چند ردیف داره؛ هر ردیف به یک محصول اشاره می‌کنه. قیمتِ ردیف، قیمت زمان خرید است، نه الزاماً قیمت امروز محصول. این تصمیم کوچک بعداً جلوی عوض‌شدن تاریخچهٔ فروش رو می‌گیره.</p>
+<p lang="en">Our course shop has customers, products, orders, and order lines. Each order belongs to one customer; an order has one or more lines; each line refers to a product. The line price is the price at purchase time, not necessarily today’s product price. That small decision will keep sales history from changing later.</p>
+<div class="table-wrap"><table class="doc-table"><thead><tr><th lang="fa">موجودیت</th><th lang="fa">چیزی که نگه می‌داره</th><th lang="fa">کلید / رابطه</th><th lang="en">Entity</th><th lang="en">What it stores</th><th lang="en">Key / relationship</th></tr></thead><tbody>
+<tr><td>Customers</td><td>مشخصات پایهٔ مشتری</td><td><code>CustomerId</code></td><td>Customers</td><td>Basic customer details</td><td><code>CustomerId</code></td></tr>
+<tr><td>Products</td><td>نام، قیمت جاری و وضعیت فعال</td><td><code>ProductId</code></td><td>Products</td><td>Name, current price, active flag</td><td><code>ProductId</code></td></tr>
+<tr><td>Orders</td><td>مشتری و زمان ثبت سفارش</td><td>FK به Customers</td><td>Orders</td><td>Customer and order time</td><td>FK to Customers</td></tr>
+<tr><td>OrderItems</td><td>محصول، تعداد و قیمت خرید</td><td>ترکیب OrderId و ProductId</td><td>OrderItems</td><td>Product, quantity, purchase price</td><td>OrderId + ProductId</td></tr>
+</tbody></table></div>
+<p lang="fa">نام جدول‌ها رو در schema جداگانهٔ <code>shop</code> می‌گذاریم تا با objectهای سیستم یا مثال‌های بعدی قاطی نشوند. در SQL Server، database محل جداسازی داده و schema یک namespace داخل database است؛ فعلاً همین تفاوت رو در ساختار می‌بینیم و جزئیاتش رو بعداً باز می‌کنیم.</p>
+<p lang="en">We place these tables in a dedicated <code>shop</code> schema so they do not collide with system objects or later examples. In SQL Server, a database separates data and a schema is a namespace inside it. We will explore the distinction later; for now, see how it shapes the fixture.</p>
+</section>
+<section id="database">
+<h2><span lang="fa">یک دیتابیس آزمایشگاهی با اسم آشکار</span><span lang="en">A lab database with an unmistakable name</span></h2>
+<p lang="fa">این دستورات رو در connection فصل قبل و با حسابی اجرا کن که اجازهٔ ساخت database داره. نام <code>CodeNamesShopLab</code> عمداً آزمایشگاهی هست. روی database واقعی یا سازمانی اجرا نکن. اگه این نام از قبل وجود داره، اول محتوایش رو بشناس؛ اسکریپت ما قرار نیست چیزی رو بی‌خبر حذف کند.</p>
+<p lang="en">Run these statements through the previous chapter’s connection using an account allowed to create databases. <code>CodeNamesShopLab</code> is deliberately unmistakably a lab. Do not run this against a real or shared database. If that name already exists, inspect it first; our script will not silently delete anything.</p>
+<p lang="fa">قبل از اجرا یه حدس بزن: از خروجی این مثال دقیقاً دنبال چه نشونه‌ای هستی؟ عدد دقیق لازم نیست؛ فقط معلوم کن چی قراره ادعای این بخش رو تأیید یا رد کنه.</p><p lang="en">Before running this, predict what evidence you expect from the output. You do not need the exact value; decide what would support or reject the claim in this section.</p><div class="term"><div class="term-bar"><span lang="fa">ساخت امن و یک‌بارهٔ محیط تمرین</span><span lang="en">Create the lab database once, without destructive reset</span></div><pre dir="ltr"><code>IF DB_ID(N'CodeNamesShopLab') IS NULL
+    CREATE DATABASE CodeNamesShopLab;
+GO
+
+USE CodeNamesShopLab;
+GO
+
+IF SCHEMA_ID(N'shop') IS NULL
+    EXEC(N'CREATE SCHEMA shop AUTHORIZATION dbo;');
+GO</code></pre></div><p lang="fa">بعد از اجرا فقط دنبال «موفق شد» نباش. خروجی رو با حدسی که قبلش داشتی مقایسه کن؛ اگه فرق داشت، همون اختلاف بهترین نقطه برای ادامهٔ بررسیه.</p><p lang="en">Do not stop at “it succeeded.” Compare the output with your prediction; any mismatch is the best place to continue investigating.</p>
+<p lang="fa">شرط <code>DB_ID</code> ساخت database رو در اجرای دوباره تکرار نمی‌کنه؛ اما این شرط به‌تنهایی ثابت نمی‌کنه دیتابیس موجود همان دادهٔ تمرینی سالم هست. بعد از <code>USE</code> زمینه رو بررسی کن. <code>GO</code> جداکنندهٔ batch در ابزارهایی مثل sqlcmd و SSMS است؛ خود SQL Server اون رو به‌عنوان دستور T-SQL نمی‌گیره.</p>
+<p lang="en">The <code>DB_ID</code> guard avoids recreating the database on a second run, but it does not prove an existing database is the expected fixture. Verify context after <code>USE</code>. <code>GO</code> is a batch separator understood by clients such as sqlcmd and SSMS; SQL Server does not receive it as T-SQL.</p>
+<div class="term"><div class="term-bar"><span lang="fa">قبل از ادامه زمینه رو ثابت کن</span><span lang="en">Prove the database context before continuing</span></div><pre dir="ltr"><code>SELECT DB_NAME() AS CurrentDatabase,
+       SCHEMA_NAME() AS DefaultSchema;
+GO</code></pre></div>
+<div class="table-wrap"><table class="doc-table"><thead><tr><th>CurrentDatabase</th><th>DefaultSchema</th></tr></thead><tbody><tr><td><code>CodeNamesShopLab</code></td><td><code>dbo</code></td></tr></tbody></table></div>
+<p lang="fa">خروجی می‌گه session در database آزمایشگاهی هست. default schema هنوز <code>dbo</code> است؛ پس در queryهای این فصل نام کامل جدول مثل <code>shop.Customers</code> رو می‌نویسیم تا مقصد مبهم نباشه.</p>
+<p lang="en">The result shows the session is in the lab database. The default schema is still <code>dbo</code>, so this chapter uses qualified names such as <code>shop.Customers</code> to make each target explicit.</p>
+</section>
+<section id="schema">
+<h2><span lang="fa">جدول‌ها رو با رابطه و قید بسازیم</span><span lang="en">Build tables with relationships and constraints</span></h2>
+<p lang="fa">هر جدول یک مسئولیت روشن داره. کلید اصلی هر ردیف رو یکتا می‌کنه؛ کلید خارجی جلوی سفارش برای مشتری ناموجود رو می‌گیره؛ <code>CHECK</code> تعداد و قیمت نامعتبر رو رد می‌کنه. این قیدها تزئین نیستند: اگه دادهٔ بد وارد بشه، گزارش‌های بعدی هم قابل‌اعتماد نمی‌مانند.</p>
+<p lang="en">Each table has one clear responsibility. A primary key identifies a row; a foreign key prevents an order for a missing customer; <code>CHECK</code> rejects invalid quantities and prices. These constraints are not decoration: bad input would make later reports untrustworthy.</p>
+<div class="term"><div class="term-bar"><span lang="fa">Fixture ساختار Shop</span><span lang="en">Shop fixture schema</span></div><pre dir="ltr"><code>USE CodeNamesShopLab;
+GO
+
+CREATE TABLE shop.Customers
+(
+    CustomerId   int IDENTITY(1,1) NOT NULL CONSTRAINT PK_Customers PRIMARY KEY,
+    FullName     nvarchar(100) NOT NULL,
+    Email        varchar(254) NOT NULL CONSTRAINT UQ_Customers_Email UNIQUE,
+    City         nvarchar(80) NOT NULL,
+    CreatedAt    datetime2(0) NOT NULL CONSTRAINT DF_Customers_CreatedAt DEFAULT SYSUTCDATETIME()
+);
+GO
+
+CREATE TABLE shop.Products
+(
+    ProductId    int IDENTITY(1,1) NOT NULL CONSTRAINT PK_Products PRIMARY KEY,
+    ProductName  nvarchar(120) NOT NULL,
+    UnitPrice    decimal(10,2) NOT NULL CONSTRAINT CK_Products_UnitPrice CHECK (UnitPrice &gt;= 0),
+    IsActive     bit NOT NULL CONSTRAINT DF_Products_IsActive DEFAULT (1)
+);
+GO
+
+CREATE TABLE shop.Orders
+(
+    OrderId      int IDENTITY(1,1) NOT NULL CONSTRAINT PK_Orders PRIMARY KEY,
+    CustomerId   int NOT NULL,
+    OrderedAt    datetime2(0) NOT NULL,
+    OrderStatus  varchar(12) NOT NULL,
+    CONSTRAINT FK_Orders_Customers FOREIGN KEY (CustomerId)
+        REFERENCES shop.Customers(CustomerId),
+    CONSTRAINT CK_Orders_Status CHECK (OrderStatus IN ('Pending', 'Paid', 'Cancelled'))
+);
+GO
+
+CREATE TABLE shop.OrderItems
+(
+    OrderId        int NOT NULL,
+    ProductId      int NOT NULL,
+    Quantity       smallint NOT NULL CONSTRAINT CK_OrderItems_Quantity CHECK (Quantity &gt; 0),
+    UnitPriceAtSale decimal(10,2) NOT NULL
+        CONSTRAINT CK_OrderItems_Price CHECK (UnitPriceAtSale &gt;= 0),
+    CONSTRAINT PK_OrderItems PRIMARY KEY (OrderId, ProductId),
+    CONSTRAINT FK_OrderItems_Orders FOREIGN KEY (OrderId)
+        REFERENCES shop.Orders(OrderId),
+    CONSTRAINT FK_OrderItems_Products FOREIGN KEY (ProductId)
+        REFERENCES shop.Products(ProductId)
+);
+GO</code></pre></div>
+<p lang="fa">قیمت نمونهٔ لحظه‌ای در <code>OrderItems</code> رو از قیمت جاری <code>Products</code> جدا کردیم. ممکنه قیمت محصول بعداً عوض بشه، اما سفارش قبلی باید مبلغی رو نگه داره که مشتری واقعاً پرداخت کرده. جمع قیمت‌ها رو ذخیره نکردیم؛ از تعداد و قیمت هر ردیف حسابش می‌کنیم.</p>
+<p lang="en">We separated the order-line price snapshot from the current product price. A product may become more expensive later, but an old order must retain what the customer actually paid. We did not store a duplicated line total; it can be calculated from quantity and price.</p>
+</section>
+<section id="seed">
+<h2><span lang="fa">دادهٔ کم، اما با چند حالت مهم</span><span lang="en">A small dataset with meaningful cases</span></h2>
+<p lang="fa">نمونه‌داده باید سؤال بسازد. سه شهر، یک مشتری بدون سفارش، محصول غیرفعال، سفارش لغوشده و دو قیمت فروش متفاوت داریم. زمان‌ها رو صریح و به UTC می‌نویسیم تا نتیجه به ساعت کامپیوتر اجراکننده وابسته نشه. IDها رو با <code>IDENTITY_INSERT</code> کنترل می‌کنیم تا queryهای دوره روی خروجی یکسان بمانند.</p>
+<p lang="en">A fixture should create useful questions. We include three cities, one customer without orders, an inactive product, a cancelled order, and two different sale prices. Timestamps are explicit UTC values so results do not depend on the learner’s local clock. We control IDs with <code>IDENTITY_INSERT</code> so later exercises see stable results.</p>
+<div class="note warn"><strong lang="fa">یک بار روی دیتابیس خالی اجرا کن.</strong><span lang="fa">اسکریپت seed برای اجرای اول نوشته شده و عمداً ردیف تکراری نمی‌سازه. اگه جدول‌ها و داده‌ها از قبل وجود دارن، دوباره کورکورانه اجرا نکن؛ اول countها رو ببین. پاک‌کردن و ساخت دوباره رو فقط در یک lab کاملاً دورریختنی انجام می‌دهیم.</span><strong lang="en">Run once on an empty lab.</strong><span lang="en">This seed is for the first run and intentionally does not duplicate rows. If tables and data already exist, do not rerun blindly; inspect counts first. Destructive reset belongs only in a disposable lab.</span></div>
+<div class="term"><div class="term-bar"><span lang="fa">Seed ثابت فروشگاه</span><span lang="en">Deterministic shop seed</span></div><pre dir="ltr"><code>SET IDENTITY_INSERT shop.Customers ON;
+INSERT shop.Customers (CustomerId, FullName, Email, City, CreatedAt) VALUES
+ (1, N'نیلوفر رضایی', 'niloofar@example.test', N'تهران', '2026-01-10T09:00:00'),
+ (2, N'آرمان کریمی', 'arman@example.test', N'شیراز', '2026-01-11T10:30:00'),
+ (3, N'سارا احمدی', 'sara@example.test', N'تهران', '2026-01-12T12:00:00'),
+ (4, N'مینا مرادی', 'mina@example.test', N'تبریز', '2026-01-13T08:15:00');
+SET IDENTITY_INSERT shop.Customers OFF;
+GO
+
+SET IDENTITY_INSERT shop.Products ON;
+INSERT shop.Products (ProductId, ProductName, UnitPrice, IsActive) VALUES
+ (10, N'کیبورد', 1200.00, 1),
+ (11, N'ماوس', 450.00, 1),
+ (12, N'پایهٔ مانیتور', 800.00, 1),
+ (13, N'کابل قدیمی', 150.00, 0);
+SET IDENTITY_INSERT shop.Products OFF;
+GO
+
+SET IDENTITY_INSERT shop.Orders ON;
+INSERT shop.Orders (OrderId, CustomerId, OrderedAt, OrderStatus) VALUES
+ (1001, 1, '2026-02-01T09:00:00', 'Paid'),
+ (1002, 1, '2026-02-04T14:20:00', 'Paid'),
+ (1003, 2, '2026-02-05T11:10:00', 'Pending'),
+ (1004, 3, '2026-02-07T16:45:00', 'Cancelled');
+SET IDENTITY_INSERT shop.Orders OFF;
+GO
+
+INSERT shop.OrderItems (OrderId, ProductId, Quantity, UnitPriceAtSale) VALUES
+ (1001, 10, 1, 1150.00),
+ (1001, 11, 2, 450.00),
+ (1002, 12, 1, 800.00),
+ (1003, 10, 1, 1200.00),
+ (1004, 13, 3, 150.00);
+GO</code></pre></div>
+<p lang="fa">ستون‌های <code>IDENTITY</code> شماره رو خودشان تولید می‌کنن؛ در این دادهٔ تمرینی برای ثابت‌ماندن مثال‌ها شمارهٔ کنترل‌شده می‌دهیم و بعد حالت ویژه رو خاموش می‌کنیم. اگه یک insert وسط کار خطا داد، batch بعدی رو ادامه نده؛ تعداد ردیف‌ها رو بررسی کن و علت رو حل کن.</p>
+<p lang="en">The <code>IDENTITY</code> columns normally generate their own values. We temporarily provide fixed IDs so examples remain stable, then turn the special mode off. If an insert fails partway through, do not blindly continue with later batches; inspect row counts and resolve the cause.</p>
+<div class="term"><div class="term-bar"><span lang="fa">قبل از queryهای بعدی، اندازهٔ دادهٔ تمرینی رو ثابت کن</span><span lang="en">Verify fixture size before later queries</span></div><pre dir="ltr"><code>SELECT 'Customers' AS TableName, COUNT_BIG(*) AS RowCount FROM shop.Customers
+UNION ALL SELECT 'Products', COUNT_BIG(*) FROM shop.Products
+UNION ALL SELECT 'Orders', COUNT_BIG(*) FROM shop.Orders
+UNION ALL SELECT 'OrderItems', COUNT_BIG(*) FROM shop.OrderItems;
+GO</code></pre></div>
+<div class="table-wrap"><table class="doc-table"><thead><tr><th>TableName</th><th>RowCount</th></tr></thead><tbody><tr><td>Customers</td><td>4</td></tr><tr><td>Products</td><td>4</td></tr><tr><td>Orders</td><td>4</td></tr><tr><td>OrderItems</td><td>5</td></tr></tbody></table></div>
+</section><section id="midway-check"><h2><span lang="fa">یه مکث کوتاه؛ واقعاً چی فهمیدیم؟</span><span lang="en">Quick pause: what do we actually know now?</span></h2><p lang="fa">قبل از اینکه بریم بخش بعد، سعی کن بدون نگاه‌کردن به بالا در دو جمله بگی این فصل چه مسئله‌ای رو حل می‌کنه و از کدوم خروجی می‌فهمی راه‌حلت درست بوده. اگه فقط اسم دستورها یادت مونده، هنوز یه دور دیگه مثال قبلی رو با دادهٔ متفاوت اجرا کن.</p><p lang="en">Before moving on, explain in two sentences what problem this chapter solves and which output proves your solution is correct. If you only remember command names, rerun the previous example with different data.</p></section>
+<section id="inspect">
+<h2><span lang="fa">اگه نتیجه فرق داره، از خود داده شاهد بگیر</span><span lang="en">If results differ, inspect the data itself</span></h2>
+<p lang="fa">دادهٔ تمرینی آماده است؛ قبل از رفتن سراغ queryهای پیچیده، اون رو از SQL Server بخوان. ترتیب ردیف‌ها بدون <code>ORDER BY</code> تضمین نمی‌شه. در این queryها ترتیب رو صریح می‌کنیم و ستون‌هایی رو می‌گیریم که برای بررسی لازم داریم، نه <code>SELECT *</code> مبهم.</p>
+<p lang="en">The fixture is ready; inspect it through SQL Server before moving to complex queries. Without <code>ORDER BY</code>, row order is not guaranteed. We make ordering explicit and select the columns needed for inspection instead of using ambiguous <code>SELECT *</code>.</p>
+<div class="term"><div class="term-bar"><span lang="fa">مشتری‌ها و سفارش‌هایشان</span><span lang="en">Customers and their orders</span></div><pre dir="ltr"><code>SELECT CustomerId, FullName, City
+FROM shop.Customers
+ORDER BY CustomerId;
+
+SELECT OrderId, CustomerId, OrderedAt, OrderStatus
+FROM shop.Orders
+ORDER BY OrderId;
+GO</code></pre></div>
+<p lang="fa">اگه ID مشتری در جدول سفارش نیست، رابطهٔ مورد انتظار به هم خورده؛ اگه مشتری ۴ سفارش نداره، آن یک حالت عمدی هست که در فصل JOIN به کار میاد. دادهٔ آزمایشی خوب فقط مسیر موفق رو نشان نمی‌ده.</p>
+<p lang="en">If an order references a missing customer, the expected relationship is broken. Customer 4 intentionally has no order; that case will matter in the JOIN chapter. A good fixture includes more than the happy path.</p>
+</section>
+<section id="repro">
+<h2><span lang="fa">قابل‌بازتولید یعنی چه، و چه چیزی رو تضمین نمی‌کنه؟</span><span lang="en">What reproducible means—and what it does not guarantee</span></h2>
+<p lang="fa">وقتی نسخهٔ اسکریپت، نسخهٔ SQL Server، زمینه database و count ردیف‌ها معلوم است، می‌تونیم تفاوت نتیجه رو محدودتر کنیم. با این حال دادهٔ تمرینی کوچک جای دادهٔ واقعی و تست روی حجم production رو نمی‌گیره؛ نتیجهٔ performance رو از چهار ردیف تعمیم نده.</p>
+<p lang="en">When the script version, SQL Server version, database context, and row counts are known, we can narrow down why results differ. Still, a tiny fixture is not a substitute for real data or production-scale testing; do not generalise performance from four rows.</p>
+<div class="table-wrap"><table class="doc-table"><thead><tr><th lang="fa">ثبت کن</th><th lang="fa">چرا مهمه؟</th><th lang="en">Record</th><th lang="en">Why it matters</th></tr></thead><tbody>
+<tr><td>نسخهٔ SQL Server</td><td>برخی قابلیت‌ها و رفتارها نسخه‌محورند.</td><td>SQL Server version</td><td>Features and behaviour can vary by version.</td></tr>
+<tr><td>نام database و schema</td><td>query روی مقصد درست اجرا بشه.</td><td>Database and schema</td><td>Queries target the intended objects.</td></tr>
+<tr><td>نسخهٔ اسکریپت و countها</td><td>تفاوت seed از تفاوت query جدا بشه.</td><td>Script version and counts</td><td>Separate fixture drift from query changes.</td></tr>
+<tr><td>زمان‌های UTC صریح</td><td>خروجی به ساعت محلی وابسته نباشه.</td><td>Explicit UTC timestamps</td><td>Results do not depend on local clock settings.</td></tr>
+</tbody></table></div>
+</section>
+<section id="lab">
+<h2><span lang="fa">آزمایشگاه: دادهٔ تمرینی رو بساز و مدرک تحویل بده</span><span lang="en">Lab: build the fixture and hand off evidence</span></h2>
+<p lang="fa">از database مخصوص تمرین استفاده کن. اسکریپت ساخت رو اجرا کن، query countها رو ذخیره کن، بعد رابطهٔ هر سفارش رو با مشتری و هر ردیف رو با محصول بررسی کن. یک گزارش کوتاه بنویس: نسخهٔ Server، database جاری، تعداد ردیف‌ها و یک مورد عمدی که دادهٔ دادهٔ تمرینی داره ولی دادهٔ واقعی ساده ممکنه نداشته باشه.</p>
+<p lang="en">Use a dedicated lab database. Run the schema and seed scripts, save the row counts, then verify that every order maps to a customer and every line to a product. Write a short report with server version, current database, row counts, and one deliberate edge case that ordinary sample data might omit.</p>
+<details class="hint"><summary><span lang="fa">راهنمای اول: ردیف‌های بدون رابطه رو پیدا کن</span><span lang="en">Hint 1: find rows without a relationship</span></summary><pre dir="ltr"><code>SELECT o.OrderId
+FROM shop.Orders AS o
+LEFT JOIN shop.Customers AS c ON c.CustomerId = o.CustomerId
+WHERE c.CustomerId IS NULL;
+GO</code></pre><p lang="fa">در دادهٔ تمرینی سالم این query باید صفر ردیف برگرداند؛ صفر در اینجا نتیجهٔ درسته، نه نبودن آزمایش.</p><p lang="en">A valid fixture returns zero rows here; zero is the expected result, not a missing test.</p></details>
+<details class="hint"><summary><span lang="fa">راهنمای دوم: فرق قیمت امروز و قیمت زمان خرید رو ببین</span><span lang="en">Hint 2: compare current and purchase-time prices</span></summary><pre dir="ltr"><code>SELECT oi.OrderId, p.ProductName,
+       p.UnitPrice AS CurrentPrice,
+       oi.UnitPriceAtSale AS SalePrice
+FROM shop.OrderItems AS oi
+JOIN shop.Products AS p ON p.ProductId = oi.ProductId
+ORDER BY oi.OrderId, p.ProductId;
+GO</code></pre></details>
+</section>
+<section id="exercises">
+<h2><span lang="fa">۱۸ تمرین اجرایی؛ جواب رو با query ثابت کن</span><span lang="en">18 hands-on exercises—prove each answer with a query</span></h2>
+<p lang="fa">هر تمرین خروجی قابل‌بررسی می‌خواد. اگه دادهٔ تمرینی تو با عددهای مورد انتظار جور نیست، قبل از دست‌کاری query، database و countها رو بررسی کن.</p>
+<p lang="en">Every exercise asks for verifiable output. If your fixture does not match the expected values, inspect the database and row counts before changing the query.</p>
+<div class="ex" id="ex-3-1"><div class="ex-h"><span class="ex-n"><span lang="fa">تمرین ۳٫۱</span><span lang="en">Exercise 3.1</span></span><span class="ex-lvl lvl-1"><span lang="fa">مبتدی</span><span lang="en">Beginner</span></span><span class="ex-time"><span lang="fa">۵ دقیقه</span><span lang="en">5 min</span></span></div><p lang="fa">با یک query نام database جاری و schema پیش‌فرض رو گزارش کن.</p><p lang="en">Write one query that reports the current database and default schema.</p><p class="ex-goal" lang="fa">معیار موفقیت: بتونی با خروجی واقعی ثابت کنی محیط و مفهوم این فصل رو درست فهمیدی، نه اینکه فقط اسم‌ها رو حفظ کرده باشی.</p><p class="ex-goal" lang="en">Success criterion: use real output to prove you understand the environment and concept rather than only remembering names.</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">قبل از بازکردن پاسخ، سؤال رو به یک خروجی قابل‌سنجش تبدیل کن. ببین دقیقاً چه چیزی باید برگرده، عوض بشه یا ثابت بشه.</p><p lang="en">Before opening the solution, turn the task into a measurable outcome: what exactly should be returned, changed, or proven?</p></details><details class="ex-sol"><summary><span lang="fa">جواب با زمینه</span><span lang="en">Answer with context</span></summary><pre dir="ltr"><code>SELECT DB_NAME() AS CurrentDatabase, SCHEMA_NAME() AS DefaultSchema;
+GO</code></pre><p lang="fa">باید <code>CodeNamesShopLab</code> و <code>dbo</code> رو ببینی؛ schema جدول‌ها جداگانه <code>shop</code> هست.</p><p lang="en">Expect <code>CodeNamesShopLab</code> and <code>dbo</code>; the tables themselves belong to the separate <code>shop</code> schema.</p><p lang="fa">جواب رو فقط با «اجرا شد» جمع نکن. خروجی رو به سؤال تمرین وصل کن و توضیح بده کدوم قسمت کد باعث این نتیجه شده.</p><p lang="en">Do not stop at “it ran.” Connect the output back to the exercise and explain which part of the code caused the result.</p></details></div>
+<div class="ex" id="ex-3-2"><div class="ex-h"><span class="ex-n"><span lang="fa">تمرین ۳٫۲</span><span lang="en">Exercise 3.2</span></span><span class="ex-lvl lvl-1"><span lang="fa">مبتدی</span><span lang="en">Beginner</span></span><span class="ex-time"><span lang="fa">۵ دقیقه</span><span lang="en">5 min</span></span></div><p lang="fa">نام و شهر همهٔ مشتری‌ها رو با ترتیب پایدار ID نشان بده.</p><p lang="en">Return every customer’s name and city in stable ID order.</p><p class="ex-goal" lang="fa">معیار موفقیت: بتونی با خروجی واقعی ثابت کنی محیط و مفهوم این فصل رو درست فهمیدی، نه اینکه فقط اسم‌ها رو حفظ کرده باشی.</p><p class="ex-goal" lang="en">Success criterion: use real output to prove you understand the environment and concept rather than only remembering names.</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">قبل از بازکردن پاسخ، سؤال رو به یک خروجی قابل‌سنجش تبدیل کن. ببین دقیقاً چه چیزی باید برگرده، عوض بشه یا ثابت بشه.</p><p lang="en">Before opening the solution, turn the task into a measurable outcome: what exactly should be returned, changed, or proven?</p></details><details class="ex-sol"><summary><span lang="fa">ترتیب رو صریح کن</span><span lang="en">Make ordering explicit</span></summary><pre dir="ltr"><code>SELECT CustomerId, FullName, City
+FROM shop.Customers
+ORDER BY CustomerId;
+GO</code></pre><p lang="fa">بدون <code>ORDER BY</code>، ترتیب فیزیکی رو قرارداد خروجی فرض نکن.</p><p lang="en">Without <code>ORDER BY</code>, do not treat physical row order as a result contract.</p><p lang="fa">جواب رو فقط با «اجرا شد» جمع نکن. خروجی رو به سؤال تمرین وصل کن و توضیح بده کدوم قسمت کد باعث این نتیجه شده.</p><p lang="en">Do not stop at “it ran.” Connect the output back to the exercise and explain which part of the code caused the result.</p></details></div>
+<div class="ex" id="ex-3-3"><div class="ex-h"><span class="ex-n"><span lang="fa">تمرین ۳٫۳</span><span lang="en">Exercise 3.3</span></span><span class="ex-lvl lvl-1"><span lang="fa">مبتدی</span><span lang="en">Beginner</span></span><span class="ex-time"><span lang="fa">۵ دقیقه</span><span lang="en">5 min</span></span></div><p lang="fa">تعداد ردیف هر چهار جدول رو در یک خروجی عمودی گزارش کن.</p><p lang="en">Report row counts for all four tables in one vertical result.</p><p class="ex-goal" lang="fa">معیار موفقیت: بتونی با خروجی واقعی ثابت کنی محیط و مفهوم این فصل رو درست فهمیدی، نه اینکه فقط اسم‌ها رو حفظ کرده باشی.</p><p class="ex-goal" lang="en">Success criterion: use real output to prove you understand the environment and concept rather than only remembering names.</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">قبل از بازکردن پاسخ، سؤال رو به یک خروجی قابل‌سنجش تبدیل کن. ببین دقیقاً چه چیزی باید برگرده، عوض بشه یا ثابت بشه.</p><p lang="en">Before opening the solution, turn the task into a measurable outcome: what exactly should be returned, changed, or proven?</p></details><details class="ex-sol"><summary><span lang="fa">چهار count قابل‌مقایسه</span><span lang="en">Four comparable counts</span></summary><pre dir="ltr"><code>SELECT 'Customers' AS TableName, COUNT_BIG(*) AS RowCount FROM shop.Customers
+UNION ALL SELECT 'Products', COUNT_BIG(*) FROM shop.Products
+UNION ALL SELECT 'Orders', COUNT_BIG(*) FROM shop.Orders
+UNION ALL SELECT 'OrderItems', COUNT_BIG(*) FROM shop.OrderItems;
+GO</code></pre><p lang="fa">انتظار داریم ۴، ۴، ۴ و ۵ باشه.</p><p lang="en">Expected counts are 4, 4, 4, and 5.</p><p lang="fa">جواب رو فقط با «اجرا شد» جمع نکن. خروجی رو به سؤال تمرین وصل کن و توضیح بده کدوم قسمت کد باعث این نتیجه شده.</p><p lang="en">Do not stop at “it ran.” Connect the output back to the exercise and explain which part of the code caused the result.</p></details></div>
+<div class="ex" id="ex-3-4"><div class="ex-h"><span class="ex-n"><span lang="fa">تمرین ۳٫۴</span><span lang="en">Exercise 3.4</span></span><span class="ex-lvl lvl-1"><span lang="fa">مبتدی</span><span lang="en">Beginner</span></span><span class="ex-time"><span lang="fa">۵ دقیقه</span><span lang="en">5 min</span></span></div><p lang="fa">فقط محصول‌های فعال با قیمت کمتر از ۱۰۰۰ رو پیدا کن و خروجی رو از ارزان به گران مرتب کن.</p><p lang="en">Find active products priced under 1000 and order them from cheapest to most expensive.</p><p class="ex-goal" lang="fa">معیار موفقیت: بتونی با خروجی واقعی ثابت کنی محیط و مفهوم این فصل رو درست فهمیدی، نه اینکه فقط اسم‌ها رو حفظ کرده باشی.</p><p class="ex-goal" lang="en">Success criterion: use real output to prove you understand the environment and concept rather than only remembering names.</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">قبل از بازکردن پاسخ، سؤال رو به یک خروجی قابل‌سنجش تبدیل کن. ببین دقیقاً چه چیزی باید برگرده، عوض بشه یا ثابت بشه.</p><p lang="en">Before opening the solution, turn the task into a measurable outcome: what exactly should be returned, changed, or proven?</p></details><details class="ex-sol"><summary><span lang="fa">شرط روی دادهٔ واقعی</span><span lang="en">Filter the fixture</span></summary><pre dir="ltr"><code>SELECT ProductId, ProductName, UnitPrice
+FROM shop.Products
+WHERE IsActive = 1 AND UnitPrice &lt; 1000
+ORDER BY UnitPrice, ProductId;
+GO</code></pre><p lang="fa">ماوس تنها نتیجهٔ فعلی است؛ کابل ارزان‌تر هست اما غیرفعال.</p><p lang="en">The mouse is the only current result; the cheaper cable is inactive.</p><p lang="fa">جواب رو فقط با «اجرا شد» جمع نکن. خروجی رو به سؤال تمرین وصل کن و توضیح بده کدوم قسمت کد باعث این نتیجه شده.</p><p lang="en">Do not stop at “it ran.” Connect the output back to the exercise and explain which part of the code caused the result.</p></details></div>
+<div class="ex" id="ex-3-5"><div class="ex-h"><span class="ex-n"><span lang="fa">تمرین ۳٫۵</span><span lang="en">Exercise 3.5</span></span><span class="ex-lvl lvl-1"><span lang="fa">مبتدی</span><span lang="en">Beginner</span></span><span class="ex-time"><span lang="fa">۵ دقیقه</span><span lang="en">5 min</span></span></div><p lang="fa">سفارش‌هایی رو پیدا کن که وضعیتشان <code>Paid</code> است؛ فقط ID و تاریخ رو برگردان.</p><p lang="en">Find orders with status <code>Paid</code>, returning only ID and date.</p><p class="ex-goal" lang="fa">معیار موفقیت: بتونی با خروجی واقعی ثابت کنی محیط و مفهوم این فصل رو درست فهمیدی، نه اینکه فقط اسم‌ها رو حفظ کرده باشی.</p><p class="ex-goal" lang="en">Success criterion: use real output to prove you understand the environment and concept rather than only remembering names.</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">قبل از بازکردن پاسخ، سؤال رو به یک خروجی قابل‌سنجش تبدیل کن. ببین دقیقاً چه چیزی باید برگرده، عوض بشه یا ثابت بشه.</p><p lang="en">Before opening the solution, turn the task into a measurable outcome: what exactly should be returned, changed, or proven?</p></details><details class="ex-sol"><summary><span lang="fa">ستون لازم رو انتخاب کن</span><span lang="en">Select only what is needed</span></summary><pre dir="ltr"><code>SELECT OrderId, OrderedAt
+FROM shop.Orders
+WHERE OrderStatus = 'Paid'
+ORDER BY OrderedAt, OrderId;
+GO</code></pre><p lang="fa">دو سفارش باید برگردد. معنی status رو به نام مشتری ربط نده؛ جدول هنوز join نشده.</p><p lang="en">Two orders should return. Do not infer customer names from status; no join has been made.</p><p lang="fa">جواب رو فقط با «اجرا شد» جمع نکن. خروجی رو به سؤال تمرین وصل کن و توضیح بده کدوم قسمت کد باعث این نتیجه شده.</p><p lang="en">Do not stop at “it ran.” Connect the output back to the exercise and explain which part of the code caused the result.</p></details></div>
+<div class="ex" id="ex-3-6"><div class="ex-h"><span class="ex-n"><span lang="fa">تمرین ۳٫۶</span><span lang="en">Exercise 3.6</span></span><span class="ex-lvl lvl-1"><span lang="fa">مبتدی</span><span lang="en">Beginner</span></span><span class="ex-time"><span lang="fa">۵ دقیقه</span><span lang="en">5 min</span></span></div><p lang="fa">یک query بنویس که در هر خط ردیف سفارش، تعداد و قیمت زمان فروش رو حساب کند. جمع رو با نام <code>LineTotal</code> برگردان.</p><p lang="en">Write a query that calculates each order line’s quantity times sale-time price as <code>LineTotal</code>.</p><p class="ex-goal" lang="fa">معیار موفقیت: بتونی با خروجی واقعی ثابت کنی محیط و مفهوم این فصل رو درست فهمیدی، نه اینکه فقط اسم‌ها رو حفظ کرده باشی.</p><p class="ex-goal" lang="en">Success criterion: use real output to prove you understand the environment and concept rather than only remembering names.</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">قبل از بازکردن پاسخ، سؤال رو به یک خروجی قابل‌سنجش تبدیل کن. ببین دقیقاً چه چیزی باید برگرده، عوض بشه یا ثابت بشه.</p><p lang="en">Before opening the solution, turn the task into a measurable outcome: what exactly should be returned, changed, or proven?</p></details><details class="ex-sol"><summary><span lang="fa">عبارت محاسباتی</span><span lang="en">A calculated expression</span></summary><pre dir="ltr"><code>SELECT OrderId, ProductId, Quantity,
+       UnitPriceAtSale,
+       Quantity * UnitPriceAtSale AS LineTotal
+FROM shop.OrderItems
+ORDER BY OrderId, ProductId;
+GO</code></pre><p lang="fa">مبلغ ردیف محاسبه می‌شه؛ برای دقت مالی بهتره نوع دادهٔ decimal بمونه.</p><p lang="en">The line total is derived; keeping a decimal type avoids approximate floating-point money.</p><p lang="fa">جواب رو فقط با «اجرا شد» جمع نکن. خروجی رو به سؤال تمرین وصل کن و توضیح بده کدوم قسمت کد باعث این نتیجه شده.</p><p lang="en">Do not stop at “it ran.” Connect the output back to the exercise and explain which part of the code caused the result.</p></details></div>
+<div class="ex" id="ex-3-7"><div class="ex-h"><span class="ex-n"><span lang="fa">تمرین ۳٫۷</span><span lang="en">Exercise 3.7</span></span><span class="ex-lvl lvl-2"><span lang="fa">متوسط</span><span lang="en">Intermediate</span></span><span class="ex-time"><span lang="fa">۸ دقیقه</span><span lang="en">8 min</span></span></div><p lang="fa">مشتری‌ها رو به سفارش‌هایشان وصل کن و نام مشتری و ID سفارش رو نشان بده.</p><p lang="en">Join customers to their orders and return customer names with order IDs.</p><p class="ex-goal" lang="fa">معیار موفقیت: بتونی با خروجی واقعی ثابت کنی محیط و مفهوم این فصل رو درست فهمیدی، نه اینکه فقط اسم‌ها رو حفظ کرده باشی.</p><p class="ex-goal" lang="en">Success criterion: use real output to prove you understand the environment and concept rather than only remembering names.</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">قبل از بازکردن پاسخ، سؤال رو به یک خروجی قابل‌سنجش تبدیل کن. ببین دقیقاً چه چیزی باید برگرده، عوض بشه یا ثابت بشه.</p><p lang="en">Before opening the solution, turn the task into a measurable outcome: what exactly should be returned, changed, or proven?</p></details><details class="ex-sol"><summary><span lang="fa">مسیر کلید خارجی</span><span lang="en">Follow the foreign key</span></summary><pre dir="ltr"><code>SELECT c.FullName, o.OrderId
+FROM shop.Customers AS c
+JOIN shop.Orders AS o ON o.CustomerId = c.CustomerId
+ORDER BY c.CustomerId, o.OrderId;
+GO</code></pre><p lang="fa">مشتری بدون سفارش دیده نمی‌شه؛ در فصل JOIN تفاوت همین نتیجه رو با <code>LEFT JOIN</code> می‌سنجیم.</p><p lang="en">Customers without orders are absent; the JOIN chapter will compare this with a <code>LEFT JOIN</code>.</p><p lang="fa">جواب رو فقط با «اجرا شد» جمع نکن. خروجی رو به سؤال تمرین وصل کن و توضیح بده کدوم قسمت کد باعث این نتیجه شده.</p><p lang="en">Do not stop at “it ran.” Connect the output back to the exercise and explain which part of the code caused the result.</p></details></div>
+<div class="ex" id="ex-3-8"><div class="ex-h"><span class="ex-n"><span lang="fa">تمرین ۳٫۸</span><span lang="en">Exercise 3.8</span></span><span class="ex-lvl lvl-2"><span lang="fa">متوسط</span><span lang="en">Intermediate</span></span><span class="ex-time"><span lang="fa">۸ دقیقه</span><span lang="en">8 min</span></span></div><p lang="fa">ردیف‌های سفارش رو به محصول وصل کن تا نام محصول، تعداد و قیمت ثبت‌شدهٔ فروش دیده بشه.</p><p lang="en">Join order lines to products to show product name, quantity, and recorded sale price.</p><p class="ex-goal" lang="fa">معیار موفقیت: بتونی با خروجی واقعی ثابت کنی محیط و مفهوم این فصل رو درست فهمیدی، نه اینکه فقط اسم‌ها رو حفظ کرده باشی.</p><p class="ex-goal" lang="en">Success criterion: use real output to prove you understand the environment and concept rather than only remembering names.</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">قبل از بازکردن پاسخ، سؤال رو به یک خروجی قابل‌سنجش تبدیل کن. ببین دقیقاً چه چیزی باید برگرده، عوض بشه یا ثابت بشه.</p><p lang="en">Before opening the solution, turn the task into a measurable outcome: what exactly should be returned, changed, or proven?</p></details><details class="ex-sol"><summary><span lang="fa">شناسه رو به نام تبدیل کن</span><span lang="en">Resolve the product ID</span></summary><pre dir="ltr"><code>SELECT oi.OrderId, p.ProductName, oi.Quantity,
+       oi.UnitPriceAtSale
+FROM shop.OrderItems AS oi
+JOIN shop.Products AS p ON p.ProductId = oi.ProductId
+ORDER BY oi.OrderId, p.ProductId;
+GO</code></pre><p lang="fa">قیمت جاری رو از جدول محصول نگرفتیم؛ query قیمت زمان خرید رو گزارش می‌کنه.</p><p lang="en">We did not report the current product price; this query shows the price at purchase.</p><p lang="fa">جواب رو فقط با «اجرا شد» جمع نکن. خروجی رو به سؤال تمرین وصل کن و توضیح بده کدوم قسمت کد باعث این نتیجه شده.</p><p lang="en">Do not stop at “it ran.” Connect the output back to the exercise and explain which part of the code caused the result.</p></details></div>
+<div class="ex" id="ex-3-9"><div class="ex-h"><span class="ex-n"><span lang="fa">تمرین ۳٫۹</span><span lang="en">Exercise 3.9</span></span><span class="ex-lvl lvl-2"><span lang="fa">متوسط</span><span lang="en">Intermediate</span></span><span class="ex-time"><span lang="fa">۸ دقیقه</span><span lang="en">8 min</span></span></div><p lang="fa">جمع مبلغ هر سفارش رو از quantity و قیمت زمان فروش حساب کن؛ مبلغ سفارش ۱۰۰۱ رو جداگانه تفسیر کن.</p><p lang="en">Calculate each order total from quantity and sale-time price, then interpret order 1001 separately.</p><p class="ex-goal" lang="fa">معیار موفقیت: بتونی با خروجی واقعی ثابت کنی محیط و مفهوم این فصل رو درست فهمیدی، نه اینکه فقط اسم‌ها رو حفظ کرده باشی.</p><p class="ex-goal" lang="en">Success criterion: use real output to prove you understand the environment and concept rather than only remembering names.</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">قبل از بازکردن پاسخ، سؤال رو به یک خروجی قابل‌سنجش تبدیل کن. ببین دقیقاً چه چیزی باید برگرده، عوض بشه یا ثابت بشه.</p><p lang="en">Before opening the solution, turn the task into a measurable outcome: what exactly should be returned, changed, or proven?</p></details><details class="ex-sol"><summary><span lang="fa">اول مبلغ هر ردیف، بعد جمع</span><span lang="en">Line amounts, then aggregate</span></summary><pre dir="ltr"><code>SELECT OrderId,
+       SUM(Quantity * UnitPriceAtSale) AS OrderTotal
+FROM shop.OrderItems
+GROUP BY OrderId
+ORDER BY OrderId;
+GO</code></pre><p lang="fa">سفارش ۱۰۰۱ برابر ۲۰۵۰ هست: یک کیبورد ۱۱۵۰ و دو ماوس هرکدوم ۴۵۰.</p><p lang="en">Order 1001 totals 2050: one keyboard at 1150 and two mice at 450 each.</p><p lang="fa">جواب رو فقط با «اجرا شد» جمع نکن. خروجی رو به سؤال تمرین وصل کن و توضیح بده کدوم قسمت کد باعث این نتیجه شده.</p><p lang="en">Do not stop at “it ran.” Connect the output back to the exercise and explain which part of the code caused the result.</p></details></div>
+<div class="ex" id="ex-3-10"><div class="ex-h"><span class="ex-n"><span lang="fa">تمرین ۳٫۱۰</span><span lang="en">Exercise 3.10</span></span><span class="ex-lvl lvl-2"><span lang="fa">متوسط</span><span lang="en">Intermediate</span></span><span class="ex-time"><span lang="fa">۸ دقیقه</span><span lang="en">8 min</span></span></div><p lang="fa">برای هر مشتری تعداد سفارش‌ها رو گزارش کن؛ توی این فصل مشتری بدون سفارش رو می‌توانی حذف کنی، اما در متن جواب بگو چرا.</p><p lang="en">Report order counts per customer. You may omit customers with no orders for now, but explain why.</p><p class="ex-goal" lang="fa">معیار موفقیت: بتونی با خروجی واقعی ثابت کنی محیط و مفهوم این فصل رو درست فهمیدی، نه اینکه فقط اسم‌ها رو حفظ کرده باشی.</p><p class="ex-goal" lang="en">Success criterion: use real output to prove you understand the environment and concept rather than only remembering names.</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">قبل از بازکردن پاسخ، سؤال رو به یک خروجی قابل‌سنجش تبدیل کن. ببین دقیقاً چه چیزی باید برگرده، عوض بشه یا ثابت بشه.</p><p lang="en">Before opening the solution, turn the task into a measurable outcome: what exactly should be returned, changed, or proven?</p></details><details class="ex-sol"><summary><span lang="fa">گروه‌بندی سفارش‌های موجود</span><span lang="en">Group existing orders</span></summary><pre dir="ltr"><code>SELECT c.CustomerId, c.FullName, COUNT_BIG(o.OrderId) AS OrderCount
+FROM shop.Customers AS c
+JOIN shop.Orders AS o ON o.CustomerId = c.CustomerId
+GROUP BY c.CustomerId, c.FullName
+ORDER BY c.CustomerId;
+GO</code></pre><p lang="fa">INNER JOIN مشتری ۴ رو حذف می‌کنه، چون ردیف matching نداره؛ این رفتار رو نباید با صفر سفارش اشتباه گرفت.</p><p lang="en">The inner join removes customer 4 because there is no matching row; do not confuse that with a displayed count of zero.</p></details></div>
+<div class="ex" id="ex-3-11"><div class="ex-h"><span class="ex-n"><span lang="fa">تمرین ۳٫۱۱</span><span lang="en">Exercise 3.11</span></span><span class="ex-lvl lvl-2"><span lang="fa">متوسط</span><span lang="en">Intermediate</span></span><span class="ex-time"><span lang="fa">۸ دقیقه</span><span lang="en">8 min</span></span></div><p lang="fa">قیدهای جدول رو از catalog بخوان و نام constraintهای چهار جدول رو نشان بده.</p><p lang="en">Query the catalog and list constraint names for the four fixture tables.</p><p class="ex-goal" lang="fa">معیار موفقیت: بتونی با خروجی واقعی ثابت کنی محیط و مفهوم این فصل رو درست فهمیدی، نه اینکه فقط اسم‌ها رو حفظ کرده باشی.</p><p class="ex-goal" lang="en">Success criterion: use real output to prove you understand the environment and concept rather than only remembering names.</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">قبل از بازکردن پاسخ، سؤال رو به یک خروجی قابل‌سنجش تبدیل کن. ببین دقیقاً چه چیزی باید برگرده، عوض بشه یا ثابت بشه.</p><p lang="en">Before opening the solution, turn the task into a measurable outcome: what exactly should be returned, changed, or proven?</p></details><details class="ex-sol"><summary><span lang="fa">metadata خود SQL Server</span><span lang="en">SQL Server metadata</span></summary><pre dir="ltr"><code>SELECT t.name AS TableName, kc.name AS ConstraintName, kc.type_desc
+FROM sys.key_constraints AS kc
+JOIN sys.tables AS t ON t.object_id = kc.parent_object_id
+JOIN sys.schemas AS s ON s.schema_id = t.schema_id
+WHERE s.name = N'shop'
+UNION ALL
+SELECT t.name, fk.name, 'FOREIGN_KEY_CONSTRAINT'
+FROM sys.foreign_keys AS fk
+JOIN sys.tables AS t ON t.object_id = fk.parent_object_id
+JOIN sys.schemas AS s ON s.schema_id = t.schema_id
+WHERE s.name = N'shop'
+ORDER BY TableName, ConstraintName;
+GO</code></pre><p lang="fa">catalog ساختار واقعی Server رو نشان می‌ده؛ این query فقط کلیدها رو می‌آورد، نه همهٔ CHECKها و DEFAULTها.</p><p lang="en">The catalog reports what exists on the server; this query lists keys only, not every CHECK and DEFAULT constraint.</p></details></div>
+<div class="ex" id="ex-3-12"><div class="ex-h"><span class="ex-n"><span lang="fa">تمرین ۳٫۱۲</span><span lang="en">Exercise 3.12</span></span><span class="ex-lvl lvl-2"><span lang="fa">متوسط</span><span lang="en">Intermediate</span></span><span class="ex-time"><span lang="fa">۸ دقیقه</span><span lang="en">8 min</span></span></div><p lang="fa">با یک query ثابت کن هیچ OrderItemای به سفارش یا محصول ناموجود وصل نیست.</p><p lang="en">Use a query to prove no order line references a missing order or product.</p><p class="ex-goal" lang="fa">معیار موفقیت: بتونی با خروجی واقعی ثابت کنی محیط و مفهوم این فصل رو درست فهمیدی، نه اینکه فقط اسم‌ها رو حفظ کرده باشی.</p><p class="ex-goal" lang="en">Success criterion: use real output to prove you understand the environment and concept rather than only remembering names.</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">قبل از بازکردن پاسخ، سؤال رو به یک خروجی قابل‌سنجش تبدیل کن. ببین دقیقاً چه چیزی باید برگرده، عوض بشه یا ثابت بشه.</p><p lang="en">Before opening the solution, turn the task into a measurable outcome: what exactly should be returned, changed, or proven?</p></details><details class="ex-sol"><summary><span lang="fa">anti-join برای نقص رابطه</span><span lang="en">Anti-join for broken references</span></summary><pre dir="ltr"><code>SELECT oi.OrderId, oi.ProductId
+FROM shop.OrderItems AS oi
+LEFT JOIN shop.Orders AS o ON o.OrderId = oi.OrderId
+LEFT JOIN shop.Products AS p ON p.ProductId = oi.ProductId
+WHERE o.OrderId IS NULL OR p.ProductId IS NULL;
+GO</code></pre><p lang="fa">نتیجهٔ مورد انتظار صفر ردیف هست. foreign keyها هم جلوی ورود چنین ردیفی رو می‌گیرند.</p><p lang="en">The expected result is zero rows. The foreign keys also prevent such rows from being inserted.</p><p lang="fa">جواب رو فقط با «اجرا شد» جمع نکن. خروجی رو به سؤال تمرین وصل کن و توضیح بده کدوم قسمت کد باعث این نتیجه شده.</p><p lang="en">Do not stop at “it ran.” Connect the output back to the exercise and explain which part of the code caused the result.</p></details></div>
+<div class="ex" id="ex-3-13"><div class="ex-h"><span class="ex-n"><span lang="fa">تمرین ۳٫۱۳</span><span lang="en">Exercise 3.13</span></span><span class="ex-lvl lvl-2"><span lang="fa">متوسط</span><span lang="en">Intermediate</span></span><span class="ex-time"><span lang="fa">۱۲ دقیقه</span><span lang="en">12 min</span></span></div><p lang="fa">در یک transaction آزمایش کن درج مشتری با email تکراری چه می‌کنه؛ خطا رو بگیر و transaction باز رو امن ببند. دادهٔ موجود رو حذف نکن.</p><p lang="en">Inside a transaction, test what a duplicate email insert does; catch the error and close the transaction safely. Do not delete existing data.</p><p class="ex-goal" lang="fa">معیار موفقیت: تغییر رو داخل transaction کنترل کنی، قبل از COMMIT نتیجه رو ببینی و بتونی همون آزمایش رو با ROLLBACK برگردونی.</p><p class="ex-goal" lang="en">Success criterion: control the change inside a transaction, inspect it before COMMIT, and be able to repeat the lab with ROLLBACK.</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">قبل از بازکردن پاسخ، سؤال رو به یک خروجی قابل‌سنجش تبدیل کن. ببین دقیقاً چه چیزی باید برگرده، عوض بشه یا ثابت بشه.</p><p lang="en">Before opening the solution, turn the task into a measurable outcome: what exactly should be returned, changed, or proven?</p></details><details class="ex-sol"><summary><span lang="fa">قید یکتا رو با rollback بسنج</span><span lang="en">Test uniqueness and roll back</span></summary><pre dir="ltr"><code>BEGIN TRY
+    BEGIN TRANSACTION;
+    INSERT shop.Customers (FullName, Email, City)
+    VALUES (N'آزمایشی', 'niloofar@example.test', N'تهران');
+    ROLLBACK TRANSACTION;
+END TRY
+BEGIN CATCH
+    IF XACT_STATE() &lt;&gt; 0 ROLLBACK TRANSACTION;
+    SELECT ERROR_NUMBER() AS ErrorNumber,
+           ERROR_MESSAGE() AS ErrorMessage;
+END CATCH;
+GO</code></pre><p lang="fa">قید UNIQUE باید خطا بدهد. این آزمایش هیچ ردیف موفقی رو نگه نمی‌داره؛ اگه خطا پیش از شروع transaction بود، محیط رو بررسی کن.</p><p lang="en">The UNIQUE constraint should raise an error. The test retains no successful row; if an error occurs before the transaction begins, inspect the environment.</p></details></div>
+<div class="ex" id="ex-3-14"><div class="ex-h"><span class="ex-n"><span lang="fa">تمرین ۳٫۱۴</span><span lang="en">Exercise 3.14</span></span><span class="ex-lvl lvl-2"><span lang="fa">متوسط</span><span lang="en">Intermediate</span></span><span class="ex-time"><span lang="fa">۱۲ دقیقه</span><span lang="en">12 min</span></span></div><p lang="fa">تلاش کن quantity صفر درج کنی، اما پیش از اجرا توضیح بده انتظار چه خطایی داری؛ بعد count اصلی رو دوباره بسنج.</p><p lang="en">Attempt to insert quantity zero, predict the failure before running it, then verify the original counts.</p><p class="ex-goal" lang="fa">معیار موفقیت: بتونی با خروجی واقعی ثابت کنی محیط و مفهوم این فصل رو درست فهمیدی، نه اینکه فقط اسم‌ها رو حفظ کرده باشی.</p><p class="ex-goal" lang="en">Success criterion: use real output to prove you understand the environment and concept rather than only remembering names.</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">قبل از بازکردن پاسخ، سؤال رو به یک خروجی قابل‌سنجش تبدیل کن. ببین دقیقاً چه چیزی باید برگرده، عوض بشه یا ثابت بشه.</p><p lang="en">Before opening the solution, turn the task into a measurable outcome: what exactly should be returned, changed, or proven?</p></details><details class="ex-sol"><summary><span lang="fa">constraint باید جلوی دادهٔ نامعتبر رو بگیرد</span><span lang="en">The constraint should reject invalid data</span></summary><pre dir="ltr"><code>BEGIN TRY
+    INSERT shop.OrderItems (OrderId, ProductId, Quantity, UnitPriceAtSale)
+    VALUES (1001, 12, 0, 800.00);
+END TRY
+BEGIN CATCH
+    SELECT ERROR_NUMBER() AS ErrorNumber,
+           ERROR_MESSAGE() AS ErrorMessage;
+END CATCH;
+GO
+SELECT COUNT_BIG(*) AS OrderItemCount FROM shop.OrderItems;
+GO</code></pre><p lang="fa">CHECK quantity رو رد می‌کنه و count باید ۵ بمونه. عدد خطا رو ثبت کن، اما به یک شمارهٔ خطا به‌تنهایی برای تشخیص علت تکیه نکن.</p><p lang="en">The CHECK rejects the quantity and the count should remain 5. Record the error, but do not diagnose solely from an error number.</p></details></div>
+<div class="ex" id="ex-3-15"><div class="ex-h"><span class="ex-n"><span lang="fa">تمرین ۳٫۱۵</span><span lang="en">Exercise 3.15</span></span><span class="ex-lvl lvl-3"><span lang="fa">پیشرفته</span><span lang="en">Advanced</span></span><span class="ex-time"><span lang="fa">۱۲ دقیقه</span><span lang="en">12 min</span></span></div><p lang="fa">یک گزارش بساز که نام مشتری، شمارهٔ سفارش و جمع محاسبه‌شدهٔ اون رو کنار هم بیاورد.</p><p lang="en">Build a report with customer name, order ID, and each calculated order total.</p><p class="ex-goal" lang="fa">معیار موفقیت: بتونی با خروجی واقعی ثابت کنی محیط و مفهوم این فصل رو درست فهمیدی، نه اینکه فقط اسم‌ها رو حفظ کرده باشی.</p><p class="ex-goal" lang="en">Success criterion: use real output to prove you understand the environment and concept rather than only remembering names.</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">قبل از بازکردن پاسخ، سؤال رو به یک خروجی قابل‌سنجش تبدیل کن. ببین دقیقاً چه چیزی باید برگرده، عوض بشه یا ثابت بشه.</p><p lang="en">Before opening the solution, turn the task into a measurable outcome: what exactly should be returned, changed, or proven?</p></details><details class="ex-sol"><summary><span lang="fa">تجمیع رو به سفارش محدود کن</span><span lang="en">Aggregate at order grain</span></summary><pre dir="ltr"><code>SELECT c.FullName, o.OrderId,
+       SUM(oi.Quantity * oi.UnitPriceAtSale) AS OrderTotal
+FROM shop.Orders AS o
+JOIN shop.Customers AS c ON c.CustomerId = o.CustomerId
+JOIN shop.OrderItems AS oi ON oi.OrderId = o.OrderId
+GROUP BY c.CustomerId, c.FullName, o.OrderId
+ORDER BY o.OrderId;
+GO</code></pre><p lang="fa">سطح هر ردیف خروجی یک سفارش است؛ اگه ستون محصول رو هم اضافه کنی، grain گزارش عوض می‌شه و جمع‌ها ممکنه تکراری به نظر برسند.</p><p lang="en">Each output row represents one order. Adding product columns changes the report grain and can make totals appear repeated.</p></details></div>
+<div class="ex" id="ex-3-16"><div class="ex-h"><span class="ex-n"><span lang="fa">تمرین ۳٫۱۶</span><span lang="en">Exercise 3.16</span></span><span class="ex-lvl lvl-3"><span lang="fa">پیشرفته</span><span lang="en">Advanced</span></span><span class="ex-time"><span lang="fa">۱۲ دقیقه</span><span lang="en">12 min</span></span></div><p lang="fa">محصولی رو پیدا کن که قیمت جاری‌اش با حداقل یکی از قیمت‌های ثبت‌شده در فروش فرق داره.</p><p lang="en">Find products whose current price differs from at least one recorded sale price.</p><p class="ex-goal" lang="fa">معیار موفقیت: بتونی با خروجی واقعی ثابت کنی محیط و مفهوم این فصل رو درست فهمیدی، نه اینکه فقط اسم‌ها رو حفظ کرده باشی.</p><p class="ex-goal" lang="en">Success criterion: use real output to prove you understand the environment and concept rather than only remembering names.</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">قبل از بازکردن پاسخ، سؤال رو به یک خروجی قابل‌سنجش تبدیل کن. ببین دقیقاً چه چیزی باید برگرده، عوض بشه یا ثابت بشه.</p><p lang="en">Before opening the solution, turn the task into a measurable outcome: what exactly should be returned, changed, or proven?</p></details><details class="ex-sol"><summary><span lang="fa">مقایسهٔ دو زمان</span><span lang="en">Compare two points in time</span></summary><pre dir="ltr"><code>SELECT DISTINCT p.ProductId, p.ProductName,
+       p.UnitPrice AS CurrentPrice,
+       oi.UnitPriceAtSale AS SalePrice
+FROM shop.Products AS p
+JOIN shop.OrderItems AS oi ON oi.ProductId = p.ProductId
+WHERE p.UnitPrice &lt;&gt; oi.UnitPriceAtSale
+ORDER BY p.ProductId, oi.UnitPriceAtSale;
+GO</code></pre><p lang="fa">کیبورد نتیجه می‌شه: قیمت جاری ۱۲۰۰ است، اما فروش ۱۰۰۱ با قیمت ۱۱۵۰ ثبت شده.</p><p lang="en">The keyboard appears: its current price is 1200, while order 1001 recorded a sale price of 1150.</p><p lang="fa">جواب رو فقط با «اجرا شد» جمع نکن. خروجی رو به سؤال تمرین وصل کن و توضیح بده کدوم قسمت کد باعث این نتیجه شده.</p><p lang="en">Do not stop at “it ran.” Connect the output back to the exercise and explain which part of the code caused the result.</p></details></div>
+<div class="ex" id="ex-3-17"><div class="ex-h"><span class="ex-n"><span lang="fa">تمرین ۳٫۱۷</span><span lang="en">Exercise 3.17</span></span><span class="ex-lvl lvl-3"><span lang="fa">پیشرفته</span><span lang="en">Advanced</span></span><span class="ex-time"><span lang="fa">۱۲ دقیقه</span><span lang="en">12 min</span></span></div><p lang="fa">دادهٔ تمرینی رو به یک نفر دیگر تحویل بده: queryای بنویس که database، نسخهٔ SQL Server و count هر جدول رو در خروجی قابل‌ذخیره ثبت کند.</p><p lang="en">Hand off the fixture to another learner: return the database, SQL Server version, and row counts in evidence they can save.</p><p class="ex-goal" lang="fa">معیار موفقیت: بتونی با خروجی واقعی ثابت کنی محیط و مفهوم این فصل رو درست فهمیدی، نه اینکه فقط اسم‌ها رو حفظ کرده باشی.</p><p class="ex-goal" lang="en">Success criterion: use real output to prove you understand the environment and concept rather than only remembering names.</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">قبل از بازکردن پاسخ، سؤال رو به یک خروجی قابل‌سنجش تبدیل کن. ببین دقیقاً چه چیزی باید برگرده، عوض بشه یا ثابت بشه.</p><p lang="en">Before opening the solution, turn the task into a measurable outcome: what exactly should be returned, changed, or proven?</p></details><details class="ex-sol"><summary><span lang="fa">گزارش محیط و داده</span><span lang="en">Environment and data report</span></summary><pre dir="ltr"><code>SELECT @@VERSION AS VersionBanner,
+       DB_NAME() AS CurrentDatabase;
+SELECT 'Customers' AS TableName, COUNT_BIG(*) AS RowCount FROM shop.Customers
+UNION ALL SELECT 'Products', COUNT_BIG(*) FROM shop.Products
+UNION ALL SELECT 'Orders', COUNT_BIG(*) FROM shop.Orders
+UNION ALL SELECT 'OrderItems', COUNT_BIG(*) FROM shop.OrderItems;
+GO</code></pre><p lang="fa">این گزارش محیط و اندازهٔ داده رو ثبت می‌کنه؛ محتوا یا schema رو کامل backup نمی‌کنه.</p><p lang="en">This records environment and row counts; it is not a full backup of data or schema.</p><p lang="fa">جواب رو فقط با «اجرا شد» جمع نکن. خروجی رو به سؤال تمرین وصل کن و توضیح بده کدوم قسمت کد باعث این نتیجه شده.</p><p lang="en">Do not stop at “it ran.” Connect the output back to the exercise and explain which part of the code caused the result.</p></details></div>
+<div class="ex" id="ex-3-18"><div class="ex-h"><span class="ex-n"><span lang="fa">تمرین ۳٫۱۸</span><span lang="en">Exercise 3.18</span></span><span class="ex-lvl lvl-3"><span lang="fa">پیشرفته</span><span lang="en">Advanced</span></span><span class="ex-time"><span lang="fa">۱۲ دقیقه</span><span lang="en">12 min</span></span></div><p lang="fa">تیمی می‌گه «داده‌هامان یکی هست» اما تعداد OrderItems برابر نیست. سه query تشخیصی بنویس: database جاری، count جدول و بررسی OrderItemهای یتیم. از truncate یا drop شروع نکن.</p><p lang="en">A teammate says “our data is identical,” but OrderItem counts differ. Write three diagnostic queries: current database, table count, and orphan check. Do not start with truncate or drop.</p><p class="ex-goal" lang="fa">معیار موفقیت: بتونی با خروجی واقعی ثابت کنی محیط و مفهوم این فصل رو درست فهمیدی، نه اینکه فقط اسم‌ها رو حفظ کرده باشی.</p><p class="ex-goal" lang="en">Success criterion: use real output to prove you understand the environment and concept rather than only remembering names.</p><details class="ex-hint"><summary><span lang="fa">راهنمایی</span><span lang="en">Hint</span></summary><p lang="fa">قبل از بازکردن پاسخ، سؤال رو به یک خروجی قابل‌سنجش تبدیل کن. ببین دقیقاً چه چیزی باید برگرده، عوض بشه یا ثابت بشه.</p><p lang="en">Before opening the solution, turn the task into a measurable outcome: what exactly should be returned, changed, or proven?</p></details><details class="ex-sol"><summary><span lang="fa">اول شواهد، بعد تصمیم</span><span lang="en">Evidence before action</span></summary><pre dir="ltr"><code>SELECT DB_NAME() AS CurrentDatabase;
+SELECT COUNT_BIG(*) AS OrderItemCount FROM shop.OrderItems;
+SELECT oi.OrderId, oi.ProductId
+FROM shop.OrderItems AS oi
+LEFT JOIN shop.Orders AS o ON o.OrderId = oi.OrderId
+LEFT JOIN shop.Products AS p ON p.ProductId = oi.ProductId
+WHERE o.OrderId IS NULL OR p.ProductId IS NULL;
+GO</code></pre><p lang="fa">این queryها مقصد، حجم و integrity رو جدا می‌کنن. اگه count فرق داره، script و batchهای موفق/ناموفق رو مقایسه کن؛ حذف داده علت رو پیدا نمی‌کنه.</p><p lang="en">These queries separate target, volume, and integrity. If counts differ, compare the seed script and successful/failed batches; deleting rows will not reveal the cause.</p></details></div>
+</section>
+<section id="close">
+<h2><span lang="fa">حالا یک زمین مشترک برای ادامه داریم</span><span lang="en">We now share a common ground for what comes next</span></h2>
+<p lang="fa">فروشگاه رو با ساختار روشن و دادهٔ مشخص بالا آوردیم؛ دیگر وقتی یک گزارش عدد متفاوتی می‌ده، می‌تونیم اول زمینه و دادهٔ تمرینی رو بررسی کنیم و بعد سراغ خود query برویم. فصل بعد از همین داده‌ها شروع می‌کنه: <code>SELECT</code>، <code>FROM</code> و انتخاب ستون‌هایی که واقعاً برای سؤال لازم‌اند.</p>
+<p lang="en">We now have a shop with explicit structure and known data. When a report differs, we can check context and fixture before blaming the query. Next we will use this data to practise <code>SELECT</code>, <code>FROM</code>, and choosing only the columns needed for a question.</p>
+<div class="note"><strong lang="fa">نشانهٔ آمادگی:</strong><span lang="fa">می‌توانی از یک connection تازه database درست رو انتخاب کنی، دادهٔ تمرینی رو بسازی و countهای مورد انتظار رو با query ثابت کنی؛ بدون پاک‌کردن کورکورانهٔ جدول‌ها.</span><strong lang="en">Ready when:</strong><span lang="en">From a fresh connection, you can select the right database, create the fixture, and prove expected counts with queries—without blindly clearing tables.</span></div>
+</section>
+<section id="sources">
+<h2><span lang="fa">منابع رسمی</span><span lang="en">Official references</span></h2>
+<ul>
+<li><a href="https://learn.microsoft.com/en-us/sql/t-sql/statements/create-database-transact-sql?view=sql-server-ver17" rel="noopener noreferrer" target="_blank">Microsoft Learn — CREATE DATABASE (Transact-SQL)</a></li>
+<li><a href="https://learn.microsoft.com/en-us/sql/t-sql/statements/create-table-transact-sql?view=sql-server-ver17" rel="noopener noreferrer" target="_blank">Microsoft Learn — CREATE TABLE (Transact-SQL)</a></li>
+<li><a href="https://learn.microsoft.com/en-us/sql/t-sql/statements/set-identity-insert-transact-sql?view=sql-server-ver17" rel="noopener noreferrer" target="_blank">Microsoft Learn — SET IDENTITY_INSERT</a></li>
+<li><a href="https://learn.microsoft.com/en-us/sql/t-sql/language-elements/sql-server-utilities-statements-go?view=sql-server-ver17" rel="noopener noreferrer" target="_blank">Microsoft Learn — GO batch separator</a></li>
+</ul>
+</section>
+<!-- CodeNames editorial pass: SQL rewrite v2 · chapter 3 -->
