@@ -4168,736 +4168,1161 @@ export const TRACKS: Track[] = [
     "locked": false,
     "fa": {
       "name": "زبان ‎C#‎",
-      "desc": "از نوع‌ها و LINQ تا async/await، کارایی و تست — جامع، از مقدماتی تا پیشرفته.",
-      "intro": "‎C#‎ زبان بزرگی است و بیشتر آموزش‌ها در سطح نحو متوقف می‌شوند. این مسیر تا جایی می‌رود که بدانی پشت async/await چه می‌گذرد، چرا آن LINQ کند است، و کِی struct به‌جای class."
+      "desc": "از اولین برنامه تا زبان، کتابخانه‌ها، هم‌زمانی و کارایی؛ با تمرین‌های اجرایی و سه پروژهٔ واقعی.",
+      "intro": "این مسیر از صفر شروع می‌شود: اول برنامه را اجرا می‌کنیم، بعد می‌فهمیم کامپایلر چه ساخته، داده‌ها چطور رفتار می‌کنند و چطور کدی بنویسیم که بشود آزمایش و نگهداری‌اش کرد. مثال‌ها از سفارش و پردازش فایل جلو می‌روند؛ نه از فهرست تعریف‌ها."
     },
     "en": {
       "name": "C#",
-      "desc": "From types and LINQ to async/await, performance and testing — comprehensive, beginner to advanced.",
-      "intro": "C# is a large language and most tutorials stop at syntax. This track goes far enough that you know what happens behind async/await, why that LINQ query is slow, and when to reach for a struct."
+      "desc": "From your first program through the language, libraries, concurrency and performance—with executable practice and three real projects.",
+      "intro": "This track starts from zero: first we run a program, then learn what the compiler produced, how data behaves, and how to write code we can test and maintain. Examples grow around orders and file processing, not a list of definitions."
     },
     "chapters": [
       {
         "n": "01",
         "file": "01-ecosystem.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 70,
+        "ready": true,
+        "ex": 5,
+        "mins": 50,
         "fa": {
-          "t": "اکوسیستم دات‌نت",
-          "d": "‏SDK، runtime، پروژه، و اینکه dotnet build دقیقاً چه می‌کند."
+          "t": "برنامهٔ C# از کجا می‌آید؟",
+          "d": "از فایل منبع تا IL و اجرای برنامه؛ SDK، runtime، Roslyn و CLR را با یک برنامه می‌بینیم."
         },
         "en": {
-          "t": "The .NET ecosystem",
-          "d": "SDK, runtime, projects, and what dotnet build actually does."
+          "t": "Where does a C# program come from?",
+          "d": "Follow source through IL to execution with the SDK, runtime, Roslyn and CLR."
         },
-        "kw": "dotnet sdk runtime csproj cli msbuild",
+        "kw": "dotnet sdk runtime clr roslyn il jit",
         "cap": 0
       },
       {
         "n": "02",
-        "file": "02-types.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 80,
+        "file": "02-first-program.html",
+        "ready": true,
+        "ex": 4,
+        "mins": 55,
         "fa": {
-          "t": "نوع‌ها: value و reference",
-          "d": "پشته و هیپ، کپی در برابر ارجاع، و boxing."
+          "t": "اولین برنامه و چرخهٔ اجرا",
+          "d": "ساخت پروژه، اجرا، تغییر کد و خواندن خطا؛ dotnet new/run/build را در عمل می‌شناسیم."
         },
         "en": {
-          "t": "Types: value and reference",
-          "d": "Stack and heap, copy versus reference, and boxing."
+          "t": "Your first program and edit-run loop",
+          "d": "Create, run and change a project; learn dotnet new, run and build through evidence."
         },
-        "kw": "value reference stack heap boxing",
+        "kw": "dotnet new run build top level statements",
         "cap": 0
       },
       {
         "n": "03",
-        "file": "03-nullable.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 85,
+        "file": "03-project-files.html",
+        "ready": true,
+        "ex": 4,
+        "mins": 70,
         "fa": {
-          "t": "‏nullable reference types",
-          "d": "کامپایلری که ‎NullReferenceException‎ را قبل از اجرا می‌گیرد."
+          "t": "پروژه، solution و تنظیمات build",
+          "d": "فایل csproj، target framework، Debug/Release، global.json و مسیر build را باز می‌کنیم."
         },
         "en": {
-          "t": "Nullable reference types",
-          "d": "A compiler that catches NullReferenceException before run time."
+          "t": "Projects, solutions and build settings",
+          "d": "Inspect csproj, target frameworks, Debug/Release, global.json and the build path."
         },
-        "kw": "nullable annotation warning null-forgiving",
+        "kw": "csproj sln targetframework debug release globaljson",
         "cap": 0
       },
       {
         "n": "04",
-        "file": "04-class-record-struct.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 85,
+        "file": "04-variables-and-scope.html",
+        "ready": true,
+        "ex": 5,
+        "mins": 65,
         "fa": {
-          "t": "کلاس، record و struct",
-          "d": "سه انتخاب با سه معناشناسی متفاوت — و معیار انتخاب."
+          "t": "متغیر، scope و مقداردهی",
+          "d": "اسم‌ها کجا زنده‌اند و چرا کامپایلر بعضی متغیرها را مقدارنداده می‌داند؟"
         },
         "en": {
-          "t": "Class, record and struct",
-          "d": "Three choices with three semantics — and how to pick."
+          "t": "Variables, scope and definite assignment",
+          "d": "Where names live, and why the compiler rejects unassigned values."
         },
-        "kw": "class record struct readonly init",
+        "kw": "variable scope definite assignment local",
         "cap": 0
       },
       {
         "n": "05",
-        "file": "05-inheritance.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 80,
+        "file": "05-numeric-types.html",
+        "ready": true,
+        "ex": 5,
+        "mins": 75,
         "fa": {
-          "t": "وراثت و interface",
-          "d": "‏virtual، abstract، sealed و پیاده‌سازی پیش‌فرض interface."
+          "t": "نوع‌های عددی و سرریز",
+          "d": "int، long، decimal و floating point را با مرز و دقت محاسبه مقایسه می‌کنیم."
         },
         "en": {
-          "t": "Inheritance and interfaces",
-          "d": "virtual, abstract, sealed, and default interface methods."
+          "t": "Numeric types and overflow",
+          "d": "Compare integers, decimal and floating point by range, precision and overflow."
         },
-        "kw": "inheritance virtual abstract sealed interface",
+        "kw": "int long decimal float double overflow checked unchecked",
         "cap": 0
       },
       {
         "n": "06",
-        "file": "06-members.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 75,
+        "file": "06-expressions-and-operators.html",
+        "ready": true,
+        "ex": 5,
+        "mins": 65,
         "fa": {
-          "t": "عضو ایستا، const و readonly",
-          "d": "تفاوت‌هایی که در زمان کامپایل و اجرا اثر دارند."
+          "t": "عبارت‌ها، عملگرها و تقدم",
+          "d": "یک نتیجهٔ عجیب را پیش‌بینی می‌کنیم و با پرانتز و نوع‌ها می‌فهمیم عبارت چه می‌گوید."
         },
         "en": {
-          "t": "Static, const and readonly members",
-          "d": "Differences that matter at compile time and at run time."
+          "t": "Expressions, operators and precedence",
+          "d": "Predict a surprising result, then use types and grouping to understand it."
         },
-        "kw": "static const readonly field initializer",
+        "kw": "operators expression precedence cast bool char",
         "cap": 0
       },
       {
         "n": "07",
-        "file": "07-equality.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 85,
+        "file": "07-decisions-and-loops.html",
+        "ready": true,
+        "ex": 5,
+        "mins": 70,
         "fa": {
-          "t": "برابری و hash",
-          "d": "‏Equals، GetHashCode، ‎==‎ و قرارداد‌هایی که شکستنشان گران است."
+          "t": "شرط، switch و حلقه",
+          "d": "منطق سفارش را با if، switch، for و foreach روشن می‌کنیم."
         },
         "en": {
-          "t": "Equality and hashing",
-          "d": "Equals, GetHashCode, ==, and contracts that are expensive to break."
+          "t": "Conditions, switch and loops",
+          "d": "Make order logic clear with if, switch, for and foreach."
         },
-        "kw": "equals gethashcode comparer icomparable",
+        "kw": "if switch for foreach while break continue return",
         "cap": 0
       },
       {
         "n": "08",
-        "file": "08-operators.html",
+        "file": "08-methods-and-parameters.html",
         "ready": false,
-        "ex": 18,
-        "mins": 75,
+        "ex": 16,
+        "mins": 85,
         "fa": {
-          "t": "عملگر و تبدیل نوع",
-          "d": "بارگذاری عملگر، ‎implicit‎ و ‎explicit‎."
+          "t": "متدها و پارامترها",
+          "d": "overload، پارامتر اختیاری و نام‌دار، params و ref/out/in را در API می‌آزماییم."
         },
         "en": {
-          "t": "Operators and conversions",
-          "d": "Operator overloading, implicit and explicit conversions."
+          "t": "Methods and parameters",
+          "d": "Use overloads, optional and named arguments, params, and ref/out/in in APIs."
         },
-        "kw": "operator overload implicit explicit conversion",
+        "kw": "method overload optional named params ref out in local function ref return",
         "cap": 0
       },
       {
         "n": "09",
-        "file": "09-generics.html",
+        "file": "09-strings-and-formatting.html",
         "ready": false,
-        "ex": 18,
-        "mins": 85,
+        "ex": 15,
+        "mins": 75,
         "fa": {
-          "t": "‏generic و constraint",
-          "d": "نوع به‌عنوان پارامتر، بدون از دست دادن ایمنی یا کارایی."
+          "t": "رشته، قالب‌بندی و متن خام",
+          "d": "interpolation و raw string را برای ساخت خروجی و متن چندخطی بررسی می‌کنیم."
         },
         "en": {
-          "t": "Generics and constraints",
-          "d": "Types as parameters, without losing safety or speed."
+          "t": "Strings, formatting and raw text",
+          "d": "Use interpolation and raw strings for formatted and multiline text."
         },
-        "kw": "generic constraint where new class struct",
+        "kw": "string interpolation raw string",
         "cap": 0
       },
       {
         "n": "10",
-        "file": "10-variance.html",
+        "file": "10-arrays-tuples-ranges.html",
         "ready": false,
-        "ex": 18,
-        "mins": 80,
+        "ex": 16,
+        "mins": 85,
         "fa": {
-          "t": "‏variance: in و out",
-          "d": "چرا ‎List<Derived>‎ یک ‎List<Base>‎ نیست."
+          "t": "آرایه، tuple و برش بازه",
+          "d": "آرایهٔ چندبعدی و jagged را کنار tuple، deconstruction، Index و Range می‌گذاریم."
         },
         "en": {
-          "t": "Variance: in and out",
-          "d": "Why a List<Derived> is not a List<Base>."
+          "t": "Arrays, tuples and range slicing",
+          "d": "Compare rectangular and jagged arrays, tuples, deconstruction, Index and Range."
         },
-        "kw": "covariance contravariance in out variance",
+        "kw": "array multidimensional jagged tuple index range slicing anonymous type",
         "cap": 0
       },
       {
         "n": "11",
-        "file": "11-generic-math.html",
+        "file": "11-value-reference-copy.html",
         "ready": false,
-        "ex": 18,
-        "mins": 80,
+        "ex": 16,
+        "mins": 85,
         "fa": {
-          "t": "‏static abstract و ریاضی عمومی",
-          "d": "عضو ایستای انتزاعی در interface — قابلیت تازهٔ زبان."
+          "t": "کپی مقدار و کپی ارجاع",
+          "d": "دو متغیر را کپی و تغییر می‌دهیم تا semantics را از رفتار بفهمیم، نه افسانهٔ stack/heap."
         },
         "en": {
-          "t": "Static abstract members and generic math",
-          "d": "Abstract static interface members — a recent language capability."
+          "t": "Value copies and reference copies",
+          "d": "Copy and mutate variables to learn semantics without stack-versus-heap myths."
         },
-        "kw": "static abstract generic math inumber",
+        "kw": "value type reference type copy alias boxing",
         "cap": 0
       },
       {
         "n": "12",
-        "file": "12-collections.html",
+        "file": "12-nullability.html",
         "ready": false,
-        "ex": 18,
+        "ex": 16,
         "mins": 85,
         "fa": {
-          "t": "مجموعه‌ها",
-          "d": "‏List، Dictionary، HashSet، Queue — و پیچیدگی زمانی هرکدام."
+          "t": "null و قرارداد نوع‌ها",
+          "d": "warningهای nullable، flow analysis، ?. و ?? را می‌خوانیم؛ ! درمان نیست."
         },
         "en": {
-          "t": "Collections",
-          "d": "List, Dictionary, HashSet, Queue — and each one's complexity."
+          "t": "Null and type contracts",
+          "d": "Read nullable warnings and flow analysis; ! is not a fix."
         },
-        "kw": "list dictionary hashset queue complexity",
+        "kw": "nullable reference nullable value flow analysis null forgiving",
         "cap": 0
       },
       {
         "n": "13",
-        "file": "13-iterators.html",
+        "file": "13-objects-classes-fields.html",
         "ready": false,
-        "ex": 18,
-        "mins": 80,
+        "ex": 16,
+        "mins": 85,
         "fa": {
-          "t": "‏iterator و yield",
-          "d": "تولید تنبل، و ماشین حالتی که کامپایلر می‌سازد."
+          "t": "شیء، کلاس و فیلد",
+          "d": "از وضعیت تکراری سفارش به شیء و مسئولیت instance و field می‌رسیم."
         },
         "en": {
-          "t": "Iterators and yield",
-          "d": "Lazy sequences, and the state machine the compiler builds."
+          "t": "Objects, classes and fields",
+          "d": "Turn repeated order state into objects and distinguish instances from fields."
         },
-        "kw": "yield ienumerable iterator lazy state machine",
+        "kw": "class object field instance method",
         "cap": 0
       },
       {
         "n": "14",
-        "file": "14-linq-basics.html",
+        "file": "14-constructors-properties.html",
         "ready": false,
-        "ex": 18,
+        "ex": 16,
         "mins": 85,
         "fa": {
-          "t": "‏LINQ ۱: مبانی و اجرای معوق",
-          "d": "چرا کوئری تو هنوز اجرا نشده است."
+          "t": "سازنده، property و مقداردهی",
+          "d": "constructor chaining، property، init، required و object initializer را با invariant می‌سنجیم."
         },
         "en": {
-          "t": "LINQ 1: basics and deferred execution",
-          "d": "Why your query has not run yet."
+          "t": "Constructors, properties and initialization",
+          "d": "Use constructor chaining, properties, init, required and initializers to protect invariants."
         },
-        "kw": "linq deferred lazy enumerable query",
+        "kw": "constructor property init required object initializer indexer",
         "cap": 0
       },
       {
         "n": "15",
-        "file": "15-linq-advanced.html",
+        "file": "15-access-static-partial.html",
         "ready": false,
-        "ex": 18,
-        "mins": 90,
+        "ex": 14,
+        "mins": 75,
         "fa": {
-          "t": "‏LINQ ۲: عملگرهای پیشرفته",
-          "d": "‏GroupBy، Join، SelectMany، Aggregate و دام‌های کارایی."
+          "t": "دسترسی، static و ساختار نوع",
+          "d": "سطح دسترسی، static constructor، const/readonly، partial و نوع تو در تو را در API می‌بینیم."
         },
         "en": {
-          "t": "LINQ 2: advanced operators",
-          "d": "GroupBy, Join, SelectMany, Aggregate and the performance traps."
+          "t": "Access, static and type organization",
+          "d": "Use access levels, static constructors, const/readonly, partial and nested types in APIs."
         },
-        "kw": "groupby join selectmany aggregate performance",
+        "kw": "access modifier static const readonly partial nested type",
         "cap": 0
       },
       {
         "n": "16",
-        "file": "16-expression-trees.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 90,
-        "fa": {
-          "t": "‏expression tree",
-          "d": "کد به‌عنوان داده — پایه‌ای که ‎EF Core‎ رویش ساخته شده."
-        },
-        "en": {
-          "t": "Expression trees",
-          "d": "Code as data — the foundation EF Core is built on."
-        },
-        "kw": "expression tree lambda visitor compile",
-        "cap": 0
-      },
-      {
-        "n": "17",
-        "file": "17-delegates.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 80,
-        "fa": {
-          "t": "‏delegate، event و lambda",
-          "d": "تابع به‌عنوان مقدار، و الگوی رویداد."
-        },
-        "en": {
-          "t": "Delegates, events and lambdas",
-          "d": "Functions as values, and the event pattern."
-        },
-        "kw": "delegate event func action lambda",
-        "cap": 0
-      },
-      {
-        "n": "18",
-        "file": "18-closures.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 80,
-        "fa": {
-          "t": "‏closure و دام‌هایش",
-          "d": "متغیر ربوده‌شده در حلقه — کلاسیک‌ترین باگ."
-        },
-        "en": {
-          "t": "Closures and their traps",
-          "d": "Captured loop variables — the classic bug."
-        },
-        "kw": "closure capture loop variable allocation",
-        "cap": 0
-      },
-      {
-        "n": "19",
-        "file": "19-pattern-matching.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 80,
-        "fa": {
-          "t": "‏pattern matching",
-          "d": "‏switch expression، الگوی ویژگی، لیست و رابطه‌ای."
-        },
-        "en": {
-          "t": "Pattern matching",
-          "d": "Switch expressions, property, list and relational patterns."
-        },
-        "kw": "pattern switch expression property list relational",
-        "cap": 0
-      },
-      {
-        "n": "20",
-        "file": "20-exceptions.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 85,
-        "fa": {
-          "t": "خطا و exception",
-          "d": "کِی بگیر، کِی نگیر، ‎filter‎ و خطای سفارشی."
-        },
-        "en": {
-          "t": "Exceptions",
-          "d": "When to catch, when not to, filters and custom exceptions."
-        },
-        "kw": "exception filter custom rethrow stacktrace",
-        "cap": 0
-      },
-      {
-        "n": "21",
-        "file": "21-disposable.html",
-        "ready": false,
-        "ex": 18,
-        "mins": 80,
-        "fa": {
-          "t": "‏IDisposable و IAsyncDisposable",
-          "d": "‏using، الگوی dispose و منابعی که GC نمی‌گیرد."
-        },
-        "en": {
-          "t": "IDisposable and IAsyncDisposable",
-          "d": "using, the dispose pattern, and resources the GC will not reclaim."
-        },
-        "kw": "idisposable using finalizer safehandle",
-        "cap": 0
-      },
-      {
-        "n": "22",
-        "file": "22-async-model.html",
+        "file": "16-class-struct-record.html",
         "ready": false,
         "ex": 18,
         "mins": 95,
         "fa": {
-          "t": "‏async/await: مدل ذهنی",
-          "d": "‏async یعنی «نخ را نگه ندار»، نه «سریع‌تر»."
+          "t": "class، struct و record در عمل",
+          "d": "یک مدل را سه‌بار می‌سازیم تا کپی، هویت، برابری و immutability را از رفتار بفهمیم."
         },
         "en": {
-          "t": "async/await: the mental model",
-          "d": "async means “do not hold the thread”, not “faster”."
+          "t": "Class, struct and record in practice",
+          "d": "Build one model three ways and observe copying, identity, equality and immutability."
         },
-        "kw": "async await state machine continuation",
+        "kw": "class struct record record class record struct readonly struct ref struct with",
+        "cap": 0
+      },
+      {
+        "n": "17",
+        "file": "17-composition-and-interfaces.html",
+        "ready": false,
+        "ex": 16,
+        "mins": 90,
+        "fa": {
+          "t": "ترکیب و interface برای تغییرپذیری",
+          "d": "با تغییر سیاست ارسال، composition و interface را وارد می‌کنیم و طراحی را تست می‌کنیم."
+        },
+        "en": {
+          "t": "Composition and interfaces for change",
+          "d": "Introduce composition and interfaces as shipping rules change, then test the design."
+        },
+        "kw": "composition interface explicit implementation default interface",
+        "cap": 0
+      },
+      {
+        "n": "18",
+        "file": "18-inheritance-polymorphism.html",
+        "ready": false,
+        "ex": 16,
+        "mins": 90,
+        "fa": {
+          "t": "وراثت، چندریختی و جایگزینی",
+          "d": "virtual/override، abstract/sealed و پنهان‌سازی new را با شکستن کلاینت می‌آزماییم."
+        },
+        "en": {
+          "t": "Inheritance, polymorphism and substitution",
+          "d": "Test virtual/override, abstract/sealed and new hiding by changing a client."
+        },
+        "kw": "inheritance virtual override abstract sealed base new hiding upcast downcast",
+        "cap": 0
+      },
+      {
+        "n": "19",
+        "file": "19-equality-hashing-comparison.html",
+        "ready": false,
+        "ex": 16,
+        "mins": 90,
+        "fa": {
+          "t": "برابری، hash و ترتیب",
+          "d": "یک کلید mutable را در Dictionary خراب می‌کنیم و قرارداد equality/comparer را اصلاح می‌کنیم."
+        },
+        "en": {
+          "t": "Equality, hashing and ordering",
+          "d": "Break a Dictionary with a mutable key, then fix equality and comparer contracts."
+        },
+        "kw": "Equals IEquatable GetHashCode ReferenceEquals IComparable comparer",
+        "cap": 0
+      },
+      {
+        "n": "20",
+        "file": "20-operators-conversions.html",
+        "ready": false,
+        "ex": 14,
+        "mins": 75,
+        "fa": {
+          "t": "عملگر و تبدیل نوع",
+          "d": "تبدیل ضمنی را ارزیابی می‌کنیم و overload را فقط وقتی می‌پذیریم که خوانایی بدهد."
+        },
+        "en": {
+          "t": "Operators and conversions",
+          "d": "Evaluate implicit conversions and overload operators only when they improve clarity."
+        },
+        "kw": "operator overload implicit explicit conversion checked",
+        "cap": 0
+      },
+      {
+        "n": "21",
+        "file": "21-extension-methods.html",
+        "ready": false,
+        "ex": 14,
+        "mins": 75,
+        "fa": {
+          "t": "extension method و API خوش‌خوان",
+          "d": "extensionهای مفید می‌سازیم و resolution، namespace و افراط را بررسی می‌کنیم."
+        },
+        "en": {
+          "t": "Extension methods and readable APIs",
+          "d": "Create useful extensions and inspect resolution, namespace visibility and overuse."
+        },
+        "kw": "extension method this generic namespace C#14 extension members",
+        "cap": 0
+      },
+      {
+        "n": "22",
+        "file": "22-generics.html",
+        "ready": false,
+        "ex": 16,
+        "mins": 90,
+        "fa": {
+          "t": "generic و constraint",
+          "d": "تکرار نوعی را حذف می‌کنیم و constraint را از عملیات لازم درمی‌آوریم."
+        },
+        "en": {
+          "t": "Generics and constraints",
+          "d": "Remove type-specific duplication and derive constraints from required operations."
+        },
+        "kw": "generic type method constraint class struct notnull new unmanaged enum delegate",
         "cap": 0
       },
       {
         "n": "23",
-        "file": "23-tasks.html",
+        "file": "23-variance.html",
         "ready": false,
-        "ex": 18,
-        "mins": 90,
+        "ex": 14,
+        "mins": 80,
         "fa": {
-          "t": "‏Task و cancellation",
-          "d": "‏WhenAll، WhenAny، CancellationToken و مهلت."
+          "t": "variance در interfaceها",
+          "d": "جهت ورود و خروج نوع را دنبال می‌کنیم تا covariance و contravariance جا بیفتد."
         },
         "en": {
-          "t": "Tasks and cancellation",
-          "d": "WhenAll, WhenAny, CancellationToken and timeouts."
+          "t": "Variance in interfaces",
+          "d": "Trace type input and output positions to understand covariance and contravariance."
         },
-        "kw": "task whenall cancellation token timeout",
+        "kw": "covariance contravariance in out IEnumerable delegate",
         "cap": 0
       },
       {
         "n": "24",
-        "file": "24-async-pitfalls.html",
+        "file": "24-generic-math.html",
         "ready": false,
-        "ex": 18,
-        "mins": 90,
+        "ex": 14,
+        "mins": 80,
         "fa": {
-          "t": "دام‌های async",
-          "d": "‏async void، بن‌بست، ‎ConfigureAwait‎ و ‎sync over async‎."
+          "t": "ریاضی عمومی و static abstract",
+          "d": "جمع‌کنندهٔ generic می‌سازیم و فایده و هزینهٔ abstraction را می‌سنجیم."
         },
         "en": {
-          "t": "Async pitfalls",
-          "d": "async void, deadlocks, ConfigureAwait and sync-over-async."
+          "t": "Generic math and static abstract members",
+          "d": "Build a generic aggregator and inspect abstraction benefits and costs."
         },
-        "kw": "deadlock async void configureawait sync over async",
+        "kw": "static abstract interface generic math INumber",
         "cap": 0
       },
       {
         "n": "25",
-        "file": "25-valuetask.html",
+        "file": "25-collection-contracts.html",
         "ready": false,
-        "ex": 18,
-        "mins": 80,
+        "ex": 16,
+        "mins": 85,
         "fa": {
-          "t": "‏ValueTask و IAsyncEnumerable",
-          "d": "جریان ناهمگام و کاهش تخصیص."
+          "t": "قرارداد مجموعه‌ها",
+          "d": "با workload سفارش‌ها از IEnumerable تا IDictionary را بر اساس قابلیت انتخاب می‌کنیم."
         },
         "en": {
-          "t": "ValueTask and IAsyncEnumerable",
-          "d": "Async streams and reducing allocations."
+          "t": "Collection contracts",
+          "d": "Choose interfaces from IEnumerable through IDictionary for an order-processing workload."
         },
-        "kw": "valuetask iasyncenumerable await foreach",
+        "kw": "IEnumerable ICollection IList IReadOnlyList IDictionary",
         "cap": 0
       },
       {
         "n": "26",
-        "file": "26-channels.html",
+        "file": "26-arrays-lists-queues.html",
         "ready": false,
-        "ex": 18,
-        "mins": 85,
+        "ex": 16,
+        "mins": 90,
         "fa": {
-          "t": "‏Channel",
-          "d": "تولیدکننده و مصرف‌کننده، با فشار برگشتی."
+          "t": "آرایه، List، Queue و Stack",
+          "d": "هزینهٔ افزودن، حذف، پیمایش و رشد ظرفیت را با الگوی دسترسی می‌سنجیم."
         },
         "en": {
-          "t": "Channels",
-          "d": "Producer/consumer with backpressure."
+          "t": "Arrays, lists, queues and stacks",
+          "d": "Compare insertion, removal, enumeration and capacity growth against access patterns."
         },
-        "kw": "channel producer consumer backpressure bounded",
+        "kw": "array List Queue Stack LinkedList Big O capacity",
         "cap": 0
       },
       {
         "n": "27",
-        "file": "27-threading.html",
+        "file": "27-hash-and-sorted-collections.html",
         "ready": false,
-        "ex": 18,
+        "ex": 16,
         "mins": 90,
         "fa": {
-          "t": "نخ، قفل و atomic",
-          "d": "‏lock، Interlocked، مدل حافظه و مسابقهٔ داده."
+          "t": "Dictionary، HashSet و مجموعه‌های مرتب",
+          "d": "lookup، یکتایی و ترتیب را از هم جدا می‌کنیم و comparer را آزمایش می‌کنیم."
         },
         "en": {
-          "t": "Threads, locks and atomics",
-          "d": "lock, Interlocked, the memory model and data races."
+          "t": "Hash and sorted collections",
+          "d": "Separate lookup, uniqueness and ordering, then test comparer behavior."
         },
-        "kw": "thread lock interlocked volatile race",
+        "kw": "Dictionary HashSet SortedDictionary SortedList SortedSet PriorityQueue",
         "cap": 0
       },
       {
         "n": "28",
-        "file": "28-span.html",
+        "file": "28-immutable-frozen-concurrent.html",
         "ready": false,
-        "ex": 18,
+        "ex": 16,
         "mins": 90,
         "fa": {
-          "t": "‏Span و Memory",
-          "d": "کار با حافظه بدون کپی و بدون تخصیص."
+          "t": "مجموعه‌های immutable، frozen و concurrent",
+          "d": "برای دادهٔ ثابت یا دسترسی هم‌زمان انتخاب می‌کنیم و هزینهٔ ساخت را هم می‌سنجیم."
         },
         "en": {
-          "t": "Span and Memory",
-          "d": "Working with memory without copying or allocating."
+          "t": "Immutable, frozen and concurrent collections",
+          "d": "Choose for stable or concurrent data and measure construction cost."
         },
-        "kw": "span memory stackalloc slice arraypool",
+        "kw": "immutable FrozenDictionary FrozenSet ConcurrentDictionary ConcurrentQueue ConcurrentStack ConcurrentBag BlockingCollection",
         "cap": 0
       },
       {
         "n": "29",
-        "file": "29-gc.html",
+        "file": "29-iterators-yield.html",
         "ready": false,
-        "ex": 18,
+        "ex": 16,
         "mins": 85,
         "fa": {
-          "t": "تخصیص و زباله‌روب",
-          "d": "نسل‌ها، ‎LOH‎، و اینکه چرا کد تو مکث می‌کند."
+          "t": "foreach، iterator و yield",
+          "d": "فایل را مرحله‌ای می‌خوانیم تا deferred execution و single-pass قابل‌دیدن شود."
         },
         "en": {
-          "t": "Allocation and the GC",
-          "d": "Generations, the LOH, and why your code pauses."
+          "t": "foreach, iterators and yield",
+          "d": "Read incrementally to observe deferred execution and single-pass behavior."
         },
-        "kw": "gc generation loh allocation pause server gc",
+        "kw": "IEnumerable IEnumerator yield return yield break iterator state machine",
         "cap": 0
       },
       {
         "n": "30",
-        "file": "30-json.html",
+        "file": "30-linq-filter-project.html",
         "ready": false,
-        "ex": 18,
+        "ex": 16,
         "mins": 85,
         "fa": {
-          "t": "‏System.Text.Json",
-          "d": "سریال‌سازی، تبدیل‌گر سفارشی و منبع تولید."
+          "t": "LINQ: فیلتر و projection",
+          "d": "Where و Select را روی سفارش‌ها می‌سازیم و دو نحو را مقایسه می‌کنیم."
         },
         "en": {
-          "t": "System.Text.Json",
-          "d": "Serialisation, custom converters and source generation."
+          "t": "LINQ: filtering and projection",
+          "d": "Use Where and Select on orders and compare both syntaxes."
         },
-        "kw": "json serialize converter polymorphic sourcegen",
+        "kw": "LINQ Where Select query syntax method syntax",
         "cap": 0
       },
       {
         "n": "31",
-        "file": "31-datetime.html",
+        "file": "31-linq-joins-groups.html",
         "ready": false,
         "ex": 18,
-        "mins": 80,
+        "mins": 95,
         "fa": {
-          "t": "زمان و تاریخ",
-          "d": "‏DateTimeOffset، TimeProvider، منطقهٔ زمانی و تقویم فارسی."
+          "t": "LINQ: گروه‌بندی، join و ترکیب",
+          "d": "گزارش فروش را با GroupBy، Join، GroupJoin، SelectMany و Zip می‌سازیم."
         },
         "en": {
-          "t": "Dates and times",
-          "d": "DateTimeOffset, TimeProvider, time zones and the Persian calendar."
+          "t": "LINQ: grouping, joins and composition",
+          "d": "Build a sales report with grouping, joins, SelectMany and Zip."
         },
-        "kw": "datetime offset timezone timeprovider persian calendar",
+        "kw": "GroupBy Join GroupJoin SelectMany Zip Aggregate Chunk DistinctBy",
         "cap": 0
       },
       {
         "n": "32",
-        "file": "32-regex.html",
+        "file": "32-linq-execution-performance.html",
         "ready": false,
-        "ex": 18,
-        "mins": 75,
+        "ex": 16,
+        "mins": 95,
         "fa": {
-          "t": "عبارت باقاعده",
-          "d": "‏Regex، منبع تولید، و خطر بازگشت فاجعه‌بار."
+          "t": "اجرای LINQ و هزینهٔ پیمایش",
+          "d": "اجرای دوباره، buffering، streaming و ToList را با شمارنده و benchmark روشن می‌کنیم."
         },
         "en": {
-          "t": "Regular expressions",
-          "d": "Regex, source generation, and catastrophic backtracking."
+          "t": "LINQ execution and enumeration cost",
+          "d": "Expose repeated execution, buffering, streaming and materialization with counters and benchmarks."
         },
-        "kw": "regex backtracking generated compiled",
+        "kw": "deferred immediate multiple enumeration streaming buffering ToLookup IQueryable performance",
         "cap": 0
       },
       {
         "n": "33",
-        "file": "33-reflection.html",
+        "file": "33-delegates-lambdas.html",
         "ready": false,
-        "ex": 18,
-        "mins": 80,
+        "ex": 16,
+        "mins": 85,
         "fa": {
-          "t": "‏reflection و attribute",
-          "d": "قدرت زمان اجرا، و هزینه‌اش."
+          "t": "delegate، method group و lambda",
+          "d": "تابع را ورودی سیاست قیمت می‌کنیم و Func، Action و allocation را می‌بینیم."
         },
         "en": {
-          "t": "Reflection and attributes",
-          "d": "Run-time power, and what it costs."
+          "t": "Delegates, method groups and lambdas",
+          "d": "Pass pricing policies as values and inspect Func, Action and allocations."
         },
-        "kw": "reflection attribute metadata activator",
+        "kw": "delegate Action Func Predicate lambda method group multicast",
         "cap": 0
       },
       {
         "n": "34",
-        "file": "34-source-generators.html",
+        "file": "34-closures-events.html",
         "ready": false,
-        "ex": 18,
+        "ex": 16,
         "mins": 90,
         "fa": {
-          "t": "‏source generator",
-          "d": "کد تولید کن به‌جای reflection — سریع‌تر و AOT-پسند."
+          "t": "closure و event",
+          "d": "باگ capture را بازتولید می‌کنیم و lifetime رویداد و handler را می‌سنجیم."
         },
         "en": {
-          "t": "Source generators",
-          "d": "Generate code instead of reflecting — faster and AOT-friendly."
+          "t": "Closures and events",
+          "d": "Reproduce a capture bug and inspect event-handler lifetime."
         },
-        "kw": "source generator roslyn incremental aot",
+        "kw": "closure capture event accessor observer unsubscribe lifetime",
         "cap": 0
       },
       {
         "n": "35",
-        "file": "35-analyzers.html",
+        "file": "35-pattern-matching.html",
         "ready": false,
-        "ex": 18,
-        "mins": 80,
+        "ex": 16,
+        "mins": 85,
         "fa": {
-          "t": "‏analyzer و قواعد کد",
-          "d": "قانون تیمی که کامپایلر اجرایش می‌کند."
+          "t": "pattern matching برای شاخه‌های پیچیده",
+          "d": "شرط‌های تودرتو را به type/property/relational/list patterns تبدیل می‌کنیم."
         },
         "en": {
-          "t": "Analyzers and code rules",
-          "d": "Team rules the compiler enforces for you."
+          "t": "Pattern matching for complex branching",
+          "d": "Refactor nested conditions with type, property, relational and list patterns."
         },
-        "kw": "analyzer roslyn editorconfig warning as error",
+        "kw": "pattern matching switch expression type property relational logical list",
         "cap": 0
       },
       {
         "n": "36",
-        "file": "36-interop.html",
+        "file": "36-exceptions.html",
         "ready": false,
-        "ex": 18,
-        "mins": 80,
+        "ex": 16,
+        "mins": 90,
         "fa": {
-          "t": "‏interop و P/Invoke",
-          "d": "فراخوانی کد بومی و ‎LibraryImport‎."
+          "t": "استثنا و مرز خطا",
+          "d": "stack trace، filter، inner exception و مرز catch را از جریان عادی جدا می‌کنیم."
         },
         "en": {
-          "t": "Interop and P/Invoke",
-          "d": "Calling native code and LibraryImport."
+          "t": "Exceptions and failure boundaries",
+          "d": "Separate stack traces, filters and catch boundaries from normal control flow."
         },
-        "kw": "pinvoke interop marshal libraryimport native",
+        "kw": "try catch finally filter inner exception stack trace throw Result",
         "cap": 0
       },
       {
         "n": "37",
-        "file": "37-testing.html",
+        "file": "37-disposal-resource-lifetime.html",
         "ready": false,
-        "ex": 18,
-        "mins": 85,
+        "ex": 16,
+        "mins": 90,
         "fa": {
-          "t": "تست با xUnit",
-          "d": "‏fixture، تست پارامتری، mock و assertion خوانا."
+          "t": "عمر منبع و IDisposable",
+          "d": "نشت handle را پیدا می‌کنیم و using، async disposal و نقش محدود finalizer را می‌بینیم."
         },
         "en": {
-          "t": "Testing with xUnit",
-          "d": "Fixtures, parameterised tests, mocking and readable assertions."
+          "t": "Resource lifetime and IDisposable",
+          "d": "Find a leaked handle and learn using, async disposal and the limited role of finalizers."
         },
-        "kw": "xunit theory fixture moq fluentassertions",
+        "kw": "IDisposable IAsyncDisposable using finalizer SafeHandle",
         "cap": 0
       },
       {
         "n": "38",
-        "file": "38-benchmark.html",
+        "file": "38-files-and-streams.html",
         "ready": false,
         "ex": 18,
-        "mins": 85,
+        "mins": 100,
         "fa": {
-          "t": "‏benchmark",
-          "d": "‏BenchmarkDotNet: اندازه‌گیری قبل از بهینه‌سازی."
+          "t": "فایل و Stream",
+          "d": "فایل بزرگ را جریان‌وار می‌خوانیم؛ encoding، UTF-8/BOM، buffering و async I/O را می‌سنجیم."
         },
         "en": {
-          "t": "Benchmarking",
-          "d": "BenchmarkDotNet: measure before you optimise."
+          "t": "Files and streams",
+          "d": "Read large files as streams and inspect encoding, UTF-8/BOM, buffering and async I/O."
         },
-        "kw": "benchmarkdotnet memory diagnoser baseline",
+        "kw": "Stream FileStream MemoryStream StreamReader StreamWriter BinaryReader BinaryWriter File Directory Path",
         "cap": 0
       },
       {
         "n": "39",
-        "file": "39-project.html",
+        "file": "39-compression-and-xml.html",
         "ready": false,
-        "ex": 18,
-        "mins": 75,
+        "ex": 16,
+        "mins": 90,
         "fa": {
-          "t": "ساختار پروژه و NuGet",
-          "d": "چند پروژه، وابستگی مرکزی و انتشار بسته."
+          "t": "فشرده‌سازی و XML",
+          "d": "فایل را فشرده و XML را با DOM یا reader/writer جریانی پردازش می‌کنیم."
         },
         "en": {
-          "t": "Project structure and NuGet",
-          "d": "Multiple projects, central package management and publishing."
+          "t": "Compression and XML",
+          "d": "Compress files and process XML with a DOM or streaming readers and writers."
         },
-        "kw": "solution csproj nuget central package management",
+        "kw": "GZipStream DeflateStream ZipArchive XElement XDocument XmlReader XmlWriter XSD",
         "cap": 0
       },
       {
         "n": "40",
-        "file": "40-cap1.html",
+        "file": "40-json.html",
         "ready": false,
-        "ex": 5,
-        "mins": 80,
+        "ex": 16,
+        "mins": 90,
         "fa": {
-          "t": "پروژهٔ ۱ — ابزار خط فرمان",
-          "d": "‏CLI واقعی با آرگومان، خطا، لاگ و تست."
+          "t": "JSON: مدل تا خواندن جریانی",
+          "d": "converter و serialization را می‌آزماییم و میان DOM و Utf8JsonReader انتخاب می‌کنیم."
         },
         "en": {
-          "t": "Project 1 — a command-line tool",
-          "d": "A real CLI with arguments, error handling, logging and tests."
+          "t": "JSON: models to streaming",
+          "d": "Test converters and serialization, choosing between a DOM and Utf8JsonReader."
         },
-        "kw": "capstone cli",
-        "cap": 1
+        "kw": "System.Text.Json JsonDocument JsonNode Utf8JsonReader Utf8JsonWriter converter source generation",
+        "cap": 0
       },
       {
         "n": "41",
-        "file": "41-cap2.html",
+        "file": "41-datetime-timezones.html",
         "ready": false,
-        "ex": 7,
-        "mins": 140,
+        "ex": 16,
+        "mins": 90,
         "fa": {
-          "t": "پروژهٔ ۲ — کتابخانهٔ قابل انتشار",
-          "d": "‏API تمیز، تست کامل، benchmark و بستهٔ NuGet."
+          "t": "زمان، منطقه و تقویم",
+          "d": "زمان را با UTC ذخیره می‌کنیم و ابهام DST و TimeProvider را آزمایش می‌کنیم."
         },
         "en": {
-          "t": "Project 2 — a publishable library",
-          "d": "A clean API, full tests, benchmarks and a NuGet package."
+          "t": "Time, time zones and calendars",
+          "d": "Store UTC instants and test DST ambiguity with TimeProvider."
         },
-        "kw": "capstone library nuget",
-        "cap": 2
+        "kw": "DateTime DateTimeOffset DateOnly TimeOnly TimeZoneInfo DST TimeProvider Persian calendar",
+        "cap": 0
       },
       {
         "n": "42",
-        "file": "42-cap3.html",
+        "file": "42-regex.html",
         "ready": false,
-        "ex": 9,
-        "mins": 200,
+        "ex": 14,
+        "mins": 80,
         "fa": {
-          "t": "پروژهٔ ۳ — پردازشگر همروند پرکار",
-          "d": "‏Channel، async، cancellation، pooling و کارایی اندازه‌گیری‌شده."
+          "t": "Regex امن و قابل‌اندازه‌گیری",
+          "d": "ورودی بد را روی regex کند امتحان می‌کنیم، timeout می‌گذاریم و source generation را می‌سنجیم."
+        },
+        "en": {
+          "t": "Safe, measurable regular expressions",
+          "d": "Test hostile input, add a timeout and compare source generation."
+        },
+        "kw": "Regex groups captures lookaround timeout NonBacktracking source generated catastrophic backtracking",
+        "cap": 0
+      },
+      {
+        "n": "43",
+        "file": "43-httpclient-networking.html",
+        "ready": false,
+        "ex": 16,
+        "mins": 90,
+        "fa": {
+          "t": "HTTP و HttpClient",
+          "d": "درخواست واقعی می‌فرستیم و status/header و lifetime درست HttpClient را می‌خوانیم."
+        },
+        "en": {
+          "t": "HTTP and HttpClient",
+          "d": "Send requests and inspect status, headers and correct HttpClient lifetime."
+        },
+        "kw": "HttpClient HttpRequestMessage HttpResponseMessage headers cookies authentication DNS",
+        "cap": 0
+      },
+      {
+        "n": "44",
+        "file": "44-tcp-sockets.html",
+        "ready": false,
+        "ex": 16,
+        "mins": 95,
+        "fa": {
+          "t": "TCP، socket و جریان بایت",
+          "d": "client/server لوکال می‌سازیم تا connection را با مرز پیام اشتباه نگیریم."
+        },
+        "en": {
+          "t": "TCP, sockets and byte streams",
+          "d": "Build a local client/server and learn why a connection is not a message boundary."
+        },
+        "kw": "TcpClient TcpListener NetworkStream Socket framing",
+        "cap": 0
+      },
+      {
+        "n": "45",
+        "file": "45-diagnostics-process.html",
+        "ready": false,
+        "ex": 14,
+        "mins": 80,
+        "fa": {
+          "t": "زمان‌سنجی، لاگ و process",
+          "d": "child process را اجرا می‌کنیم و stdout، stderr، exit code و زمان را جمع می‌کنیم."
+        },
+        "en": {
+          "t": "Timing, logs and processes",
+          "d": "Run a child process and capture stdout, stderr, exit code and elapsed time."
+        },
+        "kw": "Debug Trace Stopwatch Process EventSource Activity stdout stderr",
+        "cap": 0
+      },
+      {
+        "n": "46",
+        "file": "46-async-await-model.html",
+        "ready": false,
+        "ex": 16,
+        "mins": 95,
+        "fa": {
+          "t": "async/await بدون افسانه",
+          "d": "درخواست I/O را دنبال می‌کنیم تا Task و continuation را از نخ جدا کنیم."
+        },
+        "en": {
+          "t": "async/await without myths",
+          "d": "Trace I/O to separate Tasks and continuations from threads."
+        },
+        "kw": "async await Task state machine I/O CPU-bound",
+        "cap": 0
+      },
+      {
+        "n": "47",
+        "file": "47-tasks-cancellation.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Task، لغو و مهلت",
+          "d": "WhenAll و WhenAny را اجرا می‌کنیم و cancellation را تا پایین زنجیره می‌بریم."
+        },
+        "en": {
+          "t": "Tasks, cancellation and timeouts",
+          "d": "Use WhenAll and WhenAny, propagating cancellation through the call chain."
+        },
+        "kw": "Task Task<T> WhenAll WhenAny CancellationToken linked timeout Task.Run",
+        "cap": 0
+      },
+      {
+        "n": "48",
+        "file": "48-async-failure-modes.html",
+        "ready": false,
+        "ex": 16,
+        "mins": 90,
+        "fa": {
+          "t": "شکست‌های رایج async",
+          "d": "async void و sync-over-async را بازتولید می‌کنیم و context را برای ConfigureAwait می‌سنجیم."
+        },
+        "en": {
+          "t": "Common async failure modes",
+          "d": "Reproduce async void and sync-over-async failures and reason about context."
+        },
+        "kw": "async void deadlock sync over async SynchronizationContext ConfigureAwait",
+        "cap": 0
+      },
+      {
+        "n": "49",
+        "file": "49-valuetask-async-streams.html",
+        "ready": false,
+        "ex": 16,
+        "mins": 90,
+        "fa": {
+          "t": "ValueTask و جریان ناهمگام",
+          "d": "نتیجهٔ cacheشده و تولید مرحله‌ای را می‌سازیم و محدودیت مصرف دوباره را آزمایش می‌کنیم."
+        },
+        "en": {
+          "t": "ValueTask and async streams",
+          "d": "Model cached results and incremental production; test ValueTask consumption constraints."
+        },
+        "kw": "ValueTask IAsyncEnumerable await foreach async disposal",
+        "cap": 0
+      },
+      {
+        "n": "50",
+        "file": "50-threading-concurrency.html",
+        "ready": false,
+        "ex": 16,
+        "mins": 90,
+        "fa": {
+          "t": "نخ، ThreadPool و مسابقهٔ داده",
+          "d": "counter مشترک را می‌آزماییم و concurrency، parallelism و async را جدا می‌کنیم."
+        },
+        "en": {
+          "t": "Threads, the ThreadPool and data races",
+          "d": "Race on shared state and distinguish concurrency, parallelism and asynchrony."
+        },
+        "kw": "Thread ThreadPool race concurrency parallelism asynchrony",
+        "cap": 0
+      },
+      {
+        "n": "51",
+        "file": "51-synchronization.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "قفل و primitiveهای همگام‌سازی",
+          "d": "race را با lock و Interlocked رفع می‌کنیم؛ SemaphoreSlim و cancellation را هم می‌سنجیم."
+        },
+        "en": {
+          "t": "Locks and synchronization primitives",
+          "d": "Fix a race with lock and Interlocked, then apply SemaphoreSlim and cancellation."
+        },
+        "kw": "lock Monitor Interlocked Volatile Mutex SemaphoreSlim ReaderWriterLockSlim ThreadLocal",
+        "cap": 0
+      },
+      {
+        "n": "52",
+        "file": "52-parallelism-tpl.html",
+        "ready": false,
+        "ex": 16,
+        "mins": 95,
+        "fa": {
+          "t": "پردازش موازی با TPL",
+          "d": "Parallel و PLINQ را با هزینهٔ تقسیم کار و workload واقعی می‌سنجیم."
+        },
+        "en": {
+          "t": "Parallel work with the TPL",
+          "d": "Measure Parallel and PLINQ including partitioning overhead."
+        },
+        "kw": "TPL Parallel.For Parallel.ForEachAsync PLINQ BlockingCollection",
+        "cap": 0
+      },
+      {
+        "n": "53",
+        "file": "53-channels-backpressure.html",
+        "ready": false,
+        "ex": 16,
+        "mins": 95,
+        "fa": {
+          "t": "Channel و فشار برگشتی",
+          "d": "صف نامحدود را با Channel محدود جایگزین می‌کنیم تا مصرف‌کنندهٔ کند حافظه را پر نکند."
+        },
+        "en": {
+          "t": "Channels and backpressure",
+          "d": "Replace an unbounded queue with a bounded Channel to protect memory from slow consumers."
+        },
+        "kw": "Channel bounded unbounded producer consumer backpressure completion fault",
+        "cap": 0
+      },
+      {
+        "n": "54",
+        "file": "54-span-memory.html",
+        "ready": false,
+        "ex": 16,
+        "mins": 100,
+        "fa": {
+          "t": "Span، Memory و برش بدون کپی",
+          "d": "parser را با substring و Span می‌سازیم و محدودیت ref struct را در compiler می‌بینیم."
+        },
+        "en": {
+          "t": "Span, Memory and slicing without copies",
+          "d": "Build a parser with substrings and Span, then inspect ref-struct restrictions."
+        },
+        "kw": "Span ReadOnlySpan Memory ReadOnlyMemory stackalloc ref struct slice",
+        "cap": 0
+      },
+      {
+        "n": "55",
+        "file": "55-pooling-and-sequences.html",
+        "ready": false,
+        "ex": 14,
+        "mins": 90,
+        "fa": {
+          "t": "pooling و دنبالهٔ بایت",
+          "d": "ArrayPool را فقط با مدرک allocation وارد می‌کنیم و مالکیت buffer را رعایت می‌کنیم."
+        },
+        "en": {
+          "t": "Pooling and byte sequences",
+          "d": "Use ArrayPool only when allocation evidence justifies it, with explicit buffer ownership."
+        },
+        "kw": "ArrayPool MemoryPool ReadOnlySequence zero copy allocation",
+        "cap": 0
+      },
+      {
+        "n": "56",
+        "file": "56-gc-allocation.html",
+        "ready": false,
+        "ex": 16,
+        "mins": 95,
+        "fa": {
+          "t": "GC، ریشه و هزینهٔ تخصیص",
+          "d": "نسل‌ها و LOH را با allocation rate می‌بینیم و GC.Collect را درمان فرض نمی‌کنیم."
+        },
+        "en": {
+          "t": "GC, roots and allocation cost",
+          "d": "Observe generations and the LOH; do not treat GC.Collect as a fix."
+        },
+        "kw": "GC generation Gen0 Gen1 Gen2 LOH roots WeakReference allocation",
+        "cap": 0
+      },
+      {
+        "n": "57",
+        "file": "57-testing-xunit.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "تست اجرایی با xUnit",
+          "d": "Fact/Theory، تست async، fixture و جداسازی state را با قانون قیمت تمرین می‌کنیم."
+        },
+        "en": {
+          "t": "Executable tests with xUnit",
+          "d": "Practise facts, theories, async tests, fixtures and isolation with pricing rules."
+        },
+        "kw": "xUnit Fact Theory fixture assertions async fake mock TimeProvider",
+        "cap": 0
+      },
+      {
+        "n": "58",
+        "file": "58-benchmarkdotnet.html",
+        "ready": false,
+        "ex": 16,
+        "mins": 95,
+        "fa": {
+          "t": "اندازه‌گیری با BenchmarkDotNet",
+          "d": "دو پیاده‌سازی را می‌سنجیم و warmup، JIT، نویز و allocation را از عدد خام جدا می‌کنیم."
+        },
+        "en": {
+          "t": "Measurement with BenchmarkDotNet",
+          "d": "Compare implementations while accounting for warmup, JIT, noise and allocations."
+        },
+        "kw": "BenchmarkDotNet warmup JIT noise memory diagnoser profiler",
+        "cap": 0
+      },
+      {
+        "n": "59",
+        "file": "59-solution-nuget-publish.html",
+        "ready": false,
+        "ex": 16,
+        "mins": 90,
+        "fa": {
+          "t": "solution، NuGet و انتشار",
+          "d": "پروژه را به چند assembly می‌بریم و package، version و publish را بررسی می‌کنیم."
+        },
+        "en": {
+          "t": "Solutions, NuGet and publishing",
+          "d": "Split a solution into assemblies and inspect package, version and publish decisions."
+        },
+        "kw": "solution project reference NuGet pack publish RID semantic versioning",
+        "cap": 0
+      },
+      {
+        "n": "60",
+        "file": "60-assemblies-loading.html",
+        "ready": false,
+        "ex": 14,
+        "mins": 90,
+        "fa": {
+          "t": "assembly و بارگذاری افزونه",
+          "d": "plugin را با AssemblyLoadContext بار می‌کنیم و مرز unload را می‌آزماییم."
+        },
+        "en": {
+          "t": "Assemblies and plugin loading",
+          "d": "Load a plugin with AssemblyLoadContext and test unloading boundaries."
+        },
+        "kw": "assembly dll exe metadata AssemblyLoadContext plugin unload strong name",
+        "cap": 0
+      },
+      {
+        "n": "61",
+        "file": "61-reflection-dynamic.html",
+        "ready": false,
+        "ex": 16,
+        "mins": 90,
+        "fa": {
+          "t": "reflection، attribute و dynamic",
+          "d": "نوع را زمان اجرا کشف و reflection بدون cache را با cache و فراخوانی مستقیم می‌سنجیم."
+        },
+        "en": {
+          "t": "Reflection, attributes and dynamic",
+          "d": "Discover types at runtime and compare uncached reflection, cached metadata and direct calls."
+        },
+        "kw": "reflection Type MemberInfo Activator attribute dynamic DLR ExpandoObject",
+        "cap": 0
+      },
+      {
+        "n": "62",
+        "file": "62-source-generators-analyzers.html",
+        "ready": false,
+        "ex": 16,
+        "mins": 100,
+        "fa": {
+          "t": "source generator و analyzer",
+          "d": "کد تکراری را generate می‌کنیم و قاعدهٔ تیم را به diagnostic تست‌پذیر تبدیل می‌کنیم."
+        },
+        "en": {
+          "t": "Source generators and analyzers",
+          "d": "Generate repetitive code and turn a team rule into a testable diagnostic."
+        },
+        "kw": "Roslyn source generator incremental analyzer code fix AOT",
+        "cap": 0
+      },
+      {
+        "n": "63",
+        "file": "63-cryptography.html",
+        "ready": false,
+        "ex": 16,
+        "mins": 95,
+        "fa": {
+          "t": "رمزنگاری کاربردی و امن",
+          "d": "هش، HMAC، encryption و signature را جدا می‌کنیم؛ رمز عبور با SHA-256 ساده ذخیره نمی‌شود."
+        },
+        "en": {
+          "t": "Practical, responsible cryptography",
+          "d": "Separate hashes, HMAC, encryption and signatures; never store passwords with plain SHA-256."
+        },
+        "kw": "SHA256 HMAC AES RSA signature RandomNumberGenerator password hashing PBKDF2",
+        "cap": 0
+      },
+      {
+        "n": "64",
+        "file": "64-interop-unsafe.html",
+        "ready": false,
+        "ex": 16,
+        "mins": 100,
+        "fa": {
+          "t": "Interop، P/Invoke و unsafe",
+          "d": "مرز native کوچکی را صدا می‌زنیم و lifetime، marshalling و pointer را محدود و امن می‌آزماییم."
+        },
+        "en": {
+          "t": "Interop, P/Invoke and unsafe code",
+          "d": "Call a small native boundary and inspect lifetime, marshalling and pointer risks safely."
+        },
+        "kw": "PInvoke LibraryImport marshalling unsafe pointer fixed stackalloc native lifetime",
+        "cap": 0
+      },
+      {
+        "n": "65",
+        "file": "65-cap1.html",
+        "ready": false,
+        "ex": 0,
+        "mins": 180,
+        "fa": {
+          "t": "پروژهٔ ۱ — ابزار خط فرمان واقعی",
+          "d": "CLI پردازش فایل با آرگومان، config، خطای روشن، لاگ، async، لغو، تست و بسته‌بندی."
+        },
+        "en": {
+          "t": "Project 1 — a real command-line tool",
+          "d": "A file-processing CLI with arguments, config, useful errors, logs, async, cancellation, tests and packaging."
+        },
+        "kw": "capstone project cli arguments file io async cancellation logging tests packaging",
+        "cap": 1
+      },
+      {
+        "n": "66",
+        "file": "66-cap2.html",
+        "ready": false,
+        "ex": 0,
+        "mins": 210,
+        "fa": {
+          "t": "پروژهٔ ۲ — کتابخانهٔ قابل انتشار",
+          "d": "API عمومی generic و nullable با تست، benchmark، NuGet، نسخه و تصمیم سازگاری."
+        },
+        "en": {
+          "t": "Project 2 — a publishable library",
+          "d": "A generic, nullable-aware public API with tests, benchmarks, NuGet and compatibility decisions."
+        },
+        "kw": "capstone project library generic nullable api tests benchmark nuget compatibility",
+        "cap": 2
+      },
+      {
+        "n": "67",
+        "file": "67-cap3.html",
+        "ready": false,
+        "ex": 0,
+        "mins": 240,
+        "fa": {
+          "t": "پروژهٔ ۳ — پردازشگر همروند پُربازده",
+          "d": "پردازشگر Channel‌محور با backpressure، cancellation، pooling موجه، shutdown امن و benchmark."
         },
         "en": {
           "t": "Project 3 — a high-throughput concurrent processor",
-          "d": "Channels, async, cancellation, pooling and measured performance."
+          "d": "A Channel-based processor with backpressure, cancellation, justified pooling, graceful shutdown and benchmarks."
         },
-        "kw": "capstone concurrency performance",
+        "kw": "capstone project concurrency Channel backpressure cancellation pooling graceful shutdown performance",
         "cap": 3
       }
     ],
     "stats": {
-      "chapters": 42,
-      "exercises": 723,
-      "minutes": 3655,
+      "chapters": 67,
+      "exercises": 938,
+      "minutes": 6170,
       "capstones": 3,
-      "ready": 0
+      "ready": 7
     }
   },
   {
@@ -4921,7 +5346,143 @@ export const TRACKS: Track[] = [
     "chapters": [
       {
         "n": "01",
-        "file": "01-mental-model.html",
+        "file": "01-http-request.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 75,
+        "fa": {
+          "t": "درخواست HTTP از نزدیک",
+          "d": "یک درخواست را از method و path تا header و body بخوان و با curl شکل واقعی آن را ببین."
+        },
+        "en": {
+          "t": "An HTTP request up close",
+          "d": "Read a request from its method and path through headers and body; inspect it with curl."
+        },
+        "kw": "http request method path headers body curl",
+        "cap": 0
+      },
+      {
+        "n": "02",
+        "file": "02-http-response.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 75,
+        "fa": {
+          "t": "پاسخ HTTP را بخوانیم",
+          "d": "status، header و body پاسخ را کنار هم ببین و قرارداد هرکدام با client را مشخص کن."
+        },
+        "en": {
+          "t": "Reading an HTTP response",
+          "d": "Inspect status, headers, and body together; identify what each promises to a client."
+        },
+        "kw": "http response status headers body",
+        "cap": 0
+      },
+      {
+        "n": "03",
+        "file": "03-http-methods-and-idempotency.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 80,
+        "fa": {
+          "t": "متدهای HTTP و معنای retry",
+          "d": "GET، POST، PUT و DELETE را از نظر اثر و idempotency مقایسه کن؛ هر retry لزوماً بی‌خطر نیست."
+        },
+        "en": {
+          "t": "HTTP methods and retry semantics",
+          "d": "Compare GET, POST, PUT, and DELETE by effect and idempotency; not every retry is harmless."
+        },
+        "kw": "http methods safe idempotent retry",
+        "cap": 0
+      },
+      {
+        "n": "04",
+        "file": "04-http-headers-content-types.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 80,
+        "fa": {
+          "t": "Header، Content-Type و Accept",
+          "d": "نوع دادهٔ درخواست و قالب پاسخ قابل‌قبول را تغییر بده و اثرشان را در پاسخ ببین."
+        },
+        "en": {
+          "t": "Headers, Content-Type, and Accept",
+          "d": "Change request media types and acceptable response formats, then inspect the result."
+        },
+        "kw": "http headers content-type accept media type",
+        "cap": 0
+      },
+      {
+        "n": "05",
+        "file": "05-http-content-negotiation.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 80,
+        "fa": {
+          "t": "مذاکرهٔ محتوا و قالب پاسخ",
+          "d": "ببین framework چطور از میان فرمت‌های درخواستی انتخاب می‌کند و 406 یا 415 چه زمانی رخ می‌دهد."
+        },
+        "en": {
+          "t": "Content negotiation and response formats",
+          "d": "See how a framework selects among requested formats and when 406 or 415 is returned."
+        },
+        "kw": "content negotiation 406 415 formatter",
+        "cap": 0
+      },
+      {
+        "n": "06",
+        "file": "06-http-cookies-and-redirects.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 80,
+        "fa": {
+          "t": "Cookie، redirect و وضعیت client",
+          "d": "رفت‌وبرگشت Set-Cookie و Cookie و رفتار redirect را در مرورگر یا client آزمایش کن."
+        },
+        "en": {
+          "t": "Cookies, redirects, and client state",
+          "d": "Inspect Set-Cookie/Cookie round trips and redirects in a browser or client."
+        },
+        "kw": "http cookie set-cookie redirect",
+        "cap": 0
+      },
+      {
+        "n": "07",
+        "file": "07-http-caching-headers.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "Cache در HTTP و headerهای اعتبارسنجی",
+          "d": "Cache-Control، ETag و If-None-Match را با درخواست تکراری بسنج و پاسخ 304 را درست تفسیر کن."
+        },
+        "en": {
+          "t": "HTTP caching and validators",
+          "d": "Test Cache-Control, ETag, and If-None-Match across repeated requests and interpret 304 correctly."
+        },
+        "kw": "http cache-control etag if-none-match 304",
+        "cap": 0
+      },
+      {
+        "n": "08",
+        "file": "08-http-versions-and-https.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "HTTP/1.1، HTTP/2، HTTP/3 و مرز HTTPS",
+          "d": "تفاوت نسخه‌های HTTP و محل TLS را در حد نیاز backend بشناس؛ اینجا وارد آموزش شبکهٔ عمیق نمی‌شویم."
+        },
+        "en": {
+          "t": "HTTP/1.1, HTTP/2, HTTP/3, and the HTTPS boundary",
+          "d": "Learn the protocol-version and TLS distinctions a backend developer needs, without turning this into a networking course."
+        },
+        "kw": "http1 http2 http3 https tls protocol",
+        "cap": 0
+      },
+      {
+        "n": "09",
+        "file": "09-mental-model.html",
         "ready": false,
         "ex": 18,
         "mins": 85,
@@ -4937,8 +5498,42 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "02",
-        "file": "02-minimal-vs-mvc.html",
+        "n": "10",
+        "file": "10-host-kestrel-startup.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Program.cs، Host و Kestrel",
+          "d": "ساخت Host و WebApplicationBuilder را دنبال کن و مشخص کن Kestrel کجا وارد مسیر می‌شود."
+        },
+        "en": {
+          "t": "Program.cs, the Host, and Kestrel",
+          "d": "Trace Host and WebApplicationBuilder construction and identify where Kestrel enters the path."
+        },
+        "kw": "program.cs host webapplicationbuilder kestrel startup",
+        "cap": 0
+      },
+      {
+        "n": "11",
+        "file": "11-request-lifecycle-and-logging.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "چرخهٔ کامل یک درخواست",
+          "d": "از socket تا response و برگشت middleware را با logهای زمان‌دار دنبال کن و نمودار را با اجرای واقعی بسنج."
+        },
+        "en": {
+          "t": "The full lifecycle of a request",
+          "d": "Trace a request from socket through response and middleware unwind using timestamped logs."
+        },
+        "kw": "request lifecycle kestrel middleware logs response",
+        "cap": 0
+      },
+      {
+        "n": "12",
+        "file": "12-minimal-vs-mvc.html",
         "ready": false,
         "ex": 18,
         "mins": 80,
@@ -4954,8 +5549,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "03",
-        "file": "03-routing.html",
+        "n": "13",
+        "file": "13-routing.html",
         "ready": false,
         "ex": 18,
         "mins": 80,
@@ -4971,8 +5566,25 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "04",
-        "file": "04-middleware.html",
+        "n": "14",
+        "file": "14-routing-groups-and-precedence.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "Route Group، metadata و اولویت مسیر",
+          "d": "route group و constraint بساز، تعارض مسیر را عمداً ایجاد کن و endpoint انتخاب‌شده را از شواهد پیدا کن."
+        },
+        "en": {
+          "t": "Route groups, metadata, and precedence",
+          "d": "Create route groups and constraints, introduce a conflict, and use evidence to identify the selected endpoint."
+        },
+        "kw": "route group endpoint metadata precedence ambiguity",
+        "cap": 0
+      },
+      {
+        "n": "15",
+        "file": "15-middleware.html",
         "ready": false,
         "ex": 18,
         "mins": 85,
@@ -4988,8 +5600,25 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "05",
-        "file": "05-filters.html",
+        "n": "16",
+        "file": "16-middleware-branches-and-custom-components.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "شاخه‌زدن و ساخت middleware سفارشی",
+          "d": "Use، UseWhen و شاخه‌های pipeline را اجرا کن و اثر کد پیش و پس از next را با log ببین."
+        },
+        "en": {
+          "t": "Pipeline branches and custom middleware",
+          "d": "Run Use, UseWhen, and pipeline branches; observe code before and after next in the logs."
+        },
+        "kw": "middleware use usewhen custom imiddleware pipeline branch",
+        "cap": 0
+      },
+      {
+        "n": "17",
+        "file": "17-filters.html",
         "ready": false,
         "ex": 18,
         "mins": 80,
@@ -5005,8 +5634,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "06",
-        "file": "06-di.html",
+        "n": "18",
+        "file": "18-di.html",
         "ready": false,
         "ex": 18,
         "mins": 90,
@@ -5022,8 +5651,25 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "07",
-        "file": "07-options.html",
+        "n": "19",
+        "file": "19-di-scopes-disposal-and-captive-dependencies.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Scope، آزادسازی و خطای captive dependency",
+          "d": "عمر سرویس‌ها را با درخواست واقعی بسنج و خطای تزریق scoped در singleton را بازتولید و اصلاح کن."
+        },
+        "en": {
+          "t": "Scopes, disposal, and captive dependencies",
+          "d": "Inspect service lifetimes across requests and reproduce and fix a scoped-in-singleton bug."
+        },
+        "kw": "dependency injection scope disposal captive dependency lifetime",
+        "cap": 0
+      },
+      {
+        "n": "20",
+        "file": "20-options.html",
         "ready": false,
         "ex": 18,
         "mins": 80,
@@ -5039,8 +5685,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "08",
-        "file": "08-config.html",
+        "n": "21",
+        "file": "21-config.html",
         "ready": false,
         "ex": 18,
         "mins": 80,
@@ -5056,8 +5702,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "09",
-        "file": "09-binding.html",
+        "n": "22",
+        "file": "22-binding.html",
         "ready": false,
         "ex": 18,
         "mins": 80,
@@ -5073,8 +5719,25 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "10",
-        "file": "10-validation.html",
+        "n": "23",
+        "file": "23-binding-sources-and-body-formats.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 85,
+        "fa": {
+          "t": "منبع binding و قالب بدنهٔ درخواست",
+          "d": "route، query، header و body را جدا آزمایش کن و خطای انتخاب منبع یا قالب JSON را تشخیص بده."
+        },
+        "en": {
+          "t": "Binding sources and request-body formats",
+          "d": "Test route, query, header, and body binding separately; diagnose source-selection and JSON-format failures."
+        },
+        "kw": "model binding fromroute fromquery frombody json",
+        "cap": 0
+      },
+      {
+        "n": "24",
+        "file": "24-validation.html",
         "ready": false,
         "ex": 18,
         "mins": 80,
@@ -5090,8 +5753,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "11",
-        "file": "11-fluentvalidation.html",
+        "n": "25",
+        "file": "25-fluentvalidation.html",
         "ready": false,
         "ex": 18,
         "mins": 90,
@@ -5107,8 +5770,25 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "12",
-        "file": "12-mapping.html",
+        "n": "26",
+        "file": "26-mapster-mapping-and-projection.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Mapster، نگاشت DTO و projection",
+          "d": "نگاشت دستی را با Mapster مقایسه کن و projection دیتابیسی را از بارگذاری همهٔ entityها جدا نگه دار."
+        },
+        "en": {
+          "t": "Mapster, DTO mapping, and projection",
+          "d": "Compare Mapster with manual mapping and distinguish database projection from loading every entity."
+        },
+        "kw": "mapster dto mapping projection source generator",
+        "cap": 0
+      },
+      {
+        "n": "27",
+        "file": "27-mapping.html",
         "ready": false,
         "ex": 18,
         "mins": 80,
@@ -5124,8 +5804,42 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "13",
-        "file": "13-efcore-model.html",
+        "n": "28",
+        "file": "28-api-resource-design-and-status-codes.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "طراحی resource و قرارداد status code",
+          "d": "یک مسیر API را حول resource طراحی کن و برای موفقیت، ورودی نامعتبر، نبودن و تعارض status مناسب انتخاب کن."
+        },
+        "en": {
+          "t": "Resource design and status-code contracts",
+          "d": "Design a resource-oriented API path and choose statuses for success, invalid input, absence, and conflict."
+        },
+        "kw": "api design resource status codes rest",
+        "cap": 0
+      },
+      {
+        "n": "29",
+        "file": "29-api-pagination-filtering-and-idempotency.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "صفحه‌بندی، فیلتر و درخواست تکراری",
+          "d": "فهرست سفارش را صفحه‌بندی کن و درخواست تکراری را با idempotency key و شواهد دیتابیس بررسی کن."
+        },
+        "en": {
+          "t": "Pagination, filtering, and duplicate requests",
+          "d": "Paginate an order list and handle duplicate requests with an idempotency key and database evidence."
+        },
+        "kw": "api pagination filtering idempotency key orders",
+        "cap": 0
+      },
+      {
+        "n": "30",
+        "file": "30-efcore-model.html",
         "ready": false,
         "ex": 18,
         "mins": 90,
@@ -5141,8 +5855,25 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "14",
-        "file": "14-efcore-migrations.html",
+        "n": "31",
+        "file": "31-efcore-relationships-and-constraints.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "EF Core: رابطه‌ها و constraintهای دیتابیس",
+          "d": "رابطهٔ Order و OrderItem را از navigation property تا foreign key پیاده کن و رفتار حذف را آزمایش کن."
+        },
+        "en": {
+          "t": "EF Core: relationships and database constraints",
+          "d": "Model Order and OrderItem from navigation properties to foreign keys, then test delete behaviour."
+        },
+        "kw": "efcore relationships foreign key constraint delete behavior",
+        "cap": 0
+      },
+      {
+        "n": "32",
+        "file": "32-efcore-migrations.html",
         "ready": false,
         "ex": 18,
         "mins": 85,
@@ -5158,8 +5889,25 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "15",
-        "file": "15-efcore-query.html",
+        "n": "33",
+        "file": "33-efcore-migration-deployment-safety.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "EF Core: مهاجرت امن schema",
+          "d": "SQL مهاجرت را قبل از اجرا بازبینی کن و تغییر امن را از تغییر مخرب و ناسازگار جدا کن."
+        },
+        "en": {
+          "t": "EF Core: safer schema migrations",
+          "d": "Review migration SQL before applying it; distinguish safe changes from destructive or incompatible ones."
+        },
+        "kw": "efcore migration sql production deployment schema",
+        "cap": 0
+      },
+      {
+        "n": "34",
+        "file": "34-efcore-query.html",
         "ready": false,
         "ex": 18,
         "mins": 95,
@@ -5175,8 +5923,25 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "16",
-        "file": "16-efcore-performance.html",
+        "n": "35",
+        "file": "35-efcore-projection-and-query-shape.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "EF Core: projection و شکل query",
+          "d": "به‌جای بارگذاری entity کامل، خروجی لازم را projection کن و SQL و اندازهٔ دادهٔ برگشتی را بررسی کن."
+        },
+        "en": {
+          "t": "EF Core: projections and query shape",
+          "d": "Project only the required output instead of loading full entities; inspect SQL and returned data size."
+        },
+        "kw": "efcore projection select sql query shape",
+        "cap": 0
+      },
+      {
+        "n": "36",
+        "file": "36-efcore-performance.html",
         "ready": false,
         "ex": 18,
         "mins": 95,
@@ -5192,8 +5957,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "17",
-        "file": "17-efcore-tracking.html",
+        "n": "37",
+        "file": "37-efcore-tracking.html",
         "ready": false,
         "ex": 18,
         "mins": 90,
@@ -5209,8 +5974,25 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "18",
-        "file": "18-efcore-advanced.html",
+        "n": "38",
+        "file": "38-efcore-transactions-and-concurrency.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "EF Core: transaction و همزمانی خوش‌بینانه",
+          "d": "دو تغییر هم‌زمان روی موجودی سفارش را بازتولید کن و transaction را از تشخیص concurrency جدا کن."
+        },
+        "en": {
+          "t": "EF Core: transactions and optimistic concurrency",
+          "d": "Reproduce concurrent order-inventory changes and distinguish transaction boundaries from concurrency detection."
+        },
+        "kw": "efcore transactions optimistic concurrency rowversion",
+        "cap": 0
+      },
+      {
+        "n": "39",
+        "file": "39-efcore-advanced.html",
         "ready": false,
         "ex": 18,
         "mins": 90,
@@ -5226,8 +6008,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "19",
-        "file": "19-dapper-basics.html",
+        "n": "40",
+        "file": "40-dapper-basics.html",
         "ready": false,
         "ex": 18,
         "mins": 85,
@@ -5243,8 +6025,25 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "20",
-        "file": "20-dapper-advanced.html",
+        "n": "41",
+        "file": "41-dapper-connections-parameters-and-safety.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Dapper: اتصال، پارامتر و query امن",
+          "d": "عمر connection و query پارامتری را در اجرا دنبال کن و ورودی ناامن را در نمونه‌ای ایزوله رد کن."
+        },
+        "en": {
+          "t": "Dapper: connections, parameters, and safe queries",
+          "d": "Trace connection ownership and parameterised queries; reject unsafe input in an isolated example."
+        },
+        "kw": "dapper connection parameterized query sql injection",
+        "cap": 0
+      },
+      {
+        "n": "42",
+        "file": "42-dapper-advanced.html",
         "ready": false,
         "ex": 18,
         "mins": 90,
@@ -5260,8 +6059,25 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "21",
-        "file": "21-ef-vs-dapper.html",
+        "n": "43",
+        "file": "43-dapper-multimapping-streaming-and-results.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Dapper: چندنگاشتی، چند نتیجه و streaming",
+          "d": "دادهٔ مرتبط را map کن و برای خروجی بزرگ، streaming را از buffering و مصرف حافظه جدا بسنج."
+        },
+        "en": {
+          "t": "Dapper: multi-mapping, multiple results, and streaming",
+          "d": "Map related data and compare streaming with buffering and memory use for large results."
+        },
+        "kw": "dapper multimapping multiple results streaming buffering",
+        "cap": 0
+      },
+      {
+        "n": "44",
+        "file": "44-ef-vs-dapper.html",
         "ready": false,
         "ex": 18,
         "mins": 85,
@@ -5277,8 +6093,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "22",
-        "file": "22-repository.html",
+        "n": "45",
+        "file": "45-repository.html",
         "ready": false,
         "ex": 18,
         "mins": 85,
@@ -5294,8 +6110,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "23",
-        "file": "23-cqrs-mediatr.html",
+        "n": "46",
+        "file": "46-cqrs-mediatr.html",
         "ready": false,
         "ex": 18,
         "mins": 90,
@@ -5311,8 +6127,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "24",
-        "file": "24-openapi.html",
+        "n": "47",
+        "file": "47-openapi.html",
         "ready": false,
         "ex": 18,
         "mins": 80,
@@ -5328,8 +6144,42 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "25",
-        "file": "25-versioning.html",
+        "n": "48",
+        "file": "48-outgoing-httpclient-and-resilience.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "ارتباط خروجی با HttpClient",
+          "d": "به سرویس بیرونی درخواست بفرست، عمر HttpClient را درست مدیریت کن و شکست شبکه را از پاسخ خطا جدا کن."
+        },
+        "en": {
+          "t": "Outgoing HTTP with HttpClient",
+          "d": "Call an external service, manage HttpClient correctly, and distinguish network failures from error responses."
+        },
+        "kw": "httpclient outgoing requests lifetime",
+        "cap": 0
+      },
+      {
+        "n": "49",
+        "file": "49-outgoing-timeouts-and-retries.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Timeout و retry برای سرویس بیرونی",
+          "d": "timeout و retry محدود بساز و خطای موقت را از خطای دائمی جدا کن تا retry خودش بار تازه نسازد."
+        },
+        "en": {
+          "t": "Timeouts and retries for outbound calls",
+          "d": "Add bounded timeouts and retries; distinguish transient from permanent failures so retries do not amplify load."
+        },
+        "kw": "http timeout retry resilience circuit breaker",
+        "cap": 0
+      },
+      {
+        "n": "50",
+        "file": "50-versioning.html",
         "ready": false,
         "ex": 18,
         "mins": 80,
@@ -5345,8 +6195,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "26",
-        "file": "26-errors.html",
+        "n": "51",
+        "file": "51-errors.html",
         "ready": false,
         "ex": 18,
         "mins": 85,
@@ -5362,8 +6212,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "27",
-        "file": "27-logging.html",
+        "n": "52",
+        "file": "52-logging.html",
         "ready": false,
         "ex": 18,
         "mins": 85,
@@ -5379,8 +6229,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "28",
-        "file": "28-telemetry.html",
+        "n": "53",
+        "file": "53-telemetry.html",
         "ready": false,
         "ex": 18,
         "mins": 90,
@@ -5396,8 +6246,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "29",
-        "file": "29-healthchecks.html",
+        "n": "54",
+        "file": "54-healthchecks.html",
         "ready": false,
         "ex": 18,
         "mins": 75,
@@ -5413,8 +6263,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "30",
-        "file": "30-caching.html",
+        "n": "55",
+        "file": "55-caching.html",
         "ready": false,
         "ex": 18,
         "mins": 90,
@@ -5430,8 +6280,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "31",
-        "file": "31-ratelimit.html",
+        "n": "56",
+        "file": "56-ratelimit.html",
         "ready": false,
         "ex": 18,
         "mins": 80,
@@ -5447,8 +6297,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "32",
-        "file": "32-authn.html",
+        "n": "57",
+        "file": "57-authn.html",
         "ready": false,
         "ex": 18,
         "mins": 95,
@@ -5464,8 +6314,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "33",
-        "file": "33-identity.html",
+        "n": "58",
+        "file": "58-identity.html",
         "ready": false,
         "ex": 18,
         "mins": 95,
@@ -5481,8 +6331,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "34",
-        "file": "34-oauth-oidc.html",
+        "n": "59",
+        "file": "59-oauth-oidc.html",
         "ready": false,
         "ex": 18,
         "mins": 95,
@@ -5498,8 +6348,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "35",
-        "file": "35-authz.html",
+        "n": "60",
+        "file": "60-authz.html",
         "ready": false,
         "ex": 18,
         "mins": 85,
@@ -5515,8 +6365,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "36",
-        "file": "36-security.html",
+        "n": "61",
+        "file": "61-security.html",
         "ready": false,
         "ex": 18,
         "mins": 90,
@@ -5532,8 +6382,42 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "37",
-        "file": "37-files.html",
+        "n": "62",
+        "file": "62-cors-antiforgery-and-browser-boundaries.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "CORS، antiforgery و مرز امنیت مرورگر",
+          "d": "درخواست مرورگر و client سروری را مقایسه کن و CORS را با مجوز دسترسی اشتباه نگیر."
+        },
+        "en": {
+          "t": "CORS, antiforgery, and browser security boundaries",
+          "d": "Compare browser and server-client requests; do not confuse CORS with access authorisation."
+        },
+        "kw": "cors antiforgery csrf browser security",
+        "cap": 0
+      },
+      {
+        "n": "63",
+        "file": "63-securing-secrets-and-data-protection.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Secret، چرخش کلید و Data Protection",
+          "d": "secret را از کد بیرون ببر و اثر از دست‌رفتن کلید Data Protection را روی cookie محافظت‌شده ببین."
+        },
+        "en": {
+          "t": "Secrets, key rotation, and Data Protection",
+          "d": "Keep secrets out of source and inspect how losing Data Protection keys affects protected cookies."
+        },
+        "kw": "secrets key rotation data protection cookies security",
+        "cap": 0
+      },
+      {
+        "n": "64",
+        "file": "64-files.html",
         "ready": false,
         "ex": 18,
         "mins": 80,
@@ -5549,8 +6433,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "38",
-        "file": "38-localization.html",
+        "n": "65",
+        "file": "65-localization.html",
         "ready": false,
         "ex": 18,
         "mins": 85,
@@ -5566,8 +6450,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "39",
-        "file": "39-background.html",
+        "n": "66",
+        "file": "66-background.html",
         "ready": false,
         "ex": 18,
         "mins": 85,
@@ -5583,8 +6467,25 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "40",
-        "file": "40-signalr.html",
+        "n": "67",
+        "file": "67-durable-background-work-and-outbox.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "کار پس‌زمینهٔ پایدار و مرز تحویل",
+          "d": "خرابی بین ثبت سفارش و صف را بازتولید کن و تشخیص بده چه وقت worker کافی نیست و outbox لازم می‌شود."
+        },
+        "en": {
+          "t": "Durable background work and the delivery boundary",
+          "d": "Reproduce failure between order persistence and queuing; decide when a worker is insufficient and an outbox is needed."
+        },
+        "kw": "background job durable outbox delivery boundary",
+        "cap": 0
+      },
+      {
+        "n": "68",
+        "file": "68-signalr.html",
         "ready": false,
         "ex": 18,
         "mins": 85,
@@ -5600,8 +6501,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "41",
-        "file": "41-grpc.html",
+        "n": "69",
+        "file": "69-grpc.html",
         "ready": false,
         "ex": 18,
         "mins": 85,
@@ -5617,8 +6518,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "42",
-        "file": "42-testing-unit.html",
+        "n": "70",
+        "file": "70-testing-unit.html",
         "ready": false,
         "ex": 18,
         "mins": 85,
@@ -5634,8 +6535,8 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "43",
-        "file": "43-testing-integration.html",
+        "n": "71",
+        "file": "71-testing-integration.html",
         "ready": false,
         "ex": 18,
         "mins": 95,
@@ -5651,8 +6552,25 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "44",
-        "file": "44-performance.html",
+        "n": "72",
+        "file": "72-integration-test-fixtures-and-testcontainers.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Fixture تست و Testcontainers",
+          "d": "وابستگی واقعی را برای تست یکپارچه بالا بیاور، دادهٔ هر تست را ایزوله کن و cleanup قابل‌تکرار بساز."
+        },
+        "en": {
+          "t": "Integration fixtures and Testcontainers",
+          "d": "Start a real dependency for integration tests, isolate each test's data, and make cleanup repeatable."
+        },
+        "kw": "integration test fixtures testcontainers database cleanup",
+        "cap": 0
+      },
+      {
+        "n": "73",
+        "file": "73-performance.html",
         "ready": false,
         "ex": 18,
         "mins": 90,
@@ -5668,8 +6586,25 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "45",
-        "file": "45-deploy.html",
+        "n": "74",
+        "file": "74-production-readiness-and-multiple-instances.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 105,
+        "fa": {
+          "t": "از localhost تا چند replica",
+          "d": "وابستگی session، فایل، کلید رمزنگاری و اتصال دیتابیس را زیر چند instance بررسی کن و state محلی را پیدا کن."
+        },
+        "en": {
+          "t": "From localhost to multiple replicas",
+          "d": "Inspect sessions, files, encryption keys, and database connections across instances; find hidden local state."
+        },
+        "kw": "production readiness replicas stateless data protection database connections",
+        "cap": 0
+      },
+      {
+        "n": "75",
+        "file": "75-deploy.html",
         "ready": false,
         "ex": 18,
         "mins": 90,
@@ -5685,8 +6620,42 @@ export const TRACKS: Track[] = [
         "cap": 0
       },
       {
-        "n": "46",
-        "file": "46-cap1.html",
+        "n": "76",
+        "file": "76-reverse-proxy-and-forwarded-headers.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Kestrel پشت reverse proxy",
+          "d": "درخواست را از Nginx تا Kestrel دنبال کن و Forwarded Headers را طوری تنظیم کن که scheme و IP جعل‌پذیر نشوند."
+        },
+        "en": {
+          "t": "Kestrel behind a reverse proxy",
+          "d": "Trace requests from Nginx to Kestrel and configure forwarded headers without trusting spoofed schemes or IPs."
+        },
+        "kw": "nginx reverse proxy forwarded headers kestrel",
+        "cap": 0
+      },
+      {
+        "n": "77",
+        "file": "77-graceful-shutdown-and-data-protection-keys.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "خاموشی تمیز و نگه‌داری کلیدها",
+          "d": "SIGTERM را در deploy آزمایش کن، پایان کارهای جاری را ببین و persistence کلیدهای Data Protection را میان replicaها بسنج."
+        },
+        "en": {
+          "t": "Graceful shutdown and persistent Data Protection keys",
+          "d": "Test SIGTERM during deployment, observe in-flight work, and verify Data Protection key persistence across replicas."
+        },
+        "kw": "sigterm graceful shutdown data protection keys replicas",
+        "cap": 0
+      },
+      {
+        "n": "78",
+        "file": "78-cap1.html",
         "ready": false,
         "ex": 5,
         "mins": 90,
@@ -5702,8 +6671,8 @@ export const TRACKS: Track[] = [
         "cap": 1
       },
       {
-        "n": "47",
-        "file": "47-cap2.html",
+        "n": "79",
+        "file": "79-cap2.html",
         "ready": false,
         "ex": 7,
         "mins": 160,
@@ -5719,8 +6688,8 @@ export const TRACKS: Track[] = [
         "cap": 2
       },
       {
-        "n": "48",
-        "file": "48-cap3.html",
+        "n": "80",
+        "file": "80-cap3.html",
         "ready": false,
         "ex": 9,
         "mins": 240,
@@ -5737,9 +6706,9 @@ export const TRACKS: Track[] = [
       }
     ],
     "stats": {
-      "chapters": 48,
-      "exercises": 831,
-      "minutes": 4365,
+      "chapters": 80,
+      "exercises": 1407,
+      "minutes": 7255,
       "capstones": 3,
       "ready": 0
     }
@@ -9888,7 +10857,7 @@ export const TRACKS: Track[] = [
       {
         "n": "13",
         "file": "13-monitoring.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
@@ -9976,7 +10945,7 @@ export const TRACKS: Track[] = [
       "exercises": 273,
       "minutes": 1510,
       "capstones": 3,
-      "ready": 16
+      "ready": 17
     }
   },
   {
@@ -19002,347 +19971,347 @@ export const TRACKS: Track[] = [
       {
         "n": "16",
         "file": "16-fulltext-and-pattern-search.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
           "t": "FULLTEXT و جست‌وجوی الگو",
-          "d": "FULLTEXT و جست‌وجوی الگو را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "d": "جست‌وجوی exact، prefix، substring و token را روی corpus جدا می‌کنیم و MATCH/AGAINST و محدودیت tokenizer را با مدرک می‌سنجیم."
         },
         "en": {
           "t": "FULLTEXT and Pattern Search",
-          "d": "Practice fulltext and pattern search with runnable SQL, database code, or commands and inspect the result."
+          "d": "Separate exact, prefix, substring, and token search on a fixture; inspect MATCH/AGAINST and tokenizer limits with evidence."
         },
-        "kw": "fulltext and pattern search practice fulltext and pattern search with runnable sql, database code, or commands and inspect the result. fulltext و جست‌وجوی الگو",
+        "kw": "mysql fulltext like pattern search natural language boolean mode tokenizer stopword innodb",
         "cap": 0
       },
       {
         "n": "17",
         "file": "17-index-write-cost-and-page-splits.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
-          "t": "هزینهٔ نوشتن و page split",
-          "d": "هزینهٔ نوشتن و page split را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "t": "هزینهٔ نوشتن index و Page Split",
+          "d": "با DML محدود روی fixture هزینهٔ نگهداری index را دنبال می‌کنیم و مرز شواهدی را که وقوع page split ثابت می‌کند می‌شناسیم."
         },
         "en": {
           "t": "Index Write Cost and Page Splits",
-          "d": "Practice index write cost and page splits with runnable SQL, database code, or commands and inspect the result."
+          "d": "Trace index maintenance with bounded DML and learn what evidence is—and is not—enough to prove a page split."
         },
-        "kw": "index write cost and page splits practice index write cost and page splits with runnable sql, database code, or commands and inspect the result. هزینهٔ نوشتن و page split",
+        "kw": "mysql innodb index write cost dml page split btree change buffer secondary index",
         "cap": 0
       },
       {
         "n": "18",
         "file": "18-index-maintenance.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
-          "t": "نگهداری ایندکس",
-          "d": "نگهداری ایندکس را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "t": "نگهداری index و آمار",
+          "d": "با queryهای ثابت، ANALYZE را از OPTIMIZE جدا می‌کنیم و هزینهٔ عملیاتی هرکدام را فقط روی fixture محدود می‌سنجیم."
         },
         "en": {
-          "t": "Index Maintenance",
-          "d": "Practice index maintenance with runnable SQL, database code, or commands and inspect the result."
+          "t": "Index Maintenance and Statistics",
+          "d": "Use fixed queries to distinguish ANALYZE from OPTIMIZE and inspect each operation’s impact only on a bounded fixture."
         },
-        "kw": "index maintenance practice index maintenance with runnable sql, database code, or commands and inspect the result. نگهداری ایندکس",
+        "kw": "mysql index maintenance analyze table optimize table innodb statistics rebuild storage evidence",
         "cap": 0
       },
       {
         "n": "19",
         "file": "19-explain-for-a-specific-question.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
-          "t": "EXPLAIN برای سؤال مشخص",
-          "d": "EXPLAIN برای سؤال مشخص را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "t": "خواندن EXPLAIN برای یک سؤال مشخص",
+          "d": "ستون‌های plan جدولی را برای query واقعی می‌خوانیم و rows تخمینی، نتیجهٔ اجرا و latency را از هم جدا نگه می‌داریم."
         },
         "en": {
           "t": "EXPLAIN for a Specific Question",
-          "d": "Practice explain for a specific question with runnable SQL, database code, or commands and inspect the result."
+          "d": "Read traditional plan fields for a real query and distinguish estimated rows, query results, and runtime."
         },
-        "kw": "explain for a specific question practice explain for a specific question with runnable sql, database code, or commands and inspect the result. explain برای سؤال مشخص",
+        "kw": "mysql explain traditional plan rows filtered possible_keys key type extra warnings query diagnosis",
         "cap": 0
       },
       {
         "n": "20",
         "file": "20-reading-json-plans.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
-          "t": "EXPLAIN FORMAT=JSON",
-          "d": "EXPLAIN FORMAT=JSON را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "t": "خواندن planهای JSON در MySQL",
+          "d": "ساختار plan تو‌در‌تو را می‌خوانیم، نسخهٔ قالب را تشخیص می‌دهیم و تخمین optimizer را با زمان اجرای واقعی اشتباه نمی‌گیریم."
         },
         "en": {
-          "t": "Reading JSON Plans",
-          "d": "Practice reading json plans with runnable SQL, database code, or commands and inspect the result."
+          "t": "Reading MySQL JSON Plans",
+          "d": "Read nested plan structure, identify the format version, and distinguish optimizer estimates from actual runtime."
         },
-        "kw": "reading json plans practice reading json plans with runnable sql, database code, or commands and inspect the result. explain format=json",
+        "kw": "mysql explain format json json_schema_version query_plan access path estimate cost query_block",
         "cap": 0
       },
       {
         "n": "21",
         "file": "21-runtime-plan-evidence.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
-          "t": "EXPLAIN ANALYZE و ANALYZE",
-          "d": "EXPLAIN ANALYZE و ANALYZE را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "t": "تخمین و اجرای واقعی با EXPLAIN ANALYZE",
+          "d": "روی fixture محدود rows و loops تخمینی را با اجرای واقعی می‌سنجیم و ANALYZE TABLE را از اجرای query جدا می‌کنیم."
         },
         "en": {
-          "t": "Runtime Plan Evidence",
-          "d": "Practice runtime plan evidence with runnable SQL, database code, or commands and inspect the result."
+          "t": "Estimated and Actual Execution with EXPLAIN ANALYZE",
+          "d": "Compare estimated rows and loops with a real execution on a bounded fixture, and distinguish ANALYZE TABLE from query execution."
         },
-        "kw": "runtime plan evidence practice runtime plan evidence with runnable sql, database code, or commands and inspect the result. explain analyze و analyze",
+        "kw": "mysql explain analyze actual rows loops iterator runtime analyze table optimizer statistics estimates",
         "cap": 0
       },
       {
         "n": "22",
         "file": "22-access-paths-and-explain-fields.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
-          "t": "Access type، join order و Extra",
-          "d": "Access type، join order و Extra را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "t": "access type، ترتیب join و Extra",
+          "d": "type، ترتیب دسترسی جدول‌ها و پیام‌های Extra را در کنار query و اندازهٔ داده می‌خوانیم؛ برچسب‌ها را حکم خوب یا بد نمی‌گیریم."
         },
         "en": {
-          "t": "Access Paths and EXPLAIN Fields",
-          "d": "Practice access paths and explain fields with runnable SQL, database code, or commands and inspect the result."
+          "t": "Access Types, Join Order, and Extra",
+          "d": "Read access types, table order, and Extra alongside the query and data size; do not treat labels as automatic verdicts."
         },
-        "kw": "access paths and explain fields practice access paths and explain fields with runnable sql, database code, or commands and inspect the result. access type، join order و extra",
+        "kw": "mysql explain access type const eq_ref ref range index all join order extra using where using index filesort",
         "cap": 0
       },
       {
         "n": "23",
         "file": "23-statistics-and-histograms.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
-          "t": "آمار و تخمین ردیف",
-          "d": "آمار و تخمین ردیف را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "t": "آمار و histogramها",
+          "d": "توزیع نامتوازن داده را می‌سازیم، تخمین optimizer را می‌سنجیم و histogram ستونی را با دقت و محدودیت‌هایش به کار می‌گیریم."
         },
         "en": {
           "t": "Statistics and Histograms",
-          "d": "Practice statistics and histograms with runnable SQL, database code, or commands and inspect the result."
+          "d": "Create a skewed data distribution, inspect optimizer estimates, and use column histograms while understanding their limits."
         },
-        "kw": "statistics and histograms practice statistics and histograms with runnable sql, database code, or commands and inspect the result. آمار و تخمین ردیف",
+        "kw": "statistics histograms skewed data optimizer estimates histogram_type analyze table mysql آمار histogram تخمین optimizer توزیع داده",
         "cap": 0
       },
       {
         "n": "24",
         "file": "24-understanding-optimizer-decisions.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
           "t": "تصمیم optimizer بدون افسانه",
-          "d": "تصمیم optimizer بدون افسانه را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "d": "plan را با query، توزیع داده و index می‌خوانیم، trace می‌گیریم و hint را فقط با آزمایش محدود می‌سنجیم."
         },
         "en": {
           "t": "Understanding Optimizer Decisions",
-          "d": "Practice understanding optimizer decisions with runnable SQL, database code, or commands and inspect the result."
+          "d": "Read a plan using the query, data distribution, and indexes; inspect a trace and test hints only through controlled experiments."
         },
-        "kw": "understanding optimizer decisions practice understanding optimizer decisions with runnable sql, database code, or commands and inspect the result. تصمیم optimizer بدون افسانه",
+        "kw": "mysql optimizer trace explain optimizer hints optimizer_switch estimated rows access path cost statistics تصمیم optimizer plan تخمین",
         "cap": 0
       },
       {
         "n": "25",
         "file": "25-acid-and-transaction-boundaries.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
-          "t": "ACID و مرز تراکنش",
-          "d": "ACID و مرز تراکنش را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "t": "ACID و مرز transaction",
+          "d": "انتقال چندمرحله‌ای را با InnoDB، COMMIT و ROLLBACK یکپارچه می‌کنیم و مرز consistency، autocommit و DDL را می‌سنجیم."
         },
         "en": {
           "t": "ACID and Transaction Boundaries",
-          "d": "Practice acid and transaction boundaries with runnable SQL, database code, or commands and inspect the result."
+          "d": "Make a multi-step transfer atomic with InnoDB, COMMIT, and ROLLBACK; inspect consistency, autocommit, and DDL boundaries."
         },
-        "kw": "acid and transaction boundaries practice acid and transaction boundaries with runnable sql, database code, or commands and inspect the result. acid و مرز تراکنش",
+        "kw": "mysql acid transaction innodb autocommit rollback commit consistency durability implicit commit transfer transaction boundary",
         "cap": 0
       },
       {
         "n": "26",
         "file": "26-savepoints-and-transaction-recovery.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
-          "t": "SAVEPOINT و بازیابی خطا",
-          "d": "SAVEPOINT و بازیابی خطا را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "t": "SAVEPOINT؛ بازگشت به مرحلهٔ میانی",
+          "d": "تغییرهای اصلی را نگه می‌داریم، یک مرحلهٔ اختیاری را rollback می‌کنیم و می‌سنجیم چرا savepoint نه transaction تو در تو است و نه پایان کار."
         },
         "en": {
           "t": "Savepoints and Transaction Recovery",
-          "d": "Practice savepoints and transaction recovery with runnable SQL, database code, or commands and inspect the result."
+          "d": "Preserve core changes, roll back an optional step, and distinguish a savepoint from a nested transaction or transaction end."
         },
-        "kw": "savepoints and transaction recovery practice savepoints and transaction recovery with runnable sql, database code, or commands and inspect the result. savepoint و بازیابی خطا",
+        "kw": "mysql savepoint rollback to release savepoint transaction innodb partial rollback transaction recovery rollback موضعی",
         "cap": 0
       },
       {
         "n": "27",
         "file": "27-isolation-and-consistent-reads.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
           "t": "Isolation و consistent read",
-          "d": "Isolation و consistent read را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "d": "با دو session رفتار snapshot در REPEATABLE READ و READ COMMITTED را می‌سنجیم و سطح isolation را در scope درست تنظیم می‌کنیم."
         },
         "en": {
           "t": "Isolation and Consistent Reads",
-          "d": "Practice isolation and consistent reads with runnable SQL, database code, or commands and inspect the result."
+          "d": "Use two sessions to inspect snapshots under REPEATABLE READ and READ COMMITTED, and set isolation at the right scope."
         },
-        "kw": "isolation and consistent reads practice isolation and consistent reads with runnable sql, database code, or commands and inspect the result. isolation و consistent read",
+        "kw": "mysql innodb isolation level repeatable read read committed consistent read snapshot mvcc session transaction concurrency",
         "cap": 0
       },
       {
         "n": "28",
         "file": "28-locking-reads-and-innodb-locks.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
           "t": "Locking read و قفل‌های InnoDB",
-          "d": "Locking read و قفل‌های InnoDB را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "d": "در دو session رفتار FOR UPDATE و FOR SHARE را می‌بینیم، انتظار قفل را تشخیص می‌دهیم و از NOWAIT و SKIP LOCKED با احتیاط استفاده می‌کنیم."
         },
         "en": {
           "t": "Locking Reads and InnoDB Locks",
-          "d": "Practice locking reads and innodb locks with runnable SQL, database code, or commands and inspect the result."
+          "d": "Use two sessions to compare FOR UPDATE and FOR SHARE, diagnose lock waits, and apply NOWAIT and SKIP LOCKED carefully."
         },
-        "kw": "locking reads and innodb locks practice locking reads and innodb locks with runnable sql, database code, or commands and inspect the result. locking read و قفل‌های innodb",
+        "kw": "mysql innodb locking read for update for share nowait skip locked row lock transaction concurrency lock wait",
         "cap": 0
       },
       {
         "n": "29",
         "file": "29-metadata-locks-and-blocking.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
-          "t": "Metadata lock و blocking",
-          "d": "Metadata lock و blocking را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "t": "Metadata lock و انتظار DDL",
+          "d": "با Performance Schema درخواست PENDING و blocker را پیدا می‌کنیم و metadata lock را از row lock جدا می‌سازیم."
         },
         "en": {
           "t": "Metadata Locks and Blocking",
-          "d": "Practice metadata locks and blocking with runnable SQL, database code, or commands and inspect the result."
+          "d": "Use Performance Schema to find a pending request and its blocker, distinguishing metadata locks from row locks."
         },
-        "kw": "metadata locks and blocking practice metadata locks and blocking with runnable sql, database code, or commands and inspect the result. metadata lock و blocking",
+        "kw": "mysql metadata lock mdl ddl alter table blocking performance schema metadata_locks pending granted transaction",
         "cap": 0
       },
       {
         "n": "30",
         "file": "30-deadlocks-evidence-and-retries.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
-          "t": "Deadlock، evidence و retry",
-          "d": "Deadlock، evidence و retry را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "t": "بن‌بست در InnoDB؛ مدرک، پیشگیری و retry",
+          "d": "چرخهٔ قفل را در دو session می‌سازیم، victim را از شواهد تشخیص می‌دهیم و retry را از timeout جدا می‌کنیم."
         },
         "en": {
-          "t": "Deadlocks, Evidence, and Retries",
-          "d": "Practice deadlocks, evidence, and retries with runnable SQL, database code, or commands and inspect the result."
+          "t": "Deadlocks in InnoDB: Evidence, Prevention, and Retries",
+          "d": "Reproduce a lock cycle in two sessions, identify the victim from evidence, and distinguish retries from timeouts."
         },
-        "kw": "deadlocks, evidence, and retries practice deadlocks, evidence, and retries with runnable sql, database code, or commands and inspect the result. deadlock، evidence و retry",
+        "kw": "mysql innodb deadlock 1213 40001 lock wait timeout 1205 retry victim cycle SHOW ENGINE INNODB STATUS consistent lock order idempotency",
         "cap": 0
       },
       {
         "n": "31",
         "file": "31-stored-procedures.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
-          "t": "Stored Procedure",
-          "d": "Stored Procedure را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "t": "Stored Procedure؛ یک عملیات چندمرحله‌ای با یک ورودی روشن",
+          "d": "یک انتقال چندمرحله‌ای را با Procedure اجرایی می‌کنیم، پارامتر IN و OUT را می‌سنجیم و مرز CALL، transaction و مجوز را بررسی می‌کنیم."
         },
         "en": {
-          "t": "Stored Procedures",
-          "d": "Practice stored procedures with runnable SQL, database code, or commands and inspect the result."
+          "t": "Stored Procedures: One Callable Interface for a Multi-step Operation",
+          "d": "Implement a multi-step transfer as a stored procedure, test IN and OUT parameters, and inspect CALL, transaction, and privilege boundaries."
         },
-        "kw": "stored procedures practice stored procedures with runnable sql, database code, or commands and inspect the result. stored procedure",
+        "kw": "mysql stored procedure create procedure call IN OUT INOUT delimiter transaction SQL SECURITY INVOKER CREATE ROUTINE EXECUTE",
         "cap": 0
       },
       {
         "n": "32",
         "file": "32-stored-functions.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
-          "t": "Stored Function",
-          "d": "Stored Function را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "t": "Stored Function؛ یک مقدار برای استفاده داخل query",
+          "d": "Function را در expression یک SELECT به‌کار می‌بریم، RETURN و determinism را می‌سنجیم و هزینه و محدودیتش را با EXPLAIN بررسی می‌کنیم."
         },
         "en": {
-          "t": "Stored Functions",
-          "d": "Practice stored functions with runnable SQL, database code, or commands and inspect the result."
+          "t": "Stored Functions: Return a Value Inside a Query",
+          "d": "Use a function in a SELECT expression, test RETURN and determinism, and inspect its cost and restrictions with EXPLAIN."
         },
-        "kw": "stored functions practice stored functions with runnable sql, database code, or commands and inspect the result. stored function",
+        "kw": "mysql stored function create function return scalar deterministic no sql reads sql data function restrictions result set transaction expression query explain index predicate security",
         "cap": 0
       },
       {
         "n": "33",
         "file": "33-triggers-and-multi-row-changes.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
-          "t": "Trigger و تغییر چندردیفی",
-          "d": "Trigger و تغییر چندردیفی را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "t": "Trigger؛ ثبت دقیق تغییرهای چندردیفی",
+          "d": "با Trigger برای هر ردیف تغییرکرده audit می‌سازیم، OLD و NEW را بررسی می‌کنیم و اثر rollback یا خطای Trigger را روی InnoDB می‌سنجیم."
         },
         "en": {
-          "t": "Triggers and Multi-row Changes",
-          "d": "Practice triggers and multi-row changes with runnable SQL, database code, or commands and inspect the result."
+          "t": "Triggers: Auditing Multi-row Changes",
+          "d": "Audit each affected row with triggers, inspect OLD and NEW, and test rollback behavior and trigger errors with InnoDB."
         },
-        "kw": "triggers and multi-row changes practice triggers and multi-row changes with runnable sql, database code, or commands and inspect the result. trigger و تغییر چندردیفی",
+        "kw": "mysql trigger old new for each row before after update insert delete multi-row audit innodb rollback signal trigger privilege metadata",
         "cap": 0
       },
       {
         "n": "34",
         "file": "34-the-event-scheduler.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
-          "t": "Event Scheduler",
-          "d": "Event Scheduler را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "t": "Event Scheduler؛ کار SQL در زمان مشخص",
+          "d": "یک Event یک‌باره و تکرارشونده می‌سازیم، وضعیت scheduler و timezone را می‌خوانیم و اجرای واقعی را با metadata و جدول ثبت ثابت می‌کنیم."
         },
         "en": {
-          "t": "The Event Scheduler",
-          "d": "Practice the event scheduler with runnable SQL, database code, or commands and inspect the result."
+          "t": "MySQL Event Scheduler: Timed SQL with Evidence",
+          "d": "Create one-time and recurring Events, inspect scheduler state and time zones, and prove execution with metadata and a run log."
         },
-        "kw": "the event scheduler practice the event scheduler with runnable sql, database code, or commands and inspect the result. event scheduler",
+        "kw": "mysql event scheduler create event on schedule at every starts ends event_scheduler timezone definer EVENT privilege information_schema events last_executed metadata",
         "cap": 0
       },
       {
         "n": "35",
         "file": "35-prepared-and-dynamic-sql.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
-          "t": "Prepared و Dynamic SQL",
-          "d": "Prepared و Dynamic SQL را با query، کد یا دستور اجرایی روی محیط تمرینی آزمایش می‌کنیم و نتیجه را می‌سنجیم."
+          "t": "Prepared و Dynamic SQL؛ پارامتر امن، شناسهٔ محدود",
+          "d": "با PREPARE و EXECUTE مقدارها را جدا bind می‌کنیم، محدودیت placeholder برای نام جدول را می‌سنجیم و Dynamic SQL را فقط با allowlist می‌سازیم."
         },
         "en": {
-          "t": "Prepared and Dynamic SQL",
-          "d": "Practice prepared and dynamic sql with runnable SQL, database code, or commands and inspect the result."
+          "t": "Prepared and Dynamic SQL: Bound Values, Constrained Identifiers",
+          "d": "Bind values with PREPARE and EXECUTE, test why table names cannot use markers, and build dynamic SQL only from an allowlist."
         },
-        "kw": "prepared and dynamic sql practice prepared and dynamic sql with runnable sql, database code, or commands and inspect the result. prepared و dynamic sql",
+        "kw": "mysql prepared statement prepare execute deallocate parameter marker placeholder user variable dynamic sql identifier table column allowlist stored procedure function trigger session scope",
         "cap": 0
       },
       {
         "n": "36",
         "file": "36-routine-error-handling.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -19359,7 +20328,7 @@ export const TRACKS: Track[] = [
       {
         "n": "37",
         "file": "37-mysql-version-upgrade-lab.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -19376,7 +20345,7 @@ export const TRACKS: Track[] = [
       {
         "n": "38",
         "file": "38-accounts-hosts-and-authentication.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
@@ -19393,7 +20362,7 @@ export const TRACKS: Track[] = [
       {
         "n": "39",
         "file": "39-grant-roles-and-least-privilege.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
@@ -19410,7 +20379,7 @@ export const TRACKS: Track[] = [
       {
         "n": "40",
         "file": "40-tls-and-application-credentials.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -19427,7 +20396,7 @@ export const TRACKS: Track[] = [
       {
         "n": "41",
         "file": "41-sql-injection-at-the-application-boundary.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -19444,7 +20413,7 @@ export const TRACKS: Track[] = [
       {
         "n": "42",
         "file": "42-ports-dns-and-firewalls.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
@@ -19461,7 +20430,7 @@ export const TRACKS: Track[] = [
       {
         "n": "43",
         "file": "43-docker-networking-and-database-hosts.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -19478,7 +20447,7 @@ export const TRACKS: Track[] = [
       {
         "n": "44",
         "file": "44-connection-strings-pools-and-timeouts.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
@@ -19495,7 +20464,7 @@ export const TRACKS: Track[] = [
       {
         "n": "45",
         "file": "45-multiple-databases-and-servers.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -19512,7 +20481,7 @@ export const TRACKS: Track[] = [
       {
         "n": "46",
         "file": "46-server-and-session-configuration.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -19529,7 +20498,7 @@ export const TRACKS: Track[] = [
       {
         "n": "47",
         "file": "47-schema-migrations-and-online-ddl.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -19546,7 +20515,7 @@ export const TRACKS: Track[] = [
       {
         "n": "48",
         "file": "48-logical-backups.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -19563,7 +20532,7 @@ export const TRACKS: Track[] = [
       {
         "n": "49",
         "file": "49-physical-backups.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -19580,7 +20549,7 @@ export const TRACKS: Track[] = [
       {
         "n": "50",
         "file": "50-restore-and-point-in-time-recovery.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 105,
         "fa": {
@@ -19597,7 +20566,7 @@ export const TRACKS: Track[] = [
       {
         "n": "51",
         "file": "51-asynchronous-replication-and-binlogs.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 105,
         "fa": {
@@ -19614,7 +20583,7 @@ export const TRACKS: Track[] = [
       {
         "n": "52",
         "file": "52-gtid-lag-and-read-after-write.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -19631,7 +20600,7 @@ export const TRACKS: Track[] = [
       {
         "n": "53",
         "file": "53-high-availability-architectures.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 110,
         "fa": {
@@ -19648,7 +20617,7 @@ export const TRACKS: Track[] = [
       {
         "n": "54",
         "file": "54-monitoring-the-database.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -19665,7 +20634,7 @@ export const TRACKS: Track[] = [
       {
         "n": "55",
         "file": "55-database-incident-diagnosis.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -19682,7 +20651,7 @@ export const TRACKS: Track[] = [
       {
         "n": "56",
         "file": "56-partitioning-and-large-table-operations.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 105,
         "fa": {
@@ -19699,7 +20668,7 @@ export const TRACKS: Track[] = [
       {
         "n": "57",
         "file": "57-evidence-based-query-tuning.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 110,
         "fa": {
@@ -19716,7 +20685,7 @@ export const TRACKS: Track[] = [
       {
         "n": "58",
         "file": "58-project-1-design-a-shop-schema.html",
-        "ready": false,
+        "ready": true,
         "ex": 5,
         "mins": 90,
         "fa": {
@@ -19733,7 +20702,7 @@ export const TRACKS: Track[] = [
       {
         "n": "59",
         "file": "59-project-2-analytical-reporting.html",
-        "ready": false,
+        "ready": true,
         "ex": 7,
         "mins": 150,
         "fa": {
@@ -19750,7 +20719,7 @@ export const TRACKS: Track[] = [
       {
         "n": "60",
         "file": "60-project-3-from-slow-to-measurably-faster.html",
-        "ready": false,
+        "ready": true,
         "ex": 9,
         "mins": 210,
         "fa": {
@@ -19770,7 +20739,7 @@ export const TRACKS: Track[] = [
       "exercises": 1047,
       "minutes": 5585,
       "capstones": 3,
-      "ready": 15
+      "ready": 60
     }
   },
   {
@@ -19846,7 +20815,7 @@ export const TRACKS: Track[] = [
       {
         "n": "04",
         "file": "04-json-and-mysql-compatibility-boundaries.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -19863,7 +20832,7 @@ export const TRACKS: Track[] = [
       {
         "n": "05",
         "file": "05-storage-engines-overview.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -19880,7 +20849,7 @@ export const TRACKS: Track[] = [
       {
         "n": "06",
         "file": "06-innodb-transactions-and-recovery.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -19897,7 +20866,7 @@ export const TRACKS: Track[] = [
       {
         "n": "07",
         "file": "07-aria-and-legacy-engines.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -19914,7 +20883,7 @@ export const TRACKS: Track[] = [
       {
         "n": "08",
         "file": "08-indexes-and-explain.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -19931,7 +20900,7 @@ export const TRACKS: Track[] = [
       {
         "n": "09",
         "file": "09-explain-analyze-and-optimizer-statistics.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -19948,7 +20917,7 @@ export const TRACKS: Track[] = [
       {
         "n": "10",
         "file": "10-composite-covering-and-fulltext-indexes.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -19965,7 +20934,7 @@ export const TRACKS: Track[] = [
       {
         "n": "11",
         "file": "11-index-maintenance-and-query-tuning.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -19982,7 +20951,7 @@ export const TRACKS: Track[] = [
       {
         "n": "12",
         "file": "12-generated-columns-and-functional-indexing.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -19999,7 +20968,7 @@ export const TRACKS: Track[] = [
       {
         "n": "13",
         "file": "13-sequences-and-identifiers.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
@@ -20016,7 +20985,7 @@ export const TRACKS: Track[] = [
       {
         "n": "14",
         "file": "14-partitioning-and-large-tables.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -20033,7 +21002,7 @@ export const TRACKS: Track[] = [
       {
         "n": "15",
         "file": "15-views-and-routine-interfaces.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
@@ -20050,7 +21019,7 @@ export const TRACKS: Track[] = [
       {
         "n": "16",
         "file": "16-stored-procedures-functions-and-handlers.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -20067,7 +21036,7 @@ export const TRACKS: Track[] = [
       {
         "n": "17",
         "file": "17-triggers-and-event-scheduler.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -20084,7 +21053,7 @@ export const TRACKS: Track[] = [
       {
         "n": "18",
         "file": "18-prepared-statements-and-dynamic-sql.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -20101,7 +21070,7 @@ export const TRACKS: Track[] = [
       {
         "n": "19",
         "file": "19-temporary-tables-and-cte-tradeoffs.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -20118,7 +21087,7 @@ export const TRACKS: Track[] = [
       {
         "n": "20",
         "file": "20-system-versioned-tables.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -20135,7 +21104,7 @@ export const TRACKS: Track[] = [
       {
         "n": "21",
         "file": "21-application-time-and-bitemporal-data.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -20152,7 +21121,7 @@ export const TRACKS: Track[] = [
       {
         "n": "22",
         "file": "22-accounts-authentication-and-roles.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -20169,7 +21138,7 @@ export const TRACKS: Track[] = [
       {
         "n": "23",
         "file": "23-least-privilege-and-auditing.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -20186,7 +21155,7 @@ export const TRACKS: Track[] = [
       {
         "n": "24",
         "file": "24-tls-and-client-connections.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -20203,7 +21172,7 @@ export const TRACKS: Track[] = [
       {
         "n": "25",
         "file": "25-server-configuration-and-sessions.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -20220,7 +21189,7 @@ export const TRACKS: Track[] = [
       {
         "n": "26",
         "file": "26-networking-dns-ports-and-firewalls.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -20237,7 +21206,7 @@ export const TRACKS: Track[] = [
       {
         "n": "27",
         "file": "27-slow-query-log-and-performance-schema.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -20254,7 +21223,7 @@ export const TRACKS: Track[] = [
       {
         "n": "28",
         "file": "28-mariadb-monitoring-and-incident-diagnosis.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -20271,7 +21240,7 @@ export const TRACKS: Track[] = [
       {
         "n": "29",
         "file": "29-logical-backup-with-mariadb-dump.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -20288,7 +21257,7 @@ export const TRACKS: Track[] = [
       {
         "n": "30",
         "file": "30-physical-backup-with-mariabackup.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -20305,7 +21274,7 @@ export const TRACKS: Track[] = [
       {
         "n": "31",
         "file": "31-binlogs-and-point-in-time-recovery.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 105,
         "fa": {
@@ -20322,7 +21291,7 @@ export const TRACKS: Track[] = [
       {
         "n": "32",
         "file": "32-replication-basics-and-health.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -20339,7 +21308,7 @@ export const TRACKS: Track[] = [
       {
         "n": "33",
         "file": "33-gtid-and-replication-recovery.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -20356,7 +21325,7 @@ export const TRACKS: Track[] = [
       {
         "n": "34",
         "file": "34-multi-source-replication.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -20373,7 +21342,7 @@ export const TRACKS: Track[] = [
       {
         "n": "35",
         "file": "35-galera-cluster-consistency-and-quorum.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 110,
         "fa": {
@@ -20390,7 +21359,7 @@ export const TRACKS: Track[] = [
       {
         "n": "36",
         "file": "36-online-ddl-and-schema-migrations.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -20407,7 +21376,7 @@ export const TRACKS: Track[] = [
       {
         "n": "37",
         "file": "37-upgrade-and-mysql-migration-compatibility.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 105,
         "fa": {
@@ -20424,7 +21393,7 @@ export const TRACKS: Track[] = [
       {
         "n": "38",
         "file": "38-project-1-mariadb-shop-schema.html",
-        "ready": false,
+        "ready": true,
         "ex": 5,
         "mins": 120,
         "fa": {
@@ -20441,7 +21410,7 @@ export const TRACKS: Track[] = [
       {
         "n": "39",
         "file": "39-project-2-mariadb-analytics.html",
-        "ready": false,
+        "ready": true,
         "ex": 7,
         "mins": 180,
         "fa": {
@@ -20458,7 +21427,7 @@ export const TRACKS: Track[] = [
       {
         "n": "40",
         "file": "40-project-3-mariadb-operations-and-recovery.html",
-        "ready": false,
+        "ready": true,
         "ex": 9,
         "mins": 240,
         "fa": {
@@ -20478,7 +21447,7 @@ export const TRACKS: Track[] = [
       "exercises": 687,
       "minutes": 4060,
       "capstones": 3,
-      "ready": 3
+      "ready": 40
     }
   },
   {
@@ -29541,6 +30510,340 @@ export const TRACKS: Track[] = [
       "chapters": 18,
       "exercises": 291,
       "minutes": 2000,
+      "capstones": 3,
+      "ready": 0
+    }
+  },
+  {
+    "id": "79-dotnet-platform",
+    "dir": "79-dotnet-platform",
+    "accent": "#512BD4",
+    "accentDark": null,
+    "cat": "backend",
+    "ico": "<path d=\"M4 5.5h16v13H4z\"/><path d=\"M8 9h8M8 12h5M8 15h7\" stroke-linecap=\"round\"/>",
+    "locked": false,
+    "fa": {
+      "name": "پلتفرم .NET",
+      "desc": "از SDK و پروژه تا runtime، عیب‌یابی و انتشار؛ بفهم برنامهٔ دات‌نت چطور ساخته و روی سیستم مقصد اجرا می‌شود.",
+      "intro": "کد C# را بلدی؛ حالا وقت آن است مسیر پشت‌صحنه را دنبال کنیم: دستور build چه چیزی می‌سازد، runtime چطور برنامه را بالا می‌آورد، و برای انتشار دقیقاً چه چیزی باید همراه برنامه باشد؟ این دوره روی خود پلتفرم .NET تمرکز دارد، نه آموزش دوبارهٔ زبان C# یا ساخت API با ASP.NET Core."
+    },
+    "en": {
+      "name": "The .NET Platform",
+      "desc": "From the SDK and project system to the runtime, diagnostics, and publishing—understand how a .NET application is built and runs on its target machine.",
+      "intro": "You know C#; now follow what happens behind it: what does a build produce, how does the runtime start the application, and what must ship with it? This course focuses on the .NET platform itself, not a second pass through C# or ASP.NET Core API development."
+    },
+    "chapters": [
+      {
+        "n": "01",
+        "file": "01-dotnet-platform-map.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 75,
+        "fa": {
+          "t": "نقشهٔ پلتفرم .NET",
+          "d": "SDK، runtime، کتابخانه‌ها و برنامه را از هم جدا کن و ببین هرکدام کجای مسیر اجرا قرار می‌گیرند."
+        },
+        "en": {
+          "t": "The .NET platform map",
+          "d": "Separate the SDK, runtime, libraries, and application; see where each fits in the execution path."
+        },
+        "kw": "dotnet platform sdk runtime libraries overview",
+        "cap": 0
+      },
+      {
+        "n": "02",
+        "file": "02-dotnet-cli-workflow.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 80,
+        "fa": {
+          "t": "چرخهٔ کار با dotnet CLI",
+          "d": "ساخت، اجرا و انتشار پروژه را با dotnet CLI پیش ببر و بفهم هر فرمان چه مرحله‌ای را جلو می‌برد."
+        },
+        "en": {
+          "t": "The dotnet CLI workflow",
+          "d": "Create, run, and publish a project with the dotnet CLI; identify which stage each command performs."
+        },
+        "kw": "dotnet cli new run build test publish",
+        "cap": 0
+      },
+      {
+        "n": "03",
+        "file": "03-project-files-and-msbuild.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "فایل پروژه و MSBuild",
+          "d": "فایل ‎.csproj‎، خاصیت‌ها، itemها و targetها را بخوان و اثر یک تغییر را در build دنبال کن."
+        },
+        "en": {
+          "t": "Project files and MSBuild",
+          "d": "Read the .csproj, properties, items, and targets; trace how a project-file change affects a build."
+        },
+        "kw": "csproj msbuild properties items targets",
+        "cap": 0
+      },
+      {
+        "n": "04",
+        "file": "04-nuget-restore-and-locking.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "NuGet، restore و نسخه‌های قابل‌تکرار",
+          "d": "وابستگی‌ها را restore کن، فایل‌های تولیدشده را بشناس و نسخه‌ها و منبع package را قابل‌ردیابی نگه دار."
+        },
+        "en": {
+          "t": "NuGet restore and repeatable dependencies",
+          "d": "Restore dependencies, understand generated assets, and keep package versions and sources traceable."
+        },
+        "kw": "nuget restore packages lock file sources dependencies",
+        "cap": 0
+      },
+      {
+        "n": "05",
+        "file": "05-build-compiler-and-artifacts.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "از build تا artifact",
+          "d": "مسیر compiler و build را تا IL، فایل‌های جانبی و خروجی قابل‌اجرا دنبال کن؛ خطای هر مرحله را از روی شواهد جدا کن."
+        },
+        "en": {
+          "t": "From build to artifacts",
+          "d": "Follow compilation through IL, supporting files, and runnable output; locate failures from the evidence at each stage."
+        },
+        "kw": "build compiler roslyn il pdb artifacts",
+        "cap": 0
+      },
+      {
+        "n": "06",
+        "file": "06-target-framework-and-rid.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Target Framework و Runtime Identifier",
+          "d": "TFM و RID را انتخاب کن و بفهم سازگاری API و مقصد اجرا چطور روی restore و publish اثر می‌گذارند."
+        },
+        "en": {
+          "t": "Target frameworks and runtime identifiers",
+          "d": "Choose a TFM and RID; see how API compatibility and the target platform affect restore and publishing."
+        },
+        "kw": "tfm target framework rid runtime identifier compatibility",
+        "cap": 0
+      },
+      {
+        "n": "07",
+        "file": "07-application-startup-and-hosting.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "برنامهٔ دات‌نت چطور شروع می‌شود؟",
+          "d": "از apphost و hostfxr تا runtime و entry point حرکت کن و خطای شروع برنامه را در مرز درست پیدا کن."
+        },
+        "en": {
+          "t": "How a .NET application starts",
+          "d": "Trace apphost, hostfxr, the runtime, and the entry point; find startup failures at the right boundary."
+        },
+        "kw": "apphost hostfxr runtimeconfig startup entry point",
+        "cap": 0
+      },
+      {
+        "n": "08",
+        "file": "08-assemblies-and-dependency-resolution.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Assemblyها و پیدا کردن وابستگی‌ها",
+          "d": "نقش assembly، فایل deps و قواعد بارگذاری را بررسی کن تا خطاهای پیدا نشدن یا ناسازگاری وابستگی را تشخیص بدهی."
+        },
+        "en": {
+          "t": "Assemblies and dependency resolution",
+          "d": "Inspect assemblies, the deps file, and loading rules to diagnose missing or incompatible dependencies."
+        },
+        "kw": "assembly deps json load context dependency resolution",
+        "cap": 0
+      },
+      {
+        "n": "09",
+        "file": "09-generic-host-lifecycle.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Generic Host و چرخهٔ عمر برنامه",
+          "d": "میزبان عمومی، سرویس‌های پس‌زمینه، شروع و توقف تمیز را بیرون از جزئیات یک فریم‌ورک وب به کار بگیر."
+        },
+        "en": {
+          "t": "The Generic Host and application lifecycle",
+          "d": "Use the Generic Host, background services, and graceful startup and shutdown without coupling the lesson to a web framework."
+        },
+        "kw": "generic host hosted service backgroundservice lifecycle shutdown",
+        "cap": 0
+      },
+      {
+        "n": "10",
+        "file": "10-configuration-di-and-logging.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "پیکربندی، DI و لاگ در برنامهٔ میزبان‌شده",
+          "d": "تنظیمات و سرویس‌ها را به Host وصل کن، چرخهٔ عمرشان را درست انتخاب کن و رخدادهای کاربردی ثبت کن."
+        },
+        "en": {
+          "t": "Configuration, DI, and logging in hosted applications",
+          "d": "Connect configuration and services to the Host, choose lifetimes deliberately, and record useful operational events."
+        },
+        "kw": "configuration dependency injection logging host options",
+        "cap": 0
+      },
+      {
+        "n": "11",
+        "file": "11-dotnet-diagnostics.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 105,
+        "fa": {
+          "t": "عیب‌یابی با ابزارهای .NET",
+          "d": "با ابزارهای تشخیصی خود دات‌نت، مصرف منابع و وضعیت process را مشاهده کن و دادهٔ لازم برای تشخیص بساز."
+        },
+        "en": {
+          "t": "Troubleshooting with .NET diagnostics",
+          "d": "Use the .NET diagnostic tools to inspect resource use and process behaviour, gathering evidence for a diagnosis."
+        },
+        "kw": "dotnet diagnostics counters trace dump process",
+        "cap": 0
+      },
+      {
+        "n": "12",
+        "file": "12-managed-memory-and-gc.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 105,
+        "fa": {
+          "t": "حافظهٔ مدیریت‌شده و Garbage Collector",
+          "d": "allocation، نسل‌های GC و عمر اشیا را در اندازه‌گیری ببین؛ جمع‌آوری حافظه را با آزادکردن منبع بیرونی یکی نگیر."
+        },
+        "en": {
+          "t": "Managed memory and the garbage collector",
+          "d": "Measure allocations, GC generations, and object lifetimes; distinguish memory collection from releasing external resources."
+        },
+        "kw": "managed memory garbage collector gc allocation dispose",
+        "cap": 0
+      },
+      {
+        "n": "13",
+        "file": "13-publish-models-and-self-contained.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "مدل‌های انتشار: framework-dependent یا self-contained؟",
+          "d": "خروجی framework-dependent و self-contained را مقایسه کن و وابستگی‌های لازم روی ماشین مقصد را مشخص کن."
+        },
+        "en": {
+          "t": "Publishing models: framework-dependent or self-contained?",
+          "d": "Compare framework-dependent and self-contained output, and identify what the target machine must provide."
+        },
+        "kw": "dotnet publish framework dependent self contained apphost",
+        "cap": 0
+      },
+      {
+        "n": "14",
+        "file": "14-single-file-trimming-and-aot.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 105,
+        "fa": {
+          "t": "Single-file، trimming و Native AOT",
+          "d": "بسته‌بندی فشرده‌تر را با آزمایش و اندازه‌گیری جلو ببر و محدودیت reflection، تحلیل trim و AOT را نادیده نگیر."
+        },
+        "en": {
+          "t": "Single-file, trimming, and Native AOT",
+          "d": "Experiment with compact publishing and measure the result; account for reflection, trim analysis, and AOT constraints."
+        },
+        "kw": "single file trimming native aot reflection publish",
+        "cap": 0
+      },
+      {
+        "n": "15",
+        "file": "15-upgrades-security-and-support.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 100,
+        "fa": {
+          "t": "ارتقا، امنیت وابستگی و چرخهٔ پشتیبانی",
+          "d": "نسخهٔ .NET و packageها را با برنامه ارتقا بده، هشدارهای امنیتی را بررسی کن و سازگاری را با تست ثابت کن."
+        },
+        "en": {
+          "t": "Upgrades, dependency security, and support lifecycle",
+          "d": "Plan runtime and package upgrades, inspect security advisories, and prove compatibility with tests."
+        },
+        "kw": "dotnet upgrade support lifecycle lts package vulnerability compatibility",
+        "cap": 0
+      },
+      {
+        "n": "16",
+        "file": "16-project-1-portable-cli.html",
+        "ready": false,
+        "ex": 5,
+        "mins": 130,
+        "fa": {
+          "t": "پروژهٔ ۱ — ابزار خط فرمان قابل‌حمل",
+          "d": "یک ابزار C# بساز که با تنظیمات روشن، لاگ مفید و انتشار قابل‌آزمایش روی مقصد دیگر اجرا شود."
+        },
+        "en": {
+          "t": "Project 1 — a portable command-line tool",
+          "d": "Build a C# tool with clear configuration, useful logs, and a publish artifact verified on another target."
+        },
+        "kw": "dotnet project cli portable publish",
+        "cap": 1
+      },
+      {
+        "n": "17",
+        "file": "17-project-2-hosted-worker.html",
+        "ready": false,
+        "ex": 7,
+        "mins": 170,
+        "fa": {
+          "t": "پروژهٔ ۲ — Worker میزبان‌شده و قابل‌عیب‌یابی",
+          "d": "یک worker بساز که توقف تمیز داشته باشد و با ابزارهای دات‌نت بتوان وضعیت و مصرف منابعش را بررسی کرد."
+        },
+        "en": {
+          "t": "Project 2 — a hosted, diagnosable worker",
+          "d": "Build a worker with graceful shutdown and inspectable health and resource use through .NET diagnostics."
+        },
+        "kw": "dotnet project worker generic host diagnostics",
+        "cap": 2
+      },
+      {
+        "n": "18",
+        "file": "18-project-3-release-and-runtime.html",
+        "ready": false,
+        "ex": 9,
+        "mins": 220,
+        "fa": {
+          "t": "پروژهٔ ۳ — انتشار و تحویل برنامهٔ .NET",
+          "d": "یک برنامه را برای مقصد مشخص publish کن، وابستگی و نسخهٔ runtime را مستند کن و اجرای artifact را پس از تحویل ثابت کن."
+        },
+        "en": {
+          "t": "Project 3 — release and deliver a .NET application",
+          "d": "Publish for a defined target, document runtime and dependency requirements, and prove the delivered artifact runs."
+        },
+        "kw": "dotnet project release runtime publish artifact",
+        "cap": 3
+      }
+    ],
+    "stats": {
+      "chapters": 18,
+      "exercises": 291,
+      "minutes": 1930,
       "capstones": 3,
       "ready": 0
     }

@@ -1,0 +1,242 @@
+<!--meta
+title: Aria و موتورهای قدیمی
+desc: Aria رو خیلی راحت می‌شه با «InnoDB سبک‌تر» اشتباه گرفت، مخصوصاً وقتی گزینه‌ای به اسم TRANSACTIONAL می‌بینی. این فصل دقیقاً همین برداشت رو می‌شکند: crash-safety، rollback و ACID یک چیز نیستند.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">MariaDB · فصل 7</span><span lang="en">MariaDB · Chapter 7</span></span>
+<h1 lang="fa">یک جدول cache بعد از shutdown ناگهانی برگشته، اما جدول sessionها بخشی از تغییراتش رو از دست داده. آیا Aria همان InnoDB هست؟</h1>
+<h1 lang="en">After an abrupt shutdown, a cache table recovered while a session table lost changes. Is Aria equivalent to InnoDB?</h1>
+<p class="sub" lang="fa">Aria رو خیلی راحت می‌شه با «InnoDB سبک‌تر» اشتباه گرفت، مخصوصاً وقتی گزینه‌ای به اسم <code>TRANSACTIONAL</code> می‌بینی. این فصل دقیقاً همین برداشت رو می‌شکند: crash-safety، rollback و ACID یک چیز نیستن.</p>
+<p class="sub" lang="en">Aria is easy to misread as a lighter InnoDB, especially when an option named <code>TRANSACTIONAL</code> appears. This chapter breaks that assumption: crash safety, rollback behavior, and full ACID transactions are not the same thing.</p>
+<div class="facts"><span>MariaDB 11.8 · Aria and legacy engines</span><span>حدود ۹۰ دقیقه · ۱۸ تمرین / About 90 minutes · 18 exercises</span></div>
+</div>
+<section id="mental-model"><h2><span lang="fa">قبل از کد، مسئله رو درست ببین</span><span lang="en">Frame the problem before the code</span></h2>
+<p lang="fa">این فصل رو با syntax شروع نمی‌کنیم. مسئله اینه: فرق Aria، InnoDB و engineهای قدیمی. اول یه پیش‌بینی می‌سازیم، بعد با query یا command کوچیک آزمایشش می‌کنیم. هر جا خروجی خلاف انتظار بود، همون‌جا درس اصلی شروع می‌شه.</p>
+<p lang="en">This chapter does not begin with syntax. The problem is the differences among Aria, InnoDB, and legacy engines. We will form a prediction, test it with a small query or command, and treat unexpected output as the beginning of the investigation.</p>
+</section><section id="lesson-1"><h2><span lang="fa">اول قابلیت رو از metadata بخوان</span><span lang="en">Read capabilities from metadata first</span></h2><p lang="fa">به‌جای اینکه از اسم engine نتیجه بگیریم، <code>information_schema.ENGINES</code> رو می‌خونیم. ستون‌های transaction و savepoint سریع نشان می‌دن کدام engine چه قراردادی داره.</p><p lang="fa">همین عادت جلوی خیلی از migrationهای خطرناک رو می‌گیره. اگه table روی engine قدیمی هست، اول نیاز workload رو می‌فهمیم؛ بعد تصمیم می‌گیریم تبدیل لازم هست یا نه.</p><p lang="en">Instead of inferring behavior from an engine name, inspect <code>information_schema.ENGINES</code>. Transaction and savepoint capabilities make the contract explicit.</p><p lang="en">This habit prevents dangerous migrations. If a table uses a legacy engine, understand the workload requirement first and only then decide whether conversion is necessary.</p><pre dir="ltr"><code>CREATE TABLE a_lab(id INT PRIMARY KEY,n INT) ENGINE=Aria;</code></pre><p lang="fa">این object عمداً کوچک و آزمایشیه تا behavior رو بدون سر و صدای production ببینیم. بعد از ساخت، با metadata یا یک query مستقل ثابت کن چیزی که می‌خواستیم واقعاً ساخته شده.</p><p lang="en">The object is intentionally small and disposable. After creating it, use independent metadata or a query to prove that the intended behavior really exists.</p></section><section id="lesson-2"><h2><span lang="fa"><code>TRANSACTIONAL=1</code> رو درست بخوان</span><span lang="en">Read `TRANSACTIONAL=1` carefully</span></h2><p lang="fa">در Aria این گزینه دربارهٔ crash-safe بودن operationها و log خودش هست؛ آن رو با transactionهای InnoDB یکی نکن. بهترین راه فهمیدن این فرق یک آزمایش کوچک با <code>START TRANSACTION</code> و <code>ROLLBACK</code> روی table دورریختنی هست.</p><p lang="fa">اگه چیزی rollback نشد، از روی اسم گزینه تعجب نکن؛ قراردادی رو که engine واقعاً ارائه می‌ده ملاک بگیر.</p><p lang="en">For Aria, the <code>TRANSACTIONAL</code> option relates to its crash-safety behavior and logging; it does not turn Aria into InnoDB. A small disposable <code>START TRANSACTION</code>/<code>ROLLBACK</code> experiment makes the difference concrete.</p><p lang="en">If a change does not roll back, do not let the option name override observed behavior. Use the guarantees the engine actually provides.</p><pre dir="ltr"><code>START TRANSACTION; INSERT INTO a_tx VALUES(1,1); ROLLBACK;</code></pre><p lang="fa">به ترتیب اجرا دقت کن. این تمرین دربارهٔ syntax نیست؛ دربارهٔ state قبل و بعد transactionه. بعد از پایان، یک <code>SELECT</code> مستقل بزن تا چیزی که commit یا rollback شده با چشم دیده بشه.</p><p lang="en">Focus on state before and after the transaction. Finish with an independent query so commit/rollback behavior is observable.</p></section><section id="lesson-3"><h2><span lang="fa">Aria و MyISAM رو موزه نکن</span><span lang="en">Do not turn legacy engines into a museum tour</span></h2><p lang="fa">لازم نیست ده‌ها engine رو حفظ کنی. کافی هست بفهمی چرا یک engine غیرتراکنشی ممکن هست هنوز در schema قدیمی یا بعضی استفاده‌های خاص دیده شود، و چه محدودیتی برای writerهای هم‌زمان و recovery داره.</p><p lang="fa">تمرکز ما decision است: برای data اصلی برنامه، نیاز durability و concurrency چیست؟ برای data بازتولیدپذیر یا جدول موقت چه چیزهایی قابل‌قبول هست؟</p><p lang="en">You do not need to memorize every historical engine. Understand why a non-transactional engine may still appear in older schemas or specialized workloads, and what that means for concurrent writers and recovery.</p><p lang="en">Focus on decisions: what durability and concurrency guarantees are required for primary application data, and what compromises are acceptable for disposable or rebuildable data?</p><pre dir="ltr"><code>SHOW VARIABLES LIKE 'aria_pagecache_buffer_size';</code></pre><p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با engine metadata، rollback behavior و row count بعد conversion رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p><p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about the differences among Aria, InnoDB, and legacy engines can be tied to evidence.</p></section><section id="lesson-4"><h2><span lang="fa">تبدیل رو با before/after ثابت کن</span><span lang="en">Prove an engine conversion before and after</span></h2><p lang="fa">وقتی Aria رو به InnoDB تبدیل می‌کنی، فقط <code>Query OK</code> رو نگه ندار. قبل و بعد engine، row count، DDL و چند query مهم رو ثبت کن.</p><p lang="fa">اگه table بزرگ هست، duration، فضای آزاد و lock رو هم اندازه بگیر. مهاجرت engine یک تغییر storage هست، نه فقط تغییر یک کلمه در DDL.</p><p lang="en">When converting Aria to InnoDB, do not keep only <code>Query OK</code> as evidence. Record engine metadata, row counts, DDL, and key query results before and after.</p><p lang="en">For large tables, also measure duration, free space, and locking. An engine migration is a storage operation, not merely a one-word DDL edit.</p><pre dir="ltr"><code>-- Session A
+START TRANSACTION;
+UPDATE a_tx SET n=n+1 WHERE id=1;
+
+-- Session B
+UPDATE a_tx SET n=n+1 WHERE id=1;
+
+-- End the lab explicitly in both sessions.
+COMMIT;</code></pre><p lang="fa">به ترتیب اجرا دقت کن. این تمرین دربارهٔ syntax نیست؛ دربارهٔ state قبل و بعد transactionه. بعد از پایان، یک <code>SELECT</code> مستقل بزن تا چیزی که commit یا rollback شده با چشم دیده بشه.</p><p lang="en">Focus on state before and after the transaction. Finish with an independent query so commit/rollback behavior is observable.</p></section><section id="mini-lab"><h2><span lang="fa">مینی‌لب — از حدس تا مدرک</span><span lang="en">Mini-lab — from assumption to evidence</span></h2>
+<p lang="fa">حالا سه checkpoint رو پشت‌سرهم اجرا کن. ترتیب مهمه: اول baseline، بعد یک تغییر یا مشاهدهٔ دقیق، بعد verification. وسط کار چیزی رو «درست» فرض نکن؛ هر مرحله باید خروجی مرحلهٔ بعد رو قابل‌تفسیرتر کنه.</p>
+<p lang="en">Run three checkpoints as one small story. Order matters: establish a baseline, make one controlled observation/change, then verify. Do not assume success between steps; each checkpoint should make the next result easier to interpret.</p>
+<pre dir="ltr"><code>CREATE TABLE a_lab(id INT PRIMARY KEY,n INT) ENGINE=Aria;
+
+START TRANSACTION; INSERT INTO a_tx VALUES(1,1); ROLLBACK;
+
+SHOW VARIABLES LIKE 'aria_pagecache_buffer_size';</code></pre>
+<div class="note safe"><strong lang="fa">چی رو نگه دار؟</strong><span lang="fa">commandها، خروجی مهم، نسخهٔ Server و یک جمله که می‌گه این آزمایش دربارهٔ فرق Aria، InnoDB و engineهای قدیمی دقیقاً چی رو ثابت کرد.</span><strong lang="en">What should you preserve?</strong><span lang="en">Commands, relevant output, server version, and one sentence stating exactly what this experiment proved about the differences among Aria, InnoDB, and legacy engines.</span></div>
+</section><section id="exercises"><h2><span lang="fa">تمرین‌ها — دست به کیبورد</span><span lang="en">Exercises — hands on keyboard</span></h2><p lang="fa">اینجا جواب تشریحیِ خالی نداریم. هر تمرین باید به یه SQL/command، خروجی یا state قابل‌بررسی ختم بشه. از تمرین‌های اول که گرم‌کردن هستن تا سناریوهای آخر، هدف اینه که بتونی چیزی رو با مدرک ثابت کنی.</p><p lang="en">These are not prose-only questions. Every exercise should end in runnable SQL/commands and observable evidence. Difficulty rises from warm-up tasks to engineering scenarios.</p><div class="ex" id="ex-mdb-7-1">
+<h3><span lang="fa">1) جدول Aria بساز</span><span lang="en">1) Create the lab object</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ فرق Aria، InnoDB و engineهای قدیمی چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about the differences among Aria, InnoDB, and legacy engines. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>CREATE TABLE a_lab(id INT PRIMARY KEY,n INT) ENGINE=Aria;</code></pre>
+<p lang="fa">این object عمداً کوچک و آزمایشیه تا behavior رو بدون سر و صدای production ببینیم. بعد از ساخت، با metadata یا یک query مستقل ثابت کن چیزی که می‌خواستیم واقعاً ساخته شده.</p>
+<p lang="en">The object is intentionally small and disposable. After creating it, use independent metadata or a query to prove that the intended behavior really exists.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فرق Aria، InnoDB و engineهای قدیمی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the differences among Aria, InnoDB, and legacy engines.</p>
+</details></div><div class="ex" id="ex-mdb-7-2">
+<h3><span lang="fa">2) DDL Aria رو بخوان</span><span lang="en">2) Inspect the real object definition</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای فرق Aria، InnoDB و engineهای قدیمی مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for the differences among Aria, InnoDB, and legacy engines.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW CREATE TABLE a_lab;</code></pre>
+<p lang="fa">اینجا اسم feature رو از روی حافظه قبول نمی‌کنیم. <code>SHOW CREATE</code> تعریف واقعی object رو برمی‌گردونه؛ همون رو به‌عنوان مدرک برای فرق Aria، InnoDB و engineهای قدیمی نگه دار.</p>
+<p lang="en">Use the server's real object definition as evidence rather than relying on a remembered feature name. Keep this output with the lab notes.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فرق Aria، InnoDB و engineهای قدیمی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the differences among Aria, InnoDB, and legacy engines.</p>
+</details></div><div class="ex" id="ex-mdb-7-3">
+<h3><span lang="fa">3) گزینه TRANSACTIONAL رو تست کن</span><span lang="en">3) Create the lab object</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>CREATE TABLE a_tx(id INT PRIMARY KEY,n INT) ENGINE=Aria TRANSACTIONAL=1;</code></pre>
+<p lang="fa">این object عمداً کوچک و آزمایشیه تا behavior رو بدون سر و صدای production ببینیم. بعد از ساخت، با metadata یا یک query مستقل ثابت کن چیزی که می‌خواستیم واقعاً ساخته شده.</p>
+<p lang="en">The object is intentionally small and disposable. After creating it, use independent metadata or a query to prove that the intended behavior really exists.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فرق Aria، InnoDB و engineهای قدیمی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the differences among Aria, InnoDB, and legacy engines.</p>
+</details></div><div class="ex" id="ex-mdb-7-4">
+<h3><span lang="fa">4) Aria engine status رو ببین</span><span lang="en">4) Read server evidence</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW TABLE STATUS LIKE 'a_tx';</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با engine metadata، rollback behavior و row count بعد conversion رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about the differences among Aria, InnoDB, and legacy engines can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فرق Aria، InnoDB و engineهای قدیمی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the differences among Aria, InnoDB, and legacy engines.</p>
+</details></div><div class="ex" id="ex-mdb-7-5">
+<h3><span lang="fa">5) rollback رو فقط روی lab بیازمای</span><span lang="en">5) Run the transaction experiment</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ فرق Aria، InnoDB و engineهای قدیمی چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about the differences among Aria, InnoDB, and legacy engines. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>START TRANSACTION; INSERT INTO a_tx VALUES(1,1); ROLLBACK;</code></pre>
+<p lang="fa">به ترتیب اجرا دقت کن. این تمرین دربارهٔ syntax نیست؛ دربارهٔ state قبل و بعد transactionه. بعد از پایان، یک <code>SELECT</code> مستقل بزن تا چیزی که commit یا rollback شده با چشم دیده بشه.</p>
+<p lang="en">Focus on state before and after the transaction. Finish with an independent query so commit/rollback behavior is observable.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فرق Aria، InnoDB و engineهای قدیمی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the differences among Aria, InnoDB, and legacy engines.</p>
+</details></div><div class="ex" id="ex-mdb-7-6">
+<h3><span lang="fa">6) محتوای table رو بررسی کن</span><span lang="en">6) Query the evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای فرق Aria، InnoDB و engineهای قدیمی مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for the differences among Aria, InnoDB, and legacy engines.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT * FROM a_tx;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ فرق Aria، InnoDB و engineهای قدیمی یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the differences among Aria, InnoDB, and legacy engines.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فرق Aria، InnoDB و engineهای قدیمی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the differences among Aria, InnoDB, and legacy engines.</p>
+</details></div><div class="ex" id="ex-mdb-7-7">
+<h3><span lang="fa">7) MyISAM رو در disposable بساز</span><span lang="en">7) Create the lab object</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>CREATE TABLE legacy_lab(id INT PRIMARY KEY) ENGINE=MyISAM;</code></pre>
+<p lang="fa">این object عمداً کوچک و آزمایشیه تا behavior رو بدون سر و صدای production ببینیم. بعد از ساخت، با metadata یا یک query مستقل ثابت کن چیزی که می‌خواستیم واقعاً ساخته شده.</p>
+<p lang="en">The object is intentionally small and disposable. After creating it, use independent metadata or a query to prove that the intended behavior really exists.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فرق Aria، InnoDB و engineهای قدیمی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the differences among Aria, InnoDB, and legacy engines.</p>
+</details></div><div class="ex" id="ex-mdb-7-8">
+<h3><span lang="fa">8) engineهای سه جدول رو مقایسه کن</span><span lang="en">8) Query the evidence</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT TABLE_NAME,ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE();</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با engine metadata، rollback behavior و row count بعد conversion رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about the differences among Aria, InnoDB, and legacy engines can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فرق Aria، InnoDB و engineهای قدیمی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the differences among Aria, InnoDB, and legacy engines.</p>
+</details></div><div class="ex" id="ex-mdb-7-9">
+<h3><span lang="fa">9) Aria page checksum setting رو بررسی کن</span><span lang="en">9) Read server evidence</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ فرق Aria، InnoDB و engineهای قدیمی چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about the differences among Aria, InnoDB, and legacy engines. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW VARIABLES LIKE 'aria_pagecache_buffer_size';</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با engine metadata، rollback behavior و row count بعد conversion رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about the differences among Aria, InnoDB, and legacy engines can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فرق Aria، InnoDB و engineهای قدیمی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the differences among Aria, InnoDB, and legacy engines.</p>
+</details></div><div class="ex" id="ex-mdb-7-10">
+<h3><span lang="fa">10) Aria table رو CHECK کن</span><span lang="en">10) Run the experiment</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای فرق Aria، InnoDB و engineهای قدیمی مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for the differences among Aria, InnoDB, and legacy engines.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>CHECK TABLE a_tx;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ فرق Aria، InnoDB و engineهای قدیمی یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the differences among Aria, InnoDB, and legacy engines.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فرق Aria، InnoDB و engineهای قدیمی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the differences among Aria, InnoDB, and legacy engines.</p>
+</details></div><div class="ex" id="ex-mdb-7-11">
+<h3><span lang="fa">11) InnoDB رو به‌عنوان مقصد تبدیل بساز</span><span lang="en">11) Apply the controlled change</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>ALTER TABLE a_lab ENGINE=InnoDB;</code></pre>
+<p lang="fa">این تغییر رو فقط روی fixture انجام بده و before/after رو نگه دار. موفق‌شدن statement به‌تنهایی کافی نیست؛ نتیجهٔ واقعی رو با engine metadata، rollback behavior و row count بعد conversion verify کن.</p>
+<p lang="en">Run the change only on the fixture and preserve before/after evidence. A successful statement alone does not prove the desired end state.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فرق Aria، InnoDB و engineهای قدیمی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the differences among Aria, InnoDB, and legacy engines.</p>
+</details></div><div class="ex" id="ex-mdb-7-12">
+<h3><span lang="fa">12) تبدیل رو verify کن</span><span lang="en">12) Read server evidence</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW TABLE STATUS LIKE 'a_lab';</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با engine metadata، rollback behavior و row count بعد conversion رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about the differences among Aria, InnoDB, and legacy engines can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فرق Aria، InnoDB و engineهای قدیمی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the differences among Aria, InnoDB, and legacy engines.</p>
+</details></div><div class="ex" id="ex-mdb-7-13">
+<h3><span lang="fa">13) قفل دو نشست رو روی engineها compare کن</span><span lang="en">13) Run the experiment</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ فرق Aria، InnoDB و engineهای قدیمی چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about the differences among Aria, InnoDB, and legacy engines. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>-- Session A
+START TRANSACTION;
+UPDATE a_tx SET n=n+1 WHERE id=1;
+
+-- Session B
+UPDATE a_tx SET n=n+1 WHERE id=1;
+
+-- End the lab explicitly in both sessions.
+COMMIT;</code></pre>
+<p lang="fa">به ترتیب اجرا دقت کن. این تمرین دربارهٔ syntax نیست؛ دربارهٔ state قبل و بعد transactionه. بعد از پایان، یک <code>SELECT</code> مستقل بزن تا چیزی که commit یا rollback شده با چشم دیده بشه.</p>
+<p lang="en">Focus on state before and after the transaction. Finish with an independent query so commit/rollback behavior is observable.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فرق Aria، InnoDB و engineهای قدیمی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the differences among Aria, InnoDB, and legacy engines.</p>
+</details></div><div class="ex" id="ex-mdb-7-14">
+<h3><span lang="fa">14) SHOW ENGINES output رو فیلتر کن</span><span lang="en">14) Query the evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای فرق Aria، InnoDB و engineهای قدیمی مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for the differences among Aria, InnoDB, and legacy engines.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT ENGINE,TRANSACTIONS,SAVEPOINTS FROM information_schema.ENGINES;</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با engine metadata، rollback behavior و row count بعد conversion رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about the differences among Aria, InnoDB, and legacy engines can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فرق Aria، InnoDB و engineهای قدیمی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the differences among Aria, InnoDB, and legacy engines.</p>
+</details></div><div class="ex" id="ex-mdb-7-15">
+<h3><span lang="fa">15) جدول‌های legacy schema رو پیدا کن</span><span lang="en">15) Query the evidence</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT TABLE_NAME,ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND ENGINE IN ('MyISAM','Aria');</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با engine metadata، rollback behavior و row count بعد conversion رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about the differences among Aria, InnoDB, and legacy engines can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فرق Aria، InnoDB و engineهای قدیمی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the differences among Aria, InnoDB, and legacy engines.</p>
+</details></div><div class="ex" id="ex-mdb-7-16">
+<h3><span lang="fa">16) تعداد ردیف پس از convert رو compare کن</span><span lang="en">16) Query the evidence</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT COUNT(*) FROM a_lab;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ فرق Aria، InnoDB و engineهای قدیمی یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the differences among Aria, InnoDB, and legacy engines.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فرق Aria، InnoDB و engineهای قدیمی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the differences among Aria, InnoDB, and legacy engines.</p>
+</details></div><div class="ex" id="ex-mdb-7-17">
+<h3><span lang="fa">17) روی دادهٔ واقعی forced shutdown نزن</span><span lang="en">17) Run the disposable infrastructure experiment</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ فرق Aria، InnoDB و engineهای قدیمی چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about the differences among Aria, InnoDB, and legacy engines. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code># Disposable container only
+docker kill mariadb-lab
+docker start mariadb-lab
+mariadb -h 127.0.0.1 -P 3306 -u root -p -e "CHECK TABLE test.a_tx; SELECT * FROM test.a_tx;" </code></pre>
+<p lang="fa">این command فقط یک مرز از مسیر رو تست می‌کنه. مقصد، زمان و نتیجهٔ دقیق رو نگه دار؛ موفقیت این مرحله هنوز لایه‌های بعدی مثل TLS یا authentication رو ثابت نمی‌کنه.</p>
+<p lang="en">This command tests only one boundary. Record the exact target and result; success here does not prove later layers such as TLS or authentication.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فرق Aria، InnoDB و engineهای قدیمی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the differences among Aria, InnoDB, and legacy engines.</p>
+</details></div><div class="ex" id="ex-mdb-7-18">
+<h3><span lang="fa">18) engine choice report رو با metadata بساز</span><span lang="en">18) Read server evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای فرق Aria، InnoDB و engineهای قدیمی مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for the differences among Aria, InnoDB, and legacy engines.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW TABLE STATUS;</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با engine metadata، rollback behavior و row count بعد conversion رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about the differences among Aria, InnoDB, and legacy engines can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فرق Aria، InnoDB و engineهای قدیمی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the differences among Aria, InnoDB, and legacy engines.</p>
+</details></div></section><section id="next"><h2><span lang="fa">جمع‌بندی — چیزی که باید با خودت ببری</span><span lang="en">Summary — the mental model to keep</span></h2><p lang="fa">اگه از این فصل فقط یه عادت بمونه، این باشه: دربارهٔ فرق Aria، InnoDB و engineهای قدیمی از روی اسم feature یا حس تصمیم نگیر. baseline بگیر، یه چیز رو عوض کن، خروجی رو بخون و بعد نتیجه بگیر.</p><p lang="en">If one habit survives this chapter, let it be this: do not reason about the differences among Aria, InnoDB, and legacy engines from feature names or intuition. Capture a baseline, change one thing, read the evidence, then conclude.</p><p class="refs"><a href="https://mariadb.com/docs/server/server-usage/storage-engines/aria/aria-storage-engine">Aria Storage Engine</a> · <a href="https://mariadb.com/docs/server/server-usage/storage-engines/aria/aria-faq">Aria FAQ</a></p></section>

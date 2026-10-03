@@ -1,0 +1,251 @@
+<!--meta
+title: Temporary table و CTE؛ انتخاب با آزمایش
+desc: CTE و temporary table هر دو می‌توانند query پیچیده رو خواناتر کنند، ولی lifecycle و رفتار optimizerشان یکی نیست. سؤال این فصل «کدام بهتر است؟» نیست؛ «برای این workload کدام هزینه رو می‌خواهم؟» است.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">MariaDB · فصل 19</span><span lang="en">MariaDB · Chapter 19</span></span>
+<h1 lang="fa">یک query چندمرحله‌ای یا CTE داره یا جدول موقت. کدام‌یک واقعاً بهتر هست؟</h1>
+<h1 lang="en">A multi-step report can use a CTE or a temporary table. Which one is actually better?</h1>
+<p class="sub" lang="fa">CTE و temporary table هر دو می‌تونن query پیچیده رو خواناتر کنند، ولی lifecycle و رفتار optimizerشان یکی نیست. سؤال این فصل «کدام بهتر هست؟» نیست؛ «برای این workload کدام هزینه رو می‌خواهم؟» هست.</p>
+<p class="sub" lang="en">CTEs and temporary tables can both make complex work easier to express, but they have different lifetimes and optimizer behavior. The question is not “which is always better?” but “which cost model fits this workload?”</p>
+<div class="facts"><span>MariaDB 11.8 · Temporary tables and CTE trade-offs</span><span>حدود ۹۵ دقیقه · ۱۸ تمرین / About 95 minutes · 18 exercises</span></div>
+</div>
+<section id="mental-model"><h2><span lang="fa">قبل از کد، مسئله رو درست ببین</span><span lang="en">Frame the problem before the code</span></h2>
+<p lang="fa">این فصل رو با syntax شروع نمی‌کنیم. مسئله اینه: انتخاب CTE یا temporary table با evidence. اول یه پیش‌بینی می‌سازیم، بعد با query یا command کوچیک آزمایشش می‌کنیم. هر جا خروجی خلاف انتظار بود، همون‌جا درس اصلی شروع می‌شه.</p>
+<p lang="en">This chapter does not begin with syntax. The problem is evidence-based choice between CTEs and temporary tables. We will form a prediction, test it with a small query or command, and treat unexpected output as the beginning of the investigation.</p>
+</section><section id="lesson-1"><h2><span lang="fa">CTE رو table مخفی فرض نکن</span><span lang="en">Do not assume a CTE is a hidden table</span></h2><p lang="fa">CTE اسم دادن به یک query داخل همان statement هست. optimizer می‌تونه بسته به query آن رو merge یا materialize کند؛ پس جملهٔ «CTE یک بار اجرا می‌شه» قرارداد مطمئنی نیست.</p><p lang="fa"><code>EXPLAIN</code> رو روی نسخهٔ CTE و نسخهٔ مستقیم می‌گیریم تا تصمیم واقعی optimizer رو ببینیم.</p><p lang="en">A CTE names a query within one statement. The optimizer may merge or materialize it depending on the query, so “a CTE runs once” is not a reliable contract.</p><p lang="en">Explain both the CTE and direct-query forms to observe what the optimizer actually chooses.</p><pre dir="ltr"><code>WITH x AS (SELECT id FROM customers) SELECT * FROM x;</code></pre><p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ انتخاب CTE یا temporary table با evidence یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p><p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about evidence-based choice between CTEs and temporary tables.</p></section><section id="lesson-2"><h2><span lang="fa">Temporary table state واقعی داره</span><span lang="en">A temporary table has real session state</span></h2><p lang="fa">Temporary table در connection ساخته می‌شه، می‌تونی رویش index بسازی و در چند statement همان session دوباره استفاده‌اش کنی. همین مزیت، وقتی connection pool داری، می‌تونه خطر نشت state هم باشد.</p><p lang="fa">دو connection باز می‌کنیم و نشان می‌دهیم table موقت یکی در دیگری دیده نمی‌شه. بعد cleanup صریح رو وارد الگو می‌کنیم.</p><p lang="en">A temporary table exists in a connection, can have indexes, and can be reused across statements in that session. The same property can leak state when connection pooling is involved.</p><p lang="en">Open two connections to prove session isolation, then make explicit cleanup part of the pattern.</p><pre dir="ltr"><code>DROP TEMPORARY TABLE tmp_ids;</code></pre><p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ انتخاب CTE یا temporary table با evidence یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p><p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about evidence-based choice between CTEs and temporary tables.</p></section><section id="lesson-3"><h2><span lang="fa">Reuse واقعی می‌تونه materialization رو توجیه کند</span><span lang="en">Repeated reuse can justify materialization</span></h2><p lang="fa">اگه یک intermediate result رو سه بار لازم داری و محاسبه‌اش سنگین هست، temporary table شاید ارزش داشته باشد. اگه فقط یک بار لازم هست، materialization می‌تونه صرفاً هزینهٔ اضافه باشد.</p><p lang="fa">به‌جای قانون کلی، duration، temp storage و plan هر دو روش رو روی همان dataset ثبت کن.</p><p lang="en">If an expensive intermediate result is reused multiple times, a temporary table may be worthwhile. If it is used once, materialization may only add cost.</p><p lang="en">Compare runtime, temporary storage, and plans on the same dataset instead of relying on a universal rule.</p><pre dir="ltr"><code>CREATE TEMPORARY TABLE tmp_customer_ids
+AS SELECT id FROM customers WHERE status='active';
+SELECT COUNT(*) FROM tmp_customer_ids;
+SELECT c.id FROM customers c JOIN tmp_customer_ids t ON t.id=c.id;</code></pre><p lang="fa">این object عمداً کوچک و آزمایشیه تا behavior رو بدون سر و صدای production ببینیم. بعد از ساخت، با metadata یا یک query مستقل ثابت کن چیزی که می‌خواستیم واقعاً ساخته شده.</p><p lang="en">The object is intentionally small and disposable. After creating it, use independent metadata or a query to prove that the intended behavior really exists.</p></section><section id="lesson-4"><h2><span lang="fa">Recursive CTE باید مرز داشته باشد</span><span lang="en">Recursive CTEs need a stopping rule</span></h2><p lang="fa">Recursive CTE برای hierarchy عالی هست تا وقتی termination روشن باشد. cycle یا شرط ناقص می‌تونه query رو بی‌دلیل بزرگ کند.</p><p lang="fa">روی fixture کوچک depth رو محدود می‌کنیم، بعد عمداً cycle می‌سازیم و رفتار محدودکنندهٔ server رو می‌بینیم.</p><p lang="en">Recursive CTEs are useful for hierarchies only when termination is explicit. Cycles or weak stopping conditions can make a query explode.</p><p lang="en">Bound recursion on a small fixture, then introduce a cycle deliberately and observe the server's limiting behavior.</p><pre dir="ltr"><code>WITH RECURSIVE n AS (...) SELECT ...;</code></pre><p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ انتخاب CTE یا temporary table با evidence یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p><p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about evidence-based choice between CTEs and temporary tables.</p></section><section id="mini-lab"><h2><span lang="fa">مینی‌لب — از حدس تا مدرک</span><span lang="en">Mini-lab — from assumption to evidence</span></h2>
+<p lang="fa">حالا سه checkpoint رو پشت‌سرهم اجرا کن. ترتیب مهمه: اول baseline، بعد یک تغییر یا مشاهدهٔ دقیق، بعد verification. وسط کار چیزی رو «درست» فرض نکن؛ هر مرحله باید خروجی مرحلهٔ بعد رو قابل‌تفسیرتر کنه.</p>
+<p lang="en">Run three checkpoints as one small story. Order matters: establish a baseline, make one controlled observation/change, then verify. Do not assume success between steps; each checkpoint should make the next result easier to interpret.</p>
+<pre dir="ltr"><code>WITH x AS (SELECT id FROM customers) SELECT * FROM x;
+
+DROP TEMPORARY TABLE tmp_ids;
+
+CREATE TEMPORARY TABLE tmp_customer_ids
+AS SELECT id FROM customers WHERE status='active';
+SELECT COUNT(*) FROM tmp_customer_ids;
+SELECT c.id FROM customers c JOIN tmp_customer_ids t ON t.id=c.id;</code></pre>
+<div class="note safe"><strong lang="fa">چی رو نگه دار؟</strong><span lang="fa">commandها، خروجی مهم، نسخهٔ Server و یک جمله که می‌گه این آزمایش دربارهٔ انتخاب CTE یا temporary table با evidence دقیقاً چی رو ثابت کرد.</span><strong lang="en">What should you preserve?</strong><span lang="en">Commands, relevant output, server version, and one sentence stating exactly what this experiment proved about evidence-based choice between CTEs and temporary tables.</span></div>
+</section><section id="exercises"><h2><span lang="fa">تمرین‌ها — دست به کیبورد</span><span lang="en">Exercises — hands on keyboard</span></h2><p lang="fa">اینجا جواب تشریحیِ خالی نداریم. هر تمرین باید به یه SQL/command، خروجی یا state قابل‌بررسی ختم بشه. از تمرین‌های اول که گرم‌کردن هستن تا سناریوهای آخر، هدف اینه که بتونی چیزی رو با مدرک ثابت کنی.</p><p lang="en">These are not prose-only questions. Every exercise should end in runnable SQL/commands and observable evidence. Difficulty rises from warm-up tasks to engineering scenarios.</p><div class="ex" id="ex-mdb-19-1">
+<h3><span lang="fa">1) CTE ساده بساز</span><span lang="en">1) Run the experiment</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ انتخاب CTE یا temporary table با evidence چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about evidence-based choice between CTEs and temporary tables. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>WITH x AS (SELECT id FROM customers) SELECT * FROM x;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ انتخاب CTE یا temporary table با evidence یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about evidence-based choice between CTEs and temporary tables.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای انتخاب CTE یا temporary table با evidence انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for evidence-based choice between CTEs and temporary tables.</p>
+</details></div><div class="ex" id="ex-mdb-19-2">
+<h3><span lang="fa">2) CTE رو با query مستقیم مقایسه کن</span><span lang="en">2) Inspect the access plan</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای انتخاب CTE یا temporary table با evidence مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for evidence-based choice between CTEs and temporary tables.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>EXPLAIN WITH x AS (...) SELECT ...;</code></pre>
+<p lang="fa">بعد از اجرا فقط دنبال اسم index نگرد. plan رو کنار query بخون و روی plan، lifetime connection و هزینهٔ materialization تمرکز کن. اگه plan با چیزی که پیش‌بینی کردی فرق داشت، همین اختلاف سؤال بعدی ماست.</p>
+<p lang="en">Do not stop at the chosen index name. Read the plan in the context of the query and focus on plans, connection lifetime, and materialization cost. Any mismatch with your prediction becomes the next investigation question.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای انتخاب CTE یا temporary table با evidence انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for evidence-based choice between CTEs and temporary tables.</p>
+</details></div><div class="ex" id="ex-mdb-19-3">
+<h3><span lang="fa">3) temporary table بساز</span><span lang="en">3) Create the lab object</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>CREATE TEMPORARY TABLE tmp_ids(id INT PRIMARY KEY);</code></pre>
+<p lang="fa">این object عمداً کوچک و آزمایشیه تا behavior رو بدون سر و صدای production ببینیم. بعد از ساخت، با metadata یا یک query مستقل ثابت کن چیزی که می‌خواستیم واقعاً ساخته شده.</p>
+<p lang="en">The object is intentionally small and disposable. After creating it, use independent metadata or a query to prove that the intended behavior really exists.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای انتخاب CTE یا temporary table با evidence انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for evidence-based choice between CTEs and temporary tables.</p>
+</details></div><div class="ex" id="ex-mdb-19-4">
+<h3><span lang="fa">4) connection دوم رو امتحان کن</span><span lang="en">4) Run the experiment</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>-- Session A
+CREATE TEMPORARY TABLE tmp_ids(id INT PRIMARY KEY);
+INSERT INTO tmp_ids VALUES (1);
+
+-- Session B
+SELECT * FROM tmp_ids; -- expected: table does not exist in this session</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ انتخاب CTE یا temporary table با evidence یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about evidence-based choice between CTEs and temporary tables.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای انتخاب CTE یا temporary table با evidence انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for evidence-based choice between CTEs and temporary tables.</p>
+</details></div><div class="ex" id="ex-mdb-19-5">
+<h3><span lang="fa">5) lifetime رو بررسی کن</span><span lang="en">5) Run the experiment</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ انتخاب CTE یا temporary table با evidence چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about evidence-based choice between CTEs and temporary tables. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>DROP TEMPORARY TABLE tmp_ids;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ انتخاب CTE یا temporary table با evidence یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about evidence-based choice between CTEs and temporary tables.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای انتخاب CTE یا temporary table با evidence انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for evidence-based choice between CTEs and temporary tables.</p>
+</details></div><div class="ex" id="ex-mdb-19-6">
+<h3><span lang="fa">6) CTE رو دوباره مصرف کن</span><span lang="en">6) Run the experiment</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای انتخاب CTE یا temporary table با evidence مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for evidence-based choice between CTEs and temporary tables.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>WITH x AS (...) SELECT ... JOIN x ...;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ انتخاب CTE یا temporary table با evidence یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about evidence-based choice between CTEs and temporary tables.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای انتخاب CTE یا temporary table با evidence انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for evidence-based choice between CTEs and temporary tables.</p>
+</details></div><div class="ex" id="ex-mdb-19-7">
+<h3><span lang="fa">7) دادهٔ CTE رو validate کن</span><span lang="en">7) Run the experiment</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>WITH x AS (SELECT id FROM customers)
+SELECT COUNT(*) AS cte_rows FROM x;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ انتخاب CTE یا temporary table با evidence یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about evidence-based choice between CTEs and temporary tables.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای انتخاب CTE یا temporary table با evidence انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for evidence-based choice between CTEs and temporary tables.</p>
+</details></div><div class="ex" id="ex-mdb-19-8">
+<h3><span lang="fa">8) plan دو روش رو بگیر</span><span lang="en">8) Inspect the access plan</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>EXPLAIN SELECT ...;</code></pre>
+<p lang="fa">بعد از اجرا فقط دنبال اسم index نگرد. plan رو کنار query بخون و روی plan، lifetime connection و هزینهٔ materialization تمرکز کن. اگه plan با چیزی که پیش‌بینی کردی فرق داشت، همین اختلاف سؤال بعدی ماست.</p>
+<p lang="en">Do not stop at the chosen index name. Read the plan in the context of the query and focus on plans, connection lifetime, and materialization cost. Any mismatch with your prediction becomes the next investigation question.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای انتخاب CTE یا temporary table با evidence انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for evidence-based choice between CTEs and temporary tables.</p>
+</details></div><div class="ex" id="ex-mdb-19-9">
+<h3><span lang="fa">9) دو query به دادهٔ میانی نیاز دارن</span><span lang="en">9) Create the lab object</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ انتخاب CTE یا temporary table با evidence چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about evidence-based choice between CTEs and temporary tables. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>CREATE TEMPORARY TABLE tmp_customer_ids
+AS SELECT id FROM customers WHERE status='active';
+SELECT COUNT(*) FROM tmp_customer_ids;
+SELECT c.id FROM customers c JOIN tmp_customer_ids t ON t.id=c.id;</code></pre>
+<p lang="fa">این object عمداً کوچک و آزمایشیه تا behavior رو بدون سر و صدای production ببینیم. بعد از ساخت، با metadata یا یک query مستقل ثابت کن چیزی که می‌خواستیم واقعاً ساخته شده.</p>
+<p lang="en">The object is intentionally small and disposable. After creating it, use independent metadata or a query to prove that the intended behavior really exists.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای انتخاب CTE یا temporary table با evidence انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for evidence-based choice between CTEs and temporary tables.</p>
+</details></div><div class="ex" id="ex-mdb-19-10">
+<h3><span lang="fa">10) index روی temp table بساز</span><span lang="en">10) Create the candidate index</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای انتخاب CTE یا temporary table با evidence مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for evidence-based choice between CTEs and temporary tables.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>CREATE INDEX ix_tmp ON tmp_ids(id);</code></pre>
+<p lang="fa">ساختن index هنوز پایان تمرین نیست. همون query قبلی رو دوباره اجرا کن و از روی plan، lifetime connection و هزینهٔ materialization ثابت کن این index واقعاً چه چیزی رو عوض کرده.</p>
+<p lang="en">Creating the index is not the result. Re-run the original query and show how the observed plan or runtime changed before claiming a benefit.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای انتخاب CTE یا temporary table با evidence انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for evidence-based choice between CTEs and temporary tables.</p>
+</details></div><div class="ex" id="ex-mdb-19-11">
+<h3><span lang="fa">11) pool cleanup رو طراحی کن</span><span lang="en">11) Run the experiment</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>DROP TEMPORARY TABLE IF EXISTS tmp_ids;
+DROP TEMPORARY TABLE IF EXISTS tmp_customer_ids;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ انتخاب CTE یا temporary table با evidence یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about evidence-based choice between CTEs and temporary tables.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای انتخاب CTE یا temporary table با evidence انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for evidence-based choice between CTEs and temporary tables.</p>
+</details></div><div class="ex" id="ex-mdb-19-12">
+<h3><span lang="fa">12) نام temp table با permanent table</span><span lang="en">12) Create the lab object</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>CREATE TABLE IF NOT EXISTS same_name(id INT);
+CREATE TEMPORARY TABLE same_name(id INT);
+SHOW TABLES LIKE 'same_name';
+DROP TEMPORARY TABLE same_name;</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با plan، lifetime connection و هزینهٔ materialization رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about evidence-based choice between CTEs and temporary tables can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای انتخاب CTE یا temporary table با evidence انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for evidence-based choice between CTEs and temporary tables.</p>
+</details></div><div class="ex" id="ex-mdb-19-13">
+<h3><span lang="fa">13) recursive CTE حد بگذار</span><span lang="en">13) Run the experiment</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ انتخاب CTE یا temporary table با evidence چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about evidence-based choice between CTEs and temporary tables. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>WITH RECURSIVE n AS (...) SELECT ...;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ انتخاب CTE یا temporary table با evidence یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about evidence-based choice between CTEs and temporary tables.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای انتخاب CTE یا temporary table با evidence انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for evidence-based choice between CTEs and temporary tables.</p>
+</details></div><div class="ex" id="ex-mdb-19-14">
+<h3><span lang="fa">14) CTE cycle رو محدود کن</span><span lang="en">14) Read server evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای انتخاب CTE یا temporary table با evidence مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for evidence-based choice between CTEs and temporary tables.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW VARIABLES LIKE 'max_recursive_iterations';</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با plan، lifetime connection و هزینهٔ materialization رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about evidence-based choice between CTEs and temporary tables can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای انتخاب CTE یا temporary table با evidence انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for evidence-based choice between CTEs and temporary tables.</p>
+</details></div><div class="ex" id="ex-mdb-19-15">
+<h3><span lang="fa">15) هم‌زمانی رو بسنج</span><span lang="en">15) Run the experiment</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>-- Run in two separate sessions
+CREATE TEMPORARY TABLE tmp_session_marker(id INT PRIMARY KEY);
+INSERT INTO tmp_session_marker VALUES(CONNECTION_ID());
+SELECT * FROM tmp_session_marker;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ انتخاب CTE یا temporary table با evidence یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about evidence-based choice between CTEs and temporary tables.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای انتخاب CTE یا temporary table با evidence انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for evidence-based choice between CTEs and temporary tables.</p>
+</details></div><div class="ex" id="ex-mdb-19-16">
+<h3><span lang="fa">16) صفحه‌بندی intermediate data</span><span lang="en">16) Create the lab object</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>CREATE TEMPORARY TABLE tmp_page
+AS SELECT id FROM orders ORDER BY id LIMIT 1000;
+CREATE INDEX ix_tmp_page_id ON tmp_page(id);
+SELECT * FROM tmp_page ORDER BY id LIMIT 50;</code></pre>
+<p lang="fa">ساختن index هنوز پایان تمرین نیست. همون query قبلی رو دوباره اجرا کن و از روی plan، lifetime connection و هزینهٔ materialization ثابت کن این index واقعاً چه چیزی رو عوض کرده.</p>
+<p lang="en">Creating the index is not the result. Re-run the original query and show how the observed plan or runtime changed before claiming a benefit.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای انتخاب CTE یا temporary table با evidence انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for evidence-based choice between CTEs and temporary tables.</p>
+</details></div><div class="ex" id="ex-mdb-19-17">
+<h3><span lang="fa">17) برنامهٔ خطا رو بررسی کن</span><span lang="en">17) Run the experiment</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ انتخاب CTE یا temporary table با evidence چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about evidence-based choice between CTEs and temporary tables. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>DROP TEMPORARY TABLE IF EXISTS tmp_ids;
+DROP TEMPORARY TABLE IF EXISTS tmp_customer_ids;
+DROP TEMPORARY TABLE IF EXISTS tmp_page;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ انتخاب CTE یا temporary table با evidence یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about evidence-based choice between CTEs and temporary tables.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای انتخاب CTE یا temporary table با evidence انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for evidence-based choice between CTEs and temporary tables.</p>
+</details></div><div class="ex" id="ex-mdb-19-18">
+<h3><span lang="fa">18) انتخاب رو مستند کن</span><span lang="en">18) Inspect the access plan</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای انتخاب CTE یا temporary table با evidence مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for evidence-based choice between CTEs and temporary tables.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>EXPLAIN WITH x AS (SELECT id FROM customers) SELECT * FROM x;
+SHOW STATUS LIKE 'Created_tmp%';</code></pre>
+<p lang="fa">بعد از اجرا فقط دنبال اسم index نگرد. plan رو کنار query بخون و روی plan، lifetime connection و هزینهٔ materialization تمرکز کن. اگه plan با چیزی که پیش‌بینی کردی فرق داشت، همین اختلاف سؤال بعدی ماست.</p>
+<p lang="en">Do not stop at the chosen index name. Read the plan in the context of the query and focus on plans, connection lifetime, and materialization cost. Any mismatch with your prediction becomes the next investigation question.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای انتخاب CTE یا temporary table با evidence انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for evidence-based choice between CTEs and temporary tables.</p>
+</details></div></section><section id="next"><h2><span lang="fa">جمع‌بندی — چیزی که باید با خودت ببری</span><span lang="en">Summary — the mental model to keep</span></h2><p lang="fa">اگه از این فصل فقط یه عادت بمونه، این باشه: دربارهٔ انتخاب CTE یا temporary table با evidence از روی اسم feature یا حس تصمیم نگیر. baseline بگیر، یه چیز رو عوض کن، خروجی رو بخون و بعد نتیجه بگیر.</p><p lang="en">If one habit survives this chapter, let it be this: do not reason about evidence-based choice between CTEs and temporary tables from feature names or intuition. Capture a baseline, change one thing, read the evidence, then conclude.</p><p class="refs"><a href="https://mariadb.com/docs/server/reference/sql-statements/data-manipulation/selecting-data/common-table-expressions/with">WITH CTE</a> · <a href="https://mariadb.com/docs/server/reference/sql-statements/data-definition/create/create-table">CREATE TEMPORARY TABLE</a></p></section>

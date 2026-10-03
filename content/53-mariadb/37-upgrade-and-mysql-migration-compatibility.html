@@ -1,0 +1,235 @@
+<!--meta
+title: ارتقای MariaDB و مهاجرت از MySQL
+desc: Upgrade MariaDB و مهاجرت MySQL→MariaDB دو کار متفاوتن. در upgrade هنوز داخل خانوادهٔ MariaDB حرکت می‌کنی؛ در migration ممکنه semantics featureها عوض بشه. هر دو هم باید روی copy قابل‌دورریختن شروع بشن، نه تنها data directory موجود.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">MariaDB · فصل 37</span><span lang="en">MariaDB · Chapter 37</span></span>
+<h1 lang="fa">نسخهٔ قدیمی در حال پایان پشتیبانی هست؛ تیم می‌خواهد همان data directory رو مستقیم با نسخهٔ جدید باز کند.</h1>
+<h1 lang="en">The old release is nearing end of support. The team wants to open its data directory directly with a newer version.</h1>
+<p class="sub" lang="fa">Upgrade MariaDB و مهاجرت MySQL→MariaDB دو کار متفاوتن. در upgrade هنوز داخل خانوادهٔ MariaDB حرکت می‌کنی؛ در migration ممکنه semantics featureها عوض بشه. هر دو هم باید روی copy قابل‌دورریختن شروع بشن، نه تنها data directory موجود.</p>
+<p class="sub" lang="en">A MariaDB version upgrade and a MySQL-to-MariaDB migration are different projects. An upgrade stays within MariaDB release paths, while a migration can change feature semantics. Both should begin on a disposable copy, never on the only existing data directory.</p>
+<div class="facts"><span>MariaDB 11.8 · MariaDB upgrades and MySQL migration compatibility</span><span>حدود ۱۰۵ دقیقه · ۱۸ تمرین / About 105 minutes · 18 exercises</span></div>
+</div>
+<section id="mental-model"><h2><span lang="fa">قبل از کد، مسئله رو درست ببین</span><span lang="en">Frame the problem before the code</span></h2>
+<p lang="fa">این فصل رو با syntax شروع نمی‌کنیم. مسئله اینه: upgrade/migration با compatibility proof و rollback واقعی. اول یه پیش‌بینی می‌سازیم، بعد با query یا command کوچیک آزمایشش می‌کنیم. هر جا خروجی خلاف انتظار بود، همون‌جا درس اصلی شروع می‌شه.</p>
+<p lang="en">This chapter does not begin with syntax. The problem is upgrade/migration with compatibility proof and a real rollback path. We will form a prediction, test it with a small query or command, and treat unexpected output as the beginning of the investigation.</p>
+</section><section id="lesson-1"><h2><span lang="fa">نسخهٔ دقیق مبدا و مقصد رو ثبت کن</span><span lang="en">Record exact source and target versions</span></h2><p lang="fa">«از MariaDB 10 به 11» برای planning کافی نیست. release دقیق و upgrade path رسمی مهمه، مخصوصاً وقتی system-versioned table یا featureهای نسخه‌حساس داری.</p><p lang="fa">اول <code>SELECT VERSION()</code>، engineها، collation، SQL mode و objectهای مهم رو inventory می‌کنیم.</p><p lang="en">“MariaDB 10 to 11” is not enough detail for planning. Exact releases and the documented upgrade path matter, especially with system-versioned tables or release-sensitive features.</p><p lang="en">Start by recording server version, engines, collations, SQL mode, and important schema objects.</p><pre dir="ltr"><code>SELECT VERSION();</code></pre><p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ upgrade/migration با compatibility proof و rollback واقعی یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p><p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about upgrade/migration with compatibility proof and a real rollback path.</p></section><section id="lesson-2"><h2><span lang="fa">Backup باید قبلش restore شده باشد</span><span lang="en">The backup must already have passed a restore drill</span></h2><p lang="fa">روز upgrade وقت مناسبی نیست که بفهمی backup ناقص بوده. قبل از تغییر، backup رو روی target جدا restore کن و validation queryها رو اجرا کن.</p><p lang="fa">Rollback plan هم «downgrade می‌کنیم» نیست مگر مستندات صریحاً پشتیبانی کنه. معمولاً restore به نسخهٔ قبلی امن‌تر و قابل‌فهم‌تره.</p><p lang="en">Upgrade day is too late to discover that a backup is incomplete. Restore it to an isolated target first and run validation queries.</p><p lang="en">A rollback plan should not assume a downgrade is supported. Restoring a known-good previous-version backup is often the clearer recovery path.</p><pre dir="ltr"><code>mariadb-upgrade --help
+# Use the exact supported pre-upgrade/upgrade tooling for the selected release pair.</code></pre><p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ upgrade/migration با compatibility proof و rollback واقعی یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p><p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about upgrade/migration with compatibility proof and a real rollback path.</p><div class="note warn"><strong lang="fa">مرز آزمایش</strong><span lang="fa">این بخش رو فقط روی database یا topology دورریختنی دوره اجرا کن. قبل از هر تغییر destructive، مقصد رو دوباره چک کن و یک recovery boundary قابل‌بررسی داشته باش.</span><strong lang="en">Lab boundary</strong><span lang="en">Run this only against the disposable course database or topology. Re-check the target before destructive changes and keep a verifiable recovery boundary.</span></div></section><section id="lesson-3"><h2><span lang="fa">Migration از MySQL یعنی compatibility test واقعی</span><span lang="en">MySQL migration requires real compatibility testing</span></h2><p lang="fa">JSON، collation، authentication، routine، DDL و replication جاهایی هستن که اسم‌های مشابه می‌تونن رفتار متفاوت داشته باشن. schema dump رو inspect و queryهای representative برنامه رو روی هر دو اجرا کن.</p><p lang="fa">Row count لازم هست ولی کافی نیست. aggregate، edge-case data و integration test برنامه هم باید pass بشن.</p><p lang="en">JSON, collations, authentication, routines, DDL, and replication are areas where similar names can hide different behavior. Inspect the schema dump and execute representative application queries on both systems.</p><p lang="en">Row counts are necessary but insufficient. Validate aggregates, edge-case data, and application integration tests as well.</p><pre dir="ltr"><code>SHOW CREATE TABLE migration_fixture;</code></pre><p lang="fa">اینجا اسم feature رو از روی حافظه قبول نمی‌کنیم. <code>SHOW CREATE</code> تعریف واقعی object رو برمی‌گردونه؛ همون رو به‌عنوان مدرک برای upgrade/migration با compatibility proof و rollback واقعی نگه دار.</p><p lang="en">Use the server's real object definition as evidence rather than relying on a remembered feature name. Keep this output with the lab notes.</p></section><section id="lesson-4"><h2><span lang="fa">Sign-off باید تفاوت‌ها رو هم ثبت کند</span><span lang="en">Sign-off must document differences, not just success</span></h2><p lang="fa">هدف migration این نیست که ثابت کنیم «هیچ فرقی نیست». برعکس، می‌خوایم فرق‌های مهم رو پیدا کنیم، owner و mitigationشون رو بنویسیم و بعد تصمیم بگیریم قابل‌قبول هستن یا نه.</p><p lang="fa">گزارش نهایی باید versionها، تست‌ها، تفاوت‌ها، downtime/rollout و recovery path رو کنار هم داشته باشه.</p><p lang="en">A migration is not successful because it proves “there are no differences.” The useful outcome is identifying meaningful differences, assigning owners and mitigations, and deciding whether they are acceptable.</p><p lang="en">The final sign-off should contain versions, tests, observed differences, rollout/downtime expectations, and the recovery path.</p><pre dir="ltr"><code>SELECT COUNT(*) FROM orders;</code></pre><p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ upgrade/migration با compatibility proof و rollback واقعی یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p><p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about upgrade/migration with compatibility proof and a real rollback path.</p></section><section id="mini-lab"><h2><span lang="fa">مینی‌لب — از حدس تا مدرک</span><span lang="en">Mini-lab — from assumption to evidence</span></h2>
+<p lang="fa">حالا سه checkpoint رو پشت‌سرهم اجرا کن. ترتیب مهمه: اول baseline، بعد یک تغییر یا مشاهدهٔ دقیق، بعد verification. وسط کار چیزی رو «درست» فرض نکن؛ هر مرحله باید خروجی مرحلهٔ بعد رو قابل‌تفسیرتر کنه.</p>
+<p lang="en">Run three checkpoints as one small story. Order matters: establish a baseline, make one controlled observation/change, then verify. Do not assume success between steps; each checkpoint should make the next result easier to interpret.</p>
+<pre dir="ltr"><code>SELECT VERSION();
+
+mariadb-upgrade --help
+# Use the exact supported pre-upgrade/upgrade tooling for the selected release pair.
+
+SHOW CREATE TABLE migration_fixture;</code></pre>
+<div class="note safe"><strong lang="fa">چی رو نگه دار؟</strong><span lang="fa">commandها، خروجی مهم، نسخهٔ Server و یک جمله که می‌گه این آزمایش دربارهٔ upgrade/migration با compatibility proof و rollback واقعی دقیقاً چی رو ثابت کرد.</span><strong lang="en">What should you preserve?</strong><span lang="en">Commands, relevant output, server version, and one sentence stating exactly what this experiment proved about upgrade/migration with compatibility proof and a real rollback path.</span></div>
+</section><section id="exercises"><h2><span lang="fa">تمرین‌ها — دست به کیبورد</span><span lang="en">Exercises — hands on keyboard</span></h2><p lang="fa">اینجا جواب تشریحیِ خالی نداریم. هر تمرین باید به یه SQL/command، خروجی یا state قابل‌بررسی ختم بشه. از تمرین‌های اول که گرم‌کردن هستن تا سناریوهای آخر، هدف اینه که بتونی چیزی رو با مدرک ثابت کنی.</p><p lang="en">These are not prose-only questions. Every exercise should end in runnable SQL/commands and observable evidence. Difficulty rises from warm-up tasks to engineering scenarios.</p><div class="ex" id="ex-mdb-37-1">
+<h3><span lang="fa">1) نسخهٔ مبدا رو ثبت کن</span><span lang="en">1) Query the evidence</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ upgrade/migration با compatibility proof و rollback واقعی چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about upgrade/migration with compatibility proof and a real rollback path. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT VERSION();</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ upgrade/migration با compatibility proof و rollback واقعی یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about upgrade/migration with compatibility proof and a real rollback path.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای upgrade/migration با compatibility proof و rollback واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for upgrade/migration with compatibility proof and a real rollback path.</p>
+</details></div><div class="ex" id="ex-mdb-37-2">
+<h3><span lang="fa">2) مستند upgrade path رو برای مبدأ/مقصد بخوان</span><span lang="en">2) Query the evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای upgrade/migration با compatibility proof و rollback واقعی مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for upgrade/migration with compatibility proof and a real rollback path.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT VERSION();
+-- Then verify this exact source→target pair in the official MariaDB upgrade guide.</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ upgrade/migration با compatibility proof و rollback واقعی یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about upgrade/migration with compatibility proof and a real rollback path.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای upgrade/migration با compatibility proof و rollback واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for upgrade/migration with compatibility proof and a real rollback path.</p>
+</details></div><div class="ex" id="ex-mdb-37-3">
+<h3><span lang="fa">3) backup رو restore test کن</span><span lang="en">3) Run the experiment</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>mariadb restore_lab &lt; verified_backup.sql
+mariadb restore_lab -e 'SELECT COUNT(*) FROM orders;'</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ upgrade/migration با compatibility proof و rollback واقعی یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about upgrade/migration with compatibility proof and a real rollback path.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای upgrade/migration با compatibility proof و rollback واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for upgrade/migration with compatibility proof and a real rollback path.</p>
+</details></div><div class="ex" id="ex-mdb-37-4">
+<h3><span lang="fa">4) data directory رو کپی زنده نکن</span><span lang="en">4) Query the evidence</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT @@datadir;
+-- Never point a new server at the only original data directory.</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ upgrade/migration با compatibility proof و rollback واقعی یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about upgrade/migration with compatibility proof and a real rollback path.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای upgrade/migration با compatibility proof و rollback واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for upgrade/migration with compatibility proof and a real rollback path.</p>
+</details></div><div class="ex" id="ex-mdb-37-5">
+<h3><span lang="fa">5) pre-upgrade check انجام بده</span><span lang="en">5) Run the experiment</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ upgrade/migration با compatibility proof و rollback واقعی چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about upgrade/migration with compatibility proof and a real rollback path. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>mariadb-upgrade --help
+# Use the exact supported pre-upgrade/upgrade tooling for the selected release pair.</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ upgrade/migration با compatibility proof و rollback واقعی یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about upgrade/migration with compatibility proof and a real rollback path.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای upgrade/migration با compatibility proof و rollback واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for upgrade/migration with compatibility proof and a real rollback path.</p>
+</details></div><div class="ex" id="ex-mdb-37-6">
+<h3><span lang="fa">6) character set/collation رو inventory کن</span><span lang="en">6) Read server evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای upgrade/migration با compatibility proof و rollback واقعی مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for upgrade/migration with compatibility proof and a real rollback path.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW VARIABLES LIKE 'collation%';</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با exact versions، schema/data checks و integration tests رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about upgrade/migration with compatibility proof and a real rollback path can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای upgrade/migration با compatibility proof و rollback واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for upgrade/migration with compatibility proof and a real rollback path.</p>
+</details></div><div class="ex" id="ex-mdb-37-7">
+<h3><span lang="fa">7) schema رو dump و inspect کن</span><span lang="en">7) Run the logical-backup step</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>mariadb-dump --no-data appdb &gt; schema.sql</code></pre>
+<p lang="fa">exit code صفر فقط یک checkpointه. artifact یا خروجی رو inspect کن و تا وقتی restore/replay و validation مربوط به upgrade/migration با compatibility proof و rollback واقعی انجام نشده، این مرحله رو «موفق» حساب نکن.</p>
+<p lang="en">A zero exit code is only one checkpoint. Inspect the artifact and complete the relevant restore/replay validation before calling the step successful.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای upgrade/migration با compatibility proof و rollback واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for upgrade/migration with compatibility proof and a real rollback path.</p>
+</details></div><div class="ex" id="ex-mdb-37-8">
+<h3><span lang="fa">8) JSON column رو validate کن</span><span lang="en">8) Query the evidence</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT JSON_VALID(payload) FROM migration_fixture;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ upgrade/migration با compatibility proof و rollback واقعی یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about upgrade/migration with compatibility proof and a real rollback path.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای upgrade/migration با compatibility proof و rollback واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for upgrade/migration with compatibility proof and a real rollback path.</p>
+</details></div><div class="ex" id="ex-mdb-37-9">
+<h3><span lang="fa">9) JSON storage difference رو record کن</span><span lang="en">9) Inspect the real object definition</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ upgrade/migration با compatibility proof و rollback واقعی چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about upgrade/migration with compatibility proof and a real rollback path. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW CREATE TABLE migration_fixture;</code></pre>
+<p lang="fa">اینجا اسم feature رو از روی حافظه قبول نمی‌کنیم. <code>SHOW CREATE</code> تعریف واقعی object رو برمی‌گردونه؛ همون رو به‌عنوان مدرک برای upgrade/migration با compatibility proof و rollback واقعی نگه دار.</p>
+<p lang="en">Use the server's real object definition as evidence rather than relying on a remembered feature name. Keep this output with the lab notes.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای upgrade/migration با compatibility proof و rollback واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for upgrade/migration with compatibility proof and a real rollback path.</p>
+</details></div><div class="ex" id="ex-mdb-37-10">
+<h3><span lang="fa">10) SQL mode رو compare کن</span><span lang="en">10) Query the evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای upgrade/migration با compatibility proof و rollback واقعی مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for upgrade/migration with compatibility proof and a real rollback path.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT @@sql_mode;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ upgrade/migration با compatibility proof و rollback واقعی یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about upgrade/migration with compatibility proof and a real rollback path.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای upgrade/migration با compatibility proof و rollback واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for upgrade/migration with compatibility proof and a real rollback path.</p>
+</details></div><div class="ex" id="ex-mdb-37-11">
+<h3><span lang="fa">11) function compatibility رو test کن</span><span lang="en">11) Query the evidence</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT VERSION();
+SELECT JSON_VALID(payload),JSON_EXTRACT(payload,'$.kind')
+FROM migration_fixture
+LIMIT 20;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ upgrade/migration با compatibility proof و rollback واقعی یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about upgrade/migration with compatibility proof and a real rollback path.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای upgrade/migration با compatibility proof و rollback واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for upgrade/migration with compatibility proof and a real rollback path.</p>
+</details></div><div class="ex" id="ex-mdb-37-12">
+<h3><span lang="fa">12) timezone and date behavior رو test کن</span><span lang="en">12) Query the evidence</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT @@system_time_zone,@@time_zone;
+SELECT MIN(created_at),MAX(created_at) FROM orders;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ upgrade/migration با compatibility proof و rollback واقعی یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about upgrade/migration with compatibility proof and a real rollback path.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای upgrade/migration با compatibility proof و rollback واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for upgrade/migration with compatibility proof and a real rollback path.</p>
+</details></div><div class="ex" id="ex-mdb-37-13">
+<h3><span lang="fa">13) row count checks بساز</span><span lang="en">13) Query the evidence</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ upgrade/migration با compatibility proof و rollback واقعی چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about upgrade/migration with compatibility proof and a real rollback path. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT COUNT(*) FROM orders;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ upgrade/migration با compatibility proof و rollback واقعی یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about upgrade/migration with compatibility proof and a real rollback path.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای upgrade/migration با compatibility proof و rollback واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for upgrade/migration with compatibility proof and a real rollback path.</p>
+</details></div><div class="ex" id="ex-mdb-37-14">
+<h3><span lang="fa">14) aggregate checksum بگیر</span><span lang="en">14) Query the evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای upgrade/migration با compatibility proof و rollback واقعی مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for upgrade/migration with compatibility proof and a real rollback path.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT COUNT(*),SUM(total) FROM orders;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ upgrade/migration با compatibility proof و rollback واقعی یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about upgrade/migration with compatibility proof and a real rollback path.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای upgrade/migration با compatibility proof و rollback واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for upgrade/migration with compatibility proof and a real rollback path.</p>
+</details></div><div class="ex" id="ex-mdb-37-15">
+<h3><span lang="fa">15) replication format compatibility verify کن</span><span lang="en">15) Read server evidence</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW VARIABLES LIKE 'binlog_format';
+SHOW MASTER STATUS;</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با exact versions، schema/data checks و integration tests رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about upgrade/migration with compatibility proof and a real rollback path can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای upgrade/migration با compatibility proof و rollback واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for upgrade/migration with compatibility proof and a real rollback path.</p>
+</details></div><div class="ex" id="ex-mdb-37-16">
+<h3><span lang="fa">16) application integration tests رو اجرا کن</span><span lang="en">16) Run the experiment</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>mariadb appdb &lt; representative_integration_checks.sql</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ upgrade/migration با compatibility proof و rollback واقعی یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about upgrade/migration with compatibility proof and a real rollback path.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای upgrade/migration با compatibility proof و rollback واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for upgrade/migration with compatibility proof and a real rollback path.</p>
+</details></div><div class="ex" id="ex-mdb-37-17">
+<h3><span lang="fa">17) rollback مسیر رو مستند کن</span><span lang="en">17) Query the evidence</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ upgrade/migration با compatibility proof و rollback واقعی چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about upgrade/migration with compatibility proof and a real rollback path. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT 'rollback = restore known-good previous-version backup' AS recovery_plan;</code></pre>
+<p lang="fa">به ترتیب اجرا دقت کن. این تمرین دربارهٔ syntax نیست؛ دربارهٔ state قبل و بعد transactionه. بعد از پایان، یک <code>SELECT</code> مستقل بزن تا چیزی که commit یا rollback شده با چشم دیده بشه.</p>
+<p lang="en">Focus on state before and after the transaction. Finish with an independent query so commit/rollback behavior is observable.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای upgrade/migration با compatibility proof و rollback واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for upgrade/migration with compatibility proof and a real rollback path.</p>
+</details></div><div class="ex" id="ex-mdb-37-18">
+<h3><span lang="fa">18) sign-off checklist بساز</span><span lang="en">18) Query the evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای upgrade/migration با compatibility proof و rollback واقعی مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for upgrade/migration with compatibility proof and a real rollback path.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT VERSION(),@@hostname,@@sql_mode,@@collation_server;
+SELECT COUNT(*) AS orders,COALESCE(SUM(total),0) AS total FROM orders;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ upgrade/migration با compatibility proof و rollback واقعی یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about upgrade/migration with compatibility proof and a real rollback path.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای upgrade/migration با compatibility proof و rollback واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for upgrade/migration with compatibility proof and a real rollback path.</p>
+</details></div></section><section id="next"><h2><span lang="fa">جمع‌بندی — چیزی که باید با خودت ببری</span><span lang="en">Summary — the mental model to keep</span></h2><p lang="fa">اگه از این فصل فقط یه عادت بمونه، این باشه: دربارهٔ upgrade/migration با compatibility proof و rollback واقعی از روی اسم feature یا حس تصمیم نگیر. baseline بگیر، یه چیز رو عوض کن، خروجی رو بخون و بعد نتیجه بگیر.</p><p lang="en">If one habit survives this chapter, let it be this: do not reason about upgrade/migration with compatibility proof and a real rollback path from feature names or intuition. Capture a baseline, change one thing, read the evidence, then conclude.</p><p class="refs"><a href="https://mariadb.com/docs/server/server-management/install-and-upgrade-mariadb/upgrading">MariaDB Upgrade Guide</a> · <a href="https://mariadb.com/kb/en/mariadb-vs-mysql-compatibility/">MariaDB vs MySQL</a> · <a href="https://mariadb.com/docs/server/reference/data-types/string-data-types/json">JSON Data Type</a></p></section>

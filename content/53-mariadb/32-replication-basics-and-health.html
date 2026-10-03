@@ -1,0 +1,236 @@
+<!--meta
+title: Replication پایه و بررسی سلامت
+desc: Replication وقتی سالم به نظر می‌رسه که data می‌رسه؛ ولی حتی replication سالم هم لزوماً فوری نیست. این فصل بین «خراب شده» و «هنوز نرسیده» فرق می‌ذاره و status رو به row واقعی وصل می‌کنه.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">MariaDB · فصل 32</span><span lang="en">MariaDB · Chapter 32</span></span>
+<h1 lang="fa">یک write روی primary موفق شد اما replica هنوز مقدار قبلی رو می‌ده؛ آیا channel خراب هست؟</h1>
+<h1 lang="en">A write succeeded on the primary, but the replica still shows the old value. Is the channel broken?</h1>
+<p class="sub" lang="fa">Replication وقتی سالم به نظر می‌رسه که data می‌رسه؛ ولی حتی replication سالم هم لزوماً فوری نیست. این فصل بین «خراب شده» و «هنوز نرسیده» فرق می‌ذاره و status رو به row واقعی وصل می‌کنه.</p>
+<p class="sub" lang="en">Replication can be healthy without being instantaneous. This chapter separates “broken” from “not applied yet” and connects status fields to an actual row moving through the topology.</p>
+<div class="facts"><span>MariaDB 11.8 · Replication basics and health checks</span><span>حدود ۱۰۰ دقیقه · ۱۸ تمرین / About 100 minutes · 18 exercises</span></div>
+</div>
+<section id="mental-model"><h2><span lang="fa">قبل از کد، مسئله رو درست ببین</span><span lang="en">Frame the problem before the code</span></h2>
+<p lang="fa">این فصل رو با syntax شروع نمی‌کنیم. مسئله اینه: replication async و سلامت channel. اول یه پیش‌بینی می‌سازیم، بعد با query یا command کوچیک آزمایشش می‌کنیم. هر جا خروجی خلاف انتظار بود، همون‌جا درس اصلی شروع می‌شه.</p>
+<p lang="en">This chapter does not begin with syntax. The problem is asynchronous replication and channel health. We will form a prediction, test it with a small query or command, and treat unexpected output as the beginning of the investigation.</p>
+</section><section id="lesson-1"><h2><span lang="fa">جریان data رو از primary تا apply ببین</span><span lang="en">Follow the data from source to apply</span></h2><p lang="fa">مدل ساده‌مون اینه: write روی primary → binlog → receiver روی replica → relay/apply → table replica. هر نقطه failure خودش رو داره.</p><p lang="fa"><code>SHOW ... STATUS</code> رو مثل یک دیوار فیلد نمی‌خونیم؛ اول می‌پرسیم receiver وصل هست؟ apply thread جلو می‌ره؟ آخرین error چیست؟</p><p lang="en">Use a simple model: write on the primary → binlog → replica receiver → relay/apply → replica table. Each boundary has its own failure modes.</p><p lang="en">Do not read replication status as a wall of fields. Ask focused questions: is the receiver connected, is the applier progressing, and what is the last error?</p><pre dir="ltr"><code>SELECT @@server_id;</code></pre><p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ replication async و سلامت channel یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p><p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about asynchronous replication and channel health.</p></section><section id="lesson-2"><h2><span lang="fa">Lag طبیعی هست؛ consistency requirement جداست</span><span lang="en">Lag is normal; consistency requirements are separate</span></h2><p lang="fa">در replication ناهمگام، write ممکنه روی primary commit شده باشه ولی replica هنوز نرسیده باشه. این یعنی read-after-write از replica باید آگاهانه طراحی بشه.</p><p lang="fa">یک marker row می‌نویسیم و زمان رسیدنش رو می‌بینیم. این آزمایش از هر تعریف نظری بهتر latency واقعی lab رو نشون می‌ده.</p><p lang="en">With asynchronous replication, a write can commit on the primary before the replica has applied it. That means read-after-write behavior must be designed deliberately.</p><p lang="en">Write a marker row and observe when it becomes visible on the replica. This makes actual lab lag more concrete than a definition.</p><pre dir="ltr"><code>SHOW SLAVE STATUS\G</code></pre><p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با thread state، error، lag و marker row روی replica رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p><p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about asynchronous replication and channel health can be tied to evidence.</p><div class="note warn"><strong lang="fa">مرز آزمایش</strong><span lang="fa">این بخش رو فقط روی database یا topology دورریختنی دوره اجرا کن. قبل از هر تغییر destructive، مقصد رو دوباره چک کن و یک recovery boundary قابل‌بررسی داشته باش.</span><strong lang="en">Lab boundary</strong><span lang="en">Run this only against the disposable course database or topology. Re-check the target before destructive changes and keep a verifiable recovery boundary.</span></div></section><div class="diagram"><svg aria-labelledby="mdb32-title" role="img" viewBox="0 0 770 176" xmlns="http://www.w3.org/2000/svg"><title id="mdb32-title">asynchronous replication and channel health</title><defs><marker id="mdb32-arrow" markerHeight="9" markerWidth="9" orient="auto" refX="7" refY="4.5"><path class="dg-arrow" d="M0 0L9 4.5L0 9z"></path></marker></defs><rect class="dg-fill" height="88" rx="13" width="150" x="24" y="42"></rect><text class="dg-t" direction="ltr" text-anchor="middle" x="99" y="82">Primary</text><text class="dg-t" direction="rtl" text-anchor="middle" x="99" y="106">Primary</text><rect class="dg-fill-alt" height="88" rx="13" width="150" x="214" y="42"></rect><text class="dg-t" direction="ltr" text-anchor="middle" x="289" y="82">Binlog</text><text class="dg-t" direction="rtl" text-anchor="middle" x="289" y="106">Binlog</text><rect class="dg-fill" height="88" rx="13" width="150" x="404" y="42"></rect><text class="dg-t" direction="ltr" text-anchor="middle" x="479" y="82">Replica apply</text><text class="dg-t" direction="rtl" text-anchor="middle" x="479" y="106">Apply روی replica</text><rect class="dg-fill-alt" height="88" rx="13" width="150" x="594" y="42"></rect><text class="dg-t" direction="ltr" text-anchor="middle" x="669" y="82">Replica data</text><text class="dg-t" direction="rtl" text-anchor="middle" x="669" y="106">دادهٔ replica</text><path class="dg-stroke" d="M176 86H206" marker-end="url(#mdb32-arrow)"></path><path class="dg-stroke" d="M366 86H396" marker-end="url(#mdb32-arrow)"></path><path class="dg-stroke" d="M556 86H586" marker-end="url(#mdb32-arrow)"></path></svg><p class="diagram-caption" lang="fa">Replication یک جریان مرحله‌ایه؛ lag یا خطا رو باید در همین مسیر پیدا کنی.</p><p class="diagram-caption" lang="en">Replication is a staged flow; lag and failure have to be localized along that path.</p></div><section id="lesson-3"><h2><span lang="fa">Replica backup نیست</span><span lang="en">A replica is not a backup</span></h2><p lang="fa">اگه <code>DELETE</code> اشتباه از primary وارد binlog بشه، replica هم می‌تونه با وفاداری کامل همون اشتباه رو اعمال کنه. replication availability می‌ده، نه history مستقل.</p><p lang="fa">برای همین فصل replication به backup فصل‌های قبلی وصل می‌شه؛ دو ابزار failure model متفاوتی دارن.</p><p lang="en">If an accidental <code>DELETE</code> is written to the primary binlog, a healthy replica can faithfully apply the same mistake. Replication improves availability, not independent historical recovery.</p><p lang="en">That is why this chapter connects replication back to backup chapters: the two mechanisms protect against different failures.</p><pre dir="ltr"><code>getent hosts primary
+nc -vz primary 3306</code></pre><p lang="fa">این command فقط یک مرز از مسیر رو تست می‌کنه. مقصد، زمان و نتیجهٔ دقیق رو نگه دار؛ موفقیت این مرحله هنوز لایه‌های بعدی مثل TLS یا authentication رو ثابت نمی‌کنه.</p><p lang="en">This command tests only one boundary. Record the exact target and result; success here does not prove later layers such as TLS or authentication.</p></section><section id="lesson-4"><h2><span lang="fa">قبل از reset، status رو نگه دار</span><span lang="en">Preserve status before resetting anything</span></h2><p lang="fa">خیلی از commandهای repair می‌تونن evidence خطا یا position قبلی رو پاک کنن. قبل از stop/start/reset، output و error log رو ذخیره کن.</p><p lang="fa">بعد repair هم فقط به <code>Yes/Yes</code> اکتفا نکن؛ marker row و position/GTID رو دوباره verify کن.</p><p lang="en">Many repair commands can erase useful error or position evidence. Preserve status output and relevant logs before stop/start/reset actions.</p><p lang="en">After repair, do not stop at a pair of healthy-looking thread flags. Re-verify a marker row and position/GTID progress.</p><pre dir="ltr"><code>-- Disposable lab only: an accidental DELETE on the primary is also replicated.
+DELETE FROM lab_marker WHERE id=1;
+SELECT * FROM lab_marker WHERE id=1;</code></pre><p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ replication async و سلامت channel یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p><p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about asynchronous replication and channel health.</p></section><section id="mini-lab"><h2><span lang="fa">مینی‌لب — از حدس تا مدرک</span><span lang="en">Mini-lab — from assumption to evidence</span></h2>
+<p lang="fa">حالا سه checkpoint رو پشت‌سرهم اجرا کن. ترتیب مهمه: اول baseline، بعد یک تغییر یا مشاهدهٔ دقیق، بعد verification. وسط کار چیزی رو «درست» فرض نکن؛ هر مرحله باید خروجی مرحلهٔ بعد رو قابل‌تفسیرتر کنه.</p>
+<p lang="en">Run three checkpoints as one small story. Order matters: establish a baseline, make one controlled observation/change, then verify. Do not assume success between steps; each checkpoint should make the next result easier to interpret.</p>
+<pre dir="ltr"><code>SELECT @@server_id;
+
+SHOW SLAVE STATUS\G
+
+getent hosts primary
+nc -vz primary 3306</code></pre>
+<div class="note safe"><strong lang="fa">چی رو نگه دار؟</strong><span lang="fa">commandها، خروجی مهم، نسخهٔ Server و یک جمله که می‌گه این آزمایش دربارهٔ replication async و سلامت channel دقیقاً چی رو ثابت کرد.</span><strong lang="en">What should you preserve?</strong><span lang="en">Commands, relevant output, server version, and one sentence stating exactly what this experiment proved about asynchronous replication and channel health.</span></div>
+</section><section id="exercises"><h2><span lang="fa">تمرین‌ها — دست به کیبورد</span><span lang="en">Exercises — hands on keyboard</span></h2><p lang="fa">اینجا جواب تشریحیِ خالی نداریم. هر تمرین باید به یه SQL/command، خروجی یا state قابل‌بررسی ختم بشه. از تمرین‌های اول که گرم‌کردن هستن تا سناریوهای آخر، هدف اینه که بتونی چیزی رو با مدرک ثابت کنی.</p><p lang="en">These are not prose-only questions. Every exercise should end in runnable SQL/commands and observable evidence. Difficulty rises from warm-up tasks to engineering scenarios.</p><div class="ex" id="ex-mdb-32-1">
+<h3><span lang="fa">1) server_id رو مقایسه کن</span><span lang="en">1) Query the evidence</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ replication async و سلامت channel چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about asynchronous replication and channel health. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT @@server_id;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ replication async و سلامت channel یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about asynchronous replication and channel health.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای replication async و سلامت channel انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for asynchronous replication and channel health.</p>
+</details></div><div class="ex" id="ex-mdb-32-2">
+<h3><span lang="fa">2) binlog رو check کن</span><span lang="en">2) Read server evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای replication async و سلامت channel مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for asynchronous replication and channel health.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW VARIABLES LIKE 'log_bin';</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با thread state، error، lag و marker row روی replica رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about asynchronous replication and channel health can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای replication async و سلامت channel انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for asynchronous replication and channel health.</p>
+</details></div><div class="ex" id="ex-mdb-32-3">
+<h3><span lang="fa">3) primary position رو ثبت کن</span><span lang="en">3) Read server evidence</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW MASTER STATUS;</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با thread state، error، lag و marker row روی replica رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about asynchronous replication and channel health can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای replication async و سلامت channel انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for asynchronous replication and channel health.</p>
+</details></div><div class="ex" id="ex-mdb-32-4">
+<h3><span lang="fa">4) replica status بگیر</span><span lang="en">4) Read server evidence</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW SLAVE STATUS\\G</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با thread state، error، lag و marker row روی replica رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about asynchronous replication and channel health can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای replication async و سلامت channel انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for asynchronous replication and channel health.</p>
+</details></div><div class="ex" id="ex-mdb-32-5">
+<h3><span lang="fa">5) receiver thread رو تفسیر کن</span><span lang="en">5) Read server evidence</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ replication async و سلامت channel چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about asynchronous replication and channel health. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW SLAVE STATUS\G</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با thread state، error، lag و marker row روی replica رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about asynchronous replication and channel health can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای replication async و سلامت channel انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for asynchronous replication and channel health.</p>
+</details></div><div class="ex" id="ex-mdb-32-6">
+<h3><span lang="fa">6) SQL thread رو تفسیر کن</span><span lang="en">6) Read server evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای replication async و سلامت channel مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for asynchronous replication and channel health.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW SLAVE STATUS\G</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با thread state، error، lag و marker row روی replica رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about asynchronous replication and channel health can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای replication async و سلامت channel انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for asynchronous replication and channel health.</p>
+</details></div><div class="ex" id="ex-mdb-32-7">
+<h3><span lang="fa">7) کاربر replication بساز</span><span lang="en">7) Create a restricted security principal</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>CREATE USER 'repl'@'10.%' IDENTIFIED BY 'lab-secret';</code></pre>
+<p lang="fa">این object عمداً کوچک و آزمایشیه تا behavior رو بدون سر و صدای production ببینیم. بعد از ساخت، با metadata یا یک query مستقل ثابت کن چیزی که می‌خواستیم واقعاً ساخته شده.</p>
+<p lang="en">The object is intentionally small and disposable. After creating it, use independent metadata or a query to prove that the intended behavior really exists.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای replication async و سلامت channel انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for asynchronous replication and channel health.</p>
+</details></div><div class="ex" id="ex-mdb-32-8">
+<h3><span lang="fa">8) مجوز محدود بده</span><span lang="en">8) Grant the minimum required access</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>GRANT REPLICATION SLAVE ON *.* TO 'repl'@'10.%';</code></pre>
+<p lang="fa">بعد از تغییر privilege با account هدف reconnect کن. یک operation مجاز و یک operation غیرمجاز اجرا کن؛ security وقتی ثابت می‌شه که failure موردانتظار رو هم ببینی.</p>
+<p lang="en">Reconnect as the target account and test both an allowed and a denied operation. Security is best proven by the expected success and the expected failure.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای replication async و سلامت channel انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for asynchronous replication and channel health.</p>
+</details></div><div class="ex" id="ex-mdb-32-9">
+<h3><span lang="fa">9) DNS و firewall رو جدا تست کن</span><span lang="en">9) Test the network boundary</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ replication async و سلامت channel چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about asynchronous replication and channel health. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>getent hosts primary
+nc -vz primary 3306</code></pre>
+<p lang="fa">این command فقط یک مرز از مسیر رو تست می‌کنه. مقصد، زمان و نتیجهٔ دقیق رو نگه دار؛ موفقیت این مرحله هنوز لایه‌های بعدی مثل TLS یا authentication رو ثابت نمی‌کنه.</p>
+<p lang="en">This command tests only one boundary. Record the exact target and result; success here does not prove later layers such as TLS or authentication.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای replication async و سلامت channel انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for asynchronous replication and channel health.</p>
+</details></div><div class="ex" id="ex-mdb-32-10">
+<h3><span lang="fa">10) روی primary row marker درج کن</span><span lang="en">10) Create controlled fixture data</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای replication async و سلامت channel مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for asynchronous replication and channel health.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>INSERT INTO lab_marker VALUES(1,'test');</code></pre>
+<p lang="fa">این تغییر فقط روی دادهٔ دورریختنیه. قبلش target رو با <code>SELECT</code> مشخص کن، بعد تغییر رو اجرا کن و دوباره state رو بخون؛ row count یا پیام <code>Query OK</code> جای verification رو نمی‌گیره.</p>
+<p lang="en">Keep the change inside disposable data. Inspect the target first, make the change, then query the resulting state; an affected-row count is not sufficient verification.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای replication async و سلامت channel انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for asynchronous replication and channel health.</p>
+</details></div><div class="ex" id="ex-mdb-32-11">
+<h3><span lang="fa">11) رسیدن row رو verify کن</span><span lang="en">11) Query the evidence</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT * FROM lab_marker WHERE id=1;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ replication async و سلامت channel یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about asynchronous replication and channel health.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای replication async و سلامت channel انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for asynchronous replication and channel health.</p>
+</details></div><div class="ex" id="ex-mdb-32-12">
+<h3><span lang="fa">12) lag رو با thread state بخوان</span><span lang="en">12) Read server evidence</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW SLAVE STATUS\G</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با thread state، error، lag و marker row روی replica رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about asynchronous replication and channel health can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای replication async و سلامت channel انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for asynchronous replication and channel health.</p>
+</details></div><div class="ex" id="ex-mdb-32-13">
+<h3><span lang="fa">13) replica جای backup نیست</span><span lang="en">13) Run the experiment</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ replication async و سلامت channel چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about asynchronous replication and channel health. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>-- Disposable lab only: an accidental DELETE on the primary is also replicated.
+DELETE FROM lab_marker WHERE id=1;
+SELECT * FROM lab_marker WHERE id=1;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ replication async و سلامت channel یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about asynchronous replication and channel health.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای replication async و سلامت channel انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for asynchronous replication and channel health.</p>
+</details></div><div class="ex" id="ex-mdb-32-14">
+<h3><span lang="fa">14) read_only رو بررسی کن</span><span lang="en">14) Read server evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای replication async و سلامت channel مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for asynchronous replication and channel health.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW VARIABLES LIKE 'read_only';</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با thread state، error، lag و marker row روی replica رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about asynchronous replication and channel health can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای replication async و سلامت channel انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for asynchronous replication and channel health.</p>
+</details></div><div class="ex" id="ex-mdb-32-15">
+<h3><span lang="fa">15) قبل reset شواهد رو ذخیره کن</span><span lang="en">15) Read server evidence</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW SLAVE STATUS\G
+SHOW VARIABLES LIKE 'log_error';</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با thread state، error، lag و marker row روی replica رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about asynchronous replication and channel health can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای replication async و سلامت channel انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for asynchronous replication and channel health.</p>
+</details></div><div class="ex" id="ex-mdb-32-16">
+<h3><span lang="fa">16) یک channel رو در lab reconnect کن</span><span lang="en">16) Run the experiment</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>STOP SLAVE;
+START SLAVE;
+SHOW SLAVE STATUS\G</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با thread state، error، lag و marker row روی replica رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about asynchronous replication and channel health can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای replication async و سلامت channel انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for asynchronous replication and channel health.</p>
+</details></div><div class="ex" id="ex-mdb-32-17">
+<h3><span lang="fa">17) GTID/position رو به backup وصل کن</span><span lang="en">17) Read server evidence</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ replication async و سلامت channel چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about asynchronous replication and channel health. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW MASTER STATUS;
+SHOW SLAVE STATUS\G</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با thread state، error، lag و marker row روی replica رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about asynchronous replication and channel health can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای replication async و سلامت channel انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for asynchronous replication and channel health.</p>
+</details></div><div class="ex" id="ex-mdb-32-18">
+<h3><span lang="fa">18) گزارش سلامت بساز</span><span lang="en">18) Query the evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای replication async و سلامت channel مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for asynchronous replication and channel health.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT NOW(6),@@hostname,@@server_id;
+SHOW SLAVE STATUS\G
+SELECT * FROM lab_marker;</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با thread state، error، lag و marker row روی replica رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about asynchronous replication and channel health can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای replication async و سلامت channel انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for asynchronous replication and channel health.</p>
+</details></div></section><section id="next"><h2><span lang="fa">جمع‌بندی — چیزی که باید با خودت ببری</span><span lang="en">Summary — the mental model to keep</span></h2><p lang="fa">اگه از این فصل فقط یه عادت بمونه، این باشه: دربارهٔ replication async و سلامت channel از روی اسم feature یا حس تصمیم نگیر. baseline بگیر، یه چیز رو عوض کن، خروجی رو بخون و بعد نتیجه بگیر.</p><p lang="en">If one habit survives this chapter, let it be this: do not reason about asynchronous replication and channel health from feature names or intuition. Capture a baseline, change one thing, read the evidence, then conclude.</p><p class="refs"><a href="https://mariadb.com/docs/server/ha-and-performance/standard-replication/setting-up-replication">Setting Up Replication</a> · <a href="https://mariadb.com/docs/server/ha-and-performance/standard-replication">Replication Overview</a></p></section>

@@ -7,7 +7,7 @@ description: Author or repair CodeNames learning chapters when bilingual instruc
 
 ## Identity and quality bar
 
-CodeNames is an open-source, documentation-grade learning platform: a practical course, workshop, and debugging guide—not a blog or a command cheat sheet. Write for learners who want operational understanding, not memorized syntax.
+CodeNames is an open-source learning platform with reference-grade technical accuracy and classroom-style storytelling: a practical course, workshop, and debugging guide—not a blog, documentation-style prose, or a command cheat sheet. Here, “documentation-grade” describes accuracy, completeness, and reliability; it does not mean writing like product documentation. Write for learners who want operational understanding, not memorized syntax.
 
 Every chapter must feel simple, practical, professional, deep, clear, debuggable, and human-written. Chapter 1 reference quality is the **depth floor**, not only the UI style.
 
@@ -120,6 +120,15 @@ Use a `term` block with a `term-bar`, label, copy button, and LTR `pre`. Keep te
 For visual QA, check both dark and light themes and both RTL prose/LTR code contexts. Confirm that text, arrowheads, borders, hover states, and horizontal overflow remain legible; a source-level diagram that only looks plausible is not enough.
 
 ## Exercises and labs
+
+### Programming / Backend practical exercise contract
+
+- In programming-language, web-framework, and backend courses, most normal exercises should produce executable code or observable evidence: an HTTP request/response, passing or failing test, log/trace, generated SQL or database state, benchmark, reproducible failure, or fixed implementation. Pure definition questions should be uncommon.
+- A conceptual prompt should normally end in an action/evidence loop: predict behavior → run a request or test → inspect response/log/trace/SQL/state → explain what the evidence proves and what it does not. Other valid outputs include implementing or repairing a method, reproducing a race, benchmarking alternatives, or refactoring an API.
+- Give each exercise enough starter context and constraints for the learner to work without guessing at unspecified project state. Ask for concrete evidence such as output, test results, exception details, benchmark measurements, or a changed API behavior.
+- Solutions are mini-lessons: include the relevant code, representative output or test result, and reasoning. Explain why the code is needed, what the new lines do, what happens at runtime, which result matters, what a plausible wrong version looks like, and what the experiment does and does not prove.
+- Increase difficulty across the course, moving from small predictions and edits toward debugging, refactoring, testing, performance analysis, concurrency, and design decisions. Vary the presentation and response shape; do not make every exercise card or solution look identical.
+- Apply this contract to programming courses without overriding a more specific practical contract, such as the database exercise contract below.
 
 ### Database-course practical exercise contract
 

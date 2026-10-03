@@ -1,0 +1,231 @@
+<!--meta
+title: Partitioning و جدول‌های بزرگ
+desc: Partitioning وقتی جذاب به نظر می‌رسد که table خیلی بزرگ شده، ولی یک دام کلاسیک دارد: فکر کنیم خودش query رو سریع می‌کنه. این فصل partition رو بیشتر به‌عنوان ابزار تقسیم data و عملیات می‌بیند؛ سرعت فقط وقتی می‌آید که pruning و workload واقعاً هم‌راستا باشند.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">MariaDB · فصل 14</span><span lang="en">MariaDB · Chapter 14</span></span>
+<h1 lang="fa">جدول رخدادها به صدها میلیون ردیف رسیده؛ آیا partition همهٔ queryها رو سریع می‌کنه؟</h1>
+<h1 lang="en">The events table has hundreds of millions of rows. Will partitioning speed up every query?</h1>
+<p class="sub" lang="fa">Partitioning وقتی جذاب به نظر می‌رسه که table خیلی بزرگ شده، ولی یک دام کلاسیک داره: فکر کنیم خودش query رو سریع می‌کنه. این فصل partition رو بیشتر به‌عنوان ابزار تقسیم data و عملیات می‌بیند؛ سرعت فقط وقتی میاد که pruning و workload واقعاً هم‌راستا باشند.</p>
+<p class="sub" lang="en">Partitioning becomes attractive when a table grows very large, but it comes with a classic trap: assuming partitioning automatically makes queries fast. This chapter treats partitioning primarily as a data/operations boundary; performance benefits appear only when pruning and workload align.</p>
+<div class="facts"><span>MariaDB 11.8 · Partitioning and large tables</span><span>حدود ۹۵ دقیقه · ۱۸ تمرین / About 95 minutes · 18 exercises</span></div>
+</div>
+<section id="mental-model"><h2><span lang="fa">قبل از کد، مسئله رو درست ببین</span><span lang="en">Frame the problem before the code</span></h2>
+<p lang="fa">این فصل رو با syntax شروع نمی‌کنیم. مسئله اینه: partition pruning و هزینهٔ عملیاتی جدول بزرگ. اول یه پیش‌بینی می‌سازیم، بعد با query یا command کوچیک آزمایشش می‌کنیم. هر جا خروجی خلاف انتظار بود، همون‌جا درس اصلی شروع می‌شه.</p>
+<p lang="en">This chapter does not begin with syntax. The problem is partition pruning and large-table operational cost. We will form a prediction, test it with a small query or command, and treat unexpected output as the beginning of the investigation.</p>
+</section><section id="lesson-1"><h2><span lang="fa">اول سؤال عملیاتی رو مشخص کن</span><span lang="en">Start with the operational problem</span></h2><p lang="fa">ممکن هست مشکل اصلی query نباشد؛ شاید retention داری و باید هر ماه data قدیمی رو سریع کنار بگذاری. یا maintenance روی table چندصد میلیون ردیفی سخت شده. این‌ها دلیل‌های بهتری برای partitioning هستن تا جملهٔ «جدول بزرگ است».</p><p lang="fa">قبل از ساخت partition، pattern دسترسی و lifecycle داده رو بنویس: بیشتر queryها روی چه بازه‌ای هستن و data قدیمی چه زمانی حذف می‌شه؟</p><p lang="en">The main problem may not be query speed at all. Perhaps old data must be retired monthly, or maintenance on a hundreds-of-millions-row table has become painful. Those are stronger reasons for partitioning than “the table is large.”</p><p lang="en">Before partitioning, document access patterns and data lifecycle: which ranges are commonly queried, and when should old data leave the system?</p><pre dir="ltr"><code>SHOW CREATE TABLE event_part;</code></pre><p lang="fa">اینجا اسم feature رو از روی حافظه قبول نمی‌کنیم. <code>SHOW CREATE</code> تعریف واقعی object رو برمی‌گردونه؛ همون رو به‌عنوان مدرک برای partition pruning و هزینهٔ عملیاتی جدول بزرگ نگه دار.</p><p lang="en">Use the server's real object definition as evidence rather than relying on a remembered feature name. Keep this output with the lab notes.</p></section><section id="lesson-2"><h2><span lang="fa">Pruning رو با plan ثابت کن</span><span lang="en">Prove pruning with the plan</span></h2><p lang="fa">همان query رو یک بار با predicate روی partition key و یک بار بدون آن اجرا می‌کنیم و <code>EXPLAIN PARTITIONS</code> رو می‌خونیم. اگه همهٔ partitionها باز می‌شن، هنوز مزیت pruning نگرفتی.</p><p lang="fa">Predicate هم باید با تعریف partition هم‌خوان باشد. صرف اینکه <code>created_at</code> جایی در WHERE هست به‌تنهایی تضمین pruning نیست.</p><p lang="en">Run the same query with and without a useful predicate on the partition key and inspect <code>EXPLAIN PARTITIONS</code>. If every partition is touched, you have not earned a pruning benefit.</p><p lang="en">The predicate must align with the partition definition. Merely mentioning <code>created_at</code> somewhere in <code>WHERE</code> does not guarantee pruning.</p><pre dir="ltr"><code>EXPLAIN PARTITIONS SELECT COUNT(*) FROM event_part;</code></pre><p lang="fa">بعد از اجرا فقط دنبال اسم index نگرد. plan رو کنار query بخون و روی partitionهای touchشده، pruning و row count هدف تمرکز کن. اگه plan با چیزی که پیش‌بینی کردی فرق داشت، همین اختلاف سؤال بعدی ماست.</p><p lang="en">Do not stop at the chosen index name. Read the plan in the context of the query and focus on touched partitions, pruning, and target row counts. Any mismatch with your prediction becomes the next investigation question.</p><div class="note warn"><strong lang="fa">مرز آزمایش</strong><span lang="fa">این بخش رو فقط روی database یا topology دورریختنی دوره اجرا کن. قبل از هر تغییر destructive، مقصد رو دوباره چک کن و یک recovery boundary قابل‌بررسی داشته باش.</span><strong lang="en">Lab boundary</strong><span lang="en">Run this only against the disposable course database or topology. Re-check the target before destructive changes and keep a verifiable recovery boundary.</span></div></section><section id="lesson-3"><h2><span lang="fa">Partition جای index رو نمی‌گیره</span><span lang="en">Partitioning does not replace indexing</span></h2><p lang="fa">بعد از انتخاب partition، داخل هر بخش هنوز باید row مناسب پیدا شود. queryهای واقعی ممکن هست همچنان index بخواهند. بنابراین partition و index رو دو لایهٔ جدا ببین.</p><p lang="fa">در lab indexهای table partitioned رو همان‌طور که روی table معمولی می‌خونی inspect کن و queryهای بدون date predicate رو هم اندازه بگیر.</p><p lang="en">After choosing partitions, the engine still needs to locate rows inside the selected data. Real queries can still require indexes, so treat partitioning and indexing as separate layers.</p><p lang="en">Inspect indexes on the partitioned table just as you would on a normal table, and measure queries that lack the partition-key predicate too.</p><pre dir="ltr"><code>SELECT COUNT(*) FROM information_schema.PARTITIONS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='event_part';</code></pre><p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با partitionهای touchشده، pruning و row count هدف رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p><p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about partition pruning and large-table operational cost can be tied to evidence.</p></section><section id="lesson-4"><h2><span lang="fa">DROP PARTITION عملیات حذف داده است</span><span lang="en">DROP PARTITION deletes data</span></h2><p lang="fa"><code>DROP PARTITION</code> برای retention سریع جذاب هست چون می‌تونه حجم زیادی data رو یک‌جا کنار بگذارد. دقیقاً به همین دلیل خطرناک هم هست. قبلش row count همان partition و backup/recovery boundary رو ثبت کن.</p><p lang="fa">این command رو فقط روی fixture اجرا می‌کنیم و بعد metadata رو دوباره می‌خونیم. روی production «اسم partition درست به نظر می‌رسه» مدرک کافی نیست.</p><p lang="en"><code>DROP PARTITION</code> is attractive for retention because it can remove a large data range efficiently. That same property makes it destructive. Record the target partition's row count and recovery boundary first.</p><p lang="en">Run it only on a fixture here, then inspect metadata again. In production, a partition name that “looks right” is not enough evidence.</p><pre dir="ltr"><code>SELECT COUNT(*) FROM event_part PARTITION(p_old);</code></pre><p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ partition pruning و هزینهٔ عملیاتی جدول بزرگ یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p><p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about partition pruning and large-table operational cost.</p></section><section id="mini-lab"><h2><span lang="fa">مینی‌لب — از حدس تا مدرک</span><span lang="en">Mini-lab — from assumption to evidence</span></h2>
+<p lang="fa">حالا سه checkpoint رو پشت‌سرهم اجرا کن. ترتیب مهمه: اول baseline، بعد یک تغییر یا مشاهدهٔ دقیق، بعد verification. وسط کار چیزی رو «درست» فرض نکن؛ هر مرحله باید خروجی مرحلهٔ بعد رو قابل‌تفسیرتر کنه.</p>
+<p lang="en">Run three checkpoints as one small story. Order matters: establish a baseline, make one controlled observation/change, then verify. Do not assume success between steps; each checkpoint should make the next result easier to interpret.</p>
+<pre dir="ltr"><code>SHOW CREATE TABLE event_part;
+
+EXPLAIN PARTITIONS SELECT COUNT(*) FROM event_part;
+
+SELECT COUNT(*) FROM information_schema.PARTITIONS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='event_part';</code></pre>
+<div class="note safe"><strong lang="fa">چی رو نگه دار؟</strong><span lang="fa">commandها، خروجی مهم، نسخهٔ Server و یک جمله که می‌گه این آزمایش دربارهٔ partition pruning و هزینهٔ عملیاتی جدول بزرگ دقیقاً چی رو ثابت کرد.</span><strong lang="en">What should you preserve?</strong><span lang="en">Commands, relevant output, server version, and one sentence stating exactly what this experiment proved about partition pruning and large-table operational cost.</span></div>
+</section><section id="exercises"><h2><span lang="fa">تمرین‌ها — دست به کیبورد</span><span lang="en">Exercises — hands on keyboard</span></h2><p lang="fa">اینجا جواب تشریحیِ خالی نداریم. هر تمرین باید به یه SQL/command، خروجی یا state قابل‌بررسی ختم بشه. از تمرین‌های اول که گرم‌کردن هستن تا سناریوهای آخر، هدف اینه که بتونی چیزی رو با مدرک ثابت کنی.</p><p lang="en">These are not prose-only questions. Every exercise should end in runnable SQL/commands and observable evidence. Difficulty rises from warm-up tasks to engineering scenarios.</p><div class="ex" id="ex-mdb-14-1">
+<h3><span lang="fa">1) partition table رو inspect کن</span><span lang="en">1) Inspect the real object definition</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ partition pruning و هزینهٔ عملیاتی جدول بزرگ چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about partition pruning and large-table operational cost. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW CREATE TABLE event_part;</code></pre>
+<p lang="fa">اینجا اسم feature رو از روی حافظه قبول نمی‌کنیم. <code>SHOW CREATE</code> تعریف واقعی object رو برمی‌گردونه؛ همون رو به‌عنوان مدرک برای partition pruning و هزینهٔ عملیاتی جدول بزرگ نگه دار.</p>
+<p lang="en">Use the server's real object definition as evidence rather than relying on a remembered feature name. Keep this output with the lab notes.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای partition pruning و هزینهٔ عملیاتی جدول بزرگ انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for partition pruning and large-table operational cost.</p>
+</details></div><div class="ex" id="ex-mdb-14-2">
+<h3><span lang="fa">2) metadata partition رو ببین</span><span lang="en">2) Query the evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای partition pruning و هزینهٔ عملیاتی جدول بزرگ مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for partition pruning and large-table operational cost.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT PARTITION_NAME,PARTITION_DESCRIPTION,TABLE_ROWS FROM information_schema.PARTITIONS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='event_part';</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با partitionهای touchشده، pruning و row count هدف رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about partition pruning and large-table operational cost can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای partition pruning و هزینهٔ عملیاتی جدول بزرگ انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for partition pruning and large-table operational cost.</p>
+</details></div><div class="ex" id="ex-mdb-14-3">
+<h3><span lang="fa">3) pruning یک تاریخ رو explain کن</span><span lang="en">3) Inspect the access plan</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>EXPLAIN PARTITIONS SELECT * FROM event_part WHERE created_at='2026-04-01';</code></pre>
+<p lang="fa">بعد از اجرا فقط دنبال اسم index نگرد. plan رو کنار query بخون و روی partitionهای touchشده، pruning و row count هدف تمرکز کن. اگه plan با چیزی که پیش‌بینی کردی فرق داشت، همین اختلاف سؤال بعدی ماست.</p>
+<p lang="en">Do not stop at the chosen index name. Read the plan in the context of the query and focus on touched partitions, pruning, and target row counts. Any mismatch with your prediction becomes the next investigation question.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای partition pruning و هزینهٔ عملیاتی جدول بزرگ انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for partition pruning and large-table operational cost.</p>
+</details></div><div class="ex" id="ex-mdb-14-4">
+<h3><span lang="fa">4) range predicate رو explain کن</span><span lang="en">4) Inspect the access plan</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>EXPLAIN PARTITIONS SELECT * FROM event_part WHERE created_at&gt;='2026-04-01' AND created_at&lt;'2026-05-01';</code></pre>
+<p lang="fa">بعد از اجرا فقط دنبال اسم index نگرد. plan رو کنار query بخون و روی partitionهای touchشده، pruning و row count هدف تمرکز کن. اگه plan با چیزی که پیش‌بینی کردی فرق داشت، همین اختلاف سؤال بعدی ماست.</p>
+<p lang="en">Do not stop at the chosen index name. Read the plan in the context of the query and focus on touched partitions, pruning, and target row counts. Any mismatch with your prediction becomes the next investigation question.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای partition pruning و هزینهٔ عملیاتی جدول بزرگ انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for partition pruning and large-table operational cost.</p>
+</details></div><div class="ex" id="ex-mdb-14-5">
+<h3><span lang="fa">5) بدون date predicate رو compare کن</span><span lang="en">5) Inspect the access plan</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ partition pruning و هزینهٔ عملیاتی جدول بزرگ چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about partition pruning and large-table operational cost. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>EXPLAIN PARTITIONS SELECT COUNT(*) FROM event_part;</code></pre>
+<p lang="fa">بعد از اجرا فقط دنبال اسم index نگرد. plan رو کنار query بخون و روی partitionهای touchشده، pruning و row count هدف تمرکز کن. اگه plan با چیزی که پیش‌بینی کردی فرق داشت، همین اختلاف سؤال بعدی ماست.</p>
+<p lang="en">Do not stop at the chosen index name. Read the plan in the context of the query and focus on touched partitions, pruning, and target row counts. Any mismatch with your prediction becomes the next investigation question.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای partition pruning و هزینهٔ عملیاتی جدول بزرگ انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for partition pruning and large-table operational cost.</p>
+</details></div><div class="ex" id="ex-mdb-14-6">
+<h3><span lang="fa">6) partition key رو از DDL بخوان</span><span lang="en">6) Inspect the real object definition</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای partition pruning و هزینهٔ عملیاتی جدول بزرگ مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for partition pruning and large-table operational cost.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW CREATE TABLE event_part;</code></pre>
+<p lang="fa">اینجا اسم feature رو از روی حافظه قبول نمی‌کنیم. <code>SHOW CREATE</code> تعریف واقعی object رو برمی‌گردونه؛ همون رو به‌عنوان مدرک برای partition pruning و هزینهٔ عملیاتی جدول بزرگ نگه دار.</p>
+<p lang="en">Use the server's real object definition as evidence rather than relying on a remembered feature name. Keep this output with the lab notes.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای partition pruning و هزینهٔ عملیاتی جدول بزرگ انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for partition pruning and large-table operational cost.</p>
+</details></div><div class="ex" id="ex-mdb-14-7">
+<h3><span lang="fa">7) row count رو per range compare کن</span><span lang="en">7) Query the evidence</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT COUNT(*) FROM event_part WHERE created_at&gt;='2026-01-01' AND created_at&lt;'2027-01-01';</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ partition pruning و هزینهٔ عملیاتی جدول بزرگ یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about partition pruning and large-table operational cost.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای partition pruning و هزینهٔ عملیاتی جدول بزرگ انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for partition pruning and large-table operational cost.</p>
+</details></div><div class="ex" id="ex-mdb-14-8">
+<h3><span lang="fa">8) indexها رو بررسی کن</span><span lang="en">8) Read server evidence</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW INDEX FROM event_part;</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با partitionهای touchشده، pruning و row count هدف رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about partition pruning and large-table operational cost can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای partition pruning و هزینهٔ عملیاتی جدول بزرگ انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for partition pruning and large-table operational cost.</p>
+</details></div><div class="ex" id="ex-mdb-14-9">
+<h3><span lang="fa">9) partition count رو measure کن</span><span lang="en">9) Query the evidence</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ partition pruning و هزینهٔ عملیاتی جدول بزرگ چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about partition pruning and large-table operational cost. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT COUNT(*) FROM information_schema.PARTITIONS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='event_part';</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با partitionهای touchشده، pruning و row count هدف رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about partition pruning and large-table operational cost can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای partition pruning و هزینهٔ عملیاتی جدول بزرگ انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for partition pruning and large-table operational cost.</p>
+</details></div><div class="ex" id="ex-mdb-14-10">
+<h3><span lang="fa">10) آیندهٔ RANGE رو در lab آماده کن</span><span lang="en">10) Apply the controlled change</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای partition pruning و هزینهٔ عملیاتی جدول بزرگ مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for partition pruning and large-table operational cost.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>ALTER TABLE event_part ADD PARTITION (PARTITION p2027 VALUES LESS THAN ('2028-01-01'));</code></pre>
+<p lang="fa">این تغییر رو فقط روی fixture انجام بده و before/after رو نگه دار. موفق‌شدن statement به‌تنهایی کافی نیست؛ نتیجهٔ واقعی رو با partitionهای touchشده، pruning و row count هدف verify کن.</p>
+<p lang="en">Run the change only on the fixture and preserve before/after evidence. A successful statement alone does not prove the desired end state.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای partition pruning و هزینهٔ عملیاتی جدول بزرگ انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for partition pruning and large-table operational cost.</p>
+</details></div><div class="ex" id="ex-mdb-14-11">
+<h3><span lang="fa">11) MAXVALUE strategy رو test کن</span><span lang="en">11) Inspect the real object definition</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW CREATE TABLE event_part;</code></pre>
+<p lang="fa">اینجا اسم feature رو از روی حافظه قبول نمی‌کنیم. <code>SHOW CREATE</code> تعریف واقعی object رو برمی‌گردونه؛ همون رو به‌عنوان مدرک برای partition pruning و هزینهٔ عملیاتی جدول بزرگ نگه دار.</p>
+<p lang="en">Use the server's real object definition as evidence rather than relying on a remembered feature name. Keep this output with the lab notes.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای partition pruning و هزینهٔ عملیاتی جدول بزرگ انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for partition pruning and large-table operational cost.</p>
+</details></div><div class="ex" id="ex-mdb-14-12">
+<h3><span lang="fa">12) DROP PARTITION رو فقط در disposable اجرا کن</span><span lang="en">12) Apply the controlled change</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>ALTER TABLE event_part DROP PARTITION p_old;</code></pre>
+<p lang="fa">این تغییر رو فقط روی fixture انجام بده و before/after رو نگه دار. موفق‌شدن statement به‌تنهایی کافی نیست؛ نتیجهٔ واقعی رو با partitionهای touchشده، pruning و row count هدف verify کن.</p>
+<p lang="en">Run the change only on the fixture and preserve before/after evidence. A successful statement alone does not prove the desired end state.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای partition pruning و هزینهٔ عملیاتی جدول بزرگ انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for partition pruning and large-table operational cost.</p>
+</details></div><div class="ex" id="ex-mdb-14-13">
+<h3><span lang="fa">13) قبل از drop تعداد ردیف رو ثبت کن</span><span lang="en">13) Query the evidence</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ partition pruning و هزینهٔ عملیاتی جدول بزرگ چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about partition pruning and large-table operational cost. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT COUNT(*) FROM event_part PARTITION(p_old);</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ partition pruning و هزینهٔ عملیاتی جدول بزرگ یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about partition pruning and large-table operational cost.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای partition pruning و هزینهٔ عملیاتی جدول بزرگ انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for partition pruning and large-table operational cost.</p>
+</details></div><div class="ex" id="ex-mdb-14-14">
+<h3><span lang="fa">14) بعد از drop اثر رو verify کن</span><span lang="en">14) Query the evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای partition pruning و هزینهٔ عملیاتی جدول بزرگ مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for partition pruning and large-table operational cost.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT COUNT(*) FROM information_schema.PARTITIONS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='event_part';</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با partitionهای touchشده، pruning و row count هدف رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about partition pruning and large-table operational cost can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای partition pruning و هزینهٔ عملیاتی جدول بزرگ انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for partition pruning and large-table operational cost.</p>
+</details></div><div class="ex" id="ex-mdb-14-15">
+<h3><span lang="fa">15) FK limitation رو در نسخه بررسی کن</span><span lang="en">15) Query the evidence</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT VERSION();</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ partition pruning و هزینهٔ عملیاتی جدول بزرگ یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about partition pruning and large-table operational cost.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای partition pruning و هزینهٔ عملیاتی جدول بزرگ انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for partition pruning and large-table operational cost.</p>
+</details></div><div class="ex" id="ex-mdb-14-16">
+<h3><span lang="fa">16) operation duration رو staging اندازه بگیر</span><span lang="en">16) Query the evidence</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT NOW(6) AS started_at;
+ALTER TABLE event_part ADD PARTITION
+  (PARTITION p_future VALUES LESS THAN ('2029-01-01'));
+SELECT NOW(6) AS finished_at;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ partition pruning و هزینهٔ عملیاتی جدول بزرگ یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about partition pruning and large-table operational cost.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای partition pruning و هزینهٔ عملیاتی جدول بزرگ انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for partition pruning and large-table operational cost.</p>
+</details></div><div class="ex" id="ex-mdb-14-17">
+<h3><span lang="fa">17) partitioned/unpartitioned baseline compare کن</span><span lang="en">17) Inspect the access plan</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ partition pruning و هزینهٔ عملیاتی جدول بزرگ چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about partition pruning and large-table operational cost. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>EXPLAIN PARTITIONS
+SELECT COUNT(*) FROM event_part
+WHERE created_at&gt;='2026-04-01' AND created_at&lt;'2026-05-01';</code></pre>
+<p lang="fa">بعد از اجرا فقط دنبال اسم index نگرد. plan رو کنار query بخون و روی partitionهای touchشده، pruning و row count هدف تمرکز کن. اگه plan با چیزی که پیش‌بینی کردی فرق داشت، همین اختلاف سؤال بعدی ماست.</p>
+<p lang="en">Do not stop at the chosen index name. Read the plan in the context of the query and focus on touched partitions, pruning, and target row counts. Any mismatch with your prediction becomes the next investigation question.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای partition pruning و هزینهٔ عملیاتی جدول بزرگ انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for partition pruning and large-table operational cost.</p>
+</details></div><div class="ex" id="ex-mdb-14-18">
+<h3><span lang="fa">18) maintenance need رو مستند کن</span><span lang="en">18) Query the evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای partition pruning و هزینهٔ عملیاتی جدول بزرگ مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for partition pruning and large-table operational cost.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT PARTITION_NAME,PARTITION_DESCRIPTION,TABLE_ROWS
+FROM information_schema.PARTITIONS
+WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='event_part'
+ORDER BY PARTITION_ORDINAL_POSITION;</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با partitionهای touchشده، pruning و row count هدف رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about partition pruning and large-table operational cost can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای partition pruning و هزینهٔ عملیاتی جدول بزرگ انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for partition pruning and large-table operational cost.</p>
+</details></div></section><section id="next"><h2><span lang="fa">جمع‌بندی — چیزی که باید با خودت ببری</span><span lang="en">Summary — the mental model to keep</span></h2><p lang="fa">اگه از این فصل فقط یه عادت بمونه، این باشه: دربارهٔ partition pruning و هزینهٔ عملیاتی جدول بزرگ از روی اسم feature یا حس تصمیم نگیر. baseline بگیر، یه چیز رو عوض کن، خروجی رو بخون و بعد نتیجه بگیر.</p><p lang="en">If one habit survives this chapter, let it be this: do not reason about partition pruning and large-table operational cost from feature names or intuition. Capture a baseline, change one thing, read the evidence, then conclude.</p><p class="refs"><a href="https://mariadb.com/docs/server/server-usage/partitioning-tables">Partitioning</a> · <a href="https://mariadb.com/docs/server/reference/sql-statements/administrative-sql-statements/analyze-and-explain-statements/explain">EXPLAIN</a></p></section>

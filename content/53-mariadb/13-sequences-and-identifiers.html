@@ -1,0 +1,232 @@
+<!--meta
+title: Sequence و شناسه‌گذاری در MariaDB
+desc: AUTO_INCREMENT برای کلید داخلی خیلی وقت‌ها کافی است، ولی همیشه همان چیزی نیست که کسب‌وکار به‌عنوان شماره می‌خواهد. MariaDB SEQUENCE هم دارد؛ object مستقلی که می‌تونی بین مصرف‌کننده‌ها استفاده کنی. این فصل فرق «شناسهٔ فنی» و «شمارهٔ کسب‌وکار» رو جدی می‌گیرد.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">MariaDB · فصل 13</span><span lang="en">MariaDB · Chapter 13</span></span>
+<h1 lang="fa">شمارهٔ فاکتور باید از شناسهٔ داخلی سفارش مستقل باشد و چند جدول هم از counterهای جدا استفاده کنند.</h1>
+<h1 lang="en">Invoice numbers must be independent from internal order IDs, and multiple tables need separate counters.</h1>
+<p class="sub" lang="fa"><code>AUTO_INCREMENT</code> برای کلید داخلی خیلی وقت‌ها کافی هست، ولی همیشه همان چیزی نیست که کسب‌وکار به‌عنوان شماره می‌خواهد. MariaDB <code>SEQUENCE</code> هم داره؛ object مستقلی که می‌تونی بین مصرف‌کننده‌ها استفاده کنی. این فصل فرق «شناسهٔ فنی» و «شمارهٔ کسب‌وکار» رو جدی می‌گیره.</p>
+<p class="sub" lang="en"><code>AUTO_INCREMENT</code> is often enough for an internal key, but it is not automatically the same thing as a business-facing number. MariaDB also provides independent <code>SEQUENCE</code> objects. This chapter separates technical identity from business numbering.</p>
+<div class="facts"><span>MariaDB 11.8 · Sequences and identifiers in MariaDB</span><span>حدود ۹۵ دقیقه · ۱۸ تمرین / About 95 minutes · 18 exercises</span></div>
+</div>
+<section id="mental-model"><h2><span lang="fa">قبل از کد، مسئله رو درست ببین</span><span lang="en">Frame the problem before the code</span></h2>
+<p lang="fa">این فصل رو با syntax شروع نمی‌کنیم. مسئله اینه: تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار. اول یه پیش‌بینی می‌سازیم، بعد با query یا command کوچیک آزمایشش می‌کنیم. هر جا خروجی خلاف انتظار بود، همون‌جا درس اصلی شروع می‌شه.</p>
+<p lang="en">This chapter does not begin with syntax. The problem is identifier generation and the distinction between technical keys and business numbers. We will form a prediction, test it with a small query or command, and treat unexpected output as the beginning of the investigation.</p>
+</section><section id="lesson-1"><h2><span lang="fa">AUTO_INCREMENT رو با business number یکی نکن</span><span lang="en">Do not equate AUTO_INCREMENT with a business number</span></h2><p lang="fa">کلید داخلی سفارش فقط باید آن ردیف رو قابل اشاره کند. شمارهٔ فاکتور ممکن هست rule، prefix، sequence مستقل یا lifecycle دیگری داشته باشد. اگه این دو رو یکی کنی، بعداً هر gap یا migration تبدیل به مشکل کسب‌وکار می‌شه.</p><p lang="fa">اول یک table ساده با <code>AUTO_INCREMENT</code> می‌سازیم و می‌بینیم <code>LAST_INSERT_ID()</code> دقیقاً چه چیزی رو از همان connection به ما می‌ده.</p><p lang="en">An internal order key only needs to identify the row. An invoice number may have different rules, prefixes, sequences, or lifecycle. Conflating the two turns gaps and migrations into business problems.</p><p lang="en">Start with a simple <code>AUTO_INCREMENT</code> table and observe what <code>LAST_INSERT_ID()</code> actually reports for the current connection.</p><pre dir="ltr"><code>CREATE SEQUENCE invoice_seq START WITH 1000 INCREMENT BY 1 CACHE 20;</code></pre><p lang="fa">این object عمداً کوچک و آزمایشیه تا behavior رو بدون سر و صدای production ببینیم. بعد از ساخت، با metadata یا یک query مستقل ثابت کن چیزی که می‌خواستیم واقعاً ساخته شده.</p><p lang="en">The object is intentionally small and disposable. After creating it, use independent metadata or a query to prove that the intended behavior really exists.</p></section><section id="lesson-2"><h2><span lang="fa">Sequence یک object مستقل است</span><span lang="en">A sequence is an independent object</span></h2><p lang="fa">با <code>CREATE SEQUENCE</code> counter رو از table جدا می‌کنیم. همین استقلال برای سناریوهایی که چند table یا چند نوع سند numbering مستقل دارن مفید هست.</p><p lang="fa"><code>SHOW CREATE SEQUENCE</code> و metadata رو می‌خونیم تا تنظیم‌هایی مثل <code>START</code>, <code>INCREMENT</code> و <code>CACHE</code> رو از روی تعریف واقعی ببینیم.</p><p lang="en"><code>CREATE SEQUENCE</code> moves number generation out of a single table. That independence can be useful when multiple tables or document types need their own numbering streams.</p><p lang="en">Inspect <code>SHOW CREATE SEQUENCE</code> and metadata so <code>START</code>, <code>INCREMENT</code>, and <code>CACHE</code> are verified from the actual object definition.</p><pre dir="ltr"><code>SELECT NEXT VALUE FOR invoice_seq, NEXT VALUE FOR shipment_seq;</code></pre><p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p><p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about identifier generation and the distinction between technical keys and business numbers.</p></section><section id="lesson-3"><h2><span lang="fa">Gap طبیعی هست؛ باگ نیست</span><span lang="en">Gaps are normal, not a bug</span></h2><p lang="fa">Sequence شماره رو وقتی می‌گیری رزرو می‌کنه. rollback لزوماً آن شماره رو پس نمی‌ده، cache هم می‌تونه بعد از restart gap بسازد. پس sequence رو برای نیاز «حتماً بدون فاصله» انتخاب نکن مگر مدل کسب‌وکار رو جدا حل کرده باشی.</p><p lang="fa">همین آزمایش رو داخل transaction انجام می‌دهیم: عدد می‌گیریم، rollback می‌کنیم، بعد عدد بعدی رو می‌خونیم.</p><p lang="en">A sequence value is reserved when requested. Rolling back does not necessarily return it, and caching can create additional gaps after lifecycle events. Do not use a sequence as a guarantee of gapless numbering.</p><p lang="en">Make the behavior visible by requesting a value inside a transaction, rolling back, and then requesting the next value.</p><pre dir="ltr"><code>SELECT NEXT VALUE FOR invoice_seq;</code></pre><p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p><p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about identifier generation and the distinction between technical keys and business numbers.</p></section><section id="lesson-4"><h2><span lang="fa">Topology و privilege هم بخشی از طراحی‌اند</span><span lang="en">Topology and privileges are part of the design</span></h2><p lang="fa">اگه چند writer یا replication داری، numbering رو فقط روی یک laptop تست نکن. domain نوشتن، binlog format و نحوهٔ دسترسی client به sequence باید روشن باشد.</p><p lang="fa">برنامه هم لازم نیست privilege وسیع داشته باشد. همان دسترسی حداقلی لازم برای گرفتن مقدار رو بده و با account واقعی برنامه تست کن.</p><p lang="en">With multiple writers or replication, do not validate numbering only on one laptop. Define the write topology, replication implications, and how clients access the sequence.</p><p lang="en">The application also does not need broad privileges. Grant the minimum required access and test using the actual application account.</p><pre dir="ltr"><code>SHOW TABLES LIKE 'invoice_seq';</code></pre><p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با مقدار sequence، gap behavior و contract شماره‌گذاری رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p><p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about identifier generation and the distinction between technical keys and business numbers can be tied to evidence.</p></section><section id="mini-lab"><h2><span lang="fa">مینی‌لب — از حدس تا مدرک</span><span lang="en">Mini-lab — from assumption to evidence</span></h2>
+<p lang="fa">حالا سه checkpoint رو پشت‌سرهم اجرا کن. ترتیب مهمه: اول baseline، بعد یک تغییر یا مشاهدهٔ دقیق، بعد verification. وسط کار چیزی رو «درست» فرض نکن؛ هر مرحله باید خروجی مرحلهٔ بعد رو قابل‌تفسیرتر کنه.</p>
+<p lang="en">Run three checkpoints as one small story. Order matters: establish a baseline, make one controlled observation/change, then verify. Do not assume success between steps; each checkpoint should make the next result easier to interpret.</p>
+<pre dir="ltr"><code>CREATE SEQUENCE invoice_seq START WITH 1000 INCREMENT BY 1 CACHE 20;
+
+SELECT NEXT VALUE FOR invoice_seq, NEXT VALUE FOR shipment_seq;
+
+SELECT NEXT VALUE FOR invoice_seq;</code></pre>
+<div class="note safe"><strong lang="fa">چی رو نگه دار؟</strong><span lang="fa">commandها، خروجی مهم، نسخهٔ Server و یک جمله که می‌گه این آزمایش دربارهٔ تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار دقیقاً چی رو ثابت کرد.</span><strong lang="en">What should you preserve?</strong><span lang="en">Commands, relevant output, server version, and one sentence stating exactly what this experiment proved about identifier generation and the distinction between technical keys and business numbers.</span></div>
+</section><section id="exercises"><h2><span lang="fa">تمرین‌ها — دست به کیبورد</span><span lang="en">Exercises — hands on keyboard</span></h2><p lang="fa">اینجا جواب تشریحیِ خالی نداریم. هر تمرین باید به یه SQL/command، خروجی یا state قابل‌بررسی ختم بشه. از تمرین‌های اول که گرم‌کردن هستن تا سناریوهای آخر، هدف اینه که بتونی چیزی رو با مدرک ثابت کنی.</p><p lang="en">These are not prose-only questions. Every exercise should end in runnable SQL/commands and observable evidence. Difficulty rises from warm-up tasks to engineering scenarios.</p><div class="ex" id="ex-mdb-13-1">
+<h3><span lang="fa">1) sequence بساز</span><span lang="en">1) Create the lab object</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about identifier generation and the distinction between technical keys and business numbers. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>CREATE SEQUENCE invoice_seq START WITH 1000 INCREMENT BY 1 CACHE 20;</code></pre>
+<p lang="fa">این object عمداً کوچک و آزمایشیه تا behavior رو بدون سر و صدای production ببینیم. بعد از ساخت، با metadata یا یک query مستقل ثابت کن چیزی که می‌خواستیم واقعاً ساخته شده.</p>
+<p lang="en">The object is intentionally small and disposable. After creating it, use independent metadata or a query to prove that the intended behavior really exists.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for identifier generation and the distinction between technical keys and business numbers.</p>
+</details></div><div class="ex" id="ex-mdb-13-2">
+<h3><span lang="fa">2) مقدار بعدی بگیر</span><span lang="en">2) Query the evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for identifier generation and the distinction between technical keys and business numbers.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT NEXT VALUE FOR invoice_seq;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about identifier generation and the distinction between technical keys and business numbers.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for identifier generation and the distinction between technical keys and business numbers.</p>
+</details></div><div class="ex" id="ex-mdb-13-3">
+<h3><span lang="fa">3) DDL sequence رو ببین</span><span lang="en">3) Inspect the real object definition</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW CREATE SEQUENCE invoice_seq;</code></pre>
+<p lang="fa">اینجا اسم feature رو از روی حافظه قبول نمی‌کنیم. <code>SHOW CREATE</code> تعریف واقعی object رو برمی‌گردونه؛ همون رو به‌عنوان مدرک برای تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار نگه دار.</p>
+<p lang="en">Use the server's real object definition as evidence rather than relying on a remembered feature name. Keep this output with the lab notes.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for identifier generation and the distinction between technical keys and business numbers.</p>
+</details></div><div class="ex" id="ex-mdb-13-4">
+<h3><span lang="fa">4) sequence دوم مستقل بساز</span><span lang="en">4) Create the lab object</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>CREATE SEQUENCE shipment_seq START WITH 1;</code></pre>
+<p lang="fa">این object عمداً کوچک و آزمایشیه تا behavior رو بدون سر و صدای production ببینیم. بعد از ساخت، با metadata یا یک query مستقل ثابت کن چیزی که می‌خواستیم واقعاً ساخته شده.</p>
+<p lang="en">The object is intentionally small and disposable. After creating it, use independent metadata or a query to prove that the intended behavior really exists.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for identifier generation and the distinction between technical keys and business numbers.</p>
+</details></div><div class="ex" id="ex-mdb-13-5">
+<h3><span lang="fa">5) هر دو sequence رو query کن</span><span lang="en">5) Query the evidence</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about identifier generation and the distinction between technical keys and business numbers. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT NEXT VALUE FOR invoice_seq, NEXT VALUE FOR shipment_seq;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about identifier generation and the distinction between technical keys and business numbers.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for identifier generation and the distinction between technical keys and business numbers.</p>
+</details></div><div class="ex" id="ex-mdb-13-6">
+<h3><span lang="fa">6) AUTO_INCREMENT table بساز</span><span lang="en">6) Create the lab object</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for identifier generation and the distinction between technical keys and business numbers.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>CREATE TABLE ids(id BIGINT AUTO_INCREMENT PRIMARY KEY, note VARCHAR(20));</code></pre>
+<p lang="fa">این object عمداً کوچک و آزمایشیه تا behavior رو بدون سر و صدای production ببینیم. بعد از ساخت، با metadata یا یک query مستقل ثابت کن چیزی که می‌خواستیم واقعاً ساخته شده.</p>
+<p lang="en">The object is intentionally small and disposable. After creating it, use independent metadata or a query to prove that the intended behavior really exists.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for identifier generation and the distinction between technical keys and business numbers.</p>
+</details></div><div class="ex" id="ex-mdb-13-7">
+<h3><span lang="fa">7) شناسهٔ خودکار رو insert کن</span><span lang="en">7) Create controlled fixture data</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>INSERT INTO ids(note) VALUES('lab'); SELECT LAST_INSERT_ID();</code></pre>
+<p lang="fa">این تغییر فقط روی دادهٔ دورریختنیه. قبلش target رو با <code>SELECT</code> مشخص کن، بعد تغییر رو اجرا کن و دوباره state رو بخون؛ row count یا پیام <code>Query OK</code> جای verification رو نمی‌گیره.</p>
+<p lang="en">Keep the change inside disposable data. Inspect the target first, make the change, then query the resulting state; an affected-row count is not sufficient verification.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for identifier generation and the distinction between technical keys and business numbers.</p>
+</details></div><div class="ex" id="ex-mdb-13-8">
+<h3><span lang="fa">8) sequence رو پس از rollback بسنج</span><span lang="en">8) Run the transaction experiment</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>START TRANSACTION; SELECT NEXT VALUE FOR invoice_seq; ROLLBACK;</code></pre>
+<p lang="fa">به ترتیب اجرا دقت کن. این تمرین دربارهٔ syntax نیست؛ دربارهٔ state قبل و بعد transactionه. بعد از پایان، یک <code>SELECT</code> مستقل بزن تا چیزی که commit یا rollback شده با چشم دیده بشه.</p>
+<p lang="en">Focus on state before and after the transaction. Finish with an independent query so commit/rollback behavior is observable.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for identifier generation and the distinction between technical keys and business numbers.</p>
+</details></div><div class="ex" id="ex-mdb-13-9">
+<h3><span lang="fa">9) sequence gap-free فرض نشود</span><span lang="en">9) Query the evidence</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about identifier generation and the distinction between technical keys and business numbers. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT NEXT VALUE FOR invoice_seq;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about identifier generation and the distinction between technical keys and business numbers.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for identifier generation and the distinction between technical keys and business numbers.</p>
+</details></div><div class="ex" id="ex-mdb-13-10">
+<h3><span lang="fa">10) sequence metadata رو query کن</span><span lang="en">10) Query the evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for identifier generation and the distinction between technical keys and business numbers.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT * FROM information_schema.SEQUENCES WHERE SEQUENCE_NAME='invoice_seq';</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با مقدار sequence، gap behavior و contract شماره‌گذاری رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about identifier generation and the distinction between technical keys and business numbers can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for identifier generation and the distinction between technical keys and business numbers.</p>
+</details></div><div class="ex" id="ex-mdb-13-11">
+<h3><span lang="fa">11) تغییر increment رو در lab انجام بده</span><span lang="en">11) Apply the controlled change</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>ALTER SEQUENCE invoice_seq INCREMENT BY 10;</code></pre>
+<p lang="fa">این تغییر رو فقط روی fixture انجام بده و before/after رو نگه دار. موفق‌شدن statement به‌تنهایی کافی نیست؛ نتیجهٔ واقعی رو با مقدار sequence، gap behavior و contract شماره‌گذاری verify کن.</p>
+<p lang="en">Run the change only on the fixture and preserve before/after evidence. A successful statement alone does not prove the desired end state.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for identifier generation and the distinction between technical keys and business numbers.</p>
+</details></div><div class="ex" id="ex-mdb-13-12">
+<h3><span lang="fa">12) مقدار بعد تغییر رو بخوان</span><span lang="en">12) Query the evidence</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT NEXT VALUE FOR invoice_seq;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about identifier generation and the distinction between technical keys and business numbers.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for identifier generation and the distinction between technical keys and business numbers.</p>
+</details></div><div class="ex" id="ex-mdb-13-13">
+<h3><span lang="fa">13) sequence lifecycle رو بررسی کن</span><span lang="en">13) Read server evidence</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about identifier generation and the distinction between technical keys and business numbers. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW TABLES LIKE 'invoice_seq';</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با مقدار sequence، gap behavior و contract شماره‌گذاری رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about identifier generation and the distinction between technical keys and business numbers can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for identifier generation and the distinction between technical keys and business numbers.</p>
+</details></div><div class="ex" id="ex-mdb-13-14">
+<h3><span lang="fa">14) identifier capacity رو انتخاب کن</span><span lang="en">14) Run the experiment</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for identifier generation and the distinction between technical keys and business numbers.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT
+  CAST(9223372036854775807 AS DECIMAL(20,0)) AS signed_bigint_ceiling,
+  COUNT(*) AS current_rows
+FROM ids;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about identifier generation and the distinction between technical keys and business numbers.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for identifier generation and the distinction between technical keys and business numbers.</p>
+</details></div><div class="ex" id="ex-mdb-13-15">
+<h3><span lang="fa">15) client privilege رو محدود کن</span><span lang="en">15) Grant the minimum required access</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>GRANT SELECT ON appdb.invoice_seq TO 'app_user'@'localhost';</code></pre>
+<p lang="fa">بعد از تغییر privilege با account هدف reconnect کن. یک operation مجاز و یک operation غیرمجاز اجرا کن؛ security وقتی ثابت می‌شه که failure موردانتظار رو هم ببینی.</p>
+<p lang="en">Reconnect as the target account and test both an allowed and a denied operation. Security is best proven by the expected success and the expected failure.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for identifier generation and the distinction between technical keys and business numbers.</p>
+</details></div><div class="ex" id="ex-mdb-13-16">
+<h3><span lang="fa">16) دسترسی واقعی رو test کن</span><span lang="en">16) Read server evidence</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW GRANTS FOR 'app_user'@'localhost';</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با مقدار sequence، gap behavior و contract شماره‌گذاری رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about identifier generation and the distinction between technical keys and business numbers can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for identifier generation and the distinction between technical keys and business numbers.</p>
+</details></div><div class="ex" id="ex-mdb-13-17">
+<h3><span lang="fa">17) sequence در topology چندنویسنده رو مستند کن</span><span lang="en">17) Inspect the real object definition</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about identifier generation and the distinction between technical keys and business numbers. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW CREATE SEQUENCE invoice_seq;
+SHOW VARIABLES LIKE 'binlog_format';
+SELECT @@server_id;</code></pre>
+<p lang="fa">اینجا اسم feature رو از روی حافظه قبول نمی‌کنیم. <code>SHOW CREATE</code> تعریف واقعی object رو برمی‌گردونه؛ همون رو به‌عنوان مدرک برای تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار نگه دار.</p>
+<p lang="en">Use the server's real object definition as evidence rather than relying on a remembered feature name. Keep this output with the lab notes.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for identifier generation and the distinction between technical keys and business numbers.</p>
+</details></div><div class="ex" id="ex-mdb-13-18">
+<h3><span lang="fa">18) تفاوت شناسه و invoice number رو ثبت کن</span><span lang="en">18) Query the evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for identifier generation and the distinction between technical keys and business numbers.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT id AS internal_key,
+       CONCAT('INV-',LPAD(id,8,'0')) AS example_business_reference
+FROM ids
+ORDER BY id
+LIMIT 5;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about identifier generation and the distinction between technical keys and business numbers.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for identifier generation and the distinction between technical keys and business numbers.</p>
+</details></div></section><section id="next"><h2><span lang="fa">جمع‌بندی — چیزی که باید با خودت ببری</span><span lang="en">Summary — the mental model to keep</span></h2><p lang="fa">اگه از این فصل فقط یه عادت بمونه، این باشه: دربارهٔ تولید شناسه و فرق کلید فنی با شمارهٔ کسب‌وکار از روی اسم feature یا حس تصمیم نگیر. baseline بگیر، یه چیز رو عوض کن، خروجی رو بخون و بعد نتیجه بگیر.</p><p lang="en">If one habit survives this chapter, let it be this: do not reason about identifier generation and the distinction between technical keys and business numbers from feature names or intuition. Capture a baseline, change one thing, read the evidence, then conclude.</p><p class="refs"><a href="https://mariadb.com/docs/server/reference/sql-structure/sequences/sequence-overview">Sequence Overview</a> · <a href="https://mariadb.com/docs/server/reference/sql-structure/sequences/create-sequence">CREATE SEQUENCE</a> · <a href="https://mariadb.com/docs/server/reference/data-types/auto_increment">AUTO_INCREMENT</a></p></section>

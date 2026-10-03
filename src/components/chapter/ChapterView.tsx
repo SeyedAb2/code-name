@@ -15,7 +15,7 @@ import { usePrefs } from "@/context/PrefsContext";
 import { useProgress } from "@/context/ProgressContext";
 import { num, t } from "@/lib/i18n";
 import { chapterSlug } from "@/lib/track";
-import type { Chapter } from "@/lib/types";
+import type { Chapter, Lang } from "@/lib/types";
 import type { ChapterRef, TocItem } from "@/lib/chapter.types";
 import AppShell from "@/components/layout/AppShell";
 import ProgressBar from "@/components/ui/ProgressBar";
@@ -52,6 +52,112 @@ async function copyText(text: string) {
   }
 }
 
+const PERSIAN_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
+
+function hasPersian(text: string) {
+  return /[\u0600-\u06ff]/.test(text);
+}
+
+/**
+ * Some older lesson files contain bare <pre> blocks instead of the shared
+ * copyable terminal/code frame. Add presentation-only chrome after mount;
+ * preserve the original code node and text exactly as authored.
+ */
+function normalizeCodeBlocks(root: HTMLElement, lang: Lang) {
+  root.querySelectorAll<HTMLElement>("pre").forEach((pre) => {
+    let frame = pre.closest<HTMLElement>(".term, .code");
+
+    if (!frame) {
+      frame = document.createElement("div");
+      frame.className = "term code-auto";
+      pre.parentNode?.insertBefore(frame, pre);
+      frame.append(pre);
+    }
+
+    let bar = frame.querySelector<HTMLElement>(".term-bar, .code-bar");
+    if (!bar) {
+      bar = document.createElement("div");
+      bar.className = "term-bar";
+
+      const dots = document.createElement("span");
+      dots.className = "dots";
+      dots.setAttribute("aria-hidden", "true");
+      dots.append(document.createElement("i"), document.createElement("i"), document.createElement("i"));
+
+      const label = document.createElement("span");
+      label.className = "term-label";
+      label.textContent = "Code";
+      bar.append(dots, label);
+      frame.insertBefore(bar, frame.firstChild);
+    }
+
+    if (!bar.querySelector(".copy")) {
+      const copy = document.createElement("button");
+      copy.type = "button";
+      copy.className = "copy";
+      copy.textContent = t("copy", lang);
+      bar.append(copy);
+    }
+  });
+}
+
+/**
+ * فصل‌های قدیمی‌تر facts را به‌صورت کارت دوزبانه نوشته‌اند؛ بعضی فصل‌های
+ * جدیدتر دو زبان را در یک رشته چسبانده‌اند. اینجا فقط سربرگ همان فصل را
+ * به یک ساختار مشترک تبدیل می‌کنیم و متن فنی/کد را دست نمی‌زنیم.
+ */
+function normalizeChapterFacts(root: HTMLElement) {
+  root.querySelectorAll<HTMLElement>(".masthead .facts").forEach((facts) => {
+    Array.from(facts.children).forEach((item) => {
+      if (!(item instanceof HTMLElement)) return;
+      item.classList.add("fact");
+
+      // رشته‌های دوزبانهٔ بدون span زبانی را به دو نسخهٔ قابل سوییچ تبدیل کن.
+      if (!item.querySelector("[lang='fa'], [lang='en']") && item.children.length === 0) {
+        const original = item.textContent?.trim() ?? "";
+        const separators = [...original.matchAll(/\s+(?:\/|·)\s+/g)];
+        for (const separator of separators) {
+          const index = separator.index ?? -1;
+          if (index < 0) continue;
+          const left = original.slice(0, index).trim();
+          const right = original.slice(index + separator[0].length).trim();
+          if (!left || !right || hasPersian(left) === hasPersian(right)) continue;
+
+          const faText = hasPersian(left) ? left : right;
+          const enText = hasPersian(left) ? right : left;
+          const fa = document.createElement("span");
+          fa.lang = "fa";
+          fa.textContent = faText;
+          const en = document.createElement("span");
+          en.lang = "en";
+          en.textContent = enText;
+          item.replaceChildren(fa, en);
+          break;
+        }
+      }
+
+      // ظاهر کارت‌های یک‌پارچه برای قالب‌های قدیمی و جدید یکسان بماند.
+      if (!item.querySelector(".fact-v") && !item.querySelector("b")) {
+        const value = document.createElement("span");
+        value.className = "fact-v";
+        while (item.firstChild) value.append(item.firstChild);
+        item.append(value);
+      }
+
+      // رقم‌های فارسیِ متن سربرگ؛ مقدارهای داخل code و نسخهٔ انگلیسی تغییر نمی‌کنند.
+      const walker = document.createTreeWalker(item, NodeFilter.SHOW_TEXT);
+      let node: Node | null;
+      while ((node = walker.nextNode())) {
+        const parent = node.parentElement;
+        if (!parent || parent.closest("code, pre, svg, [lang='en']")) continue;
+        if (hasPersian(node.textContent ?? "")) {
+          node.textContent = (node.textContent ?? "").replace(/[0-9]/g, (digit) => PERSIAN_DIGITS[Number(digit)]);
+        }
+      }
+    });
+  });
+}
+
 export default function ChapterView({
   track, category, chapter, chapters, html, toc, exercises, prev, next,
 }: Props) {
@@ -74,6 +180,15 @@ export default function ChapterView({
 
   const progress = getChapter(track.id, n);
   const pct = chapterPct(track.id, chapter);
+
+  /* سربرگ همهٔ دوره‌ها به یک الگوی کارت و زبان جاری درمی‌آید. */
+  useEffect(() => {
+    const root = ref.current;
+    if (root) {
+      normalizeChapterFacts(root);
+      normalizeCodeBlocks(root, lang);
+    }
+  }, [html, lang]);
 
   /* ── ۱) ردیابی بخش فعال و بخش‌های خوانده‌شده ─────────────────────────────
      تا وقتی پیشرفت از حافظه بارگذاری نشده (ready)، چیزی ثبت نمی‌کنیم.

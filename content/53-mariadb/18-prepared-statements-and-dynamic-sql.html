@@ -1,0 +1,278 @@
+<!--meta
+title: Prepared statement و SQL پویا
+desc: Prepared statement یک مشکل رو خیلی خوب حل می‌کنه: جداکردن data از SQL syntax. ولی ? جادو نیست و اسم table یا ستون رو parameter نمی‌کنه. این فصل دقیقاً مرز value و identifier رو باز می‌کنه.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">MariaDB · فصل 18</span><span lang="en">MariaDB · Chapter 18</span></span>
+<h1 lang="fa">جست‌وجو باید روی چند ستون و sort متفاوت اجرا شود؛ تیم اسم ستون رو با <code>?</code> bind کرده و query خطا می‌ده.</h1>
+<h1 lang="en">Search must support different columns and sort orders. The team tried binding a column name with <code>?</code>, and the query failed.</h1>
+<p class="sub" lang="fa">Prepared statement یک مشکل رو خیلی خوب حل می‌کنه: جداکردن data از SQL syntax. ولی <code>?</code> جادو نیست و اسم table یا ستون رو parameter نمی‌کنه. این فصل دقیقاً مرز value و identifier رو باز می‌کنه.</p>
+<p class="sub" lang="en">Prepared statements solve one problem very well: separating data values from SQL syntax. But <code>?</code> is not magic and does not parameterize table or column names. This chapter makes the value/identifier boundary explicit.</p>
+<div class="facts"><span>MariaDB 11.8 · Prepared statements and dynamic SQL</span><span>حدود ۹۵ دقیقه · ۱۸ تمرین / About 95 minutes · 18 exercises</span></div>
+</div>
+<section id="mental-model"><h2><span lang="fa">قبل از کد، مسئله رو درست ببین</span><span lang="en">Frame the problem before the code</span></h2>
+<p lang="fa">این فصل رو با syntax شروع نمی‌کنیم. مسئله اینه: مرز parameter و dynamic SQL امن. اول یه پیش‌بینی می‌سازیم، بعد با query یا command کوچیک آزمایشش می‌کنیم. هر جا خروجی خلاف انتظار بود، همون‌جا درس اصلی شروع می‌شه.</p>
+<p lang="en">This chapter does not begin with syntax. The problem is the boundary between parameters and safe dynamic SQL. We will form a prediction, test it with a small query or command, and treat unexpected output as the beginning of the investigation.</p>
+</section><section id="lesson-1"><h2><span lang="fa">Value رو bind کن، syntax رو نه</span><span lang="en">Bind values, not SQL syntax</span></h2><p lang="fa"><code>WHERE id = ?</code> درست هست چون placeholder جای یک value می‌نشیند. <code>FROM ?</code> درست نیست چون نام table بخشی از grammar هست. همین فرق ساده پایهٔ dynamic SQL امن هست.</p><p lang="fa">با <code>PREPARE</code> و <code>EXECUTE</code> یک value رو bind می‌کنیم و بعد نمونهٔ identifier رو عمداً خراب می‌کنیم تا error خودش مرز رو نشان بدهد.</p><p lang="en"><code>WHERE id = ?</code> works because the placeholder represents a value. <code>FROM ?</code> does not, because a table name is part of SQL grammar. That simple distinction is the foundation of safe dynamic SQL.</p><p lang="en">Bind a value with <code>PREPARE</code>/<code>EXECUTE</code>, then deliberately try an identifier placeholder so the failure makes the boundary visible.</p><pre dir="ltr"><code>SET @s='SELECT ? + 1'; PREPARE p FROM @s; SET @v=3; EXECUTE p USING @v;</code></pre><p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ مرز parameter و dynamic SQL امن یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p><p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the boundary between parameters and safe dynamic SQL.</p></section><section id="lesson-2"><h2><span lang="fa">Identifier پویا یعنی allowlist</span><span lang="en">Dynamic identifiers require an allowlist</span></h2><p lang="fa">اگه کاربر می‌تونه sort رو بین <code>created_at</code> و <code>total</code> انتخاب کند، ورودی خام رو به SQL نچسبان. یک map ثابت از نام‌های مجاز به identifier واقعی بساز.</p><p lang="fa">همین کار رو برای جهت sort هم بکن. <code>ASC</code>/<code>DESC</code> هم value نیستن؛ بخشی از syntax هستن و باید از مجموعهٔ محدود انتخاب شوند.</p><p lang="en">If a user can choose sorting by <code>created_at</code> or <code>total</code>, never concatenate raw input. Map a small set of public choices to fixed internal identifiers.</p><p lang="en">Do the same for sort direction. <code>ASC</code> and <code>DESC</code> are syntax, not values, so select them from a fixed allowlist.</p><pre dir="ltr"><code>SET @sql='SELECT id FROM customers WHERE id=?'; PREPARE p FROM @sql;</code></pre><p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ مرز parameter و dynamic SQL امن یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p><p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the boundary between parameters and safe dynamic SQL.</p></section><section id="lesson-3"><h2><span lang="fa">Prepared statement به session وصل است</span><span lang="en">Prepared statements have session scope</span></h2><p lang="fa">در SQL سطح server، statement آماده‌شده به همان session وابسته هست. اگه connection pool داری، نباید فرض کنی PREPARE در connection A روی connection B هم وجود داره.</p><p lang="fa">همین scope روی cleanup هم اثر داره؛ statement رو بعد استفاده <code>DEALLOCATE</code> کن یا lifecycle connection رو روشن نگه دار.</p><p lang="en">At the SQL level, a prepared statement belongs to its session. With connection pooling, do not assume a statement prepared on connection A exists on connection B.</p><p lang="en">That scope also matters for cleanup. Deallocate statements when appropriate and understand the lifetime of the connection that owns them.</p><pre dir="ltr"><code>SET @s='SELECT ? IS NULL AS is_null';
+PREPARE p FROM @s;
+SET @v=NULL;
+EXECUTE p USING @v;
+DEALLOCATE PREPARE p;</code></pre><p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ مرز parameter و dynamic SQL امن یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p><p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the boundary between parameters and safe dynamic SQL.</p></section><section id="lesson-4"><h2><span lang="fa">امنیت رو با payload بد آزمایش کن</span><span lang="en">Test the boundary with hostile input</span></h2><p lang="fa">به‌جای اینکه فقط بنویسیم «SQL Injection بد است»، روی fixture یک ورودی با quote و syntax اضافه می‌فرستیم. نسخهٔ parameterized باید آن رو data ببیند، نه command.</p><p lang="fa">همان ورودی رو در string concatenation خطرناک مقایسه می‌کنیم، ولی فقط روی محیط دورریختنی. هدف exploit نیست؛ دیدن مرز parser هست.</p><p lang="en">Instead of merely saying “SQL injection is bad,” send hostile-looking input to a disposable fixture. The parameterized version should treat it as data, not executable SQL.</p><p lang="en">Compare that with unsafe string concatenation only in the lab. The goal is not exploitation; it is making the parser boundary observable.</p><pre dir="ltr"><code>SELECT TABLE_NAME
+FROM information_schema.TABLES
+WHERE TABLE_SCHEMA=DATABASE()
+  AND TABLE_NAME IN ('customers','orders');</code></pre><p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با parse/execute behavior، allowlist و نتیجهٔ ورودی خطرناک رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p><p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about the boundary between parameters and safe dynamic SQL can be tied to evidence.</p></section><section id="mini-lab"><h2><span lang="fa">مینی‌لب — از حدس تا مدرک</span><span lang="en">Mini-lab — from assumption to evidence</span></h2>
+<p lang="fa">حالا سه checkpoint رو پشت‌سرهم اجرا کن. ترتیب مهمه: اول baseline، بعد یک تغییر یا مشاهدهٔ دقیق، بعد verification. وسط کار چیزی رو «درست» فرض نکن؛ هر مرحله باید خروجی مرحلهٔ بعد رو قابل‌تفسیرتر کنه.</p>
+<p lang="en">Run three checkpoints as one small story. Order matters: establish a baseline, make one controlled observation/change, then verify. Do not assume success between steps; each checkpoint should make the next result easier to interpret.</p>
+<pre dir="ltr"><code>SET @s='SELECT ? + 1'; PREPARE p FROM @s; SET @v=3; EXECUTE p USING @v;
+
+SET @sql='SELECT id FROM customers WHERE id=?'; PREPARE p FROM @sql;
+
+SET @s='SELECT ? IS NULL AS is_null';
+PREPARE p FROM @s;
+SET @v=NULL;
+EXECUTE p USING @v;
+DEALLOCATE PREPARE p;</code></pre>
+<div class="note safe"><strong lang="fa">چی رو نگه دار؟</strong><span lang="fa">commandها، خروجی مهم، نسخهٔ Server و یک جمله که می‌گه این آزمایش دربارهٔ مرز parameter و dynamic SQL امن دقیقاً چی رو ثابت کرد.</span><strong lang="en">What should you preserve?</strong><span lang="en">Commands, relevant output, server version, and one sentence stating exactly what this experiment proved about the boundary between parameters and safe dynamic SQL.</span></div>
+</section><section id="exercises"><h2><span lang="fa">تمرین‌ها — دست به کیبورد</span><span lang="en">Exercises — hands on keyboard</span></h2><p lang="fa">اینجا جواب تشریحیِ خالی نداریم. هر تمرین باید به یه SQL/command، خروجی یا state قابل‌بررسی ختم بشه. از تمرین‌های اول که گرم‌کردن هستن تا سناریوهای آخر، هدف اینه که بتونی چیزی رو با مدرک ثابت کنی.</p><p lang="en">These are not prose-only questions. Every exercise should end in runnable SQL/commands and observable evidence. Difficulty rises from warm-up tasks to engineering scenarios.</p><div class="ex" id="ex-mdb-18-1">
+<h3><span lang="fa">1) value رو bind کن</span><span lang="en">1) Run the experiment</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ مرز parameter و dynamic SQL امن چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about the boundary between parameters and safe dynamic SQL. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SET @s='SELECT ? + 1'; PREPARE p FROM @s; SET @v=3; EXECUTE p USING @v;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ مرز parameter و dynamic SQL امن یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the boundary between parameters and safe dynamic SQL.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مرز parameter و dynamic SQL امن انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the boundary between parameters and safe dynamic SQL.</p>
+</details></div><div class="ex" id="ex-mdb-18-2">
+<h3><span lang="fa">2) identifier رو با placeholder امتحان و رد کن</span><span lang="en">2) Run the experiment</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای مرز parameter و dynamic SQL امن مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for the boundary between parameters and safe dynamic SQL.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SET @sql='SELECT * FROM ?';
+PREPARE bad_identifier_example FROM @sql;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ مرز parameter و dynamic SQL امن یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the boundary between parameters and safe dynamic SQL.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مرز parameter و dynamic SQL امن انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the boundary between parameters and safe dynamic SQL.</p>
+</details></div><div class="ex" id="ex-mdb-18-3">
+<h3><span lang="fa">3) نام ستون رو allowlist کن</span><span lang="en">3) Run the experiment</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SET @sort = 'created';
+SET @sort_column =
+  CASE @sort
+    WHEN 'created' THEN 'created_at'
+    WHEN 'total' THEN 'total'
+    ELSE NULL
+  END;
+SELECT @sort_column;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ مرز parameter و dynamic SQL امن یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the boundary between parameters and safe dynamic SQL.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مرز parameter و dynamic SQL امن انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the boundary between parameters and safe dynamic SQL.</p>
+</details></div><div class="ex" id="ex-mdb-18-4">
+<h3><span lang="fa">4) جهت sort رو allowlist کن</span><span lang="en">4) Run the experiment</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SET @direction = UPPER('desc');
+SELECT CASE WHEN @direction IN ('ASC','DESC')
+            THEN @direction ELSE NULL END AS allowed_direction;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ مرز parameter و dynamic SQL امن یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the boundary between parameters and safe dynamic SQL.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مرز parameter و dynamic SQL امن انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the boundary between parameters and safe dynamic SQL.</p>
+</details></div><div class="ex" id="ex-mdb-18-5">
+<h3><span lang="fa">5) dynamic query بساز</span><span lang="en">5) Run the experiment</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ مرز parameter و dynamic SQL امن چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about the boundary between parameters and safe dynamic SQL. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SET @sql='SELECT id FROM customers WHERE id=?'; PREPARE p FROM @sql;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ مرز parameter و dynamic SQL امن یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the boundary between parameters and safe dynamic SQL.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مرز parameter و dynamic SQL امن انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the boundary between parameters and safe dynamic SQL.</p>
+</details></div><div class="ex" id="ex-mdb-18-6">
+<h3><span lang="fa">6) parameter رو اجرا کن</span><span lang="en">6) Run the experiment</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای مرز parameter و dynamic SQL امن مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for the boundary between parameters and safe dynamic SQL.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SET @id=5; EXECUTE p USING @id;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ مرز parameter و dynamic SQL امن یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the boundary between parameters and safe dynamic SQL.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مرز parameter و dynamic SQL امن انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the boundary between parameters and safe dynamic SQL.</p>
+</details></div><div class="ex" id="ex-mdb-18-7">
+<h3><span lang="fa">7) statement رو آزاد کن</span><span lang="en">7) Run the experiment</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>DEALLOCATE PREPARE p;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ مرز parameter و dynamic SQL امن یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the boundary between parameters and safe dynamic SQL.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مرز parameter و dynamic SQL امن انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the boundary between parameters and safe dynamic SQL.</p>
+</details></div><div class="ex" id="ex-mdb-18-8">
+<h3><span lang="fa">8) SQL injection رشته‌ای رو شبیه‌سازی کن</span><span lang="en">8) Run the experiment</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SET @unsafe_input = '1 OR 1=1';
+SET @safe_sql = 'SELECT id FROM customers WHERE id=?';
+PREPARE p FROM @safe_sql;
+EXECUTE p USING @unsafe_input;
+DEALLOCATE PREPARE p;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ مرز parameter و dynamic SQL امن یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the boundary between parameters and safe dynamic SQL.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مرز parameter و dynamic SQL امن انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the boundary between parameters and safe dynamic SQL.</p>
+</details></div><div class="ex" id="ex-mdb-18-9">
+<h3><span lang="fa">9) NULL parameter رو تست کن</span><span lang="en">9) Run the experiment</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ مرز parameter و dynamic SQL امن چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about the boundary between parameters and safe dynamic SQL. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SET @s='SELECT ? IS NULL AS is_null';
+PREPARE p FROM @s;
+SET @v=NULL;
+EXECUTE p USING @v;
+DEALLOCATE PREPARE p;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ مرز parameter و dynamic SQL امن یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the boundary between parameters and safe dynamic SQL.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مرز parameter و dynamic SQL امن انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the boundary between parameters and safe dynamic SQL.</p>
+</details></div><div class="ex" id="ex-mdb-18-10">
+<h3><span lang="fa">10) نوع parameter رو کنترل کن</span><span lang="en">10) Run the experiment</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای مرز parameter و dynamic SQL امن مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for the boundary between parameters and safe dynamic SQL.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SET @id = CAST('5' AS UNSIGNED);
+SET @s='SELECT id FROM customers WHERE id=?';
+PREPARE p FROM @s;
+EXECUTE p USING @id;
+DEALLOCATE PREPARE p;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ مرز parameter و dynamic SQL امن یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the boundary between parameters and safe dynamic SQL.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مرز parameter و dynamic SQL امن انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the boundary between parameters and safe dynamic SQL.</p>
+</details></div><div class="ex" id="ex-mdb-18-11">
+<h3><span lang="fa">11) دو query shape رو allowlist کن</span><span lang="en">11) Run the experiment</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SET @mode='active';
+SET @sql = CASE @mode
+  WHEN 'active' THEN 'SELECT id FROM customers WHERE status=''active'''
+  WHEN 'all' THEN 'SELECT id FROM customers'
+  ELSE NULL END;
+SELECT @sql;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ مرز parameter و dynamic SQL امن یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the boundary between parameters and safe dynamic SQL.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مرز parameter و dynamic SQL امن انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the boundary between parameters and safe dynamic SQL.</p>
+</details></div><div class="ex" id="ex-mdb-18-12">
+<h3><span lang="fa">12) نام جدول از ورودی نپذیر</span><span lang="en">12) Run the experiment</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SET @requested_table='customers';
+SELECT CASE WHEN @requested_table IN ('customers','orders')
+            THEN @requested_table ELSE NULL END AS allowed_table;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ مرز parameter و dynamic SQL امن یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the boundary between parameters and safe dynamic SQL.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مرز parameter و dynamic SQL امن انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the boundary between parameters and safe dynamic SQL.</p>
+</details></div><div class="ex" id="ex-mdb-18-13">
+<h3><span lang="fa">13) quoting identifier رو بررسی کن</span><span lang="en">13) Query the evidence</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ مرز parameter و dynamic SQL امن چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about the boundary between parameters and safe dynamic SQL. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT TABLE_NAME
+FROM information_schema.TABLES
+WHERE TABLE_SCHEMA=DATABASE()
+  AND TABLE_NAME IN ('customers','orders');</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با parse/execute behavior، allowlist و نتیجهٔ ورودی خطرناک رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about the boundary between parameters and safe dynamic SQL can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مرز parameter و dynamic SQL امن انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the boundary between parameters and safe dynamic SQL.</p>
+</details></div><div class="ex" id="ex-mdb-18-14">
+<h3><span lang="fa">14) PREPARE scope رو بشناس</span><span lang="en">14) Run the experiment</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای مرز parameter و dynamic SQL امن مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for the boundary between parameters and safe dynamic SQL.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SET @s='SELECT 1';
+PREPARE p FROM @s;
+EXECUTE p;
+DEALLOCATE PREPARE p;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ مرز parameter و dynamic SQL امن یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the boundary between parameters and safe dynamic SQL.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مرز parameter و dynamic SQL امن انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the boundary between parameters and safe dynamic SQL.</p>
+</details></div><div class="ex" id="ex-mdb-18-15">
+<h3><span lang="fa">15) خطای syntax رو جدا کن</span><span lang="en">15) Read server evidence</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW WARNINGS;</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با parse/execute behavior، allowlist و نتیجهٔ ورودی خطرناک رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about the boundary between parameters and safe dynamic SQL can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مرز parameter و dynamic SQL امن انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the boundary between parameters and safe dynamic SQL.</p>
+</details></div><div class="ex" id="ex-mdb-18-16">
+<h3><span lang="fa">16) placeholder count رو تطبیق بده</span><span lang="en">16) Run the experiment</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SET @s='SELECT ? + ?';
+PREPARE p FROM @s;
+SET @a=1,@b=2;
+EXECUTE p USING @a,@b;
+DEALLOCATE PREPARE p;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ مرز parameter و dynamic SQL امن یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the boundary between parameters and safe dynamic SQL.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مرز parameter و dynamic SQL امن انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the boundary between parameters and safe dynamic SQL.</p>
+</details></div><div class="ex" id="ex-mdb-18-17">
+<h3><span lang="fa">17) cleanup در خطا</span><span lang="en">17) Run the experiment</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ مرز parameter و dynamic SQL امن چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about the boundary between parameters and safe dynamic SQL. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SET @s='SELECT 1';
+PREPARE p FROM @s;
+EXECUTE p;
+DEALLOCATE PREPARE p;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ مرز parameter و dynamic SQL امن یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the boundary between parameters and safe dynamic SQL.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مرز parameter و dynamic SQL امن انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the boundary between parameters and safe dynamic SQL.</p>
+</details></div><div class="ex" id="ex-mdb-18-18">
+<h3><span lang="fa">18) گزارش امنیتی بنویس</span><span lang="en">18) Query the evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای مرز parameter و dynamic SQL امن مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for the boundary between parameters and safe dynamic SQL.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT 'value' AS input_kind, 'bind as parameter' AS policy
+UNION ALL
+SELECT 'identifier','map from a fixed allowlist';</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ مرز parameter و dynamic SQL امن یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the boundary between parameters and safe dynamic SQL.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مرز parameter و dynamic SQL امن انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the boundary between parameters and safe dynamic SQL.</p>
+</details></div></section><section id="next"><h2><span lang="fa">جمع‌بندی — چیزی که باید با خودت ببری</span><span lang="en">Summary — the mental model to keep</span></h2><p lang="fa">اگه از این فصل فقط یه عادت بمونه، این باشه: دربارهٔ مرز parameter و dynamic SQL امن از روی اسم feature یا حس تصمیم نگیر. baseline بگیر، یه چیز رو عوض کن، خروجی رو بخون و بعد نتیجه بگیر.</p><p lang="en">If one habit survives this chapter, let it be this: do not reason about the boundary between parameters and safe dynamic SQL from feature names or intuition. Capture a baseline, change one thing, read the evidence, then conclude.</p><p class="refs"><a href="https://mariadb.com/docs/server/reference/sql-statements/prepared-statements/prepare-statement">PREPARE</a> · <a href="https://mariadb.com/docs/server/reference/sql-statements/prepared-statements/execute-statement">EXECUTE</a></p></section>

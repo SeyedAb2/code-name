@@ -1,0 +1,231 @@
+<!--meta
+title: InnoDB، تراکنش و بازیابی
+desc: یک انتقال پول دو UPDATE دارد، ولی از دید کسب‌وکار فقط یک کار است. اگه وسطش برنامه بمیرد، یا هر دو تغییر باید بمانند یا هیچ‌کدام. این فصل InnoDB رو از همین درد شروع می‌کنه: transaction فقط چند دستور بین START و COMMIT نیست؛ یک مرز درست برای تغییر داده است.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">MariaDB · فصل 6</span><span lang="en">MariaDB · Chapter 6</span></span>
+<h1 lang="fa">یک تراکنش پول رو از حساب اول کم کرده اما به حساب دوم اضافه نکرده. چه چیزی باید تضمین می‌کرد؟</h1>
+<h1 lang="en">A transfer debited one account but failed to credit the other. What should have guaranteed atomicity?</h1>
+<p class="sub" lang="fa">یک انتقال پول دو <code>UPDATE</code> داره، ولی از دید کسب‌وکار فقط یک کار هست. اگه وسطش برنامه بمیرد، یا هر دو تغییر باید بمانند یا هیچ‌کدام. این فصل InnoDB رو از همین درد شروع می‌کنه: transaction فقط چند دستور بین <code>START</code> و <code>COMMIT</code> نیست؛ یک مرز درست برای تغییر داده هست.</p>
+<p class="sub" lang="en">A money transfer may require two <code>UPDATE</code> statements, but the business sees a single operation. If the process dies halfway through, either both changes survive or neither does. This chapter starts InnoDB from that problem: a transaction is not just syntax between <code>START</code> and <code>COMMIT</code>; it is a correctness boundary.</p>
+<div class="facts"><span>MariaDB 11.8 · InnoDB, transactions, and recovery</span><span>حدود ۹۰ دقیقه · ۱۸ تمرین / About 90 minutes · 18 exercises</span></div>
+</div>
+<section id="mental-model"><h2><span lang="fa">قبل از کد، مسئله رو درست ببین</span><span lang="en">Frame the problem before the code</span></h2>
+<p lang="fa">این فصل رو با syntax شروع نمی‌کنیم. مسئله اینه: درستی transaction، rollback و قفل‌های InnoDB. اول یه پیش‌بینی می‌سازیم، بعد با query یا command کوچیک آزمایشش می‌کنیم. هر جا خروجی خلاف انتظار بود، همون‌جا درس اصلی شروع می‌شه.</p>
+<p lang="en">This chapter does not begin with syntax. The problem is transaction correctness, rollback, and InnoDB locking. We will form a prediction, test it with a small query or command, and treat unexpected output as the beginning of the investigation.</p>
+</section><section id="lesson-1"><h2><span lang="fa">اول invariant رو مشخص کن</span><span lang="en">Start with the invariant</span></h2><p lang="fa">قبل از SQL بگو چه چیزی نباید خراب شود. در مثال حساب‌ها، جمع پول نباید فقط به خاطر خطای وسط کار عوض شود. وقتی invariant روشن شد، تازه می‌تونیم بررسی کنیم transaction درست دور کدام statementها قرار می‌گیره.</p><p lang="fa">دو حساب کوچک می‌سازیم، مقدار قبل رو می‌خونیم، انتقال رو commit می‌کنیم و دوباره جمع رو چک می‌کنیم. اینجا query تأیید نهایی بخشی از درس هست، نه تزئین بعد از command.</p><p lang="en">Before writing SQL, state what must remain true. In the account example, the total amount should not change just because a failure occurs halfway through the transfer. Once the invariant is explicit, the transaction boundary becomes easier to reason about.</p><p lang="en">Create two small accounts, read the baseline, commit a transfer, and verify both rows and the total afterwards. The verification query is part of the lesson, not decoration after the command.</p><pre dir="ltr"><code>CREATE TABLE accounts(id INT PRIMARY KEY,balance DECIMAL(10,2) NOT NULL) ENGINE=InnoDB;</code></pre><p lang="fa">این object عمداً کوچک و آزمایشیه تا behavior رو بدون سر و صدای production ببینیم. بعد از ساخت، با metadata یا یک query مستقل ثابت کن چیزی که می‌خواستیم واقعاً ساخته شده.</p><p lang="en">The object is intentionally small and disposable. After creating it, use independent metadata or a query to prove that the intended behavior really exists.</p></section><section id="lesson-2"><h2><span lang="fa">ROLLBACK رو واقعاً ببین</span><span lang="en">Make rollback observable</span></h2><p lang="fa">خیلی‌ها rollback رو می‌شناسند ولی فقط از روی تعریف. اینجا عمداً balance رو به مقدار بدی تغییر می‌دهیم و قبل از commit برمی‌گردیم. بعد با <code>SELECT</code> ثابت می‌کنیم state قبلی برگشته.</p><p lang="fa"><code>SAVEPOINT</code> هم «transaction داخل transaction» نیست. یک نقطهٔ برگشت داخل همان transaction هست. این فرق بعداً وقتی workflow چندمرحله‌ای می‌سازی مهم می‌شه.</p><p lang="en">Many developers know what rollback means without having watched it restore state. Here, deliberately make an unwanted change, roll it back before commit, and prove the original value with a query.</p><p lang="en">A <code>SAVEPOINT</code> is not a nested independent transaction. It is a recovery point inside the same transaction. That distinction matters in multi-step workflows.</p><pre dir="ltr"><code>SELECT * FROM accounts ORDER BY id;</code></pre><p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ درستی transaction، rollback و قفل‌های InnoDB یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p><p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about transaction correctness, rollback, and InnoDB locking.</p><div class="note warn"><strong lang="fa">مرز آزمایش</strong><span lang="fa">این بخش رو فقط روی database یا topology دورریختنی دوره اجرا کن. قبل از هر تغییر destructive، مقصد رو دوباره چک کن و یک recovery boundary قابل‌بررسی داشته باش.</span><strong lang="en">Lab boundary</strong><span lang="en">Run this only against the disposable course database or topology. Re-check the target before destructive changes and keep a verifiable recovery boundary.</span></div></section><section id="lesson-3"><h2><span lang="fa">قفل تا وقتی transaction باز هست، مال توست</span><span lang="en">Locks live with the transaction</span></h2><p lang="fa"><code>SELECT ... FOR UPDATE</code> رو در Session A اجرا می‌کنیم و transaction رو باز نگه می‌داریم. Session B که بخواهد همان ردیف رو تغییر بدهد، منتظر می‌مونه. این انتظار خودش بخشی از semantics هست؛ database خراب نشده.</p><p lang="fa">ولی transaction بازِ طولانی خیلی زود تبدیل به مشکل عملیاتی می‌شه. پس قاعدهٔ ذهنی‌مان این است: data رو دیر قفل کن، کار لازم رو انجام بده، زود commit/rollback کن و هیچ interaction کاربر رو وسط transaction نگه ندار.</p><p lang="en">Run <code>SELECT ... FOR UPDATE</code> in Session A and keep the transaction open. When Session B tries to modify the same row, it waits. That wait is part of the concurrency model; it does not mean the database is broken.</p><p lang="en">Long-lived transactions quickly become operational problems. Acquire locks as late as practical, do the required work, commit or roll back promptly, and never hold a transaction open while waiting for user interaction.</p><pre dir="ltr"><code>ROLLBACK;</code></pre><p lang="fa">به ترتیب اجرا دقت کن. این تمرین دربارهٔ syntax نیست؛ دربارهٔ state قبل و بعد transactionه. بعد از پایان، یک <code>SELECT</code> مستقل بزن تا چیزی که commit یا rollback شده با چشم دیده بشه.</p><p lang="en">Focus on state before and after the transaction. Finish with an independent query so commit/rollback behavior is observable.</p></section><section id="lesson-4"><h2><span lang="fa">Crash recovery با business retry فرق داره</span><span lang="en">Crash recovery is not business retry</span></h2><p lang="fa">InnoDB می‌تونه بعد از crash ساختار تراکنشی خودش رو recover کند، ولی این به معنی این نیست که برنامه می‌داند درخواست کاربر بالاخره انجام شد یا نه. اگه connection وسط commit قطع شود، client ممکن هست از نتیجه مطمئن نباشد.</p><p lang="fa">اینجا پای idempotency و retry حساب‌شده وسط میاد. retry کور روی انتقال پول می‌تونه همان کار رو دوبار انجام دهد. recovery دیتابیس و semantics درخواست برنامه دو مسئلهٔ جدا هستن.</p><p lang="en">InnoDB can recover its transactional state after a crash, but that does not tell an application whether a client request definitely completed. A connection can disappear around commit and leave the caller uncertain.</p><p lang="en">That is where idempotency and carefully designed retries matter. Blindly retrying a payment or transfer can apply the business operation twice. Database recovery and application request semantics are separate problems.</p><pre dir="ltr"><code>ROLLBACK;</code></pre><p lang="fa">به ترتیب اجرا دقت کن. این تمرین دربارهٔ syntax نیست؛ دربارهٔ state قبل و بعد transactionه. بعد از پایان، یک <code>SELECT</code> مستقل بزن تا چیزی که commit یا rollback شده با چشم دیده بشه.</p><p lang="en">Focus on state before and after the transaction. Finish with an independent query so commit/rollback behavior is observable.</p></section><section id="mini-lab"><h2><span lang="fa">مینی‌لب — از حدس تا مدرک</span><span lang="en">Mini-lab — from assumption to evidence</span></h2>
+<p lang="fa">حالا سه checkpoint رو پشت‌سرهم اجرا کن. ترتیب مهمه: اول baseline، بعد یک تغییر یا مشاهدهٔ دقیق، بعد verification. وسط کار چیزی رو «درست» فرض نکن؛ هر مرحله باید خروجی مرحلهٔ بعد رو قابل‌تفسیرتر کنه.</p>
+<p lang="en">Run three checkpoints as one small story. Order matters: establish a baseline, make one controlled observation/change, then verify. Do not assume success between steps; each checkpoint should make the next result easier to interpret.</p>
+<pre dir="ltr"><code>CREATE TABLE accounts(id INT PRIMARY KEY,balance DECIMAL(10,2) NOT NULL) ENGINE=InnoDB;
+
+SELECT * FROM accounts ORDER BY id;
+
+ROLLBACK;</code></pre>
+<div class="note safe"><strong lang="fa">چی رو نگه دار؟</strong><span lang="fa">commandها، خروجی مهم، نسخهٔ Server و یک جمله که می‌گه این آزمایش دربارهٔ درستی transaction، rollback و قفل‌های InnoDB دقیقاً چی رو ثابت کرد.</span><strong lang="en">What should you preserve?</strong><span lang="en">Commands, relevant output, server version, and one sentence stating exactly what this experiment proved about transaction correctness, rollback, and InnoDB locking.</span></div>
+</section><section id="exercises"><h2><span lang="fa">تمرین‌ها — دست به کیبورد</span><span lang="en">Exercises — hands on keyboard</span></h2><p lang="fa">اینجا جواب تشریحیِ خالی نداریم. هر تمرین باید به یه SQL/command، خروجی یا state قابل‌بررسی ختم بشه. از تمرین‌های اول که گرم‌کردن هستن تا سناریوهای آخر، هدف اینه که بتونی چیزی رو با مدرک ثابت کنی.</p><p lang="en">These are not prose-only questions. Every exercise should end in runnable SQL/commands and observable evidence. Difficulty rises from warm-up tasks to engineering scenarios.</p><div class="ex" id="ex-mdb-6-1">
+<h3><span lang="fa">1) حساب آزمایشی بساز</span><span lang="en">1) Create the lab object</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ درستی transaction، rollback و قفل‌های InnoDB چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about transaction correctness, rollback, and InnoDB locking. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>CREATE TABLE accounts(id INT PRIMARY KEY,balance DECIMAL(10,2) NOT NULL) ENGINE=InnoDB;</code></pre>
+<p lang="fa">این object عمداً کوچک و آزمایشیه تا behavior رو بدون سر و صدای production ببینیم. بعد از ساخت، با metadata یا یک query مستقل ثابت کن چیزی که می‌خواستیم واقعاً ساخته شده.</p>
+<p lang="en">The object is intentionally small and disposable. After creating it, use independent metadata or a query to prove that the intended behavior really exists.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای درستی transaction، rollback و قفل‌های InnoDB انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for transaction correctness, rollback, and InnoDB locking.</p>
+</details></div><div class="ex" id="ex-mdb-6-2">
+<h3><span lang="fa">2) دو حساب بساز</span><span lang="en">2) Create controlled fixture data</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای درستی transaction، rollback و قفل‌های InnoDB مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for transaction correctness, rollback, and InnoDB locking.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>INSERT INTO accounts VALUES(1,500),(2,200);</code></pre>
+<p lang="fa">این تغییر فقط روی دادهٔ دورریختنیه. قبلش target رو با <code>SELECT</code> مشخص کن، بعد تغییر رو اجرا کن و دوباره state رو بخون؛ row count یا پیام <code>Query OK</code> جای verification رو نمی‌گیره.</p>
+<p lang="en">Keep the change inside disposable data. Inspect the target first, make the change, then query the resulting state; an affected-row count is not sufficient verification.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای درستی transaction، rollback و قفل‌های InnoDB انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for transaction correctness, rollback, and InnoDB locking.</p>
+</details></div><div class="ex" id="ex-mdb-6-3">
+<h3><span lang="fa">3) موجودی پیش از انتقال رو ببین</span><span lang="en">3) Query the evidence</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT * FROM accounts ORDER BY id;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ درستی transaction، rollback و قفل‌های InnoDB یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about transaction correctness, rollback, and InnoDB locking.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای درستی transaction، rollback و قفل‌های InnoDB انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for transaction correctness, rollback, and InnoDB locking.</p>
+</details></div><div class="ex" id="ex-mdb-6-4">
+<h3><span lang="fa">4) انتقال رو در transaction انجام بده</span><span lang="en">4) Run the transaction experiment</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>START TRANSACTION; UPDATE accounts SET balance=balance-50 WHERE id=1; UPDATE accounts SET balance=balance+50 WHERE id=2; COMMIT;</code></pre>
+<p lang="fa">به ترتیب اجرا دقت کن. این تمرین دربارهٔ syntax نیست؛ دربارهٔ state قبل و بعد transactionه. بعد از پایان، یک <code>SELECT</code> مستقل بزن تا چیزی که commit یا rollback شده با چشم دیده بشه.</p>
+<p lang="en">Focus on state before and after the transaction. Finish with an independent query so commit/rollback behavior is observable.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای درستی transaction، rollback و قفل‌های InnoDB انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for transaction correctness, rollback, and InnoDB locking.</p>
+</details></div><div class="ex" id="ex-mdb-6-5">
+<h3><span lang="fa">5) موجودی بعد commit رو verify کن</span><span lang="en">5) Query the evidence</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ درستی transaction، rollback و قفل‌های InnoDB چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about transaction correctness, rollback, and InnoDB locking. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT * FROM accounts ORDER BY id;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ درستی transaction، rollback و قفل‌های InnoDB یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about transaction correctness, rollback, and InnoDB locking.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای درستی transaction، rollback و قفل‌های InnoDB انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for transaction correctness, rollback, and InnoDB locking.</p>
+</details></div><div class="ex" id="ex-mdb-6-6">
+<h3><span lang="fa">6) یک تغییر رو rollback کن</span><span lang="en">6) Run the transaction experiment</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای درستی transaction، rollback و قفل‌های InnoDB مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for transaction correctness, rollback, and InnoDB locking.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>START TRANSACTION; UPDATE accounts SET balance=0 WHERE id=1; ROLLBACK;</code></pre>
+<p lang="fa">به ترتیب اجرا دقت کن. این تمرین دربارهٔ syntax نیست؛ دربارهٔ state قبل و بعد transactionه. بعد از پایان، یک <code>SELECT</code> مستقل بزن تا چیزی که commit یا rollback شده با چشم دیده بشه.</p>
+<p lang="en">Focus on state before and after the transaction. Finish with an independent query so commit/rollback behavior is observable.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای درستی transaction، rollback و قفل‌های InnoDB انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for transaction correctness, rollback, and InnoDB locking.</p>
+</details></div><div class="ex" id="ex-mdb-6-7">
+<h3><span lang="fa">7) مقدار rollback شده رو query کن</span><span lang="en">7) Query the evidence</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT balance FROM accounts WHERE id=1;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ درستی transaction، rollback و قفل‌های InnoDB یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about transaction correctness, rollback, and InnoDB locking.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای درستی transaction، rollback و قفل‌های InnoDB انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for transaction correctness, rollback, and InnoDB locking.</p>
+</details></div><div class="ex" id="ex-mdb-6-8">
+<h3><span lang="fa">8) قفل ردیف رو آزمایش کن</span><span lang="en">8) Run the transaction experiment</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>START TRANSACTION; SELECT balance FROM accounts WHERE id=1 FOR UPDATE;</code></pre>
+<p lang="fa">به ترتیب اجرا دقت کن. این تمرین دربارهٔ syntax نیست؛ دربارهٔ state قبل و بعد transactionه. بعد از پایان، یک <code>SELECT</code> مستقل بزن تا چیزی که commit یا rollback شده با چشم دیده بشه.</p>
+<p lang="en">Focus on state before and after the transaction. Finish with an independent query so commit/rollback behavior is observable.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای درستی transaction، rollback و قفل‌های InnoDB انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for transaction correctness, rollback, and InnoDB locking.</p>
+</details></div><div class="ex" id="ex-mdb-6-9">
+<h3><span lang="fa">9) transaction رو ببند</span><span lang="en">9) Run the experiment</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ درستی transaction، rollback و قفل‌های InnoDB چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about transaction correctness, rollback, and InnoDB locking. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>ROLLBACK;</code></pre>
+<p lang="fa">به ترتیب اجرا دقت کن. این تمرین دربارهٔ syntax نیست؛ دربارهٔ state قبل و بعد transactionه. بعد از پایان، یک <code>SELECT</code> مستقل بزن تا چیزی که commit یا rollback شده با چشم دیده بشه.</p>
+<p lang="en">Focus on state before and after the transaction. Finish with an independent query so commit/rollback behavior is observable.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای درستی transaction، rollback و قفل‌های InnoDB انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for transaction correctness, rollback, and InnoDB locking.</p>
+</details></div><div class="ex" id="ex-mdb-6-10">
+<h3><span lang="fa">10) autocommit رو بررسی کن</span><span lang="en">10) Query the evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای درستی transaction، rollback و قفل‌های InnoDB مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for transaction correctness, rollback, and InnoDB locking.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT @@autocommit;</code></pre>
+<p lang="fa">به ترتیب اجرا دقت کن. این تمرین دربارهٔ syntax نیست؛ دربارهٔ state قبل و بعد transactionه. بعد از پایان، یک <code>SELECT</code> مستقل بزن تا چیزی که commit یا rollback شده با چشم دیده بشه.</p>
+<p lang="en">Focus on state before and after the transaction. Finish with an independent query so commit/rollback behavior is observable.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای درستی transaction، rollback و قفل‌های InnoDB انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for transaction correctness, rollback, and InnoDB locking.</p>
+</details></div><div class="ex" id="ex-mdb-6-11">
+<h3><span lang="fa">11) savepoint بساز</span><span lang="en">11) Run the transaction experiment</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>START TRANSACTION; SAVEPOINT before_fee; UPDATE accounts SET balance=balance-5 WHERE id=1;</code></pre>
+<p lang="fa">به ترتیب اجرا دقت کن. این تمرین دربارهٔ syntax نیست؛ دربارهٔ state قبل و بعد transactionه. بعد از پایان، یک <code>SELECT</code> مستقل بزن تا چیزی که commit یا rollback شده با چشم دیده بشه.</p>
+<p lang="en">Focus on state before and after the transaction. Finish with an independent query so commit/rollback behavior is observable.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای درستی transaction، rollback و قفل‌های InnoDB انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for transaction correctness, rollback, and InnoDB locking.</p>
+</details></div><div class="ex" id="ex-mdb-6-12">
+<h3><span lang="fa">12) تا savepoint rollback کن</span><span lang="en">12) Run the experiment</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>ROLLBACK TO SAVEPOINT before_fee;</code></pre>
+<p lang="fa">به ترتیب اجرا دقت کن. این تمرین دربارهٔ syntax نیست؛ دربارهٔ state قبل و بعد transactionه. بعد از پایان، یک <code>SELECT</code> مستقل بزن تا چیزی که commit یا rollback شده با چشم دیده بشه.</p>
+<p lang="en">Focus on state before and after the transaction. Finish with an independent query so commit/rollback behavior is observable.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای درستی transaction، rollback و قفل‌های InnoDB انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for transaction correctness, rollback, and InnoDB locking.</p>
+</details></div><div class="ex" id="ex-mdb-6-13">
+<h3><span lang="fa">13) transaction رو کامل rollback کن</span><span lang="en">13) Run the experiment</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ درستی transaction، rollback و قفل‌های InnoDB چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about transaction correctness, rollback, and InnoDB locking. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>ROLLBACK;</code></pre>
+<p lang="fa">به ترتیب اجرا دقت کن. این تمرین دربارهٔ syntax نیست؛ دربارهٔ state قبل و بعد transactionه. بعد از پایان، یک <code>SELECT</code> مستقل بزن تا چیزی که commit یا rollback شده با چشم دیده بشه.</p>
+<p lang="en">Focus on state before and after the transaction. Finish with an independent query so commit/rollback behavior is observable.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای درستی transaction، rollback و قفل‌های InnoDB انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for transaction correctness, rollback, and InnoDB locking.</p>
+</details></div><div class="ex" id="ex-mdb-6-14">
+<h3><span lang="fa">14) مجموع balance رو کنترل کن</span><span lang="en">14) Query the evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای درستی transaction، rollback و قفل‌های InnoDB مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for transaction correctness, rollback, and InnoDB locking.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT SUM(balance) FROM accounts;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ درستی transaction، rollback و قفل‌های InnoDB یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about transaction correctness, rollback, and InnoDB locking.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای درستی transaction، rollback و قفل‌های InnoDB انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for transaction correctness, rollback, and InnoDB locking.</p>
+</details></div><div class="ex" id="ex-mdb-6-15">
+<h3><span lang="fa">15) InnoDB status رو بخوان</span><span lang="en">15) Read server evidence</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW ENGINE INNODB STATUS;</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با state ردیف‌ها، invariant موجودی و رفتار lock رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about transaction correctness, rollback, and InnoDB locking can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای درستی transaction، rollback و قفل‌های InnoDB انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for transaction correctness, rollback, and InnoDB locking.</p>
+</details></div><div class="ex" id="ex-mdb-6-16">
+<h3><span lang="fa">16) engine table رو verify کن</span><span lang="en">16) Read server evidence</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW TABLE STATUS LIKE 'accounts';</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با state ردیف‌ها، invariant موجودی و رفتار lock رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about transaction correctness, rollback, and InnoDB locking can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای درستی transaction، rollback و قفل‌های InnoDB انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for transaction correctness, rollback, and InnoDB locking.</p>
+</details></div><div class="ex" id="ex-mdb-6-17">
+<h3><span lang="fa">17) قفل blocking رو در دو نشست تمرین کن</span><span lang="en">17) Run the experiment</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ درستی transaction، rollback و قفل‌های InnoDB چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about transaction correctness, rollback, and InnoDB locking. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>-- Session A
+START TRANSACTION;
+SELECT balance FROM accounts WHERE id=1 FOR UPDATE;
+
+-- Session B
+UPDATE accounts SET balance=balance+1 WHERE id=1;
+
+-- Back in Session A, release the lock
+ROLLBACK;</code></pre>
+<p lang="fa">به ترتیب اجرا دقت کن. این تمرین دربارهٔ syntax نیست؛ دربارهٔ state قبل و بعد transactionه. بعد از پایان، یک <code>SELECT</code> مستقل بزن تا چیزی که commit یا rollback شده با چشم دیده بشه.</p>
+<p lang="en">Focus on state before and after the transaction. Finish with an independent query so commit/rollback behavior is observable.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای درستی transaction، rollback و قفل‌های InnoDB انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for transaction correctness, rollback, and InnoDB locking.</p>
+</details></div><div class="ex" id="ex-mdb-6-18">
+<h3><span lang="fa">18) موجودی منفی رو با constraint رد کن</span><span lang="en">18) Apply the controlled change</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای درستی transaction، rollback و قفل‌های InnoDB مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for transaction correctness, rollback, and InnoDB locking.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>ALTER TABLE accounts ADD CONSTRAINT chk_balance CHECK(balance&gt;=0);</code></pre>
+<p lang="fa">این تغییر رو فقط روی fixture انجام بده و before/after رو نگه دار. موفق‌شدن statement به‌تنهایی کافی نیست؛ نتیجهٔ واقعی رو با state ردیف‌ها، invariant موجودی و رفتار lock verify کن.</p>
+<p lang="en">Run the change only on the fixture and preserve before/after evidence. A successful statement alone does not prove the desired end state.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای درستی transaction، rollback و قفل‌های InnoDB انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for transaction correctness, rollback, and InnoDB locking.</p>
+</details></div></section><section id="next"><h2><span lang="fa">جمع‌بندی — چیزی که باید با خودت ببری</span><span lang="en">Summary — the mental model to keep</span></h2><p lang="fa">اگه از این فصل فقط یه عادت بمونه، این باشه: دربارهٔ درستی transaction، rollback و قفل‌های InnoDB از روی اسم feature یا حس تصمیم نگیر. baseline بگیر، یه چیز رو عوض کن، خروجی رو بخون و بعد نتیجه بگیر.</p><p lang="en">If one habit survives this chapter, let it be this: do not reason about transaction correctness, rollback, and InnoDB locking from feature names or intuition. Capture a baseline, change one thing, read the evidence, then conclude.</p><p class="refs"><a href="https://mariadb.com/docs/server/server-usage/storage-engines/innodb/innodb-storage-engine-introduction">InnoDB introduction</a> · <a href="https://mariadb.com/docs/server/reference/sql-statements/transactions/rollback">ROLLBACK</a> · <a href="https://mariadb.com/docs/server/server-usage/storage-engines/innodb/innodb-troubleshooting/innodb-recovery-modes">InnoDB recovery modes</a></p></section>

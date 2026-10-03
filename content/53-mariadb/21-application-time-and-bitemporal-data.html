@@ -1,0 +1,316 @@
+<!--meta
+title: Application-time و دادهٔ bitemporal
+desc: دو سؤال زمانی داریم که ظاهرشان شبیه است ولی جواب‌شان یکی نیست: «این قیمت از چه تاریخی برای مشتری معتبر بود؟» و «database چه تاریخی این اصلاح رو ثبت کرد؟». Application-time و system-time دقیقاً برای جداکردن همین دو محورند.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">MariaDB · فصل 21</span><span lang="en">MariaDB · Chapter 21</span></span>
+<h1 lang="fa">قیمت قرارداد از اول ماه معتبر بوده اما شرکت اصلاحش رو روز دهم وارد سیستم کرده؛ «چه زمانی معتبر بود؟» با «چه زمانی فهمیدیم؟» یکی نیست.</h1>
+<h1 lang="en">A contract price was valid from the first of the month, but entered into the system on the tenth. “When was it valid?” differs from “When did we know?”</h1>
+<p class="sub" lang="fa">دو سؤال زمانی داریم که ظاهرشان شبیه هست ولی جواب‌شان یکی نیست: «این قیمت از چه تاریخی برای مشتری معتبر بود؟» و «database چه تاریخی این اصلاح رو ثبت کرد؟». Application-time و system-time دقیقاً برای جداکردن همین دو محورند.</p>
+<p class="sub" lang="en">Two temporal questions may sound similar while requiring different answers: “When was this price valid for the customer?” and “When did the database record this correction?” Application time and system time model those two axes separately.</p>
+<div class="facts"><span>MariaDB 11.8 · Application-time and bitemporal data</span><span>حدود ۹۵ دقیقه · ۱۸ تمرین / About 95 minutes · 18 exercises</span></div>
+</div>
+<section id="mental-model"><h2><span lang="fa">قبل از کد، مسئله رو درست ببین</span><span lang="en">Frame the problem before the code</span></h2>
+<p lang="fa">این فصل رو با syntax شروع نمی‌کنیم. مسئله اینه: application time، system time و مدل bitemporal. اول یه پیش‌بینی می‌سازیم، بعد با query یا command کوچیک آزمایشش می‌کنیم. هر جا خروجی خلاف انتظار بود، همون‌جا درس اصلی شروع می‌شه.</p>
+<p lang="en">This chapter does not begin with syntax. The problem is application time, system time, and the bitemporal model. We will form a prediction, test it with a small query or command, and treat unexpected output as the beginning of the investigation.</p>
+</section><section id="lesson-1"><h2><span lang="fa">Application time رو خود کسب‌وکار تعریف می‌کنه</span><span lang="en">Application time belongs to the business</span></h2><p lang="fa">در MariaDB یک <code>PERIOD FOR</code> روی دو ستون زمانی تعریف می‌کنی. Server حد پایین و بالا رو به‌عنوان یک بازه می‌شناسد و نامعتبر بودن ترتیب بازه رو هم رد می‌کنه.</p><p lang="fa">اما این period به‌خودی‌خود یک <code>SELECT ... AS OF</code> عمومی مثل system versioning نمی‌سازه. برای پرسیدن «در تاریخ D کدام ردیف معتبر بود؟» شرط بازهٔ کسب‌وکار رو صریح می‌نویسیم.</p><p lang="en">In MariaDB, <code>PERIOD FOR</code> defines an application-time interval over two temporal columns. The server understands the lower and upper bounds and rejects invalid ranges.</p><p lang="en">But this period does not create a general <code>SELECT ... AS OF</code> syntax like system versioning. To ask which row was business-valid on date D, express the interval predicate explicitly.</p><pre dir="ltr"><code>CREATE TABLE price_history(sku INT,valid_from DATE,valid_to DATE,PERIOD FOR valid_period(valid_from,valid_to));</code></pre><p lang="fa">این object عمداً کوچک و آزمایشیه تا behavior رو بدون سر و صدای production ببینیم. بعد از ساخت، با metadata یا یک query مستقل ثابت کن چیزی که می‌خواستیم واقعاً ساخته شده.</p><p lang="en">The object is intentionally small and disposable. After creating it, use independent metadata or a query to prove that the intended behavior really exists.</p></section><section id="lesson-2"><h2><span lang="fa">FOR PORTION OF برای تغییر بخشی از بازه است</span><span lang="en">FOR PORTION OF changes part of an interval</span></h2><p lang="fa">جذاب‌ترین بخش application-time این هست که <code>UPDATE ... FOR PORTION OF</code> یا <code>DELETE ... FOR PORTION OF</code> می‌تونه فقط بخش مشخصی از بازه رو تغییر دهد و MariaDB لازم باشد ردیف رو split کند.</p><p lang="fa">روی fixture کوچک این کار رو می‌کنیم و قبل/بعد rowها رو می‌شماریم. اگه row count زیاد شد، bug نیست؛ نتیجهٔ شکستن interval برای حفظ بخش‌های بیرون از محدوده هست.</p><p lang="en">A powerful application-time feature is <code>UPDATE ... FOR PORTION OF</code> or <code>DELETE ... FOR PORTION OF</code>, which can modify only part of an interval and cause MariaDB to split rows.</p><p lang="en">Run it on a small fixture and count rows before and after. An increased row count can be the correct result of preserving the portions outside the changed interval.</p><pre dir="ltr"><code>INSERT INTO price_history(sku, valid_from, valid_to)
+VALUES (1001, DATE '2026-01-01', DATE '2026-02-01');
+
+UPDATE price_history
+FOR PORTION OF valid_period
+FROM '2026-01-10' TO '2026-01-20'
+SET sku = 1002
+WHERE sku = 1001;
+
+SELECT sku, valid_from, valid_to
+FROM price_history
+ORDER BY valid_from;</code></pre><p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ application time، system time و مدل bitemporal یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p><p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about application time, system time, and the bitemporal model.</p><div class="note warn"><strong lang="fa">مرز آزمایش</strong><span lang="fa">این بخش رو فقط روی database یا topology دورریختنی دوره اجرا کن. قبل از هر تغییر destructive، مقصد رو دوباره چک کن و یک recovery boundary قابل‌بررسی داشته باش.</span><strong lang="en">Lab boundary</strong><span lang="en">Run this only against the disposable course database or topology. Re-check the target before destructive changes and keep a verifiable recovery boundary.</span></div></section><div class="diagram"><svg aria-labelledby="mdb21-title" role="img" viewBox="0 0 770 176" xmlns="http://www.w3.org/2000/svg"><title id="mdb21-title">application time, system time, and the bitemporal model</title><defs><marker id="mdb21-arrow" markerHeight="9" markerWidth="9" orient="auto" refX="7" refY="4.5"><path class="dg-arrow" d="M0 0L9 4.5L0 9z"></path></marker></defs><rect class="dg-fill" height="88" rx="13" width="150" x="24" y="42"></rect><text class="dg-t" direction="ltr" text-anchor="middle" x="99" y="82">Business valid time</text><text class="dg-t" direction="rtl" text-anchor="middle" x="99" y="106">زمان اعتبار</text><rect class="dg-fill-alt" height="88" rx="13" width="150" x="214" y="42"></rect><text class="dg-t" direction="ltr" text-anchor="middle" x="289" y="82">System recorded time</text><text class="dg-t" direction="rtl" text-anchor="middle" x="289" y="106">زمان ثبت</text><rect class="dg-fill" height="88" rx="13" width="150" x="404" y="42"></rect><text class="dg-t" direction="ltr" text-anchor="middle" x="479" y="82">Bitemporal view</text><text class="dg-t" direction="rtl" text-anchor="middle" x="479" y="106">دید دو‌زمانه</text><rect class="dg-fill-alt" height="88" rx="13" width="150" x="594" y="42"></rect><text class="dg-t" direction="ltr" text-anchor="middle" x="669" y="82">Question</text><text class="dg-t" direction="rtl" text-anchor="middle" x="669" y="106">سؤال</text><path class="dg-stroke" d="M176 86H206" marker-end="url(#mdb21-arrow)"></path><path class="dg-stroke" d="M366 86H396" marker-end="url(#mdb21-arrow)"></path><path class="dg-stroke" d="M556 86H586" marker-end="url(#mdb21-arrow)"></path></svg><p class="diagram-caption" lang="fa">دو محور رو جدا نگه دار: چه زمانی معتبر بود و چه زمانی database اون رو می‌دونست.</p><p class="diagram-caption" lang="en">Keep the axes separate: when the fact was valid and when the database knew it.</p></div><section id="lesson-3"><h2><span lang="fa">System time محور «چه زمانی فهمیدیم» است</span><span lang="en">System time records when the database knew it</span></h2><p lang="fa">وقتی همان table system-versioned هم باشد، یک اصلاح عقب‌نگر دو زمان داره: business validity شاید از اول ماه باشد، ولی database روز دهم آن رو ثبت کرده.</p><p lang="fa">برای گزارش bitemporal اول system snapshot رو با <code>FOR SYSTEM_TIME AS OF</code> محدود می‌کنیم، بعد داخل همان دید، شرط valid-from/valid-to رو برای زمان کسب‌وکار اعمال می‌کنیم.</p><p lang="en">When the same table is also system-versioned, a retroactive correction has two times: it may be business-valid from the first of the month while the database recorded it on the tenth.</p><p lang="en">For a bitemporal report, first constrain the system snapshot with <code>FOR SYSTEM_TIME AS OF</code>, then apply the business validity predicate over the application-time columns.</p><pre dir="ltr"><code>ALTER TABLE price_history ADD SYSTEM VERSIONING;
+
+SET @before_change = CURRENT_TIMESTAMP(6);
+DO SLEEP(0.05);
+
+UPDATE price_history
+SET sku = 1003
+WHERE sku = 1002;
+
+SELECT ROW_START, ROW_END, sku, valid_from, valid_to
+FROM price_history FOR SYSTEM_TIME ALL
+ORDER BY ROW_START;
+
+SELECT sku, valid_from, valid_to
+FROM price_history FOR SYSTEM_TIME AS OF TIMESTAMP @before_change
+WHERE valid_from &lt;= DATE '2026-01-15'
+  AND valid_to   &gt; DATE '2026-01-15';</code></pre><p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ application time، system time و مدل bitemporal یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p><p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about application time, system time, and the bitemporal model.</p></section><section id="lesson-4"><h2><span lang="fa">Overlap رو rule صریح کن</span><span lang="en">Make overlap rules explicit</span></h2><p lang="fa">اگه برای یک SKU دو قیمت هم‌زمان معتبر باشند، report چه باید بکند؟ این دیگر سؤال syntax نیست؛ rule مدل هست. MariaDB در نسخه‌های جدید امکان constraintهای period مثل <code>WITHOUT OVERLAPS</code> داره، ولی availability و syntax رو روی نسخهٔ هدف چک کن.</p><p lang="fa">حتی با constraint، convention بازه رو روشن نگه دار؛ مثلاً <code>[from,to)</code> تا مرز دو دوره دقیقاً تعریف شود.</p><p lang="en">If two prices for one SKU are valid at the same business time, what should a report do? That is a model rule, not merely syntax. Recent MariaDB releases support period constraints such as <code>WITHOUT OVERLAPS</code>; verify syntax and availability on the target release.</p><p lang="en">Even with constraints, keep interval conventions explicit—for example <code>[from,to)</code>—so adjoining periods have unambiguous boundaries.</p><pre dir="ltr"><code>ALTER TABLE price_history
+  ADD UNIQUE (sku, valid_period WITHOUT OVERLAPS);</code></pre><p lang="fa">این تغییر رو فقط روی fixture انجام بده و before/after رو نگه دار. موفق‌شدن statement به‌تنهایی کافی نیست؛ نتیجهٔ واقعی رو با بازهٔ valid-time، row splitting و system snapshot verify کن.</p><p lang="en">Run the change only on the fixture and preserve before/after evidence. A successful statement alone does not prove the desired end state.</p></section><section id="mini-lab"><h2><span lang="fa">مینی‌لب — از حدس تا مدرک</span><span lang="en">Mini-lab — from assumption to evidence</span></h2>
+<p lang="fa">حالا سه checkpoint رو پشت‌سرهم اجرا کن. ترتیب مهمه: اول baseline، بعد یک تغییر یا مشاهدهٔ دقیق، بعد verification. وسط کار چیزی رو «درست» فرض نکن؛ هر مرحله باید خروجی مرحلهٔ بعد رو قابل‌تفسیرتر کنه.</p>
+<p lang="en">Run three checkpoints as one small story. Order matters: establish a baseline, make one controlled observation/change, then verify. Do not assume success between steps; each checkpoint should make the next result easier to interpret.</p>
+<pre dir="ltr"><code>DROP TABLE IF EXISTS price_history_lab;
+CREATE TABLE price_history_lab (
+  sku INT,
+  price DECIMAL(10,2),
+  valid_from DATE,
+  valid_to DATE,
+  PERIOD FOR valid_period(valid_from, valid_to)
+) WITH SYSTEM VERSIONING;
+
+INSERT INTO price_history_lab(sku, price, valid_from, valid_to)
+VALUES (1001, 120.00, '2026-01-01', '2026-02-01');
+
+SET @before_fix = CURRENT_TIMESTAMP(6);
+DO SLEEP(0.05);
+
+UPDATE price_history_lab
+FOR PORTION OF valid_period
+FROM '2026-01-10' TO '2026-01-20'
+SET price = 135.00
+WHERE sku = 1001;
+
+SELECT sku, price, valid_from, valid_to
+FROM price_history_lab
+ORDER BY valid_from;
+
+SELECT sku, price, valid_from, valid_to
+FROM price_history_lab FOR SYSTEM_TIME AS OF TIMESTAMP @before_fix
+WHERE valid_from &lt;= DATE '2026-01-15'
+  AND valid_to   &gt; DATE '2026-01-15';</code></pre>
+<div class="note safe"><strong lang="fa">چی رو نگه دار؟</strong><span lang="fa">commandها، خروجی مهم، نسخهٔ Server و یک جمله که می‌گه این آزمایش دربارهٔ application time، system time و مدل bitemporal دقیقاً چی رو ثابت کرد.</span><strong lang="en">What should you preserve?</strong><span lang="en">Commands, relevant output, server version, and one sentence stating exactly what this experiment proved about application time, system time, and the bitemporal model.</span></div>
+</section><section id="exercises"><h2><span lang="fa">تمرین‌ها — دست به کیبورد</span><span lang="en">Exercises — hands on keyboard</span></h2><p lang="fa">اینجا جواب تشریحیِ خالی نداریم. هر تمرین باید به یه SQL/command، خروجی یا state قابل‌بررسی ختم بشه. از تمرین‌های اول که گرم‌کردن هستن تا سناریوهای آخر، هدف اینه که بتونی چیزی رو با مدرک ثابت کنی.</p><p lang="en">These are not prose-only questions. Every exercise should end in runnable SQL/commands and observable evidence. Difficulty rises from warm-up tasks to engineering scenarios.</p><div class="ex" id="ex-mdb-21-1">
+<h3><span lang="fa">1) period کسب‌وکار تعریف کن</span><span lang="en">1) Create the lab object</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ application time، system time و مدل bitemporal چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about application time, system time, and the bitemporal model. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>CREATE TABLE price_history(sku INT,valid_from DATE,valid_to DATE,PERIOD FOR valid_period(valid_from,valid_to));</code></pre>
+<p lang="fa">این object عمداً کوچک و آزمایشیه تا behavior رو بدون سر و صدای production ببینیم. بعد از ساخت، با metadata یا یک query مستقل ثابت کن چیزی که می‌خواستیم واقعاً ساخته شده.</p>
+<p lang="en">The object is intentionally small and disposable. After creating it, use independent metadata or a query to prove that the intended behavior really exists.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای application time، system time و مدل bitemporal انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for application time, system time, and the bitemporal model.</p>
+</details></div><div class="ex" id="ex-mdb-21-2">
+<h3><span lang="fa">2) رد بازهٔ وارونه رو prove کن</span><span lang="en">2) Create controlled fixture data</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای application time، system time و مدل bitemporal مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for application time, system time, and the bitemporal model.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>INSERT INTO price_history VALUES(1,'2026-02-01','2026-01-01');</code></pre>
+<p lang="fa">این تغییر فقط روی دادهٔ دورریختنیه. قبلش target رو با <code>SELECT</code> مشخص کن، بعد تغییر رو اجرا کن و دوباره state رو بخون؛ row count یا پیام <code>Query OK</code> جای verification رو نمی‌گیره.</p>
+<p lang="en">Keep the change inside disposable data. Inspect the target first, make the change, then query the resulting state; an affected-row count is not sufficient verification.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای application time، system time و مدل bitemporal انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for application time, system time, and the bitemporal model.</p>
+</details></div><div class="ex" id="ex-mdb-21-3">
+<h3><span lang="fa">3) valid time رو query کن</span><span lang="en">3) Query the evidence</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT *
+FROM price_history
+WHERE valid_from &lt;= DATE '2026-01-15'
+  AND valid_to   &gt; DATE '2026-01-15';</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ application time، system time و مدل bitemporal یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about application time, system time, and the bitemporal model.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای application time، system time و مدل bitemporal انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for application time, system time, and the bitemporal model.</p>
+</details></div><div class="ex" id="ex-mdb-21-4">
+<h3><span lang="fa">4) system versioning اضافه کن</span><span lang="en">4) Apply the controlled change</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>ALTER TABLE price_history ADD SYSTEM VERSIONING;</code></pre>
+<p lang="fa">این تغییر رو فقط روی fixture انجام بده و before/after رو نگه دار. موفق‌شدن statement به‌تنهایی کافی نیست؛ نتیجهٔ واقعی رو با بازهٔ valid-time، row splitting و system snapshot verify کن.</p>
+<p lang="en">Run the change only on the fixture and preserve before/after evidence. A successful statement alone does not prove the desired end state.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای application time، system time و مدل bitemporal انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for application time, system time, and the bitemporal model.</p>
+</details></div><div class="ex" id="ex-mdb-21-5">
+<h3><span lang="fa">5) system-time گذشته رو query کن</span><span lang="en">5) Query the evidence</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ application time، system time و مدل bitemporal چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about application time, system time, and the bitemporal model. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT * FROM price_history FOR SYSTEM_TIME AS OF TIMESTAMP'2026-01-10 10:00:00';</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ application time، system time و مدل bitemporal یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about application time, system time, and the bitemporal model.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای application time، system time و مدل bitemporal انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for application time, system time, and the bitemporal model.</p>
+</details></div><div class="ex" id="ex-mdb-21-6">
+<h3><span lang="fa">6) دو زمان رو در report برچسب بزن</span><span lang="en">6) Query the evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای application time، system time و مدل bitemporal مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for application time, system time, and the bitemporal model.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT DATE '2026-01-15' AS business_valid_at,
+       CURRENT_TIMESTAMP(6) AS system_observed_at;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ application time، system time و مدل bitemporal یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about application time, system time, and the bitemporal model.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای application time، system time و مدل bitemporal انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for application time, system time, and the bitemporal model.</p>
+</details></div><div class="ex" id="ex-mdb-21-7">
+<h3><span lang="fa">7) اصلاح عقب‌نگر رو ثبت کن</span><span lang="en">7) Apply a controlled update</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>UPDATE price_history
+FOR PORTION OF valid_period
+FROM '2026-01-01' TO '2026-02-01'
+SET price = price; -- use a real corrected value in your fixture</code></pre>
+<p lang="fa">این تغییر فقط روی دادهٔ دورریختنیه. قبلش target رو با <code>SELECT</code> مشخص کن، بعد تغییر رو اجرا کن و دوباره state رو بخون؛ row count یا پیام <code>Query OK</code> جای verification رو نمی‌گیره.</p>
+<p lang="en">Keep the change inside disposable data. Inspect the target first, make the change, then query the resulting state; an affected-row count is not sufficient verification.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای application time، system time و مدل bitemporal انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for application time, system time, and the bitemporal model.</p>
+</details></div><div class="ex" id="ex-mdb-21-8">
+<h3><span lang="fa">8) overlap رو پیدا کن</span><span lang="en">8) Query the evidence</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT a.sku,a.valid_from,a.valid_to,
+       b.valid_from AS overlap_from,b.valid_to AS overlap_to
+FROM price_history a
+JOIN price_history b
+  ON a.sku=b.sku
+ AND a.valid_from &lt; b.valid_to
+ AND b.valid_from &lt; a.valid_to
+ AND (a.valid_from,a.valid_to) &lt;&gt; (b.valid_from,b.valid_to);</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ application time، system time و مدل bitemporal یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about application time, system time, and the bitemporal model.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای application time، system time و مدل bitemporal انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for application time, system time, and the bitemporal model.</p>
+</details></div><div class="ex" id="ex-mdb-21-9">
+<h3><span lang="fa">9) مرز half-open رو تعریف کن</span><span lang="en">9) Query the evidence</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ application time، system time و مدل bitemporal چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about application time, system time, and the bitemporal model. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT *
+FROM price_history
+WHERE valid_from &lt;= DATE '2026-01-15'
+  AND valid_to   &gt; DATE '2026-01-15';</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ application time، system time و مدل bitemporal یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about application time, system time, and the bitemporal model.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای application time، system time و مدل bitemporal انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for application time, system time, and the bitemporal model.</p>
+</details></div><div class="ex" id="ex-mdb-21-10">
+<h3><span lang="fa">10) زمان پایان NULL رو بررسی کن</span><span lang="en">10) Create controlled fixture data</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای application time، system time و مدل bitemporal مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for application time, system time, and the bitemporal model.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>INSERT INTO price_history(sku,valid_from,valid_to)
+VALUES(9,'2026-01-01',NULL); -- expected to fail: period columns are NOT NULL</code></pre>
+<p lang="fa">این تغییر فقط روی دادهٔ دورریختنیه. قبلش target رو با <code>SELECT</code> مشخص کن، بعد تغییر رو اجرا کن و دوباره state رو بخون؛ row count یا پیام <code>Query OK</code> جای verification رو نمی‌گیره.</p>
+<p lang="en">Keep the change inside disposable data. Inspect the target first, make the change, then query the resulting state; an affected-row count is not sufficient verification.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای application time، system time و مدل bitemporal انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for application time, system time, and the bitemporal model.</p>
+</details></div><div class="ex" id="ex-mdb-21-11">
+<h3><span lang="fa">11) گزارش as-known-then بساز</span><span lang="en">11) Query the evidence</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT *
+FROM price_history
+FOR SYSTEM_TIME AS OF TIMESTAMP '2026-01-10 10:00:00'
+WHERE valid_from &lt;= DATE '2026-01-15'
+  AND valid_to   &gt; DATE '2026-01-15';</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ application time، system time و مدل bitemporal یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about application time, system time, and the bitemporal model.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای application time، system time و مدل bitemporal انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for application time, system time, and the bitemporal model.</p>
+</details></div><div class="ex" id="ex-mdb-21-12">
+<h3><span lang="fa">12) timezone رو برای DATE/DATETIME مشخص کن</span><span lang="en">12) Query the evidence</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT @@system_time_zone,@@time_zone;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ application time، system time و مدل bitemporal یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about application time, system time, and the bitemporal model.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای application time، system time و مدل bitemporal انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for application time, system time, and the bitemporal model.</p>
+</details></div><div class="ex" id="ex-mdb-21-13">
+<h3><span lang="fa">13) قید کلید رو enforce کن</span><span lang="en">13) Apply the controlled change</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ application time، system time و مدل bitemporal چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about application time, system time, and the bitemporal model. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>ALTER TABLE price_history
+  ADD UNIQUE (sku, valid_period WITHOUT OVERLAPS);</code></pre>
+<p lang="fa">این تغییر رو فقط روی fixture انجام بده و before/after رو نگه دار. موفق‌شدن statement به‌تنهایی کافی نیست؛ نتیجهٔ واقعی رو با بازهٔ valid-time، row splitting و system snapshot verify کن.</p>
+<p lang="en">Run the change only on the fixture and preserve before/after evidence. A successful statement alone does not prove the desired end state.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای application time، system time و مدل bitemporal انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for application time, system time, and the bitemporal model.</p>
+</details></div><div class="ex" id="ex-mdb-21-14">
+<h3><span lang="fa">14) دو correction هم‌زمان رو تست کن</span><span lang="en">14) Run the experiment</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای application time، system time و مدل bitemporal مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for application time, system time, and the bitemporal model.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>-- Session A
+START TRANSACTION;
+SELECT * FROM price_history WHERE sku=1 FOR UPDATE;
+
+-- Session B: attempt the competing correction and observe the wait/error.
+UPDATE price_history SET valid_to='2026-02-01' WHERE sku=1;
+
+-- Session A
+ROLLBACK;</code></pre>
+<p lang="fa">به ترتیب اجرا دقت کن. این تمرین دربارهٔ syntax نیست؛ دربارهٔ state قبل و بعد transactionه. بعد از پایان، یک <code>SELECT</code> مستقل بزن تا چیزی که commit یا rollback شده با چشم دیده بشه.</p>
+<p lang="en">Focus on state before and after the transaction. Finish with an independent query so commit/rollback behavior is observable.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای application time، system time و مدل bitemporal انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for application time, system time, and the bitemporal model.</p>
+</details></div><div class="ex" id="ex-mdb-21-15">
+<h3><span lang="fa">15) حجم history رو بررسی کن</span><span lang="en">15) Query the evidence</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT COUNT(*) FROM price_history FOR SYSTEM_TIME ALL;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ application time، system time و مدل bitemporal یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about application time, system time, and the bitemporal model.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای application time، system time و مدل bitemporal انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for application time, system time, and the bitemporal model.</p>
+</details></div><div class="ex" id="ex-mdb-21-16">
+<h3><span lang="fa">16) migration رو dry-run کن</span><span lang="en">16) Inspect the real object definition</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW CREATE TABLE price_history;</code></pre>
+<p lang="fa">اینجا اسم feature رو از روی حافظه قبول نمی‌کنیم. <code>SHOW CREATE</code> تعریف واقعی object رو برمی‌گردونه؛ همون رو به‌عنوان مدرک برای application time، system time و مدل bitemporal نگه دار.</p>
+<p lang="en">Use the server's real object definition as evidence rather than relying on a remembered feature name. Keep this output with the lab notes.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای application time، system time و مدل bitemporal انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for application time, system time, and the bitemporal model.</p>
+</details></div><div class="ex" id="ex-mdb-21-17">
+<h3><span lang="fa">17) تست regression بساز</span><span lang="en">17) Query the evidence</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ application time، system time و مدل bitemporal چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about application time, system time, and the bitemporal model. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT *
+FROM price_history
+WHERE valid_from &lt;= DATE '2026-01-15'
+  AND valid_to   &gt; DATE '2026-01-15';
+
+SELECT *
+FROM price_history FOR SYSTEM_TIME ALL
+WHERE sku=1
+ORDER BY ROW_START;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ application time، system time و مدل bitemporal یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about application time, system time, and the bitemporal model.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای application time، system time و مدل bitemporal انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for application time, system time, and the bitemporal model.</p>
+</details></div><div class="ex" id="ex-mdb-21-18">
+<h3><span lang="fa">18) trade-off رو مستند کن</span><span lang="en">18) Inspect the real object definition</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای application time، system time و مدل bitemporal مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for application time, system time, and the bitemporal model.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW CREATE TABLE price_history;
+SELECT COUNT(*) AS current_rows FROM price_history;
+SELECT COUNT(*) AS all_versions FROM price_history FOR SYSTEM_TIME ALL;</code></pre>
+<p lang="fa">اینجا اسم feature رو از روی حافظه قبول نمی‌کنیم. <code>SHOW CREATE</code> تعریف واقعی object رو برمی‌گردونه؛ همون رو به‌عنوان مدرک برای application time، system time و مدل bitemporal نگه دار.</p>
+<p lang="en">Use the server's real object definition as evidence rather than relying on a remembered feature name. Keep this output with the lab notes.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای application time، system time و مدل bitemporal انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for application time, system time, and the bitemporal model.</p>
+</details></div></section><section id="next"><h2><span lang="fa">جمع‌بندی — چیزی که باید با خودت ببری</span><span lang="en">Summary — the mental model to keep</span></h2><p lang="fa">اگه از این فصل فقط یه عادت بمونه، این باشه: دربارهٔ application time، system time و مدل bitemporal از روی اسم feature یا حس تصمیم نگیر. baseline بگیر، یه چیز رو عوض کن، خروجی رو بخون و بعد نتیجه بگیر.</p><p lang="en">If one habit survives this chapter, let it be this: do not reason about application time, system time, and the bitemporal model from feature names or intuition. Capture a baseline, change one thing, read the evidence, then conclude.</p><p class="refs"><a href="https://mariadb.com/docs/server/reference/sql-structure/temporal-tables/application-time-periods">Application-Time Periods</a> · <a href="https://mariadb.com/docs/server/reference/sql-structure/temporal-tables/bitemporal-tables">Bitemporal Tables</a> · <a href="https://mariadb.com/docs/server/reference/sql-structure/temporal-tables/system-versioned-tables">System-Versioned Tables</a></p></section>

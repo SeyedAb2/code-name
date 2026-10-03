@@ -1,0 +1,231 @@
+<!--meta
+title: نگه‌داری ایندکس و tuning مبتنی بر شاهد
+desc: وقتی indexها زیاد می‌شوند، مشکل از «کمبود index» تبدیل می‌شه به «نمی‌دانیم کدام‌شان واقعاً ارزش دارند». این فصل maintenance رو از rebuild زمان‌بندی‌شده جدا می‌کنه و برمی‌گرداند به workload و مدرک.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">MariaDB · فصل 11</span><span lang="en">MariaDB · Chapter 11</span></span>
+<h1 lang="fa">indexها زیاد شده‌اند و insertها کندترند، ولی کسی نمی‌داند کدام index واقعاً استفاده می‌شه.</h1>
+<h1 lang="en">There are many indexes and inserts are slower, but nobody knows which indexes are actually used.</h1>
+<p class="sub" lang="fa">وقتی indexها زیاد می‌شن، مشکل از «کمبود index» تبدیل می‌شه به «نمی‌دونیم کدام‌شان واقعاً ارزش دارن». این فصل maintenance رو از rebuild زمان‌بندی‌شده جدا می‌کنه و برمی‌گرداند به workload و مدرک.</p>
+<p class="sub" lang="en">Once indexes accumulate, the problem changes from “we need an index” to “we no longer know which indexes earn their cost.” This chapter separates real index maintenance from scheduled rebuild rituals and returns the discussion to workload evidence.</p>
+<div class="facts"><span>MariaDB 11.8 · Index maintenance and evidence-based tuning</span><span>حدود ۹۵ دقیقه · ۱۸ تمرین / About 95 minutes · 18 exercises</span></div>
+</div>
+<section id="mental-model"><h2><span lang="fa">قبل از کد، مسئله رو درست ببین</span><span lang="en">Frame the problem before the code</span></h2>
+<p lang="fa">این فصل رو با syntax شروع نمی‌کنیم. مسئله اینه: maintenance مبتنی بر workload، نه ritual. اول یه پیش‌بینی می‌سازیم، بعد با query یا command کوچیک آزمایشش می‌کنیم. هر جا خروجی خلاف انتظار بود، همون‌جا درس اصلی شروع می‌شه.</p>
+<p lang="en">This chapter does not begin with syntax. The problem is workload-driven maintenance rather than rituals. We will form a prediction, test it with a small query or command, and treat unexpected output as the beginning of the investigation.</p>
+</section><section id="lesson-1"><h2><span lang="fa">Inventory قبل از tuning</span><span lang="en">Inventory before tuning</span></h2><p lang="fa">اول <code>SHOW INDEX</code>، اندازهٔ table/index و uptime رو ثبت می‌کنیم. بدون این baseline حتی نمی‌فهمی counter usage چند ساعت یا چند ماه history داره.</p><p lang="fa">Performance Schema می‌تونه سرنخ usage بدهد، ولی restart یا reset history رو پاک می‌کنه. صفر بودن counter به‌تنهایی حکم حذف نیست.</p><p lang="en">Start by recording <code>SHOW INDEX</code>, table/index size, and uptime. Without that baseline, you do not even know whether a usage counter represents hours or months of history.</p><p lang="en">Performance Schema can provide useful usage evidence, but restarts and resets clear history. A zero counter by itself is not a drop decision.</p><pre dir="ltr"><code>SHOW INDEX FROM orders;</code></pre><p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با usage counter، uptime، اندازهٔ index و baseline plan رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p><p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about workload-driven maintenance rather than rituals can be tied to evidence.</p></section><section id="lesson-2"><h2><span lang="fa">Statistics با fragmentation یکی نیست</span><span lang="en">Statistics and fragmentation are different problems</span></h2><p lang="fa">وقتی plan تخمین بد داره، شاید statistics مهم باشد. وقتی page layout مشکل داره، موضوع دیگری هست. این دو رو با یک maintenance job ثابت حل نمی‌کنیم.</p><p lang="fa"><code>ANALYZE TABLE</code> رو با فرضیه اجرا کن و plan رو قبل و بعد مقایسه کن؛ نه اینکه هر شب بدون سؤال روی همهٔ tableها اجرا شود.</p><p lang="en">Bad cardinality estimates may point to statistics. Page layout or storage behavior is a different concern. Do not treat them as one problem solved by the same nightly maintenance job.</p><p lang="en">Run <code>ANALYZE TABLE</code> because you have a hypothesis, and compare the plan before and after rather than scheduling it blindly everywhere.</p><pre dir="ltr"><code>EXPLAIN SELECT * FROM orders WHERE customer_id=7;</code></pre><p lang="fa">بعد از اجرا فقط دنبال اسم index نگرد. plan رو کنار query بخون و روی usage counter، uptime، اندازهٔ index و baseline plan تمرکز کن. اگه plan با چیزی که پیش‌بینی کردی فرق داشت، همین اختلاف سؤال بعدی ماست.</p><p lang="en">Do not stop at the chosen index name. Read the plan in the context of the query and focus on usage counters, uptime, index size, and the baseline plan. Any mismatch with your prediction becomes the next investigation question.</p></section><section id="lesson-3"><h2><span lang="fa">Index بی‌صاحب رو پیدا کن، بعد آزمایش کن</span><span lang="en">Find ownerless indexes, then test</span></h2><p lang="fa">برای هر index بنویس کدام query، constraint یا ordering به آن نیاز داره. اگه هیچ‌کس نتوانست جواب بدهد، candidate حذف هست؛ هنوز حذف نشده.</p><p lang="fa">روی clone یا staging index رو بردار، queryهای مهم و write workload رو تکرار کن و فقط بعد از مشاهده تصمیم بگیر.</p><p lang="en">For each index, identify the query, constraint, or ordering requirement that depends on it. If no one can explain its purpose, it becomes a candidate for removal—not an automatic drop.</p><p lang="en">Remove it on a clone or staging environment, repeat critical reads and writes, and decide from observed behavior.</p><pre dir="ltr"><code>SELECT DIGEST_TEXT,COUNT_STAR FROM performance_schema.events_statements_summary_by_digest ORDER BY COUNT_STAR DESC LIMIT 10;</code></pre><p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با usage counter، uptime، اندازهٔ index و baseline plan رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p><p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about workload-driven maintenance rather than rituals can be tied to evidence.</p></section><section id="lesson-4"><h2><span lang="fa">Maintenance خوب report قابل‌تکرار داره</span><span lang="en">Good maintenance is reproducible</span></h2><p lang="fa">یک گزارش خوب می‌گه چه baselineی داشتیم، چه indexی رو تغییر دادیم، چه queryهایی رو دوباره اجرا کردیم و چه عددی بهتر یا بدتر شد.</p><p lang="fa">این مدل باعث می‌شه maintenance از «کارهایی که DBA همیشه انجام می‌ده» تبدیل شود به تغییر مهندسی قابل review.</p><p lang="en">A useful maintenance report states the baseline, the index change, the queries re-tested, and the metrics that improved or regressed.</p><p lang="en">That turns maintenance from inherited DBA ritual into an engineering change that can be reviewed and reproduced.</p><pre dir="ltr"><code>EXPLAIN SELECT * FROM orders WHERE customer_id=7;</code></pre><p lang="fa">بعد از اجرا فقط دنبال اسم index نگرد. plan رو کنار query بخون و روی usage counter، uptime، اندازهٔ index و baseline plan تمرکز کن. اگه plan با چیزی که پیش‌بینی کردی فرق داشت، همین اختلاف سؤال بعدی ماست.</p><p lang="en">Do not stop at the chosen index name. Read the plan in the context of the query and focus on usage counters, uptime, index size, and the baseline plan. Any mismatch with your prediction becomes the next investigation question.</p></section><section id="mini-lab"><h2><span lang="fa">مینی‌لب — از حدس تا مدرک</span><span lang="en">Mini-lab — from assumption to evidence</span></h2>
+<p lang="fa">حالا سه checkpoint رو پشت‌سرهم اجرا کن. ترتیب مهمه: اول baseline، بعد یک تغییر یا مشاهدهٔ دقیق، بعد verification. وسط کار چیزی رو «درست» فرض نکن؛ هر مرحله باید خروجی مرحلهٔ بعد رو قابل‌تفسیرتر کنه.</p>
+<p lang="en">Run three checkpoints as one small story. Order matters: establish a baseline, make one controlled observation/change, then verify. Do not assume success between steps; each checkpoint should make the next result easier to interpret.</p>
+<pre dir="ltr"><code>SHOW INDEX FROM orders;
+
+EXPLAIN SELECT * FROM orders WHERE customer_id=7;
+
+SELECT DIGEST_TEXT,COUNT_STAR FROM performance_schema.events_statements_summary_by_digest ORDER BY COUNT_STAR DESC LIMIT 10;</code></pre>
+<div class="note safe"><strong lang="fa">چی رو نگه دار؟</strong><span lang="fa">commandها، خروجی مهم، نسخهٔ Server و یک جمله که می‌گه این آزمایش دربارهٔ maintenance مبتنی بر workload، نه ritual دقیقاً چی رو ثابت کرد.</span><strong lang="en">What should you preserve?</strong><span lang="en">Commands, relevant output, server version, and one sentence stating exactly what this experiment proved about workload-driven maintenance rather than rituals.</span></div>
+</section><section id="exercises"><h2><span lang="fa">تمرین‌ها — دست به کیبورد</span><span lang="en">Exercises — hands on keyboard</span></h2><p lang="fa">اینجا جواب تشریحیِ خالی نداریم. هر تمرین باید به یه SQL/command، خروجی یا state قابل‌بررسی ختم بشه. از تمرین‌های اول که گرم‌کردن هستن تا سناریوهای آخر، هدف اینه که بتونی چیزی رو با مدرک ثابت کنی.</p><p lang="en">These are not prose-only questions. Every exercise should end in runnable SQL/commands and observable evidence. Difficulty rises from warm-up tasks to engineering scenarios.</p><div class="ex" id="ex-mdb-11-1">
+<h3><span lang="fa">1) index inventory بگیر</span><span lang="en">1) Read server evidence</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ maintenance مبتنی بر workload، نه ritual چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about workload-driven maintenance rather than rituals. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW INDEX FROM orders;</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با usage counter، uptime، اندازهٔ index و baseline plan رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about workload-driven maintenance rather than rituals can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای maintenance مبتنی بر workload، نه ritual انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven maintenance rather than rituals.</p>
+</details></div><div class="ex" id="ex-mdb-11-2">
+<h3><span lang="fa">2) table engine و حجم رو ثبت کن</span><span lang="en">2) Read server evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای maintenance مبتنی بر workload، نه ritual مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for workload-driven maintenance rather than rituals.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW TABLE STATUS LIKE 'orders';</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با usage counter، uptime، اندازهٔ index و baseline plan رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about workload-driven maintenance rather than rituals can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای maintenance مبتنی بر workload، نه ritual انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven maintenance rather than rituals.</p>
+</details></div><div class="ex" id="ex-mdb-11-3">
+<h3><span lang="fa">3) InnoDB index stats رو query کن</span><span lang="en">3) Query the evidence</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT * FROM mysql.innodb_index_stats WHERE database_name=DATABASE() AND table_name='orders';</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ maintenance مبتنی بر workload، نه ritual یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about workload-driven maintenance rather than rituals.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای maintenance مبتنی بر workload، نه ritual انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven maintenance rather than rituals.</p>
+</details></div><div class="ex" id="ex-mdb-11-4">
+<h3><span lang="fa">4) Performance Schema usage رو check کن</span><span lang="en">4) Query the evidence</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT * FROM performance_schema.table_io_waits_summary_by_index_usage WHERE OBJECT_SCHEMA=DATABASE() AND OBJECT_NAME='orders';</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با usage counter، uptime، اندازهٔ index و baseline plan رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about workload-driven maintenance rather than rituals can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای maintenance مبتنی بر workload، نه ritual انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven maintenance rather than rituals.</p>
+</details></div><div class="ex" id="ex-mdb-11-5">
+<h3><span lang="fa">5) baseline plan بگیر</span><span lang="en">5) Inspect the access plan</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ maintenance مبتنی بر workload، نه ritual چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about workload-driven maintenance rather than rituals. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>EXPLAIN SELECT * FROM orders WHERE customer_id=7;</code></pre>
+<p lang="fa">بعد از اجرا فقط دنبال اسم index نگرد. plan رو کنار query بخون و روی usage counter، uptime، اندازهٔ index و baseline plan تمرکز کن. اگه plan با چیزی که پیش‌بینی کردی فرق داشت، همین اختلاف سؤال بعدی ماست.</p>
+<p lang="en">Do not stop at the chosen index name. Read the plan in the context of the query and focus on usage counters, uptime, index size, and the baseline plan. Any mismatch with your prediction becomes the next investigation question.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای maintenance مبتنی بر workload، نه ritual انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven maintenance rather than rituals.</p>
+</details></div><div class="ex" id="ex-mdb-11-6">
+<h3><span lang="fa">6) آمار رو فقط در صورت نیاز refresh کن</span><span lang="en">6) Measure actual execution</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای maintenance مبتنی بر workload، نه ritual مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for workload-driven maintenance rather than rituals.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>ANALYZE TABLE orders;</code></pre>
+<p lang="fa">این مرحله فقط plan تخمینی نیست؛ execution واقعی هم وارد ماجرا می‌شه. خروجی رو نگه دار و usage counter، uptime، اندازهٔ index و baseline plan رو با baseline قبلی مقایسه کن.</p>
+<p lang="en">This step includes actual execution evidence rather than estimates alone. Preserve the output and compare it with the previous baseline while reasoning about workload-driven maintenance rather than rituals.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای maintenance مبتنی بر workload، نه ritual انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven maintenance rather than rituals.</p>
+</details></div><div class="ex" id="ex-mdb-11-7">
+<h3><span lang="fa">7) plan بعد از refresh رو compare کن</span><span lang="en">7) Inspect the access plan</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>EXPLAIN SELECT * FROM orders WHERE customer_id=7;</code></pre>
+<p lang="fa">بعد از اجرا فقط دنبال اسم index نگرد. plan رو کنار query بخون و روی usage counter، uptime، اندازهٔ index و baseline plan تمرکز کن. اگه plan با چیزی که پیش‌بینی کردی فرق داشت، همین اختلاف سؤال بعدی ماست.</p>
+<p lang="en">Do not stop at the chosen index name. Read the plan in the context of the query and focus on usage counters, uptime, index size, and the baseline plan. Any mismatch with your prediction becomes the next investigation question.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای maintenance مبتنی بر workload، نه ritual انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven maintenance rather than rituals.</p>
+</details></div><div class="ex" id="ex-mdb-11-8">
+<h3><span lang="fa">8) table/index size رو بخوان</span><span lang="en">8) Query the evidence</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT TABLE_NAME,INDEX_LENGTH,DATA_LENGTH FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='orders';</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با usage counter، uptime، اندازهٔ index و baseline plan رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about workload-driven maintenance rather than rituals can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای maintenance مبتنی بر workload، نه ritual انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven maintenance rather than rituals.</p>
+</details></div><div class="ex" id="ex-mdb-11-9">
+<h3><span lang="fa">9) query digest رو بررسی کن</span><span lang="en">9) Query the evidence</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ maintenance مبتنی بر workload، نه ritual چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about workload-driven maintenance rather than rituals. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT DIGEST_TEXT,COUNT_STAR FROM performance_schema.events_statements_summary_by_digest ORDER BY COUNT_STAR DESC LIMIT 10;</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با usage counter، uptime، اندازهٔ index و baseline plan رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about workload-driven maintenance rather than rituals can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای maintenance مبتنی بر workload، نه ritual انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven maintenance rather than rituals.</p>
+</details></div><div class="ex" id="ex-mdb-11-10">
+<h3><span lang="fa">10) index prefix overlap رو پیدا کن</span><span lang="en">10) Read server evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای maintenance مبتنی بر workload، نه ritual مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for workload-driven maintenance rather than rituals.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW INDEX FROM orders;</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با usage counter، uptime، اندازهٔ index و baseline plan رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about workload-driven maintenance rather than rituals can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای maintenance مبتنی بر workload، نه ritual انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven maintenance rather than rituals.</p>
+</details></div><div class="ex" id="ex-mdb-11-11">
+<h3><span lang="fa">11) rare query رو از slow log جست‌وجو کن</span><span lang="en">11) Read server evidence</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW VARIABLES LIKE '%slow%';</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با usage counter، uptime، اندازهٔ index و baseline plan رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about workload-driven maintenance rather than rituals can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای maintenance مبتنی بر workload، نه ritual انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven maintenance rather than rituals.</p>
+</details></div><div class="ex" id="ex-mdb-11-12">
+<h3><span lang="fa">12) candidate index رو در lab حذف کن</span><span lang="en">12) Apply the controlled change</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>ALTER TABLE orders DROP INDEX ix_candidate;</code></pre>
+<p lang="fa">این تغییر رو فقط روی fixture انجام بده و before/after رو نگه دار. موفق‌شدن statement به‌تنهایی کافی نیست؛ نتیجهٔ واقعی رو با usage counter، uptime، اندازهٔ index و baseline plan verify کن.</p>
+<p lang="en">Run the change only on the fixture and preserve before/after evidence. A successful statement alone does not prove the desired end state.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای maintenance مبتنی بر workload، نه ritual انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven maintenance rather than rituals.</p>
+</details></div><div class="ex" id="ex-mdb-11-13">
+<h3><span lang="fa">13) queryهای اصلی رو پس از حذف verify کن</span><span lang="en">13) Inspect the access plan</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ maintenance مبتنی بر workload، نه ritual چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about workload-driven maintenance rather than rituals. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>EXPLAIN SELECT * FROM orders WHERE customer_id=7;</code></pre>
+<p lang="fa">بعد از اجرا فقط دنبال اسم index نگرد. plan رو کنار query بخون و روی usage counter، uptime، اندازهٔ index و baseline plan تمرکز کن. اگه plan با چیزی که پیش‌بینی کردی فرق داشت، همین اختلاف سؤال بعدی ماست.</p>
+<p lang="en">Do not stop at the chosen index name. Read the plan in the context of the query and focus on usage counters, uptime, index size, and the baseline plan. Any mismatch with your prediction becomes the next investigation question.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای maintenance مبتنی بر workload، نه ritual انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven maintenance rather than rituals.</p>
+</details></div><div class="ex" id="ex-mdb-11-14">
+<h3><span lang="fa">14) insert cost رو measure کن</span><span lang="en">14) Create the lab object</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای maintenance مبتنی بر workload، نه ritual مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for workload-driven maintenance rather than rituals.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>CREATE TABLE orders_write_lab LIKE orders;
+INSERT INTO orders_write_lab SELECT * FROM orders LIMIT 10000;
+SET @started=NOW(6);
+INSERT INTO orders_write_lab SELECT * FROM orders LIMIT 1000;
+SELECT TIMESTAMPDIFF(MICROSECOND,@started,NOW(6)) AS elapsed_us;</code></pre>
+<p lang="fa">این object عمداً کوچک و آزمایشیه تا behavior رو بدون سر و صدای production ببینیم. بعد از ساخت، با metadata یا یک query مستقل ثابت کن چیزی که می‌خواستیم واقعاً ساخته شده.</p>
+<p lang="en">The object is intentionally small and disposable. After creating it, use independent metadata or a query to prove that the intended behavior really exists.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای maintenance مبتنی بر workload، نه ritual انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven maintenance rather than rituals.</p>
+</details></div><div class="ex" id="ex-mdb-11-15">
+<h3><span lang="fa">15) قبل از counter reset snapshot بگیر</span><span lang="en">15) Query the evidence</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT NOW(6) AS snapshot_at, OBJECT_SCHEMA,OBJECT_NAME,INDEX_NAME,
+       COUNT_READ,COUNT_WRITE
+FROM performance_schema.table_io_waits_summary_by_index_usage
+WHERE OBJECT_SCHEMA=DATABASE() AND OBJECT_NAME='orders';</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با usage counter، uptime، اندازهٔ index و baseline plan رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about workload-driven maintenance rather than rituals can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای maintenance مبتنی بر workload، نه ritual انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven maintenance rather than rituals.</p>
+</details></div><div class="ex" id="ex-mdb-11-16">
+<h3><span lang="fa">16) uptime رو کنار usage بخوان</span><span lang="en">16) Read server evidence</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW GLOBAL STATUS LIKE 'Uptime';</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با usage counter، uptime، اندازهٔ index و baseline plan رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about workload-driven maintenance rather than rituals can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای maintenance مبتنی بر workload، نه ritual انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven maintenance rather than rituals.</p>
+</details></div><div class="ex" id="ex-mdb-11-17">
+<h3><span lang="fa">17) constraint dependency رو بررسی کن</span><span lang="en">17) Inspect the real object definition</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ maintenance مبتنی بر workload، نه ritual چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about workload-driven maintenance rather than rituals. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW CREATE TABLE orders;</code></pre>
+<p lang="fa">اینجا اسم feature رو از روی حافظه قبول نمی‌کنیم. <code>SHOW CREATE</code> تعریف واقعی object رو برمی‌گردونه؛ همون رو به‌عنوان مدرک برای maintenance مبتنی بر workload، نه ritual نگه دار.</p>
+<p lang="en">Use the server's real object definition as evidence rather than relying on a remembered feature name. Keep this output with the lab notes.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای maintenance مبتنی بر workload، نه ritual انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven maintenance rather than rituals.</p>
+</details></div><div class="ex" id="ex-mdb-11-18">
+<h3><span lang="fa">18) هر index رو به query یا constraint وصل کن</span><span lang="en">18) Read server evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای maintenance مبتنی بر workload، نه ritual مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for workload-driven maintenance rather than rituals.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW INDEX FROM orders;
+EXPLAIN SELECT * FROM orders WHERE customer_id=7;</code></pre>
+<p lang="fa">بعد از اجرا فقط دنبال اسم index نگرد. plan رو کنار query بخون و روی usage counter، uptime، اندازهٔ index و baseline plan تمرکز کن. اگه plan با چیزی که پیش‌بینی کردی فرق داشت، همین اختلاف سؤال بعدی ماست.</p>
+<p lang="en">Do not stop at the chosen index name. Read the plan in the context of the query and focus on usage counters, uptime, index size, and the baseline plan. Any mismatch with your prediction becomes the next investigation question.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای maintenance مبتنی بر workload، نه ritual انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven maintenance rather than rituals.</p>
+</details></div></section><section id="next"><h2><span lang="fa">جمع‌بندی — چیزی که باید با خودت ببری</span><span lang="en">Summary — the mental model to keep</span></h2><p lang="fa">اگه از این فصل فقط یه عادت بمونه، این باشه: دربارهٔ maintenance مبتنی بر workload، نه ritual از روی اسم feature یا حس تصمیم نگیر. baseline بگیر، یه چیز رو عوض کن، خروجی رو بخون و بعد نتیجه بگیر.</p><p lang="en">If one habit survives this chapter, let it be this: do not reason about workload-driven maintenance rather than rituals from feature names or intuition. Capture a baseline, change one thing, read the evidence, then conclude.</p><p class="refs"><a href="https://mariadb.com/docs/server/mariadb-quickstart-guides/mariadb-indexes-guide">Indexes Guide</a> · <a href="https://mariadb.com/docs/server/reference/sql-statements/table-statements/analyze-table">ANALYZE TABLE</a></p></section>

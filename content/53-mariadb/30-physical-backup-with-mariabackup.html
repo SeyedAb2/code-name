@@ -1,0 +1,232 @@
+<!--meta
+title: Physical backup با mariadb-backup
+desc: وقتی logical dump چند ساعت طول می‌کشد، physical backup جذاب می‌شه. ولی directory خامی که mariadb-backup ساخته هنوز چیزی نیست که همین‌طور copy کنی و server رو روشن کنی. مرحلهٔ prepare بخشی از recovery است.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">MariaDB · فصل 30</span><span lang="en">MariaDB · Chapter 30</span></span>
+<h1 lang="fa">یک dump چندساعته فرصت بازیابی نمی‌ده؛ physical backup گزینهٔ سریع‌تری هست اما فایل خام آمادهٔ restore نیست.</h1>
+<h1 lang="en">A multi-hour dump misses the recovery target. A physical backup may be faster, but raw backup files are not ready to restore.</h1>
+<p class="sub" lang="fa">وقتی logical dump چند ساعت طول می‌کشد، physical backup جذاب می‌شه. ولی directory خامی که <code>mariadb-backup</code> ساخته هنوز چیزی نیست که همین‌طور copy کنی و server رو روشن کنی. مرحلهٔ <code>prepare</code> بخشی از recovery هست.</p>
+<p class="sub" lang="en">When logical dumps take hours, physical backups become attractive. But a raw directory produced by <code>mariadb-backup</code> is not something to copy blindly into a server. The <code>prepare</code> phase is part of recovery.</p>
+<div class="facts"><span>MariaDB 11.8 · Physical backups with mariadb-backup</span><span>حدود ۱۰۰ دقیقه · ۱۸ تمرین / About 100 minutes · 18 exercises</span></div>
+</div>
+<section id="mental-model"><h2><span lang="fa">قبل از کد، مسئله رو درست ببین</span><span lang="en">Frame the problem before the code</span></h2>
+<p lang="fa">این فصل رو با syntax شروع نمی‌کنیم. مسئله اینه: physical backup، prepare و restore chain. اول یه پیش‌بینی می‌سازیم، بعد با query یا command کوچیک آزمایشش می‌کنیم. هر جا خروجی خلاف انتظار بود، همون‌جا درس اصلی شروع می‌شه.</p>
+<p lang="en">This chapter does not begin with syntax. The problem is physical backup, prepare, and restore chains. We will form a prediction, test it with a small query or command, and treat unexpected output as the beginning of the investigation.</p>
+</section><section id="lesson-1"><h2><span lang="fa">نسخهٔ tool و server رو جفت کن</span><span lang="en">Match backup tooling to the server</span></h2><p lang="fa">Physical backup به format داخلی storage نزدیک‌تر هست، پس compatibility نسخه مهم‌تر از logical SQL dump هست. قبل از هر چیز نسخهٔ <code>mariadb-backup</code> و server source رو ثبت کن.</p><p lang="fa">Upgrade/migration رو با restore physical بدون بررسی compatibility قاطی نکن. Chapter 37 این مرز رو دوباره باز می‌کنه.</p><p lang="en">Physical backups are closer to internal storage formats, so version compatibility matters more than with portable SQL dumps. Record both <code>mariadb-backup</code> and source server versions.</p><p lang="en">Do not combine a version upgrade or migration with an unverified physical restore. Chapter 37 revisits that boundary.</p><pre dir="ltr"><code>mariadb-backup --version</code></pre><p lang="fa">exit code صفر فقط یک checkpointه. artifact یا خروجی رو inspect کن و تا وقتی restore/replay و validation مربوط به physical backup، prepare و restore chain انجام نشده، این مرحله رو «موفق» حساب نکن.</p><p lang="en">A zero exit code is only one checkpoint. Inspect the artifact and complete the relevant restore/replay validation before calling the step successful.</p></section><section id="lesson-2"><h2><span lang="fa">Backup خام باید prepare شود</span><span lang="en">A raw backup must be prepared</span></h2><p lang="fa">Online backup ممکن هست pageهایی رو در لحظه‌های متفاوت کپی کرده باشد و log لازم برای یک state سازگار رو هم همراه داشته باشد. <code>--prepare</code> recovery رو روی backup انجام می‌ده تا target قابل restore شود.</p><p lang="fa">وجود فایل‌ها با <code>find</code> فقط می‌گه چیزی نوشته شده؛ موفقیت <code>prepare</code> و بعد restore چیزی هست که recoverability رو نزدیک‌تر ثابت می‌کنه.</p><p lang="en">An online physical backup can copy pages at different moments while preserving the log needed to reconcile them. <code>--prepare</code> applies recovery to the backup so it becomes suitable for restore.</p><p lang="en">Seeing files with <code>find</code> only proves that files were written. Successful preparation and an actual restore are much stronger evidence.</p><pre dir="ltr"><code>grep -E 'from_lsn|to_lsn|last_lsn' /backup/full_lab/xtrabackup_checkpoints</code></pre><p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ physical backup، prepare و restore chain یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p><p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about physical backup, prepare, and restore chains.</p><div class="note warn"><strong lang="fa">مرز آزمایش</strong><span lang="fa">این بخش رو فقط روی database یا topology دورریختنی دوره اجرا کن. قبل از هر تغییر destructive، مقصد رو دوباره چک کن و یک recovery boundary قابل‌بررسی داشته باش.</span><strong lang="en">Lab boundary</strong><span lang="en">Run this only against the disposable course database or topology. Re-check the target before destructive changes and keep a verifiable recovery boundary.</span></div></section><section id="lesson-3"><h2><span lang="fa">Incremental یک زنجیره است</span><span lang="en">Incremental backups form a chain</span></h2><p lang="fa">Incremental backup به full/base وابسته هست. اگه یکی از حلقه‌ها گم شود، داشتن آخرین directory به‌تنهایی نجاتت نمی‌ده.</p><p lang="fa">LSN/metadata هر مرحله رو نگه دار و در restore drill دقیقاً همان order apply رو تمرین کن. Backup chain چیزی نیست که روز incident برای اولین بار کشفش کنی.</p><p lang="en">An incremental backup depends on its full/base backup. If a link in the chain is missing, the latest incremental directory alone cannot recover the database.</p><p lang="en">Preserve LSN/metadata for every step and rehearse the exact apply order. A backup chain should not be discovered for the first time during an incident.</p><pre dir="ltr"><code>test -d /var/lib/mysql
+find /var/lib/mysql -mindepth 1 -maxdepth 1 -print</code></pre><p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ physical backup، prepare و restore chain یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p><p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about physical backup, prepare, and restore chains.</p></section><section id="lesson-4"><h2><span lang="fa">Restore رو فقط روی target دورریختنی تمرین کن</span><span lang="en">Rehearse restore on an isolated target</span></h2><p lang="fa"><code>--copy-back</code> با datadir واقعی بازی می‌کنه. Server مقصد باید متوقف باشد، مسیر درست و خالی باشد و ownership بعد restore درست شود.</p><p lang="fa">این‌ها رو روی instance دورریختنی انجام می‌دهیم، بعد server رو بالا می‌آوریم و rowهای شناخته‌شده رو query می‌کنیم. هیچ تمرینی ارزش ریسک production data رو نداره.</p><p lang="en"><code>--copy-back</code> operates on a real data directory. The target server must be stopped, the destination must be correct, and ownership must be restored properly afterwards.</p><p lang="en">Practice all of this on an isolated instance, start it, and query known rows. No training exercise justifies risking production data.</p><pre dir="ltr"><code>mariadb -Nse 'SELECT VERSION()'
+mariadb-backup --version</code></pre><p lang="fa">exit code صفر فقط یک checkpointه. artifact یا خروجی رو inspect کن و تا وقتی restore/replay و validation مربوط به physical backup، prepare و restore chain انجام نشده، این مرحله رو «موفق» حساب نکن.</p><p lang="en">A zero exit code is only one checkpoint. Inspect the artifact and complete the relevant restore/replay validation before calling the step successful.</p></section><section id="mini-lab"><h2><span lang="fa">مینی‌لب — از حدس تا مدرک</span><span lang="en">Mini-lab — from assumption to evidence</span></h2>
+<p lang="fa">حالا سه checkpoint رو پشت‌سرهم اجرا کن. ترتیب مهمه: اول baseline، بعد یک تغییر یا مشاهدهٔ دقیق، بعد verification. وسط کار چیزی رو «درست» فرض نکن؛ هر مرحله باید خروجی مرحلهٔ بعد رو قابل‌تفسیرتر کنه.</p>
+<p lang="en">Run three checkpoints as one small story. Order matters: establish a baseline, make one controlled observation/change, then verify. Do not assume success between steps; each checkpoint should make the next result easier to interpret.</p>
+<pre dir="ltr"><code>mariadb-backup --version
+
+grep -E 'from_lsn|to_lsn|last_lsn' /backup/full_lab/xtrabackup_checkpoints
+
+test -d /var/lib/mysql
+find /var/lib/mysql -mindepth 1 -maxdepth 1 -print</code></pre>
+<div class="note safe"><strong lang="fa">چی رو نگه دار؟</strong><span lang="fa">commandها، خروجی مهم، نسخهٔ Server و یک جمله که می‌گه این آزمایش دربارهٔ physical backup، prepare و restore chain دقیقاً چی رو ثابت کرد.</span><strong lang="en">What should you preserve?</strong><span lang="en">Commands, relevant output, server version, and one sentence stating exactly what this experiment proved about physical backup, prepare, and restore chains.</span></div>
+</section><section id="exercises"><h2><span lang="fa">تمرین‌ها — دست به کیبورد</span><span lang="en">Exercises — hands on keyboard</span></h2><p lang="fa">اینجا جواب تشریحیِ خالی نداریم. هر تمرین باید به یه SQL/command، خروجی یا state قابل‌بررسی ختم بشه. از تمرین‌های اول که گرم‌کردن هستن تا سناریوهای آخر، هدف اینه که بتونی چیزی رو با مدرک ثابت کنی.</p><p lang="en">These are not prose-only questions. Every exercise should end in runnable SQL/commands and observable evidence. Difficulty rises from warm-up tasks to engineering scenarios.</p><div class="ex" id="ex-mdb-30-1">
+<h3><span lang="fa">1) version tool رو verify کن</span><span lang="en">1) Run the backup/recovery step</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ physical backup، prepare و restore chain چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about physical backup, prepare, and restore chains. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>mariadb-backup --version</code></pre>
+<p lang="fa">exit code صفر فقط یک checkpointه. artifact یا خروجی رو inspect کن و تا وقتی restore/replay و validation مربوط به physical backup، prepare و restore chain انجام نشده، این مرحله رو «موفق» حساب نکن.</p>
+<p lang="en">A zero exit code is only one checkpoint. Inspect the artifact and complete the relevant restore/replay validation before calling the step successful.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای physical backup، prepare و restore chain انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for physical backup, prepare, and restore chains.</p>
+</details></div><div class="ex" id="ex-mdb-30-2">
+<h3><span lang="fa">2) backup full محدود بساز</span><span lang="en">2) Run the backup/recovery step</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای physical backup، prepare و restore chain مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for physical backup, prepare, and restore chains.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>mariadb-backup --backup --target-dir=/backup/full_lab</code></pre>
+<p lang="fa">exit code صفر فقط یک checkpointه. artifact یا خروجی رو inspect کن و تا وقتی restore/replay و validation مربوط به physical backup، prepare و restore chain انجام نشده، این مرحله رو «موفق» حساب نکن.</p>
+<p lang="en">A zero exit code is only one checkpoint. Inspect the artifact and complete the relevant restore/replay validation before calling the step successful.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای physical backup، prepare و restore chain انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for physical backup, prepare, and restore chains.</p>
+</details></div><div class="ex" id="ex-mdb-30-3">
+<h3><span lang="fa">3) وجود artifact رو prove کن</span><span lang="en">3) Run the experiment</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>find /backup/full_lab -maxdepth 1 -type f</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ physical backup، prepare و restore chain یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about physical backup, prepare, and restore chains.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای physical backup، prepare و restore chain انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for physical backup, prepare, and restore chains.</p>
+</details></div><div class="ex" id="ex-mdb-30-4">
+<h3><span lang="fa">4) قبل restore prepare کن</span><span lang="en">4) Run the backup/recovery step</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>mariadb-backup --prepare --target-dir=/backup/full_lab</code></pre>
+<p lang="fa">exit code صفر فقط یک checkpointه. artifact یا خروجی رو inspect کن و تا وقتی restore/replay و validation مربوط به physical backup، prepare و restore chain انجام نشده، این مرحله رو «موفق» حساب نکن.</p>
+<p lang="en">A zero exit code is only one checkpoint. Inspect the artifact and complete the relevant restore/replay validation before calling the step successful.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای physical backup، prepare و restore chain انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for physical backup, prepare, and restore chains.</p>
+</details></div><div class="ex" id="ex-mdb-30-5">
+<h3><span lang="fa">5) incremental پایه رو record کن</span><span lang="en">5) Run the experiment</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ physical backup، prepare و restore chain چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about physical backup, prepare, and restore chains. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>grep -E 'from_lsn|to_lsn|last_lsn' /backup/full_lab/xtrabackup_checkpoints</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ physical backup، prepare و restore chain یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about physical backup, prepare, and restore chains.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای physical backup، prepare و restore chain انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for physical backup, prepare, and restore chains.</p>
+</details></div><div class="ex" id="ex-mdb-30-6">
+<h3><span lang="fa">6) incremental رو به base وصل کن</span><span lang="en">6) Run the backup/recovery step</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای physical backup، prepare و restore chain مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for physical backup, prepare, and restore chains.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>mariadb-backup --backup --target-dir=/backup/inc1 --incremental-basedir=/backup/full_lab</code></pre>
+<p lang="fa">exit code صفر فقط یک checkpointه. artifact یا خروجی رو inspect کن و تا وقتی restore/replay و validation مربوط به physical backup، prepare و restore chain انجام نشده، این مرحله رو «موفق» حساب نکن.</p>
+<p lang="en">A zero exit code is only one checkpoint. Inspect the artifact and complete the relevant restore/replay validation before calling the step successful.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای physical backup، prepare و restore chain انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for physical backup, prepare, and restore chains.</p>
+</details></div><div class="ex" id="ex-mdb-30-7">
+<h3><span lang="fa">7) incremental تنها رو restore نکن</span><span lang="en">7) Run the backup/recovery step</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>mariadb-backup --prepare --target-dir=/backup/full_lab   --incremental-dir=/backup/inc1</code></pre>
+<p lang="fa">exit code صفر فقط یک checkpointه. artifact یا خروجی رو inspect کن و تا وقتی restore/replay و validation مربوط به physical backup، prepare و restore chain انجام نشده، این مرحله رو «موفق» حساب نکن.</p>
+<p lang="en">A zero exit code is only one checkpoint. Inspect the artifact and complete the relevant restore/replay validation before calling the step successful.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای physical backup، prepare و restore chain انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for physical backup, prepare, and restore chains.</p>
+</details></div><div class="ex" id="ex-mdb-30-8">
+<h3><span lang="fa">8) server مقصد رو stop کن</span><span lang="en">8) Run the experiment</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>systemctl stop mariadb
+systemctl is-active mariadb</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ physical backup، prepare و restore chain یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about physical backup, prepare, and restore chains.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای physical backup، prepare و restore chain انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for physical backup, prepare, and restore chains.</p>
+</details></div><div class="ex" id="ex-mdb-30-9">
+<h3><span lang="fa">9) خالی بودن datadir رو verify کن</span><span lang="en">9) Run the experiment</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ physical backup، prepare و restore chain چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about physical backup, prepare, and restore chains. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>test -d /var/lib/mysql
+find /var/lib/mysql -mindepth 1 -maxdepth 1 -print</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ physical backup، prepare و restore chain یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about physical backup, prepare, and restore chains.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای physical backup، prepare و restore chain انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for physical backup, prepare, and restore chains.</p>
+</details></div><div class="ex" id="ex-mdb-30-10">
+<h3><span lang="fa">10) restore رو اجرا کن</span><span lang="en">10) Run the backup/recovery step</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای physical backup، prepare و restore chain مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for physical backup, prepare, and restore chains.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>mariadb-backup --copy-back --target-dir=/backup/full_lab</code></pre>
+<p lang="fa">exit code صفر فقط یک checkpointه. artifact یا خروجی رو inspect کن و تا وقتی restore/replay و validation مربوط به physical backup، prepare و restore chain انجام نشده، این مرحله رو «موفق» حساب نکن.</p>
+<p lang="en">A zero exit code is only one checkpoint. Inspect the artifact and complete the relevant restore/replay validation before calling the step successful.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای physical backup، prepare و restore chain انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for physical backup, prepare, and restore chains.</p>
+</details></div><div class="ex" id="ex-mdb-30-11">
+<h3><span lang="fa">11) ownership رو اصلاح و verify کن</span><span lang="en">11) Run the experiment</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>chown -R mysql:mysql /var/lib/mysql
+find /var/lib/mysql -maxdepth 1 -printf '%u:%g %p\n' | head</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ physical backup، prepare و restore chain یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about physical backup, prepare, and restore chains.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای physical backup، prepare و restore chain انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for physical backup, prepare, and restore chains.</p>
+</details></div><div class="ex" id="ex-mdb-30-12">
+<h3><span lang="fa">12) target رو start و check کن</span><span lang="en">12) Run the experiment</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>mariadb-admin --host=restore-lab ping</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ physical backup، prepare و restore chain یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about physical backup, prepare, and restore chains.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای physical backup، prepare و restore chain انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for physical backup, prepare, and restore chains.</p>
+</details></div><div class="ex" id="ex-mdb-30-13">
+<h3><span lang="fa">13) نسخهٔ source/backup رو ثبت کن</span><span lang="en">13) Run the backup/recovery step</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ physical backup، prepare و restore chain چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about physical backup, prepare, and restore chains. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>mariadb -Nse 'SELECT VERSION()'
+mariadb-backup --version</code></pre>
+<p lang="fa">exit code صفر فقط یک checkpointه. artifact یا خروجی رو inspect کن و تا وقتی restore/replay و validation مربوط به physical backup، prepare و restore chain انجام نشده، این مرحله رو «موفق» حساب نکن.</p>
+<p lang="en">A zero exit code is only one checkpoint. Inspect the artifact and complete the relevant restore/replay validation before calling the step successful.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای physical backup، prepare و restore chain انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for physical backup, prepare, and restore chains.</p>
+</details></div><div class="ex" id="ex-mdb-30-14">
+<h3><span lang="fa">14) backup رو روی production آزمایش نکن</span><span lang="en">14) Run the experiment</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای physical backup، prepare و restore chain مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for physical backup, prepare, and restore chains.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>mariadb-admin --host=restore-lab ping
+mariadb --host=restore-lab -e 'SELECT VERSION();'</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ physical backup، prepare و restore chain یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about physical backup, prepare, and restore chains.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای physical backup، prepare و restore chain انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for physical backup, prepare, and restore chains.</p>
+</details></div><div class="ex" id="ex-mdb-30-15">
+<h3><span lang="fa">15) فضای مقصد رو پیش از copy-back بررسی کن</span><span lang="en">15) Run the experiment</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>df -h /var/lib/mysql</code></pre>
+<p lang="fa">این command فقط یک مرز از مسیر رو تست می‌کنه. مقصد، زمان و نتیجهٔ دقیق رو نگه دار؛ موفقیت این مرحله هنوز لایه‌های بعدی مثل TLS یا authentication رو ثابت نمی‌کنه.</p>
+<p lang="en">This command tests only one boundary. Record the exact target and result; success here does not prove later layers such as TLS or authentication.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای physical backup، prepare و restore chain انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for physical backup, prepare, and restore chains.</p>
+</details></div><div class="ex" id="ex-mdb-30-16">
+<h3><span lang="fa">16) restore failure رو log کن</span><span lang="en">16) Run the backup/recovery step</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>mariadb-backup --prepare --target-dir=/backup/full_lab 2&gt;&amp;1 | tee prepare.log
+printf 'exit=%s\n' "$?"</code></pre>
+<p lang="fa">exit code صفر فقط یک checkpointه. artifact یا خروجی رو inspect کن و تا وقتی restore/replay و validation مربوط به physical backup، prepare و restore chain انجام نشده، این مرحله رو «موفق» حساب نکن.</p>
+<p lang="en">A zero exit code is only one checkpoint. Inspect the artifact and complete the relevant restore/replay validation before calling the step successful.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای physical backup، prepare و restore chain انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for physical backup, prepare, and restore chains.</p>
+</details></div><div class="ex" id="ex-mdb-30-17">
+<h3><span lang="fa">17) data count رو validate کن</span><span lang="en">17) Query the evidence</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ physical backup، prepare و restore chain چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about physical backup, prepare, and restore chains. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT COUNT(*) FROM shopdb.orders;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ physical backup، prepare و restore chain یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about physical backup, prepare, and restore chains.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای physical backup، prepare و restore chain انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for physical backup, prepare, and restore chains.</p>
+</details></div><div class="ex" id="ex-mdb-30-18">
+<h3><span lang="fa">18) physical vs logical tradeoff رو بنویس</span><span lang="en">18) Run the experiment</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای physical backup، prepare و restore chain مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for physical backup, prepare, and restore chains.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>printf '%s\n'   'logical: portable SQL, slower for large datasets'   'physical: storage-format backup, faster restore, tighter version coupling'</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ physical backup، prepare و restore chain یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about physical backup, prepare, and restore chains.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای physical backup، prepare و restore chain انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for physical backup, prepare, and restore chains.</p>
+</details></div></section><section id="next"><h2><span lang="fa">جمع‌بندی — چیزی که باید با خودت ببری</span><span lang="en">Summary — the mental model to keep</span></h2><p lang="fa">اگه از این فصل فقط یه عادت بمونه، این باشه: دربارهٔ physical backup، prepare و restore chain از روی اسم feature یا حس تصمیم نگیر. baseline بگیر، یه چیز رو عوض کن، خروجی رو بخون و بعد نتیجه بگیر.</p><p lang="en">If one habit survives this chapter, let it be this: do not reason about physical backup, prepare, and restore chains from feature names or intuition. Capture a baseline, change one thing, read the evidence, then conclude.</p><p class="refs"><a href="https://mariadb.com/docs/server/server-usage/backup-and-restore/backup-and-restore-overview">MariaDB Backup Overview</a> · <a href="https://mariadb.com/docs/server/server-usage/backup-and-restore/mariadb-backup/mariadb-backup-options">mariadb-backup Options</a></p></section>

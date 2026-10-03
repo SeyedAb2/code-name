@@ -1,0 +1,232 @@
+<!--meta
+title: EXPLAIN ANALYZE و آمار optimizer
+desc: EXPLAIN یک پیش‌بینی است. این فصل لحظه‌ای رو می‌سازد که پیش‌بینی optimizer رو کنار چیزی که واقعاً موقع اجرا اتفاق افتاده می‌گذاری. همین فاصله خیلی وقت‌ها سرنخ اصلی کندی است.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">MariaDB · فصل 9</span><span lang="en">MariaDB · Chapter 9</span></span>
+<h1 lang="fa">EXPLAIN تخمین می‌زند صدها ردیف خوانده می‌شه، اما query در عمل ثانیه‌ها طول می‌کشد. تخمین و اجرا رو چطور جدا می‌کنی؟</h1>
+<h1 lang="en">EXPLAIN estimates a few hundred rows, but the query takes seconds. How do you separate estimates from execution?</h1>
+<p class="sub" lang="fa"><code>EXPLAIN</code> یک پیش‌بینی هست. این فصل لحظه‌ای رو می‌سازه که پیش‌بینی optimizer رو کنار چیزی که واقعاً موقع اجرا اتفاق افتاده می‌ذاری. همین فاصله خیلی وقت‌ها سرنخ اصلی کندی هست.</p>
+<p class="sub" lang="en"><code>EXPLAIN</code> is a prediction. This chapter puts the optimizer's estimate next to what actually happened during execution. The gap between the two is often the most useful clue in a slow query.</p>
+<div class="facts"><span>MariaDB 11.8 · ANALYZE and optimizer statistics</span><span>حدود ۹۵ دقیقه · ۱۸ تمرین / About 95 minutes · 18 exercises</span></div>
+</div>
+<section id="mental-model"><h2><span lang="fa">قبل از کد، مسئله رو درست ببین</span><span lang="en">Frame the problem before the code</span></h2>
+<p lang="fa">این فصل رو با syntax شروع نمی‌کنیم. مسئله اینه: فاصلهٔ estimate و اجرای واقعی. اول یه پیش‌بینی می‌سازیم، بعد با query یا command کوچیک آزمایشش می‌کنیم. هر جا خروجی خلاف انتظار بود، همون‌جا درس اصلی شروع می‌شه.</p>
+<p lang="en">This chapter does not begin with syntax. The problem is the gap between estimates and actual execution. We will form a prediction, test it with a small query or command, and treat unexpected output as the beginning of the investigation.</p>
+</section><section id="lesson-1"><h2><span lang="fa">Estimated و actual رو جدا نگه دار</span><span lang="en">Keep estimated and actual evidence separate</span></h2><p lang="fa">با <code>EXPLAIN</code> هنوز query اجرا نشده. با <code>ANALYZE</code> در MariaDB query واقعاً اجرا می‌شه و plan با آمار runtime برمی‌گردد. همین یک فرق دلیل خوبی هست که <code>ANALYZE</code> رو روی statement خطرناک یا dataset ناشناخته کورکورانه نزنی.</p><p lang="fa">روی SELECT امن، <code>rows</code> رو با <code>r_rows</code> و تعداد اجرا رو با <code>r_loops</code> مقایسه می‌کنیم. اگه estimate چند مرتبهٔ بزرگی خطا داره، سؤال بعدی statistics و توزیع داده هست.</p><p lang="en"><code>EXPLAIN</code> does not execute the query. MariaDB's <code>ANALYZE</code> does execute it and annotates the plan with runtime statistics. That distinction is exactly why <code>ANALYZE</code> must not be fired blindly at unsafe statements or unknown workloads.</p><p lang="en">On a safe SELECT, compare estimated <code>rows</code> with <code>r_rows</code>, and inspect <code>r_loops</code>. Large estimation errors point toward statistics and data distribution as the next line of investigation.</p><pre dir="ltr"><code>EXPLAIN SELECT * FROM orders WHERE customer_id=7;</code></pre><p lang="fa">بعد از اجرا فقط دنبال اسم index نگرد. plan رو کنار query بخون و روی estimate در برابر <code>r_rows</code>/<code>r_loops</code> و زمان واقعی تمرکز کن. اگه plan با چیزی که پیش‌بینی کردی فرق داشت، همین اختلاف سؤال بعدی ماست.</p><p lang="en">Do not stop at the chosen index name. Read the plan in the context of the query and focus on estimates versus <code>r_rows</code>/<code>r_loops</code> and actual timing. Any mismatch with your prediction becomes the next investigation question.</p></section><section id="lesson-2"><h2><span lang="fa">عدد زمان رو بدون context نخوان</span><span lang="en">Do not read timing without context</span></h2><p lang="fa">اجرای اول ممکن هست cold cache باشد، اجرای دوم warm. هم‌زمان ممکن هست lock wait داشته باشی. پس یک عدد 420 ms به‌تنهایی چیز زیادی نمی‌گه.</p><p lang="fa">پارامتر رو ثابت کن، چند بار اندازه بگیر، processlist رو کنار query ببین و اگه اختلاف زیاد بود دنبال علت بیرون از plan هم بگرد.</p><p lang="en">The first execution may use a cold cache while the next is warm. A lock wait can also dominate elapsed time. A single 420 ms number has little meaning by itself.</p><p lang="en">Keep parameters fixed, repeat measurements, inspect the process list, and look outside the plan when runtime variance suggests blocking or resource pressure.</p><pre dir="ltr"><code>SHOW TABLE STATUS LIKE 'orders';</code></pre><p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با estimate در برابر <code>r_rows</code>/<code>r_loops</code> و زمان واقعی رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p><p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about the gap between estimates and actual execution can be tied to evidence.</p></section><section id="lesson-3"><h2><span lang="fa">Statistics رو فقط وقتی لازم هست دست بزن</span><span lang="en">Refresh statistics for a reason</span></h2><p lang="fa"><code>ANALYZE TABLE</code> رو به‌عنوان طلسم tuning اجرا نمی‌کنیم. اول اختلاف estimate/actual رو می‌بینیم، بعد اگه stale یا نامناسب بودن statistics فرضیهٔ منطقی بود refresh می‌کنیم و همان query رو دوباره اندازه می‌گیریم.</p><p lang="fa">اگه plan هیچ تغییری نکرد هم نتیجه داریم: فرضیهٔ ما شاید اشتباه بوده. tuning خوب یعنی حاضر باشی فرضیه رو رد کنی.</p><p lang="en">Do not run <code>ANALYZE TABLE</code> as a tuning ritual. First observe an estimation problem; only then refresh statistics if stale statistics are a plausible hypothesis, and re-run the same query.</p><p lang="en">If the plan does not change, that is still useful evidence: the hypothesis may have been wrong. Good tuning is willing to falsify its own assumptions.</p><pre dir="ltr"><code>ANALYZE FORMAT=JSON
+SELECT * FROM orders WHERE customer_id=7;</code></pre><p lang="fa">این مرحله فقط plan تخمینی نیست؛ execution واقعی هم وارد ماجرا می‌شه. خروجی رو نگه دار و estimate در برابر <code>r_rows</code>/<code>r_loops</code> و زمان واقعی رو با baseline قبلی مقایسه کن.</p><p lang="en">This step includes actual execution evidence rather than estimates alone. Preserve the output and compare it with the previous baseline while reasoning about the gap between estimates and actual execution.</p></section><section id="lesson-4"><h2><span lang="fa">JSON plan رو برای مقایسه نگه دار</span><span lang="en">Preserve JSON plans for comparison</span></h2><p lang="fa"><code>ANALYZE FORMAT=JSON</code> خروجی‌ای می‌ده که می‌شه قبل و بعد تغییر ذخیره و مقایسه کرد. برای incident یا code review این خیلی بهتر از جملهٔ «به نظرم بهتر شد» هست.</p><p lang="fa">مهم‌ترین بخش گزارش tuning همین است: query ثابت، dataset معلوم، قبل، تغییر واحد، بعد. هرچیزی غیر از این خیلی راحت با حدس قاطی می‌شه.</p><p lang="en"><code>ANALYZE FORMAT=JSON</code> gives you output that can be stored and compared before and after a change. That is much stronger evidence for incidents or reviews than “it seems faster now.”</p><p lang="en">A useful tuning report keeps the query and dataset stable, records a baseline, changes one thing, and measures again. Anything looser is easy to confuse with intuition.</p><pre dir="ltr"><code>SET @started = NOW(6);
+SELECT COUNT(*) FROM orders WHERE customer_id=7;
+SELECT TIMESTAMPDIFF(MICROSECOND,@started,NOW(6)) AS elapsed_us;</code></pre><p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ فاصلهٔ estimate و اجرای واقعی یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p><p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the gap between estimates and actual execution.</p></section><section id="mini-lab"><h2><span lang="fa">مینی‌لب — از حدس تا مدرک</span><span lang="en">Mini-lab — from assumption to evidence</span></h2>
+<p lang="fa">حالا سه checkpoint رو پشت‌سرهم اجرا کن. ترتیب مهمه: اول baseline، بعد یک تغییر یا مشاهدهٔ دقیق، بعد verification. وسط کار چیزی رو «درست» فرض نکن؛ هر مرحله باید خروجی مرحلهٔ بعد رو قابل‌تفسیرتر کنه.</p>
+<p lang="en">Run three checkpoints as one small story. Order matters: establish a baseline, make one controlled observation/change, then verify. Do not assume success between steps; each checkpoint should make the next result easier to interpret.</p>
+<pre dir="ltr"><code>EXPLAIN SELECT * FROM orders WHERE customer_id=7;
+
+SHOW TABLE STATUS LIKE 'orders';
+
+ANALYZE FORMAT=JSON
+SELECT * FROM orders WHERE customer_id=7;</code></pre>
+<div class="note safe"><strong lang="fa">چی رو نگه دار؟</strong><span lang="fa">commandها، خروجی مهم، نسخهٔ Server و یک جمله که می‌گه این آزمایش دربارهٔ فاصلهٔ estimate و اجرای واقعی دقیقاً چی رو ثابت کرد.</span><strong lang="en">What should you preserve?</strong><span lang="en">Commands, relevant output, server version, and one sentence stating exactly what this experiment proved about the gap between estimates and actual execution.</span></div>
+</section><section id="exercises"><h2><span lang="fa">تمرین‌ها — دست به کیبورد</span><span lang="en">Exercises — hands on keyboard</span></h2><p lang="fa">اینجا جواب تشریحیِ خالی نداریم. هر تمرین باید به یه SQL/command، خروجی یا state قابل‌بررسی ختم بشه. از تمرین‌های اول که گرم‌کردن هستن تا سناریوهای آخر، هدف اینه که بتونی چیزی رو با مدرک ثابت کنی.</p><p lang="en">These are not prose-only questions. Every exercise should end in runnable SQL/commands and observable evidence. Difficulty rises from warm-up tasks to engineering scenarios.</p><div class="ex" id="ex-mdb-9-1">
+<h3><span lang="fa">1) plan تخمینی رو بگیر</span><span lang="en">1) Inspect the access plan</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ فاصلهٔ estimate و اجرای واقعی چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about the gap between estimates and actual execution. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>EXPLAIN SELECT * FROM orders WHERE customer_id=7;</code></pre>
+<p lang="fa">بعد از اجرا فقط دنبال اسم index نگرد. plan رو کنار query بخون و روی estimate در برابر <code>r_rows</code>/<code>r_loops</code> و زمان واقعی تمرکز کن. اگه plan با چیزی که پیش‌بینی کردی فرق داشت، همین اختلاف سؤال بعدی ماست.</p>
+<p lang="en">Do not stop at the chosen index name. Read the plan in the context of the query and focus on estimates versus <code>r_rows</code>/<code>r_loops</code> and actual timing. Any mismatch with your prediction becomes the next investigation question.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فاصلهٔ estimate و اجرای واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the gap between estimates and actual execution.</p>
+</details></div><div class="ex" id="ex-mdb-9-2">
+<h3><span lang="fa">2) actual رو اندازه بگیر</span><span lang="en">2) Measure actual execution</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای فاصلهٔ estimate و اجرای واقعی مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for the gap between estimates and actual execution.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>ANALYZE SELECT * FROM orders WHERE customer_id=7;</code></pre>
+<p lang="fa">این مرحله فقط plan تخمینی نیست؛ execution واقعی هم وارد ماجرا می‌شه. خروجی رو نگه دار و estimate در برابر <code>r_rows</code>/<code>r_loops</code> و زمان واقعی رو با baseline قبلی مقایسه کن.</p>
+<p lang="en">This step includes actual execution evidence rather than estimates alone. Preserve the output and compare it with the previous baseline while reasoning about the gap between estimates and actual execution.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فاصلهٔ estimate و اجرای واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the gap between estimates and actual execution.</p>
+</details></div><div class="ex" id="ex-mdb-9-3">
+<h3><span lang="fa">3) JSON actual رو بگیر</span><span lang="en">3) Measure actual execution</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>ANALYZE FORMAT=JSON SELECT * FROM orders WHERE customer_id=7;</code></pre>
+<p lang="fa">این مرحله فقط plan تخمینی نیست؛ execution واقعی هم وارد ماجرا می‌شه. خروجی رو نگه دار و estimate در برابر <code>r_rows</code>/<code>r_loops</code> و زمان واقعی رو با baseline قبلی مقایسه کن.</p>
+<p lang="en">This step includes actual execution evidence rather than estimates alone. Preserve the output and compare it with the previous baseline while reasoning about the gap between estimates and actual execution.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فاصلهٔ estimate و اجرای واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the gap between estimates and actual execution.</p>
+</details></div><div class="ex" id="ex-mdb-9-4">
+<h3><span lang="fa">4) نسخهٔ server رو ثبت کن</span><span lang="en">4) Query the evidence</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT VERSION();</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ فاصلهٔ estimate و اجرای واقعی یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the gap between estimates and actual execution.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فاصلهٔ estimate و اجرای واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the gap between estimates and actual execution.</p>
+</details></div><div class="ex" id="ex-mdb-9-5">
+<h3><span lang="fa">5) آمار جدول رو ببین</span><span lang="en">5) Read server evidence</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ فاصلهٔ estimate و اجرای واقعی چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about the gap between estimates and actual execution. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW TABLE STATUS LIKE 'orders';</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با estimate در برابر <code>r_rows</code>/<code>r_loops</code> و زمان واقعی رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about the gap between estimates and actual execution can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فاصلهٔ estimate و اجرای واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the gap between estimates and actual execution.</p>
+</details></div><div class="ex" id="ex-mdb-9-6">
+<h3><span lang="fa">6) آمار index رو ببین</span><span lang="en">6) Read server evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای فاصلهٔ estimate و اجرای واقعی مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for the gap between estimates and actual execution.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW INDEX FROM orders;</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با estimate در برابر <code>r_rows</code>/<code>r_loops</code> و زمان واقعی رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about the gap between estimates and actual execution can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فاصلهٔ estimate و اجرای واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the gap between estimates and actual execution.</p>
+</details></div><div class="ex" id="ex-mdb-9-7">
+<h3><span lang="fa">7) یک range query رو explain کن</span><span lang="en">7) Measure actual execution</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>ANALYZE FORMAT=JSON SELECT * FROM orders WHERE created_at&gt;='2026-01-01';</code></pre>
+<p lang="fa">این مرحله فقط plan تخمینی نیست؛ execution واقعی هم وارد ماجرا می‌شه. خروجی رو نگه دار و estimate در برابر <code>r_rows</code>/<code>r_loops</code> و زمان واقعی رو با baseline قبلی مقایسه کن.</p>
+<p lang="en">This step includes actual execution evidence rather than estimates alone. Preserve the output and compare it with the previous baseline while reasoning about the gap between estimates and actual execution.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فاصلهٔ estimate و اجرای واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the gap between estimates and actual execution.</p>
+</details></div><div class="ex" id="ex-mdb-9-8">
+<h3><span lang="fa">8) تخمین و واقعی رو compare کن</span><span lang="en">8) Measure actual execution</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>ANALYZE FORMAT=JSON
+SELECT * FROM orders WHERE customer_id=7;</code></pre>
+<p lang="fa">این مرحله فقط plan تخمینی نیست؛ execution واقعی هم وارد ماجرا می‌شه. خروجی رو نگه دار و estimate در برابر <code>r_rows</code>/<code>r_loops</code> و زمان واقعی رو با baseline قبلی مقایسه کن.</p>
+<p lang="en">This step includes actual execution evidence rather than estimates alone. Preserve the output and compare it with the previous baseline while reasoning about the gap between estimates and actual execution.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فاصلهٔ estimate و اجرای واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the gap between estimates and actual execution.</p>
+</details></div><div class="ex" id="ex-mdb-9-9">
+<h3><span lang="fa">9) تعداد loop رو پیدا کن</span><span lang="en">9) Measure actual execution</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ فاصلهٔ estimate و اجرای واقعی چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about the gap between estimates and actual execution. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>ANALYZE FORMAT=JSON
+SELECT * FROM orders WHERE customer_id=7;</code></pre>
+<p lang="fa">این مرحله فقط plan تخمینی نیست؛ execution واقعی هم وارد ماجرا می‌شه. خروجی رو نگه دار و estimate در برابر <code>r_rows</code>/<code>r_loops</code> و زمان واقعی رو با baseline قبلی مقایسه کن.</p>
+<p lang="en">This step includes actual execution evidence rather than estimates alone. Preserve the output and compare it with the previous baseline while reasoning about the gap between estimates and actual execution.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فاصلهٔ estimate و اجرای واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the gap between estimates and actual execution.</p>
+</details></div><div class="ex" id="ex-mdb-9-10">
+<h3><span lang="fa">10) query امن با LIMIT اجرا کن</span><span lang="en">10) Measure actual execution</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای فاصلهٔ estimate و اجرای واقعی مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for the gap between estimates and actual execution.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>ANALYZE SELECT * FROM orders LIMIT 20;</code></pre>
+<p lang="fa">این مرحله فقط plan تخمینی نیست؛ execution واقعی هم وارد ماجرا می‌شه. خروجی رو نگه دار و estimate در برابر <code>r_rows</code>/<code>r_loops</code> و زمان واقعی رو با baseline قبلی مقایسه کن.</p>
+<p lang="en">This step includes actual execution evidence rather than estimates alone. Preserve the output and compare it with the previous baseline while reasoning about the gap between estimates and actual execution.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فاصلهٔ estimate و اجرای واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the gap between estimates and actual execution.</p>
+</details></div><div class="ex" id="ex-mdb-9-11">
+<h3><span lang="fa">11) تابع روی ستون رو با range compare کن</span><span lang="en">11) Measure actual execution</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>ANALYZE SELECT * FROM orders WHERE DATE(created_at)='2026-01-01';</code></pre>
+<p lang="fa">این مرحله فقط plan تخمینی نیست؛ execution واقعی هم وارد ماجرا می‌شه. خروجی رو نگه دار و estimate در برابر <code>r_rows</code>/<code>r_loops</code> و زمان واقعی رو با baseline قبلی مقایسه کن.</p>
+<p lang="en">This step includes actual execution evidence rather than estimates alone. Preserve the output and compare it with the previous baseline while reasoning about the gap between estimates and actual execution.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فاصلهٔ estimate و اجرای واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the gap between estimates and actual execution.</p>
+</details></div><div class="ex" id="ex-mdb-9-12">
+<h3><span lang="fa">12) پلان query aggregate بگیر</span><span lang="en">12) Measure actual execution</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>ANALYZE FORMAT=JSON SELECT customer_id,COUNT(*) FROM orders GROUP BY customer_id;</code></pre>
+<p lang="fa">این مرحله فقط plan تخمینی نیست؛ execution واقعی هم وارد ماجرا می‌شه. خروجی رو نگه دار و estimate در برابر <code>r_rows</code>/<code>r_loops</code> و زمان واقعی رو با baseline قبلی مقایسه کن.</p>
+<p lang="en">This step includes actual execution evidence rather than estimates alone. Preserve the output and compare it with the previous baseline while reasoning about the gap between estimates and actual execution.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فاصلهٔ estimate و اجرای واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the gap between estimates and actual execution.</p>
+</details></div><div class="ex" id="ex-mdb-9-13">
+<h3><span lang="fa">13) بار چند اجرای یکسان رو بسنج</span><span lang="en">13) Run the experiment</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ فاصلهٔ estimate و اجرای واقعی چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about the gap between estimates and actual execution. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SET @started = NOW(6);
+SELECT COUNT(*) FROM orders WHERE customer_id=7;
+SELECT TIMESTAMPDIFF(MICROSECOND,@started,NOW(6)) AS elapsed_us;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ فاصلهٔ estimate و اجرای واقعی یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the gap between estimates and actual execution.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فاصلهٔ estimate و اجرای واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the gap between estimates and actual execution.</p>
+</details></div><div class="ex" id="ex-mdb-9-14">
+<h3><span lang="fa">14) stats refresh رو در lab انجام بده</span><span lang="en">14) Measure actual execution</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای فاصلهٔ estimate و اجرای واقعی مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for the gap between estimates and actual execution.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>ANALYZE TABLE orders;</code></pre>
+<p lang="fa">این مرحله فقط plan تخمینی نیست؛ execution واقعی هم وارد ماجرا می‌شه. خروجی رو نگه دار و estimate در برابر <code>r_rows</code>/<code>r_loops</code> و زمان واقعی رو با baseline قبلی مقایسه کن.</p>
+<p lang="en">This step includes actual execution evidence rather than estimates alone. Preserve the output and compare it with the previous baseline while reasoning about the gap between estimates and actual execution.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فاصلهٔ estimate و اجرای واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the gap between estimates and actual execution.</p>
+</details></div><div class="ex" id="ex-mdb-9-15">
+<h3><span lang="fa">15) بعد refresh plan رو بگیر</span><span lang="en">15) Inspect the access plan</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>EXPLAIN SELECT * FROM orders WHERE customer_id=7;</code></pre>
+<p lang="fa">بعد از اجرا فقط دنبال اسم index نگرد. plan رو کنار query بخون و روی estimate در برابر <code>r_rows</code>/<code>r_loops</code> و زمان واقعی تمرکز کن. اگه plan با چیزی که پیش‌بینی کردی فرق داشت، همین اختلاف سؤال بعدی ماست.</p>
+<p lang="en">Do not stop at the chosen index name. Read the plan in the context of the query and focus on estimates versus <code>r_rows</code>/<code>r_loops</code> and actual timing. Any mismatch with your prediction becomes the next investigation question.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فاصلهٔ estimate و اجرای واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the gap between estimates and actual execution.</p>
+</details></div><div class="ex" id="ex-mdb-9-16">
+<h3><span lang="fa">16) lock wait رو از query cost جدا کن</span><span lang="en">16) Read server evidence</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW FULL PROCESSLIST;
+SHOW ENGINE INNODB STATUS;</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با estimate در برابر <code>r_rows</code>/<code>r_loops</code> و زمان واقعی رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about the gap between estimates and actual execution can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فاصلهٔ estimate و اجرای واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the gap between estimates and actual execution.</p>
+</details></div><div class="ex" id="ex-mdb-9-17">
+<h3><span lang="fa">17) range حد پایین و بالا رو ثابت کن</span><span lang="en">17) Measure actual execution</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ فاصلهٔ estimate و اجرای واقعی چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about the gap between estimates and actual execution. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>ANALYZE SELECT * FROM orders WHERE created_at&gt;='2026-01-01' AND created_at&lt;'2026-02-01';</code></pre>
+<p lang="fa">این مرحله فقط plan تخمینی نیست؛ execution واقعی هم وارد ماجرا می‌شه. خروجی رو نگه دار و estimate در برابر <code>r_rows</code>/<code>r_loops</code> و زمان واقعی رو با baseline قبلی مقایسه کن.</p>
+<p lang="en">This step includes actual execution evidence rather than estimates alone. Preserve the output and compare it with the previous baseline while reasoning about the gap between estimates and actual execution.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فاصلهٔ estimate و اجرای واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the gap between estimates and actual execution.</p>
+</details></div><div class="ex" id="ex-mdb-9-18">
+<h3><span lang="fa">18) خروجی JSON رو ذخیره کن</span><span lang="en">18) Measure actual execution</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای فاصلهٔ estimate و اجرای واقعی مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for the gap between estimates and actual execution.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>ANALYZE FORMAT=JSON SELECT * FROM orders WHERE id=1;</code></pre>
+<p lang="fa">این مرحله فقط plan تخمینی نیست؛ execution واقعی هم وارد ماجرا می‌شه. خروجی رو نگه دار و estimate در برابر <code>r_rows</code>/<code>r_loops</code> و زمان واقعی رو با baseline قبلی مقایسه کن.</p>
+<p lang="en">This step includes actual execution evidence rather than estimates alone. Preserve the output and compare it with the previous baseline while reasoning about the gap between estimates and actual execution.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای فاصلهٔ estimate و اجرای واقعی انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the gap between estimates and actual execution.</p>
+</details></div></section><section id="next"><h2><span lang="fa">جمع‌بندی — چیزی که باید با خودت ببری</span><span lang="en">Summary — the mental model to keep</span></h2><p lang="fa">اگه از این فصل فقط یه عادت بمونه، این باشه: دربارهٔ فاصلهٔ estimate و اجرای واقعی از روی اسم feature یا حس تصمیم نگیر. baseline بگیر، یه چیز رو عوض کن، خروجی رو بخون و بعد نتیجه بگیر.</p><p lang="en">If one habit survives this chapter, let it be this: do not reason about the gap between estimates and actual execution from feature names or intuition. Capture a baseline, change one thing, read the evidence, then conclude.</p><p class="refs"><a href="https://mariadb.com/docs/server/reference/sql-statements/administrative-sql-statements/analyze-and-explain-statements/analyze-format-json">ANALYZE FORMAT=JSON</a> · <a href="https://mariadb.com/docs/server/reference/sql-statements/administrative-sql-statements/analyze-and-explain-statements/explain">EXPLAIN</a></p></section>

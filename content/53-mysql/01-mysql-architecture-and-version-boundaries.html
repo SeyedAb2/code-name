@@ -1,165 +1,160 @@
 <!--meta
 title: معماری MySQL، نسخه و مرز سازگاری
-desc: با یک سرور واقعی ببینیم Client به کجا وصل می‌شود، نسخه را از خود Server بخوانیم و قبل از نسبت‌دادن رفتار به MySQL، مرز نسخه و توزیع را مشخص کنیم.
--->
-
+desc: با یک سرور واقعی ببینیم Client به کجا وصل می‌شه، نسخه رو از خود Server بخوانیم و قبل از نسبت‌دادن رفتار به MySQL، مرز نسخه و توزیع رو مشخص کنیم.-->
 <div class="masthead">
-  <span class="eyebrow"><span class="dot"></span>
-    <span lang="fa">MySQL · فصل ۱</span><span lang="en">MySQL · Chapter 1</span>
-  </span>
-  <h1 lang="fa">معماری MySQL، نسخه و مرز سازگاری</h1>
-  <h1 lang="en">MySQL architecture, versions, and compatibility boundaries</h1>
-  <p class="sub" lang="fa">
-    برنامه روی لپ‌تاپ همکارمان به دیتابیس وصل می‌شود، اما روی محیط آزمایشی همان برنامه خطای
-    تازه‌ای می‌دهد. هر دو نفر می‌گویند «MySQL داریم». همین جمله فعلاً چیزی را ثابت نمی‌کند:
-    نسخه، محصول، تنظیمات و حتی مقصد اتصال ممکن است یکی نباشد. قبل از عوض‌کردن query، بیایید
+<span class="eyebrow"><span class="dot"></span>
+<span lang="fa">MySQL · فصل ۱</span><span lang="en">MySQL · Chapter 1</span>
+</span>
+<h1 lang="fa">معماری MySQL، نسخه و مرز سازگاری</h1>
+<h1 lang="en">MySQL architecture, versions, and compatibility boundaries</h1>
+<p class="sub" lang="fa">
+    برنامه روی لپ‌تاپ همکارمون به دیتابیس وصل می‌شه، اما روی محیط آزمایشی همان برنامه خطای
+    تازه‌ای می‌ده. هر دو نفر می‌گن «MySQL داریم». همین جمله فعلاً چیزی رو ثابت نمی‌کنه:
+    نسخه، محصول، تنظیمات و حتی مقصد اتصال ممکنه یکی نباشه. قبل از عوض‌کردن query، بیا
     از خود سرور مدرک بگیریم.
   </p>
-  <p class="sub" lang="en">
+<p class="sub" lang="en">
     An application connects to the database on a teammate’s laptop, but the same application
     raises a new error in the test environment. Both people say, “We have MySQL.” That sentence
     proves very little: the version, product, configuration, or even connection target may differ.
     Before changing a query, let’s ask the server for evidence.
   </p>
-  <div class="facts">
-    <span><span lang="fa">پیش‌نیاز</span><span lang="en">Prerequisite</span>: SQL پایه</span>
-    <span><span lang="fa">آزمایش</span><span lang="en">Lab</span>: MySQL <code>9.7.2</code></span>
-    <span><span lang="fa">زمان</span><span lang="en">Time</span>: ۷۵ دقیقه</span>
-  </div>
+<div class="facts">
+<span><span lang="fa">پیش‌نیاز</span><span lang="en">Prerequisite</span>: SQL پایه</span>
+<span><span lang="fa">آزمایش</span><span lang="en">Lab</span>: MySQL <code>9.7.2</code></span>
+<span><span lang="fa">زمان</span><span lang="en">Time</span>: ۷۵ دقیقه</span>
 </div>
-
+</div>
 <section id="story">
-  <h2 lang="fa">«MySQL روی هر دو هست»؛ پس چرا نتیجه فرق می‌کند؟</h2>
-  <h2 lang="en">“Both machines have MySQL”—so why are the results different?</h2>
-  <p lang="fa">
-    تصور کن migration روی لپ‌تاپ اجرا شده، اما در CI با خطا متوقف می‌شود. اولین واکنش معمولاً
-    این است که syntax را دست‌کاری کنیم یا سرور را دوباره بالا بیاوریم. هنوز زوده. شاید CI به
-    سرور دیگری وصل شده باشد؛ شاید آن سرور نسخه یا توزیع دیگری داشته باشد؛ شاید هم هر دو یک
+<h2 lang="fa">«MySQL روی هر دو هست»؛ پس چرا نتیجه فرق می‌کنه؟</h2>
+<h2 lang="en">“Both machines have MySQL”—so why are the results different?</h2>
+<p lang="fa">
+    تصور کن migration روی لپ‌تاپ اجرا شده، اما در CI با خطا متوقف می‌شه. اولین واکنش معمولاً
+    این هست که syntax رو دست‌کاری کنیم یا سرور رو دوباره بالا بیاوریم. هنوز زوده. شاید CI به
+    سرور دیگری وصل شده باشه؛ شاید آن سرور نسخه یا توزیع دیگری داشته باشه؛ شاید هم هر دو یک
     نسخه باشند و تفاوت از تنظیمات یا مجوز حساب بیاید.
   </p>
-  <p lang="en">
+<p lang="en">
     Imagine a migration that succeeds on a laptop but fails in CI. The first impulse is often to
     tweak the syntax or restart the server. That is too soon. CI may be reaching a different
     server; that server may run another version or distribution; or both versions may match while
     settings or account privileges differ.
   </p>
-  <p lang="fa">
+<p lang="fa">
     پس سؤال بهتر این نیست که «چرا MySQL خرابه؟» سؤال اینه: <strong>برنامه دقیقاً به کدام
-    Server وصل شده و آن Server خودش را چه معرفی می‌کند؟</strong> اسم برنامهٔ Client، نام
+    Server وصل شده و آن Server خودش رو چه معرفی می‌کنه؟</strong> اسم برنامهٔ Client، نام
     سرویس در Compose و نسخه‌ای که روی لپ‌تاپ نصب کرده‌ای، به‌تنهایی جواب این سؤال نیست.
   </p>
-  <p lang="en">
+<p lang="en">
     A better question is not “Why is MySQL broken?” It is: <strong>which server did the
     application actually reach, and how does that server identify itself?</strong> The client
     program’s name, a Compose service name, and the version installed on a laptop do not answer
     that by themselves.
   </p>
-  <div class="note safe">
-    <strong lang="fa">قاعدهٔ این دوره:</strong>
-    <span lang="fa">هر وقت رفتار نسخه‌حساس دیدیم، اول نسخه و محصول را از همان connectionی می‌خوانیم که مسئله در آن رخ داده است.</span>
-    <strong lang="en">Rule for this course:</strong>
-    <span lang="en">Whenever behaviour may depend on a version, identify the product and version through the same connection where the problem occurs.</span>
-  </div>
+<div class="note safe">
+<strong lang="fa">قاعدهٔ این دوره:</strong>
+<span lang="fa">هر وقت رفتار نسخه‌حساس دیدیم، اول نسخه و محصول رو از همان connectionی می‌خونیم که مسئله در آن رخ داده هست.</span>
+<strong lang="en">Rule for this course:</strong>
+<span lang="en">Whenever behaviour may depend on a version, identify the product and version through the same connection where the problem occurs.</span>
+</div>
 </section>
-
 <section id="architecture">
-  <h2 lang="fa">Client و Server یکی نیستند</h2>
-  <h2 lang="en">The client and server are not the same thing</h2>
-  <p lang="fa">
-    دستور <code>mysql</code> یک Client است؛ کارش ساختن connection و فرستادن درخواست است.
+<h2 lang="fa">Client و Server یکی نیستند</h2>
+<h2 lang="en">The client and server are not the same thing</h2>
+<p lang="fa">
+    دستور <code>mysql</code> یک Client است؛ کارش ساختن connection و فرستادن درخواست هست.
     پردازش query، مدیریت connection و دسترسی به داده روی <code>mysqld</code>، یعنی Server،
-    انجام می‌شود. Client می‌تواند روی لپ‌تاپ باشد و Server داخل container یا روی یک ماشین
+    انجام می‌شه. Client می‌تونه روی لپ‌تاپ باشه و Server داخل container یا روی یک ماشین
     دیگر. پس نسخهٔ Client الزاماً نسخهٔ Server نیست.
   </p>
-  <p lang="en">
+<p lang="en">
     The <code>mysql</code> command is a client: it opens a connection and sends requests.
     Query processing, connection handling, and data access happen in <code>mysqld</code>, the
     server. The client can run on a laptop while the server runs in a container or another
     machine. The client version is therefore not necessarily the server version.
   </p>
-  <figure class="diagram" aria-labelledby="mysql-arch-caption">
-    <svg viewBox="0 0 900 300" role="img" aria-labelledby="mysql-arch-title mysql-arch-desc">
-      <title id="mysql-arch-title">MySQL client-server path</title>
-      <desc id="mysql-arch-desc">The application or mysql client sends a request over a connection to mysqld, which uses a storage engine to access data and returns a result.</desc>
-      <defs>
-        <marker id="mysql-arch-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
-          <path d="M0 0L10 5L0 10z" class="dg-arrow"/>
-        </marker>
-      </defs>
-      <rect x="32" y="45" width="205" height="82" rx="14" class="dg-fill-b"/>
-      <text x="134" y="80" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Application</text>
-      <text x="134" y="105" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">or mysql client</text>
-      <rect x="32" y="172" width="205" height="82" rx="14" class="dg-fill-b"/>
-      <text x="134" y="206" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Connection</text>
-      <text x="134" y="230" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">TCP/IP or local socket</text>
-      <rect x="349" y="75" width="235" height="145" rx="16" class="dg-fill-b"/>
-      <text x="466" y="118" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">MySQL Server</text>
-      <text x="466" y="148" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">mysqld</text>
-      <text x="466" y="183" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">version · settings · accounts</text>
-      <rect x="690" y="75" width="177" height="145" rx="16" class="dg-fill-v"/>
-      <text x="778" y="126" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">Storage</text>
-      <text x="778" y="151" text-anchor="middle" class="dg-t" style="direction:ltr;unicode-bidi:isolate">engine</text>
-      <text x="778" y="187" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">for example InnoDB</text>
-      <path d="M237 86H339" class="dg-stroke" marker-end="url(#mysql-arch-arrow)"/>
-      <path d="M237 213H320Q334 213 334 199V161H339" class="dg-stroke" marker-end="url(#mysql-arch-arrow)"/>
-      <path d="M584 147H670" class="dg-stroke" marker-end="url(#mysql-arch-arrow)"/>
-      <text x="283" y="68" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">request path</text>
-      <text x="627" y="132" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">data access</text>
-    </svg>
-    <figcaption id="mysql-arch-caption" class="diagram-cap">
-      <span lang="fa">مسیر ساده‌شده است: Client درخواست می‌فرستد؛ Server آن را اجرا می‌کند و برای دسترسی به داده از Storage Engine استفاده می‌کند. فلش‌ها مسیر درخواست‌اند، نه مرز نسخه یا مالکیت.</span>
-      <span lang="en">A simplified path: the client sends a request, the server executes it, and a storage engine handles data access. Arrows show request flow, not version or ownership boundaries.</span>
-    </figcaption>
-  </figure>
-  <p lang="fa">
-    این شکل عمداً ساده است. Server فقط یک «لایهٔ واسط» نیست: حساب‌ها، مجوزها، متغیرهای
-    session و server، optimizer و وضعیت connection هم در تصمیمی که می‌بینی نقش دارند. Storage
-    Engine هم مرز مهمی است؛ در ادامهٔ دوره می‌بینیم چرا خیلی از رفتارهای تراکنشی و فیزیکی
+<figure aria-labelledby="mysql-arch-caption" class="diagram">
+<svg aria-labelledby="mysql-arch-title mysql-arch-desc" role="img" viewBox="0 0 900 300">
+<title id="mysql-arch-title">MySQL client-server path</title>
+<desc id="mysql-arch-desc">The application or mysql client sends a request over a connection to mysqld, which uses a storage engine to access data and returns a result.</desc>
+<defs>
+<marker id="mysql-arch-arrow" markerHeight="10" markerWidth="10" orient="auto" refX="8" refY="5">
+<path class="dg-arrow" d="M0 0L10 5L0 10z"></path>
+</marker>
+</defs>
+<rect class="dg-fill-b" height="82" rx="14" width="205" x="32" y="45"></rect>
+<text class="dg-t" style="direction:ltr;unicode-bidi:isolate" text-anchor="middle" x="134" y="80">Application</text>
+<text class="dg-ts" style="direction:ltr;unicode-bidi:isolate" text-anchor="middle" x="134" y="105">or mysql client</text>
+<rect class="dg-fill-b" height="82" rx="14" width="205" x="32" y="172"></rect>
+<text class="dg-t" style="direction:ltr;unicode-bidi:isolate" text-anchor="middle" x="134" y="206">Connection</text>
+<text class="dg-ts" style="direction:ltr;unicode-bidi:isolate" text-anchor="middle" x="134" y="230">TCP/IP or local socket</text>
+<rect class="dg-fill-b" height="145" rx="16" width="235" x="349" y="75"></rect>
+<text class="dg-t" style="direction:ltr;unicode-bidi:isolate" text-anchor="middle" x="466" y="118">MySQL Server</text>
+<text class="dg-ts" style="direction:ltr;unicode-bidi:isolate" text-anchor="middle" x="466" y="148">mysqld</text>
+<text class="dg-ts" style="direction:ltr;unicode-bidi:isolate" text-anchor="middle" x="466" y="183">version · settings · accounts</text>
+<rect class="dg-fill-v" height="145" rx="16" width="177" x="690" y="75"></rect>
+<text class="dg-t" style="direction:ltr;unicode-bidi:isolate" text-anchor="middle" x="778" y="126">Storage</text>
+<text class="dg-t" style="direction:ltr;unicode-bidi:isolate" text-anchor="middle" x="778" y="151">engine</text>
+<text class="dg-ts" style="direction:ltr;unicode-bidi:isolate" text-anchor="middle" x="778" y="187">for example InnoDB</text>
+<path class="dg-stroke" d="M237 86H339" marker-end="url(#mysql-arch-arrow)"></path>
+<path class="dg-stroke" d="M237 213H320Q334 213 334 199V161H339" marker-end="url(#mysql-arch-arrow)"></path>
+<path class="dg-stroke" d="M584 147H670" marker-end="url(#mysql-arch-arrow)"></path>
+<text class="dg-ts" style="direction:ltr;unicode-bidi:isolate" text-anchor="middle" x="283" y="68">request path</text>
+<text class="dg-ts" style="direction:ltr;unicode-bidi:isolate" text-anchor="middle" x="627" y="132">data access</text>
+</svg>
+<figcaption class="diagram-cap" id="mysql-arch-caption">
+<span lang="fa">مسیر ساده‌شده هست: Client درخواست می‌فرستد؛ Server آن رو اجرا می‌کنه و برای دسترسی به داده از Storage Engine استفاده می‌کنه. فلش‌ها مسیر درخواست‌اند، نه مرز نسخه یا مالکیت.</span>
+<span lang="en">A simplified path: the client sends a request, the server executes it, and a storage engine handles data access. Arrows show request flow, not version or ownership boundaries.</span>
+</figcaption>
+</figure>
+<p lang="fa">
+    این شکل عمداً ساده هست. Server فقط یک «لایهٔ واسط» نیست: حساب‌ها، مجوزها، متغیرهای
+    session و server، optimizer و وضعیت connection هم در تصمیمی که می‌بینی نقش دارن. Storage
+    Engine هم مرز مهمی است؛ حالأ دوره می‌بینیم چرا خیلی از رفتارهای تراکنشی و فیزیکی
     به InnoDB مربوط‌اند.
   </p>
-  <p lang="en">
+<p lang="en">
     The diagram is deliberately simplified. The server is more than a pass-through: accounts,
     privileges, session and server variables, the optimizer, and connection state all affect
     observed behaviour. The storage-engine boundary matters too; later chapters show why many
     transactional and physical behaviours belong specifically to InnoDB.
   </p>
 </section>
-
 <section id="version">
-  <h2 lang="fa">نسخه را از همان connection بخوان</h2>
-  <h2 lang="en">Read the version through the connection in question</h2>
-  <p lang="fa">
-    اگر خطا در برنامه رخ می‌دهد، query تشخیصی را از همان مسیر اتصال اجرا کن؛ نه فقط از
-    terminal خودت. در MySQL می‌توانیم چند نشانه را کنار هم بخوانیم:
+<h2 lang="fa">نسخه رو از همان connection بخوان</h2>
+<h2 lang="en">Read the version through the connection in question</h2>
+<p lang="fa">
+    اگه خطا در برنامه رخ می‌ده، query تشخیصی رو از همان مسیر اتصال اجرا کن؛ نه فقط از
+    terminal خودت. در MySQL می‌تونیم چند نشانه رو کنار هم بخوانیم:
   </p>
-  <p lang="en">
+<p lang="en">
     If the failure happens in the application, run the diagnostic query through that same
     connection path—not only from your own terminal. In MySQL, read several signals together:
   </p>
-  <div class="term">
-    <div class="term-bar"><span lang="fa">داخل Client متصل به Server</span><span lang="en">In a client connected to the server</span></div>
-    <pre dir="ltr"><code>SELECT
+<div class="term">
+<div class="term-bar"><span lang="fa">داخل Client متصل به Server</span><span lang="en">In a client connected to the server</span></div>
+<pre dir="ltr"><code>SELECT
   VERSION() AS server_version,
   @@version_comment AS distribution,
   @@version_compile_os AS compiled_for,
   @@version_compile_machine AS compiled_arch;
 
 SHOW VARIABLES LIKE 'version%';</code></pre>
-  </div>
-  <p lang="fa">
-    <code>VERSION()</code> نسخه‌ای را که Server گزارش می‌کند می‌دهد؛ <code>@@version_comment</code>
-    سرنخی دربارهٔ build یا توزیع است. خروجی دوم متغیرهای مرتبط را نشان می‌دهد. این‌ها شناسنامهٔ
-    کل ماشین یا سیستم‌عامل میزبان نیستند؛ فقط اطلاعاتی‌اند که همین Server ارائه می‌کند.
+</div>
+<p lang="fa">
+<code>VERSION()</code> نسخه‌ای رو که Server گزارش می‌کنه می‌ده؛ <code>@@version_comment</code>
+    سرنخی دربارهٔ build یا توزیع هست. خروجی دوم متغیرهای مرتبط رو نشان می‌ده. این‌ها شناسنامهٔ
+    کل ماشین یا سیستم‌عامل میزبان نیستند؛ فقط اطلاعاتی‌اند که همین Server ارائه می‌کنه.
   </p>
-  <p lang="en">
-    <code>VERSION()</code> reports the server version; <code>@@version_comment</code> provides
+<p lang="en">
+<code>VERSION()</code> reports the server version; <code>@@version_comment</code> provides
     a clue about the build or distribution. The second statement lists related variables. These
     are not an inventory of the host machine or its operating system; they are information
     exposed by this server.
   </p>
-  <div class="term">
-    <div class="term-bar"><span lang="fa">خروجی نمونه، فقط برای تشخیص شکل نتیجه</span><span lang="en">Representative output, to show the shape</span></div>
-    <pre dir="ltr"><code>server_version  distribution
+<div class="term">
+<div class="term-bar"><span lang="fa">خروجی نمونه، فقط برای تشخیص شکل نتیجه</span><span lang="en">Representative output, to show the shape</span></div>
+<pre dir="ltr"><code>server_version  distribution
 9.7.2            MySQL Community Server - GPL
 
 Variable_name          Value
@@ -167,33 +162,32 @@ version                9.7.2
 version_comment        MySQL Community Server - GPL
 version_compile_os     Linux
 version_compile_machine x86_64</code></pre>
-  </div>
-  <p lang="fa">
-    مقدار واقعی ممکن است فرق کند؛ نکته این است که خروجی را از connection درست بگیری. اگر
-    ترمینال 9.7 را نشان می‌دهد ولی برنامه رفتار دیگری دارد، هنوز نمی‌دانیم برنامه به همان
-    Server وصل است. host، port، socket، نام سرویس Compose و تنظیمات driver را جداگانه بررسی
-    می‌کنیم؛ این فصل فقط هویت Server را روشن می‌کند.
+</div>
+<p lang="fa">
+    مقدار واقعی ممکنه فرق کند؛ نکته این هست که خروجی رو از connection درست بگیری. اگه
+    ترمینال 9.7 رو نشان می‌ده ولی برنامه رفتار دیگری دارد، هنوز نمی‌دونیم برنامه به همان
+    Server وصل هست. host، port، socket، نام سرویس Compose و تنظیمات driver رو جداگانه بررسی
+    می‌کنیم؛ این فصل فقط هویت Server رو روشن می‌کنه.
   </p>
-  <p lang="en">
+<p lang="en">
     Real values may differ; the important point is to collect them from the correct connection.
     If the terminal reports 9.7 but the application behaves differently, we still do not know
     that the application reached the same server. Host, port, socket, Compose service name, and
     driver settings need separate checks; this chapter establishes server identity only.
   </p>
 </section>
-
 <section id="release-lines">
-  <h2 lang="fa">شمارهٔ نسخه فقط تزئین نیست</h2>
-  <h2 lang="en">A version number is not decoration</h2>
-  <p lang="fa">
-    در زمان آماده‌سازی این فصل، مستندات رسمی MySQL دو مسیر انتشار را توضیح می‌دهند:
-    <strong>LTS</strong> برای محیط‌هایی که مجموعهٔ قابلیت‌های باثبات‌تری می‌خواهند، و
-    <strong>Innovation</strong> برای دریافت زودتر تغییرهای تازه. مستندات فعلی MySQL 9.7 را
-    آخرین خط با الگوی شماره‌گذاری قبلی و 26.7 را نمونهٔ شماره‌گذاری تقویمی معرفی می‌کنند.
-    مدل انتشار ممکن است عوض شود؛ پس این جمله را قانون همیشگی ندان، صفحهٔ رسمی را هنگام انتخاب
+<h2 lang="fa">شمارهٔ نسخه فقط تزئین نیست</h2>
+<h2 lang="en">A version number is not decoration</h2>
+<p lang="fa">
+    در زمان آماده‌سازی این فصل، مستندات رسمی MySQL دو مسیر انتشار رو توضیح می‌دن:
+    <strong>LTS</strong> برای محیط‌هایی که مجموعهٔ قابلیت‌های باثبات‌تری می‌خوان، و
+    <strong>Innovation</strong> برای دریافت زودتر تغییرهای تازه. مستندات فعلی MySQL 9.7 رو
+    آخرین خط با الگوی شماره‌گذاری قبلی و 26.7 رو نمونهٔ شماره‌گذاری تقویمی معرفی می‌کنن.
+    مدل انتشار ممکنه عوض شود؛ پس این جمله رو قانون همیشگی ندان، صفحهٔ رسمی رو هنگام انتخاب
     نسخه دوباره بخوان.
   </p>
-  <p lang="en">
+<p lang="en">
     At the time this chapter is prepared, the official MySQL documentation describes two
     release tracks: <strong>LTS</strong> for environments seeking a more stable feature set,
     and <strong>Innovation</strong> for earlier access to new changes. Current documentation
@@ -201,429 +195,404 @@ version_compile_machine x86_64</code></pre>
     example of calendar versioning. Release policy can change, so recheck the official page
     when selecting a version rather than treating this as timeless.
   </p>
-  <div class="table-wrap">
-    <table class="doc-table">
-      <thead><tr>
-        <th><span lang="fa">چیزی که می‌خوانی</span><span lang="en">What you read</span></th>
-        <th><span lang="fa">چه چیزی را روشن می‌کند</span><span lang="en">What it tells you</span></th>
-        <th><span lang="fa">چه چیزی را ثابت نمی‌کند</span><span lang="en">What it does not prove</span></th>
-      </tr></thead>
-      <tbody>
-        <tr><td><code>VERSION()</code></td><td><span lang="fa">نسخهٔ گزارش‌شده توسط Server</span><span lang="en">Version reported by the server</span></td><td><span lang="fa">اینکه برنامه حتماً به همین Server وصل است</span><span lang="en">That the application reached this server</span></td></tr>
-        <tr><td><code>@@version_comment</code></td><td><span lang="fa">سرنخ دربارهٔ build یا توزیع</span><span lang="en">A clue about the build or distribution</span></td><td><span lang="fa">سازگاری کامل با MySQL یا MariaDB</span><span lang="en">Full compatibility with MySQL or MariaDB</span></td></tr>
-        <tr><td><code>mysql --version</code></td><td><span lang="fa">نسخهٔ همین Client محلی</span><span lang="en">The local client version</span></td><td><span lang="fa">نسخهٔ Server مقصد</span><span lang="en">The destination server version</span></td></tr>
-        <tr><td>Image tag</td><td><span lang="fa">برچسبی که برای دریافت image انتخاب شده</span><span lang="en">The tag selected when pulling an image</span></td><td><span lang="fa">نسخهٔ Server در یک container از قبل ساخته‌شده یا volume قدیمی</span><span lang="en">The server version in an existing container or old data volume</span></td></tr>
-      </tbody>
-    </table>
-  </div>
-  <p lang="fa">
-    برای آزمایش این دوره، image رسمی <code>mysql:9.7.2</code> را pin می‌کنیم. این نسخه در
-    زمان بررسی در فهرست imageهای رسمی دیده می‌شود؛ «نسخهٔ تمرین» بودنش به معنی توصیه برای
+<div class="table-wrap">
+<table class="doc-table">
+<thead><tr>
+<th><span lang="fa">چیزی که می‌خوانی</span><span lang="en">What you read</span></th>
+<th><span lang="fa">چه چیزی رو روشن می‌کنه</span><span lang="en">What it tells you</span></th>
+<th><span lang="fa">چه چیزی رو ثابت نمی‌کنه</span><span lang="en">What it does not prove</span></th>
+</tr></thead>
+<tbody>
+<tr><td><code>VERSION()</code></td><td><span lang="fa">نسخهٔ گزارش‌شده توسط Server</span><span lang="en">Version reported by the server</span></td><td><span lang="fa">اینکه برنامه حتماً به همین Server وصل هست</span><span lang="en">That the application reached this server</span></td></tr>
+<tr><td><code>@@version_comment</code></td><td><span lang="fa">سرنخ دربارهٔ build یا توزیع</span><span lang="en">A clue about the build or distribution</span></td><td><span lang="fa">سازگاری کامل با MySQL یا MariaDB</span><span lang="en">Full compatibility with MySQL or MariaDB</span></td></tr>
+<tr><td><code>mysql --version</code></td><td><span lang="fa">نسخهٔ همین Client محلی</span><span lang="en">The local client version</span></td><td><span lang="fa">نسخهٔ Server مقصد</span><span lang="en">The destination server version</span></td></tr>
+<tr><td>Image tag</td><td><span lang="fa">برچسبی که برای دریافت image انتخاب شده</span><span lang="en">The tag selected when pulling an image</span></td><td><span lang="fa">نسخهٔ Server در یک container از قبل ساخته‌شده یا volume قدیمی</span><span lang="en">The server version in an existing container or old data volume</span></td></tr>
+</tbody>
+</table>
+</div>
+<p lang="fa">
+    برای آزمایش این دوره، image رسمی <code>mysql:9.7.2</code> رو pin می‌کنیم. این نسخه در
+    زمان بررسی در فهرست imageهای رسمی دیده می‌شه؛ «نسخهٔ تمرین» بودنش به معنی توصیه برای
     production یا ارتقای خودکار سیستم تو نیست. محیط واقعی باید با سیاست پشتیبانی، driver،
-    افزونه‌ها، backup قابل‌بازیابی و برنامهٔ بازگشت خودش انتخاب شود.
+    افزونه‌ها، backup قابل‌بازیابی و برنامهٔ بازگشت خودش انتخاب بشه.
   </p>
-  <p lang="en">
+<p lang="en">
     For this course’s reproducible lab, we pin the official <code>mysql:9.7.2</code> image.
     That tag appears in the official image listing at the time checked. Calling it the lab
     version is not a production recommendation or permission to upgrade automatically. A real
     environment must account for its support policy, drivers, plugins, restorable backups, and
     rollback plan.
   </p>
-  <p lang="fa">
+<p lang="fa">
     برای مرز بین دو محصول هم یک اصل ساده نگه دار: اسم «MySQL-compatible» به‌تنهایی تضمین
-    نمی‌کند رفتار JSON، replication، authentication، storage engine یا syntax در هر نسخه یکی
-    باشد. در این دوره محصول هدف MySQL است؛ اگر تفاوتی با MariaDB مطرح شد، آن را مشخص و نسخه‌دار
-    می‌گوییم و وارد درس MariaDB نمی‌شویم.
+    نمی‌کنه رفتار JSON، replication، authentication، storage engine یا syntax در هر نسخه یکی
+    باشه. در این دوره محصول هدف MySQL است؛ اگه تفاوتی با MariaDB مطرح شد، آن رو مشخص و نسخه‌دار
+    می‌گیم و وارد درس MariaDB نمی‌شویم.
   </p>
-  <p lang="en">
+<p lang="en">
     Keep one simple rule about product boundaries: the label “MySQL-compatible” alone does not
     guarantee identical JSON, replication, authentication, storage-engine, or syntax behaviour
     in every version. This course targets MySQL; if a MariaDB difference matters, we will name
     it explicitly and version it without turning this into the MariaDB course.
   </p>
 </section>
-
 <section id="lab">
-  <h2 lang="fa">آزمایش: ببینیم واقعاً به کدام Server وصل شدیم</h2>
-  <h2 lang="en">Lab: identify the server we actually reached</h2>
-  <p lang="fa">
-    اگر MySQL داری، همان connection خودت را بررسی کن. اگر نداری، یک container موقت بالا
-    می‌آوریم. این container هیچ portی روی میزبان منتشر نمی‌کند و داده‌اش آزمایشی است. رمز
-    داخل دستور فقط برای همین محیط محلی است؛ آن را برای سرور واقعی یا فایل پروژه استفاده نکن.
+<h2 lang="fa">آزمایش: ببینیم واقعاً به کدام Server وصل شدیم</h2>
+<h2 lang="en">Lab: identify the server we actually reached</h2>
+<p lang="fa">
+    اگه MySQL داری، همان connection خودت رو بررسی کن. اگه نداری، یک container موقت بالا
+    می‌آوریم. این container هیچ portی روی میزبان منتشر نمی‌کنه و داده‌اش آزمایشی هست. رمز
+    داخل دستور فقط برای همین محیط محلی است؛ آن رو برای سرور واقعی یا فایل پروژه استفاده نکن.
   </p>
-  <p lang="en">
+<p lang="en">
     If you already have MySQL, inspect that connection. Otherwise, start a temporary container.
     It publishes no port on the host and holds disposable lab data. The password in the command
     is only for this local experiment; do not reuse it on a real server or put it in a project
     file.
   </p>
-  <div class="term">
-    <div class="term-bar"><span lang="fa">ساخت محیط آزمایشی</span><span lang="en">Create the lab environment</span></div>
-    <pre dir="ltr"><code>docker run --name mysql97-lab -e MYSQL_ROOT_PASSWORD=lab-only-change-me -d mysql:9.7.2</code></pre>
-  </div>
-  <p lang="fa">
-    این دستور image مشخص را اجرا می‌کند. منتظر آماده‌شدن Server بمان؛ زنده‌بودن container به
-   ‌تنهایی ثابت نمی‌کند دیتابیس پذیرای query است. برای این فصل، تلاش اتصال را تکرار می‌کنیم:
+<div class="term">
+<div class="term-bar"><span lang="fa">ساخت محیط آزمایشی</span><span lang="en">Create the lab environment</span></div>
+<pre dir="ltr"><code>docker run --name mysql97-lab -e MYSQL_ROOT_PASSWORD=lab-only-change-me -d mysql:9.7.2</code></pre>
+</div>
+<p lang="fa">
+    این دستور image مشخص رو اجرا می‌کنه. منتظر آماده‌شدن Server بمان؛ زنده‌بودن container به
+   ‌تنهایی ثابت نمی‌کنه دیتابیس پذیرای query هست. برای این فصل، تلاش اتصال رو تکرار می‌کنیم:
   </p>
-  <p lang="en">
+<p lang="en">
     This starts a specific image. Wait for the server to become ready; a running container alone
     does not prove that the database accepts queries. For this chapter, retry the connection:
   </p>
-  <div class="term">
-    <div class="term-bar"><span lang="fa">اتصال با Client داخل container</span><span lang="en">Connect with the client inside the container</span></div>
-    <pre dir="ltr"><code>docker exec -it mysql97-lab mysql -uroot -p</code></pre>
-  </div>
-  <p lang="fa">
-    رمز را وقتی prompt خواست وارد کن تا در history دستور ننشیند. بعد query نسخهٔ بالا را اجرا
-    کن. خروجی را یادداشت کن و با برچسب image مقایسه کن. اگر هر دو 9.7.2 هستند، این فقط یک
-    تطبیق نسخه است؛ صحت migration یا سازگاری برنامه را هنوز ثابت نکرده‌ای.
+<div class="term">
+<div class="term-bar"><span lang="fa">اتصال با Client داخل container</span><span lang="en">Connect with the client inside the container</span></div>
+<pre dir="ltr"><code>docker exec -it mysql97-lab mysql -uroot -p</code></pre>
+</div>
+<p lang="fa">
+    رمز رو وقتی prompt خواست وارد کن تا در history دستور ننشیند. بعد query نسخهٔ بالا رو اجرا
+    کن. خروجی رو یادداشت کن و با برچسب image مقایسه کن. اگه هر دو 9.7.2 هستن، این فقط یک
+    تطبیق نسخه است؛ صحت migration یا سازگاری برنامه رو هنوز ثابت نکرده‌ای.
   </p>
-  <p lang="en">
+<p lang="en">
     Enter the password when prompted so it is not placed in command history. Run the version
     query above, record the result, and compare it with the image tag. If both say 9.7.2, that
     proves only a version match; it does not prove that a migration or application is compatible.
   </p>
-  <div class="term">
-    <div class="term-bar"><span lang="fa">پاک‌سازی فقط همین آزمایش</span><span lang="en">Clean up only this lab</span></div>
-    <pre dir="ltr"><code>docker inspect --format '{{.Name}} | {{.Config.Image}}' mysql97-lab
+<div class="term">
+<div class="term-bar"><span lang="fa">پاک‌سازی فقط همین آزمایش</span><span lang="en">Clean up only this lab</span></div>
+<pre dir="ltr"><code>docker inspect --format '{{.Name}} | {{.Config.Image}}' mysql97-lab
 docker rm -f mysql97-lab</code></pre>
-  </div>
-  <div class="note warn">
-    <strong lang="fa">مرز پاک‌سازی را یادت بماند:</strong>
-    <span lang="fa">فرمان دوم container را متوقف و حذف می‌کند؛ فقط وقتی اجراش کن که فرمان اول نام و image همین محیط disposable را نشان می‌دهد. اگر نامش را عوض کردی، نام دقیق خودت را جایگزین کن. volume یا دادهٔ واقعی را اینجا پاک نمی‌کنیم.</span>
-    <strong lang="en">Know the cleanup boundary:</strong>
-    <span lang="en">The second command stops and removes the container; run it only after the first command confirms its name and image identify this disposable lab. If you renamed it, substitute that exact name. No volume or real data is removed here.</span>
-  </div>
+</div>
+<div class="note warn">
+<strong lang="fa">مرز پاک‌سازی رو یادت بماند:</strong>
+<span lang="fa">فرمان دوم container رو متوقف و حذف می‌کنه؛ فقط وقتی اجراش کن که فرمان اول نام و image همین محیط disposable رو نشان می‌ده. اگه نامش رو عوض کردی، نام دقیق خودت رو جایگزین کن. volume یا دادهٔ واقعی رو اینجا پاک نمی‌کنیم.</span>
+<strong lang="en">Know the cleanup boundary:</strong>
+<span lang="en">The second command stops and removes the container; run it only after the first command confirms its name and image identify this disposable lab. If you renamed it, substitute that exact name. No volume or real data is removed here.</span>
+</div>
 </section>
-
 <section id="evidence">
-  <h2 lang="fa">از خروجی چه نتیجه‌ای می‌گیریم—و چه نتیجه‌ای نه؟</h2>
-  <h2 lang="en">What does the output establish—and what does it not?</h2>
-  <p lang="fa">
-    وقتی query نسخه جواب می‌دهد، می‌دانیم همان session به یک MySQL Server رسیده و Server
-    این مشخصات را گزارش کرده است. هنوز دربارهٔ مقصد برنامه، تنظیمات schema، مجوز کاربر،
-    charset، SQL mode یا قابل‌ارتقا بودن داده‌ها چیزی ثابت نشده. هر کدام مدرک خودش را می‌خواهد.
+<h2 lang="fa">از خروجی چه نتیجه‌ای می‌گیریم—و چه نتیجه‌ای نه؟</h2>
+<h2 lang="en">What does the output establish—and what does it not?</h2>
+<p lang="fa">
+    وقتی query نسخه جواب می‌ده، می‌دونیم همان session به یک MySQL Server رسیده و Server
+    این مشخصات رو گزارش کرده هست. هنوز دربارهٔ مقصد برنامه، تنظیمات schema، مجوز کاربر،
+    charset، SQL mode یا قابل‌ارتقا بودن داده‌ها چیزی ثابت نشده. هر کدام مدرک خودش رو می‌خواهد.
   </p>
-  <p lang="en">
+<p lang="en">
     When the version query succeeds, we know that this session reached a MySQL server and that
     the server reported these attributes. We have not established the application’s destination,
     schema settings, user privileges, character set, SQL mode, or whether the data can be
     upgraded safely. Each needs its own evidence.
   </p>
-  <p lang="fa">
-    همین مرزبندی جلوی یک خطای پرهزینه را می‌گیرد: دیدن یک شمارهٔ نسخه در لپ‌تاپ و فرض‌کردن
-    همان نسخه در همه‌جا. در فصل بعد محیط نصب و اتصال را بازتولید می‌کنیم؛ بعدتر هم سراغ
-    database، schema و رفتارهای خود MySQL می‌رویم.
+<p lang="fa">
+    همین مرزبندی جلوی یک خطای پرهزینه رو می‌گیره: دیدن یک شمارهٔ نسخه در لپ‌تاپ و فرض‌کردن
+    همان نسخه در همه‌جا. فصل بعد محیط نصب و اتصال رو بازتولید می‌کنیم؛ بعدتر هم سراغ
+    database، schema و رفتارهای خود MySQL می‌ریم.
   </p>
-  <p lang="en">
+<p lang="en">
     This boundary prevents an expensive mistake: seeing a version number on a laptop and
     assuming every environment runs the same one. The next chapter makes installation and
     connection reproducible; later chapters investigate databases, schemas, and MySQL-specific
     behaviour.
   </p>
 </section>
-
 <section id="pitfalls">
-  <h2 lang="fa">جاهایی که زود گول می‌خوریم</h2>
-  <h2 lang="en">Easy assumptions to fall for</h2>
-  <div class="pitfalls">
-    <div>
-      <strong lang="fa">نسخهٔ Client را با Server یکی می‌گیریم</strong>
-      <strong lang="en">Confusing client and server versions</strong>
-      <p lang="fa">Client فقط ابزار اتصال است؛ نسخهٔ Server را از session مقصد بخوان.</p>
-      <p lang="en">The client is only the connection tool; read the server version through the destination session.</p>
-    </div>
-    <div>
-      <strong lang="fa">به image tag اعتماد کامل می‌کنیم</strong>
-      <strong lang="en">Trusting an image tag as complete proof</strong>
-      <p lang="fa">container قدیمی یا volume دادهٔ موجود می‌تواند داستان جداگانه‌ای داشته باشد؛ Server واقعی را query کن.</p>
-      <p lang="en">An old container or existing data volume may tell a different story; query the actual server.</p>
-    </div>
-    <div>
-      <strong lang="fa">MySQL و MariaDB را یک محصول فرض می‌کنیم</strong>
-      <strong lang="en">Treating MySQL and MariaDB as one product</strong>
-      <p lang="fa">شباهت syntax، تضمین یکسان‌بودن همهٔ رفتارها نیست. محصول و نسخه را ثبت کن.</p>
-      <p lang="en">Similar syntax does not guarantee identical behaviour. Record the product and version.</p>
-    </div>
-    <div>
-      <strong lang="fa">از یک query، سازگاری کامل نتیجه می‌گیریم</strong>
-      <strong lang="en">Inferring full compatibility from one query</strong>
-      <p lang="fa">موفق‌شدن <code>SELECT VERSION()</code> فقط اتصال و پاسخ همین query را ثابت می‌کند.</p>
-      <p lang="en">A successful <code>SELECT VERSION()</code> proves only the connection and response to this query.</p>
-    </div>
-  </div>
+<h2 lang="fa">جاهایی که زود گول می‌خوریم</h2>
+<h2 lang="en">Easy assumptions to fall for</h2>
+<div class="pitfalls">
+<div>
+<strong lang="fa">نسخهٔ Client رو با Server یکی می‌گیریم</strong>
+<strong lang="en">Confusing client and server versions</strong>
+<p lang="fa">Client فقط ابزار اتصال است؛ نسخهٔ Server رو از session مقصد بخوان.</p>
+<p lang="en">The client is only the connection tool; read the server version through the destination session.</p>
+</div>
+<div>
+<strong lang="fa">به image tag اعتماد کامل می‌کنیم</strong>
+<strong lang="en">Trusting an image tag as complete proof</strong>
+<p lang="fa">container قدیمی یا volume دادهٔ موجود می‌تونه داستان جداگانه‌ای داشته باشه؛ Server واقعی رو query کن.</p>
+<p lang="en">An old container or existing data volume may tell a different story; query the actual server.</p>
+</div>
+<div>
+<strong lang="fa">MySQL و MariaDB رو یک محصول فرض می‌کنیم</strong>
+<strong lang="en">Treating MySQL and MariaDB as one product</strong>
+<p lang="fa">شباهت syntax، تضمین یکسان‌بودن همهٔ رفتارها نیست. محصول و نسخه رو ثبت کن.</p>
+<p lang="en">Similar syntax does not guarantee identical behaviour. Record the product and version.</p>
+</div>
+<div>
+<strong lang="fa">از یک query، سازگاری کامل نتیجه می‌گیریم</strong>
+<strong lang="en">Inferring full compatibility from one query</strong>
+<p lang="fa">موفق‌شدن <code>SELECT VERSION()</code> فقط اتصال و پاسخ همین query رو ثابت می‌کنه.</p>
+<p lang="en">A successful <code>SELECT VERSION()</code> proves only the connection and response to this query.</p>
+</div>
+</div>
 </section>
-
 <section id="exercises">
-  <h2 lang="fa">تمرین‌ها: قبل از تغییر، مدرک جمع کن</h2>
-  <h2 lang="en">Exercises: collect evidence before changing anything</h2>
-  <p lang="fa">همهٔ تمرین‌ها را روی connection آزمایشی اجرا کن. خروجی‌های نسخه‌محور را ثبت کن؛ مقدار دقیق ممکن است با image یا نصب تو فرق داشته باشد.</p>
-  <p lang="en">Run every exercise against a lab connection. Record version-dependent output; exact values may differ with your image or installation.</p>
-
-  <div class="ex" id="ex01">
-    <h3><span lang="fa">۱) همین Server خودش را چطور معرفی می‌کند؟</span><span lang="en">1) How does this server identify itself?</span></h3>
-    <p lang="fa">سه مقدار نسخه، توضیح build و نسخهٔ کوتاه‌شده را در یک query برگردان. هدف، داشتن یک مدرک قابل الصاق به گزارش خطاست.</p>
-    <p lang="en">Return the version, build comment, and short version string in one query. The goal is evidence you can attach to a bug report.</p>
-    <details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
-      <pre dir="ltr"><code>SELECT VERSION(), @@version_comment, @@version;</code></pre>
-      <p lang="fa"><code>VERSION()</code> و <code>@@version</code> معمولاً نسخهٔ Server را نشان می‌دهند و comment سرنخ build است. این خروجی مقصد برنامه را ثابت نمی‌کند مگر از connection خود برنامه گرفته شده باشد.</p>
-      <p lang="en"><code>VERSION()</code> and <code>@@version</code> normally report the server version; the comment hints at the build. This does not prove the application’s destination unless collected through its connection.</p>
-    </details>
-  </div>
-
-  <div class="ex" id="ex02">
-    <h3><span lang="fa">۲) Client محلی را با Server مقایسه کن</span><span lang="en">2) Compare the local client with the server</span></h3>
-    <p lang="fa">نسخهٔ Client را از terminal و نسخهٔ Server را از SQL بگیر. دو مقدار را کنار هم ثبت کن و بگو کدام‌یک به مقصد متصل مربوط است.</p>
-    <p lang="en">Read the client version in a terminal and the server version through SQL. Record both and identify which belongs to the connected destination.</p>
-    <details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
-      <pre dir="ltr"><code>mysql --version
+<h2 lang="fa">تمرین‌ها: قبل از تغییر، مدرک جمع کن</h2>
+<h2 lang="en">Exercises: collect evidence before changing anything</h2>
+<p lang="fa">همهٔ تمرین‌ها رو روی connection آزمایشی اجرا کن. خروجی‌های نسخه‌محور رو ثبت کن؛ مقدار دقیق ممکنه با image یا نصب تو فرق داشته باشه.</p>
+<p lang="en">Run every exercise against a lab connection. Record version-dependent output; exact values may differ with your image or installation.</p>
+<p lang="fa">اینجا جواب تشریحیِ خالی نداریم. هر تمرین باید به SQL/command قابل‌اجرا، خروجی، خطای قابل‌بازتولید یا state قابل‌بررسی ختم بشه. اول حدس بزن، بعد اجرا کن، بعد از روی مدرک نتیجه بگیر.</p><p lang="en">These are not prose-only questions. Every exercise should end in runnable SQL/commands, observable output, a reproducible error, or inspectable state. Predict first, run it, then conclude from evidence.</p><div class="ex" id="ex01">
+<h3><span lang="fa">۱) همین Server خودش رو چطور معرفی می‌کنه؟</span><span lang="en">1) How does this server identify itself?</span></h3>
+<p lang="fa">سه مقدار نسخه، توضیح build و نسخهٔ کوتاه‌شده رو در یک query برگردان. هدف، داشتن یک مدرک قابل الصاق به گزارش خطاست.</p>
+<p lang="en">Return the version, build comment, and short version string in one query. The goal is evidence you can attach to a bug report.</p>
+<div class="note safe exercise-deliverable"><strong lang="fa">تحویل</strong><span lang="fa">یه SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یه توضیح کوتاه که بگه دقیقاً چی ثابت شد.</span><strong lang="en">Deliverable</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of exactly what it proves.</span></div><details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
+<pre dir="ltr"><code>SELECT VERSION(), @@version_comment, @@version;</code></pre>
+<p lang="fa"><code>VERSION()</code> و <code>@@version</code> معمولاً نسخهٔ Server رو نشان می‌دن و comment سرنخ build هست. این خروجی مقصد برنامه رو ثابت نمی‌کنه مگر از connection خود برنامه گرفته شده باشه.</p>
+<p lang="en"><code>VERSION()</code> and <code>@@version</code> normally report the server version; the comment hints at the build. This does not prove the application’s destination unless collected through its connection.</p>
+<p lang="fa">فقط سبزشدن command رو جواب حساب نکن. از خروجی یه نشونهٔ مشخص بیرون بکش و بنویس این نشونه دربارهٔ مسئلهٔ تمرین چی رو ثابت می‌کنه و چی رو هنوز ثابت نمی‌کنه.</p><p lang="en">Do not treat command success as the answer. Extract one concrete piece of evidence and state what it proves about the exercise—and what it still does not prove.</p></details>
+</div>
+<div class="ex" id="ex02">
+<h3><span lang="fa">۲) Client محلی رو با Server مقایسه کن</span><span lang="en">2) Compare the local client with the server</span></h3>
+<p lang="fa">نسخهٔ Client رو از terminal و نسخهٔ Server رو از SQL بگیر. دو مقدار رو کنار هم ثبت کن و بگو کدام‌یک به مقصد متصل مربوط هست.</p>
+<p lang="en">Read the client version in a terminal and the server version through SQL. Record both and identify which belongs to the connected destination.</p>
+<div class="note safe exercise-deliverable"><strong lang="fa">تحویل</strong><span lang="fa">یه SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یه توضیح کوتاه که بگه دقیقاً چی ثابت شد.</span><strong lang="en">Deliverable</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of exactly what it proves.</span></div><details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
+<pre dir="ltr"><code>mysql --version
 SELECT VERSION();</code></pre>
-      <p lang="fa">اولی ابزار محلی و دومی Server متصل را توصیف می‌کند. برابر نبودنشان به‌تنهایی خطا نیست؛ ناسازگاری را باید با سناریوی واقعی اتصال و قابلیت driver سنجید.</p>
-      <p lang="en">The first describes the local tool; the second describes the connected server. A mismatch is not automatically an error; assess compatibility in the actual connection scenario and driver.</p>
-    </details>
-  </div>
-
-  <div class="ex" id="ex03">
-    <h3><span lang="fa">۳) تگ image چه چیزی را می‌گوید؟</span><span lang="en">3) What does the image tag tell you?</span></h3>
-    <p lang="fa">container آزمایش را با image مشخص اجرا کن و نسخهٔ داخل Server را query کن. خروجی را با tag مقایسه کن و یک محدودیت این مقایسه را بنویس.</p>
-    <p lang="en">Start the lab container from the pinned image and query the server version. Compare it with the tag and state one limitation of that comparison.</p>
-    <details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
-      <pre dir="ltr"><code>docker inspect --format '{{.Config.Image}}' mysql97-lab
+<p lang="fa">اولی ابزار محلی و دومی Server متصل رو توصیف می‌کنه. برابر نبودنشان به‌تنهایی خطا نیست؛ ناسازگاری رو باید با سناریوی واقعی اتصال و قابلیت driver سنجید.</p>
+<p lang="en">The first describes the local tool; the second describes the connected server. A mismatch is not automatically an error; assess compatibility in the actual connection scenario and driver.</p>
+<p lang="fa">فقط سبزشدن command رو جواب حساب نکن. از خروجی یه نشونهٔ مشخص بیرون بکش و بنویس این نشونه دربارهٔ مسئلهٔ تمرین چی رو ثابت می‌کنه و چی رو هنوز ثابت نمی‌کنه.</p><p lang="en">Do not treat command success as the answer. Extract one concrete piece of evidence and state what it proves about the exercise—and what it still does not prove.</p></details>
+</div>
+<div class="ex" id="ex03">
+<h3><span lang="fa">۳) تگ image چه چیزی رو می‌گه؟</span><span lang="en">3) What does the image tag tell you?</span></h3>
+<p lang="fa">container آزمایش رو با image مشخص اجرا کن و نسخهٔ داخل Server رو query کن. خروجی رو با tag مقایسه کن و یک محدودیت این مقایسه رو بنویس.</p>
+<p lang="en">Start the lab container from the pinned image and query the server version. Compare it with the tag and state one limitation of that comparison.</p>
+<div class="note safe exercise-deliverable"><strong lang="fa">تحویل</strong><span lang="fa">یه SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یه توضیح کوتاه که بگه دقیقاً چی ثابت شد.</span><strong lang="en">Deliverable</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of exactly what it proves.</span></div><details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
+<pre dir="ltr"><code>docker inspect --format '{{.Config.Image}}' mysql97-lab
 docker exec -it mysql97-lab mysql -uroot -p
 # At the mysql&gt; prompt:
 SELECT VERSION();</code></pre>
-      <p lang="fa">خط اول image انتخابی برای container را می‌دهد؛ query را پس از ورود تعاملی اجرا کن تا رمز روی command line نرود. tag یک نام متحرک هم می‌تواند باشد؛ این تمرین از tag نسخه‌دار استفاده می‌کند و باز هم hash دقیق image را جداگانه می‌شود ثبت کرد.</p>
-      <p lang="en">The first line reports the container’s selected image; the second reads the server version. Tags can be movable names. This lab uses a versioned tag, and the exact image digest can still be recorded separately.</p>
-    </details>
-  </div>
-
-  <div class="ex" id="ex04">
-    <h3><span lang="fa">۴) Server برای چه سیستم‌عاملی build شده؟</span><span lang="en">4) For which platform was the server built?</span></h3>
-    <p lang="fa">مقادیر build را query کن. خروجی را با سیستم‌عامل میزبان یکی فرض نکن؛ توضیح بده دقیقاً چه چیزی را نشان می‌دهد.</p>
-    <p lang="en">Query the build attributes. Do not equate them with the host operating system; explain precisely what they show.</p>
-    <details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
-      <pre dir="ltr"><code>SELECT @@version_compile_os, @@version_compile_machine;</code></pre>
-      <p lang="fa">این‌ها اطلاعات build گزارش‌شده از Server هستند، نه الزاماً مشخصات kernel میزبان یا معماری پردازنده‌ای که client روی آن اجرا می‌شود.</p>
-      <p lang="en">These are server-reported build attributes, not necessarily the host kernel or the architecture on which the client runs.</p>
-    </details>
-  </div>
-
-  <div class="ex" id="ex05">
-    <h3><span lang="fa">۵) کدام storage engineها موجود و فعال‌اند؟</span><span lang="en">5) Which storage engines are available and enabled?</span></h3>
-    <p lang="fa">فهرست engineها را بخوان و ردیف InnoDB را پیدا کن. وضعیتش را برای گزارش محیط ثبت کن.</p>
-    <p lang="en">List the engines and find the InnoDB row. Record its status for the environment report.</p>
-    <details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
-      <pre dir="ltr"><code>SHOW ENGINES;</code></pre>
-      <p lang="fa">در ستون Support وضعیت InnoDB را می‌بینی؛ مثلاً <code>DEFAULT</code> یا <code>YES</code>. این فهرست دربارهٔ همین Server است و به‌تنهایی نمی‌گوید هر جدول واقعاً از کدام engine استفاده می‌کند.</p>
-      <p lang="en">The Support column shows InnoDB’s status, such as <code>DEFAULT</code> or <code>YES</code>. This list describes this server and does not by itself tell you which engine each table uses.</p>
-    </details>
-  </div>
-
-  <div class="ex" id="ex06">
-    <h3><span lang="fa">۶) Server روی کدام پورت گوش می‌دهد؟</span><span lang="en">6) Which port does the server listen on?</span></h3>
-    <p lang="fa">متغیر پورت را بخوان و نتیجه را با port منتشرشده در Docker جدا نگه دار؛ این دو یکی نیستند.</p>
-    <p lang="en">Read the server port variable and keep it distinct from a Docker-published host port; they are not the same thing.</p>
-    <details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
-      <pre dir="ltr"><code>SHOW VARIABLES LIKE 'port';</code></pre>
-      <p lang="fa">این پورت داخلی Server است. اگر Docker port mapping داشته باشی، سمت میزبان می‌تواند عدد دیگری باشد؛ mapping را با <code>docker port mysql97-lab</code> بررسی کن.</p>
-      <p lang="en">This is the server’s internal port. With Docker port mapping, the host-side number may differ; inspect that mapping with <code>docker port mysql97-lab</code>.</p>
-    </details>
-  </div>
-
-  <div class="ex" id="ex07">
-    <h3><span lang="fa">۷) encoding connection را ثبت کن</span><span lang="en">7) Record the connection character set</span></h3>
-    <p lang="fa">character setهای client، connection و نتیجه را با یک query ببین. اگر متن فارسی خراب شد، این فقط یکی از مرزهایی است که باید بررسی کنی.</p>
-    <p lang="en">Inspect the client, connection, and result character sets in one query. If Persian text is corrupted, this is one boundary to investigate.</p>
-    <details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
-      <pre dir="ltr"><code>SELECT
+<p lang="fa">خط اول image انتخابی برای container رو می‌ده؛ query رو پس از ورود تعاملی اجرا کن تا رمز روی command line نرود. tag یک نام متحرک هم می‌تونه باشه؛ این تمرین از tag نسخه‌دار استفاده می‌کنه و باز هم hash دقیق image رو جداگانه می‌شه ثبت کرد.</p>
+<p lang="en">The first line reports the container’s selected image; the second reads the server version. Tags can be movable names. This lab uses a versioned tag, and the exact image digest can still be recorded separately.</p>
+<p lang="fa">فقط سبزشدن command رو جواب حساب نکن. از خروجی یه نشونهٔ مشخص بیرون بکش و بنویس این نشونه دربارهٔ مسئلهٔ تمرین چی رو ثابت می‌کنه و چی رو هنوز ثابت نمی‌کنه.</p><p lang="en">Do not treat command success as the answer. Extract one concrete piece of evidence and state what it proves about the exercise—and what it still does not prove.</p></details>
+</div>
+<div class="ex" id="ex04">
+<h3><span lang="fa">۴) Server برای چه سیستم‌عاملی build شده؟</span><span lang="en">4) For which platform was the server built?</span></h3>
+<p lang="fa">مقادیر build رو query کن. خروجی رو با سیستم‌عامل میزبان یکی فرض نکن؛ توضیح بده دقیقاً چه چیزی رو نشان می‌ده.</p>
+<p lang="en">Query the build attributes. Do not equate them with the host operating system; explain precisely what they show.</p>
+<div class="note safe exercise-deliverable"><strong lang="fa">تحویل</strong><span lang="fa">یه SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یه توضیح کوتاه که بگه دقیقاً چی ثابت شد.</span><strong lang="en">Deliverable</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of exactly what it proves.</span></div><details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
+<pre dir="ltr"><code>SELECT @@version_compile_os, @@version_compile_machine;</code></pre>
+<p lang="fa">این‌ها اطلاعات build گزارش‌شده از Server هستن، نه الزاماً مشخصات kernel میزبان یا معماری پردازنده‌ای که client روی آن اجرا می‌شه.</p>
+<p lang="en">These are server-reported build attributes, not necessarily the host kernel or the architecture on which the client runs.</p>
+<p lang="fa">فقط سبزشدن command رو جواب حساب نکن. از خروجی یه نشونهٔ مشخص بیرون بکش و بنویس این نشونه دربارهٔ مسئلهٔ تمرین چی رو ثابت می‌کنه و چی رو هنوز ثابت نمی‌کنه.</p><p lang="en">Do not treat command success as the answer. Extract one concrete piece of evidence and state what it proves about the exercise—and what it still does not prove.</p></details>
+</div>
+<div class="ex" id="ex05">
+<h3><span lang="fa">۵) کدام storage engineها موجود و فعال‌اند؟</span><span lang="en">5) Which storage engines are available and enabled?</span></h3>
+<p lang="fa">فهرست engineها رو بخوان و ردیف InnoDB رو پیدا کن. وضعیتش رو برای گزارش محیط ثبت کن.</p>
+<p lang="en">List the engines and find the InnoDB row. Record its status for the environment report.</p>
+<div class="note safe exercise-deliverable"><strong lang="fa">تحویل</strong><span lang="fa">یه SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یه توضیح کوتاه که بگه دقیقاً چی ثابت شد.</span><strong lang="en">Deliverable</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of exactly what it proves.</span></div><details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
+<pre dir="ltr"><code>SHOW ENGINES;</code></pre>
+<p lang="fa">در ستون Support وضعیت InnoDB رو می‌بینی؛ مثلاً <code>DEFAULT</code> یا <code>YES</code>. این فهرست دربارهٔ همین Server هست و به‌تنهایی نمی‌گه هر جدول واقعاً از کدام engine استفاده می‌کنه.</p>
+<p lang="en">The Support column shows InnoDB’s status, such as <code>DEFAULT</code> or <code>YES</code>. This list describes this server and does not by itself tell you which engine each table uses.</p>
+<p lang="fa">فقط سبزشدن command رو جواب حساب نکن. از خروجی یه نشونهٔ مشخص بیرون بکش و بنویس این نشونه دربارهٔ مسئلهٔ تمرین چی رو ثابت می‌کنه و چی رو هنوز ثابت نمی‌کنه.</p><p lang="en">Do not treat command success as the answer. Extract one concrete piece of evidence and state what it proves about the exercise—and what it still does not prove.</p></details>
+</div>
+<div class="ex" id="ex06">
+<h3><span lang="fa">۶) Server روی کدام پورت گوش می‌ده؟</span><span lang="en">6) Which port does the server listen on?</span></h3>
+<p lang="fa">متغیر پورت رو بخوان و نتیجه رو با port منتشرشده در Docker جدا نگه دار؛ این دو یکی نیستند.</p>
+<p lang="en">Read the server port variable and keep it distinct from a Docker-published host port; they are not the same thing.</p>
+<div class="note safe exercise-deliverable"><strong lang="fa">تحویل</strong><span lang="fa">یه SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یه توضیح کوتاه که بگه دقیقاً چی ثابت شد.</span><strong lang="en">Deliverable</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of exactly what it proves.</span></div><details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
+<pre dir="ltr"><code>SHOW VARIABLES LIKE 'port';</code></pre>
+<p lang="fa">این پورت داخلی Server هست. اگه Docker port mapping داشته باشی، سمت میزبان می‌تونه عدد دیگری باشه؛ mapping رو با <code>docker port mysql97-lab</code> بررسی کن.</p>
+<p lang="en">This is the server’s internal port. With Docker port mapping, the host-side number may differ; inspect that mapping with <code>docker port mysql97-lab</code>.</p>
+<p lang="fa">فقط سبزشدن command رو جواب حساب نکن. از خروجی یه نشونهٔ مشخص بیرون بکش و بنویس این نشونه دربارهٔ مسئلهٔ تمرین چی رو ثابت می‌کنه و چی رو هنوز ثابت نمی‌کنه.</p><p lang="en">Do not treat command success as the answer. Extract one concrete piece of evidence and state what it proves about the exercise—and what it still does not prove.</p></details>
+</div>
+<div class="ex" id="ex07">
+<h3><span lang="fa">۷) encoding connection رو ثبت کن</span><span lang="en">7) Record the connection character set</span></h3>
+<p lang="fa">character setهای client، connection و نتیجه رو با یک query ببین. اگه متن فارسی خراب شد، این فقط یکی از مرزهایی هست که باید بررسی کنی.</p>
+<p lang="en">Inspect the client, connection, and result character sets in one query. If Persian text is corrupted, this is one boundary to investigate.</p>
+<div class="note safe exercise-deliverable"><strong lang="fa">تحویل</strong><span lang="fa">یه SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یه توضیح کوتاه که بگه دقیقاً چی ثابت شد.</span><strong lang="en">Deliverable</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of exactly what it proves.</span></div><details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
+<pre dir="ltr"><code>SELECT
   @@character_set_client,
   @@character_set_connection,
   @@character_set_results;</code></pre>
-      <p lang="fa">سه مقدار مسیر متن در session را روشن می‌کنند. این نتیجه به‌تنهایی collation ستون‌ها یا encoding فایل برنامه را ثابت نمی‌کند.</p>
-      <p lang="en">The three values describe the session’s text path. They do not establish column collations or the application file’s encoding.</p>
-    </details>
-  </div>
-
-  <div class="ex" id="ex08">
-    <h3><span lang="fa">۸) SQL mode این session چیست؟</span><span lang="en">8) What is this session’s SQL mode?</span></h3>
-    <p lang="fa">SQL mode را از Server بخوان و آن را به گزارش reproducing یک خطا اضافه کن؛ در این تمرین چیزی را تغییر نده.</p>
-    <p lang="en">Read the SQL mode and add it to a bug reproduction report; do not change it in this exercise.</p>
-    <details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
-      <pre dir="ltr"><code>SELECT @@SESSION.sql_mode, @@GLOBAL.sql_mode;</code></pre>
-      <p lang="fa">مقدار session همان چیزی است که queryهای این connection می‌بینند؛ global مقدار پیش‌فرض برای sessionهای تازه را نشان می‌دهد. تغییر global وسط incident بدون فهم اثرش کار درستی نیست.</p>
-      <p lang="en">The session value is what this connection uses; the global value is the default for new sessions. Changing the global value during an incident without understanding its impact is unsafe.</p>
-    </details>
-  </div>
-
-  <div class="ex" id="ex09">
-    <h3><span lang="fa">۹) autocommit این session را بررسی کن</span><span lang="en">9) Inspect this session’s autocommit</span></h3>
-    <p lang="fa">مقدار session و global را بخوان. چرا ثبت مقدار session برای بازتولید رفتار transaction مفیدتر است؟</p>
-    <p lang="en">Read session and global values. Why is recording the session value more useful when reproducing transaction behaviour?</p>
-    <details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
-      <pre dir="ltr"><code>SELECT @@SESSION.autocommit, @@GLOBAL.autocommit;</code></pre>
-      <p lang="fa">transaction جاری به تنظیم session وابسته است؛ دو connection روی یک Server می‌توانند session state متفاوت داشته باشند. این query فقط مقدار را می‌خواند و تغییری ایجاد نمی‌کند.</p>
-      <p lang="en">The current transaction depends on session state; two connections to one server may differ. This query is read-only and changes nothing.</p>
-    </details>
-  </div>
-
-  <div class="ex" id="ex10">
-    <h3><span lang="fa">۱۰) کاربر و host حساب فعلی را ببین</span><span lang="en">10) Inspect the current account and host</span></h3>
-    <p lang="fa">هویت login و هویت‌ای که Server برای session انتخاب کرده را کنار هم برگردان. هنوز مجوزها را تغییر نده.</p>
-    <p lang="en">Return the login identity and the identity selected by the server for this session. Do not change privileges yet.</p>
-    <details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
-      <pre dir="ltr"><code>SELECT USER(), CURRENT_USER();</code></pre>
-      <p lang="fa"><code>USER()</code> اطلاعات کاربر/مبدأ اتصال را گزارش می‌کند؛ <code>CURRENT_USER()</code> accountای را نشان می‌دهد که در بررسی مجوزها به کار رفته. در MySQL، بخش host بخشی از هویت account است.</p>
-      <p lang="en"><code>USER()</code> reports the connection user and origin; <code>CURRENT_USER()</code> identifies the account used for privilege checking. In MySQL, the host component is part of an account’s identity.</p>
-    </details>
-  </div>
-
-  <div class="ex" id="ex11">
-    <h3><span lang="fa">۱۱) Server به چه شکلی connection گرفته؟</span><span lang="en">11) How was this connection established?</span></h3>
-    <p lang="fa">متغیرهای host و socket را بخوان و با نوع اتصال خودت مقایسه کن. خروجی variableها به‌تنهایی مسیر فعلی connection را مشخص نمی‌کند؛ یک شاهد دیگر پیدا کن.</p>
-    <p lang="en">Read the host and socket variables and compare them with your connection. Variables alone do not identify the current connection path; find another signal.</p>
-    <details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
-      <pre dir="ltr"><code>SHOW VARIABLES WHERE Variable_name IN ('hostname', 'port', 'socket');
+<p lang="fa">سه مقدار مسیر متن در session رو روشن می‌کنن. این نتیجه به‌تنهایی collation ستون‌ها یا encoding فایل برنامه رو ثابت نمی‌کنه.</p>
+<p lang="en">The three values describe the session’s text path. They do not establish column collations or the application file’s encoding.</p>
+<p lang="fa">فقط سبزشدن command رو جواب حساب نکن. از خروجی یه نشونهٔ مشخص بیرون بکش و بنویس این نشونه دربارهٔ مسئلهٔ تمرین چی رو ثابت می‌کنه و چی رو هنوز ثابت نمی‌کنه.</p><p lang="en">Do not treat command success as the answer. Extract one concrete piece of evidence and state what it proves about the exercise—and what it still does not prove.</p></details>
+</div>
+<div class="ex" id="ex08">
+<h3><span lang="fa">۸) SQL mode این session چیست؟</span><span lang="en">8) What is this session’s SQL mode?</span></h3>
+<p lang="fa">SQL mode رو از Server بخوان و آن رو به گزارش reproducing یک خطا اضافه کن؛ در این تمرین چیزی رو تغییر نده.</p>
+<p lang="en">Read the SQL mode and add it to a bug reproduction report; do not change it in this exercise.</p>
+<div class="note safe exercise-deliverable"><strong lang="fa">تحویل</strong><span lang="fa">یه SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یه توضیح کوتاه که بگه دقیقاً چی ثابت شد.</span><strong lang="en">Deliverable</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of exactly what it proves.</span></div><details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
+<pre dir="ltr"><code>SELECT @@SESSION.sql_mode, @@GLOBAL.sql_mode;</code></pre>
+<p lang="fa">مقدار session همان چیزی هست که queryهای این connection می‌بینند؛ global مقدار پیش‌فرض برای sessionهای تازه رو نشان می‌ده. تغییر global وسط incident بدون فهم اثرش کار درستی نیست.</p>
+<p lang="en">The session value is what this connection uses; the global value is the default for new sessions. Changing the global value during an incident without understanding its impact is unsafe.</p>
+<p lang="fa">فقط سبزشدن command رو جواب حساب نکن. از خروجی یه نشونهٔ مشخص بیرون بکش و بنویس این نشونه دربارهٔ مسئلهٔ تمرین چی رو ثابت می‌کنه و چی رو هنوز ثابت نمی‌کنه.</p><p lang="en">Do not treat command success as the answer. Extract one concrete piece of evidence and state what it proves about the exercise—and what it still does not prove.</p></details>
+</div>
+<div class="ex" id="ex09">
+<h3><span lang="fa">۹) autocommit این session رو بررسی کن</span><span lang="en">9) Inspect this session’s autocommit</span></h3>
+<p lang="fa">مقدار session و global رو بخوان. چرا ثبت مقدار session برای بازتولید رفتار transaction مفیدتر است؟</p>
+<p lang="en">Read session and global values. Why is recording the session value more useful when reproducing transaction behaviour?</p>
+<div class="note safe exercise-deliverable"><strong lang="fa">تحویل</strong><span lang="fa">یه SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یه توضیح کوتاه که بگه دقیقاً چی ثابت شد.</span><strong lang="en">Deliverable</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of exactly what it proves.</span></div><details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
+<pre dir="ltr"><code>SELECT @@SESSION.autocommit, @@GLOBAL.autocommit;</code></pre>
+<p lang="fa">transaction جاری به تنظیم session وابسته است؛ دو connection روی یک Server می‌تونن session state متفاوت داشته باشند. این query فقط مقدار رو می‌خواند و تغییری ایجاد نمی‌کنه.</p>
+<p lang="en">The current transaction depends on session state; two connections to one server may differ. This query is read-only and changes nothing.</p>
+<p lang="fa">فقط سبزشدن command رو جواب حساب نکن. از خروجی یه نشونهٔ مشخص بیرون بکش و بنویس این نشونه دربارهٔ مسئلهٔ تمرین چی رو ثابت می‌کنه و چی رو هنوز ثابت نمی‌کنه.</p><p lang="en">Do not treat command success as the answer. Extract one concrete piece of evidence and state what it proves about the exercise—and what it still does not prove.</p></details>
+</div>
+<div class="ex" id="ex10">
+<h3><span lang="fa">۱۰) کاربر و host حساب فعلی رو ببین</span><span lang="en">10) Inspect the current account and host</span></h3>
+<p lang="fa">هویت login و هویت‌ای که Server برای session انتخاب کرده رو کنار هم برگردان. هنوز مجوزها رو تغییر نده.</p>
+<p lang="en">Return the login identity and the identity selected by the server for this session. Do not change privileges yet.</p>
+<div class="note safe exercise-deliverable"><strong lang="fa">تحویل</strong><span lang="fa">یه SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یه توضیح کوتاه که بگه دقیقاً چی ثابت شد.</span><strong lang="en">Deliverable</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of exactly what it proves.</span></div><details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
+<pre dir="ltr"><code>SELECT USER(), CURRENT_USER();</code></pre>
+<p lang="fa"><code>USER()</code> اطلاعات کاربر/مبدأ اتصال رو گزارش می‌کنه؛ <code>CURRENT_USER()</code> accountای رو نشان می‌ده که در بررسی مجوزها به کار رفته. در MySQL، بخش host بخشی از هویت account هست.</p>
+<p lang="en"><code>USER()</code> reports the connection user and origin; <code>CURRENT_USER()</code> identifies the account used for privilege checking. In MySQL, the host component is part of an account’s identity.</p>
+<p lang="fa">فقط سبزشدن command رو جواب حساب نکن. از خروجی یه نشونهٔ مشخص بیرون بکش و بنویس این نشونه دربارهٔ مسئلهٔ تمرین چی رو ثابت می‌کنه و چی رو هنوز ثابت نمی‌کنه.</p><p lang="en">Do not treat command success as the answer. Extract one concrete piece of evidence and state what it proves about the exercise—and what it still does not prove.</p></details>
+</div>
+<div class="ex" id="ex11">
+<h3><span lang="fa">۱۱) Server به چه شکلی connection گرفته؟</span><span lang="en">11) How was this connection established?</span></h3>
+<p lang="fa">متغیرهای host و socket رو بخوان و با نوع اتصال خودت مقایسه کن. خروجی variableها به‌تنهایی مسیر فعلی connection رو مشخص نمی‌کنه؛ یک شاهد دیگر پیدا کن.</p>
+<p lang="en">Read the host and socket variables and compare them with your connection. Variables alone do not identify the current connection path; find another signal.</p>
+<div class="note safe exercise-deliverable"><strong lang="fa">تحویل</strong><span lang="fa">یه SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یه توضیح کوتاه که بگه دقیقاً چی ثابت شد.</span><strong lang="en">Deliverable</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of exactly what it proves.</span></div><details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
+<pre dir="ltr"><code>SHOW VARIABLES WHERE Variable_name IN ('hostname', 'port', 'socket');
 \s</code></pre>
-      <p lang="fa"><code>\s</code> فرمان داخلی Client است و معمولاً نوع connection را هم گزارش می‌کند. hostname Server با آدرس مقصدی که Client استفاده کرده یکی نیست؛ این تمایز جلوی تشخیص اشتباه DNS را می‌گیرد.</p>
-      <p lang="en"><code>\s</code> is a client command and commonly reports the connection type. The server hostname is not necessarily the address the client used; keeping them distinct helps avoid a false DNS diagnosis.</p>
-    </details>
-  </div>
-
-  <div class="ex" id="ex12">
-    <h3><span lang="fa">۱۲) databaseهای قابل مشاهده را فهرست کن</span><span lang="en">12) List databases visible to this account</span></h3>
-    <p lang="fa">فهرست databaseها را بگیر و توضیح بده چرا این فهرست لزوماً کل databaseهای Server نیست.</p>
-    <p lang="en">List databases and explain why this may not be the complete set on the server.</p>
-    <details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
-      <pre dir="ltr"><code>SHOW DATABASES;</code></pre>
-      <p lang="fa">نتیجه تحت‌تأثیر مجوزهای account است؛ نادیده‌بودن یک database به‌تنهایی وجودنداشتن آن را ثابت نمی‌کند. اینجا عمداً مفاهیم database و schema را از دورهٔ SQL دوباره آموزش نمی‌دهیم.</p>
-      <p lang="en">The result is affected by the account’s privileges; an absent database does not prove it does not exist. This course does not reteach database and schema fundamentals from the SQL track.</p>
-    </details>
-  </div>
-
-  <div class="ex" id="ex13">
-    <h3><span lang="fa">۱۳) نسخهٔ واقعی container را با دو شاهد ثبت کن</span><span lang="en">13) Record the container’s actual version using two signals</span></h3>
-    <p lang="fa">برای container تمرینی، مقدار image و خروجی Server را بگیر. اگر متفاوت بودند، قبل از اقدام چه مدرک سومی می‌خواهی؟</p>
-    <p lang="en">For the lab container, collect the image reference and server output. If they differ, what third piece of evidence would you gather before acting?</p>
-    <details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
-      <pre dir="ltr"><code>docker inspect --format '{{.Config.Image}}' mysql97-lab
+<p lang="fa"><code>\s</code> فرمان داخلی Client هست و معمولاً نوع connection رو هم گزارش می‌کنه. hostname Server با آدرس مقصدی که Client استفاده کرده یکی نیست؛ این تمایز جلوی تشخیص اشتباه DNS رو می‌گیره.</p>
+<p lang="en"><code>\s</code> is a client command and commonly reports the connection type. The server hostname is not necessarily the address the client used; keeping them distinct helps avoid a false DNS diagnosis.</p>
+<p lang="fa">فقط سبزشدن command رو جواب حساب نکن. از خروجی یه نشونهٔ مشخص بیرون بکش و بنویس این نشونه دربارهٔ مسئلهٔ تمرین چی رو ثابت می‌کنه و چی رو هنوز ثابت نمی‌کنه.</p><p lang="en">Do not treat command success as the answer. Extract one concrete piece of evidence and state what it proves about the exercise—and what it still does not prove.</p></details>
+</div>
+<div class="ex" id="ex12">
+<h3><span lang="fa">۱۲) databaseهای قابل مشاهده رو فهرست کن</span><span lang="en">12) List databases visible to this account</span></h3>
+<p lang="fa">فهرست databaseها رو بگیر و توضیح بده چرا این فهرست لزوماً کل databaseهای Server نیست.</p>
+<p lang="en">List databases and explain why this may not be the complete set on the server.</p>
+<div class="note safe exercise-deliverable"><strong lang="fa">تحویل</strong><span lang="fa">یه SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یه توضیح کوتاه که بگه دقیقاً چی ثابت شد.</span><strong lang="en">Deliverable</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of exactly what it proves.</span></div><details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
+<pre dir="ltr"><code>SHOW DATABASES;</code></pre>
+<p lang="fa">نتیجه تحت‌تأثیر مجوزهای account است؛ نادیده‌بودن یک database به‌تنهایی وجودنداشتن آن رو ثابت نمی‌کنه. اینجا عمداً مفاهیم database و schema رو از دورهٔ SQL دوباره آموزش نمی‌دیم.</p>
+<p lang="en">The result is affected by the account’s privileges; an absent database does not prove it does not exist. This course does not reteach database and schema fundamentals from the SQL track.</p>
+<p lang="fa">فقط سبزشدن command رو جواب حساب نکن. از خروجی یه نشونهٔ مشخص بیرون بکش و بنویس این نشونه دربارهٔ مسئلهٔ تمرین چی رو ثابت می‌کنه و چی رو هنوز ثابت نمی‌کنه.</p><p lang="en">Do not treat command success as the answer. Extract one concrete piece of evidence and state what it proves about the exercise—and what it still does not prove.</p></details>
+</div>
+<div class="ex" id="ex13">
+<h3><span lang="fa">۱۳) نسخهٔ واقعی container رو با دو شاهد ثبت کن</span><span lang="en">13) Record the container’s actual version using two signals</span></h3>
+<p lang="fa">برای container تمرینی، مقدار image و خروجی Server رو بگیر. اگه متفاوت بودند، قبل از اقدام چه مدرک سومی می‌خوای؟</p>
+<p lang="en">For the lab container, collect the image reference and server output. If they differ, what third piece of evidence would you gather before acting?</p>
+<div class="note safe exercise-deliverable"><strong lang="fa">تحویل</strong><span lang="fa">یه SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یه توضیح کوتاه که بگه دقیقاً چی ثابت شد.</span><strong lang="en">Deliverable</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of exactly what it proves.</span></div><details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
+<pre dir="ltr"><code>docker inspect --format '{{.Config.Image}}' mysql97-lab
 docker exec -it mysql97-lab mysql -uroot -p
 # At the mysql&gt; prompt:
 SELECT VERSION(), @@version_comment;</code></pre>
-      <p lang="fa">اولی تنظیم container را می‌خواند؛ query را بعد از ورود تعاملی اجرا کن تا رمز در argumentها قرار نگیرد. در اختلاف، container ID، زمان ساخته‌شدن، digest image و احتمال اتصال به Server دیگری را بررسی کن؛ هیچ‌کدام را با حذف داده حل نکن.</p>
-      <p lang="en">The first reads the container configuration; the second queries the live server. If they differ, inspect the container ID, creation time, image digest, and possibility of a different server connection—do not “fix” it by deleting data.</p>
-    </details>
-  </div>
-
-  <div class="ex" id="ex14">
-    <h3><span lang="fa">۱۴) چرا یک Server، دو تصویر متفاوت می‌دهد؟</span><span lang="en">14) Why can one server give two different pictures?</span></h3>
-    <p lang="fa">در دو connection، SQL mode و charset session را query کن. تفاوت را با SQL نشان بده و نتیجه بگیر آیا الزاماً دو Server داریم؟</p>
-    <p lang="en">Query session SQL mode and character sets in two connections. Show any difference with SQL and decide whether it necessarily means two servers.</p>
-    <details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
-      <pre dir="ltr"><code>SELECT CONNECTION_ID(), @@SESSION.sql_mode,
+<p lang="fa">اولی تنظیم container رو می‌خواند؛ query رو بعد از ورود تعاملی اجرا کن تا رمز در argumentها قرار نگیرد. در اختلاف، container ID، زمان ساخته‌شدن، digest image و احتمال اتصال به Server دیگری رو بررسی کن؛ هیچ‌کدام رو با حذف داده حل نکن.</p>
+<p lang="en">The first reads the container configuration; the second queries the live server. If they differ, inspect the container ID, creation time, image digest, and possibility of a different server connection—do not “fix” it by deleting data.</p>
+<p lang="fa">فقط سبزشدن command رو جواب حساب نکن. از خروجی یه نشونهٔ مشخص بیرون بکش و بنویس این نشونه دربارهٔ مسئلهٔ تمرین چی رو ثابت می‌کنه و چی رو هنوز ثابت نمی‌کنه.</p><p lang="en">Do not treat command success as the answer. Extract one concrete piece of evidence and state what it proves about the exercise—and what it still does not prove.</p></details>
+</div>
+<div class="ex" id="ex14">
+<h3><span lang="fa">۱۴) چرا یک Server، دو تصویر متفاوت می‌ده؟</span><span lang="en">14) Why can one server give two different pictures?</span></h3>
+<p lang="fa">در دو connection، SQL mode و charset session رو query کن. تفاوت رو با SQL نشان بده و نتیجه بگیر آیا الزاماً دو Server داریم؟</p>
+<p lang="en">Query session SQL mode and character sets in two connections. Show any difference with SQL and decide whether it necessarily means two servers.</p>
+<div class="note safe exercise-deliverable"><strong lang="fa">تحویل</strong><span lang="fa">یه SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یه توضیح کوتاه که بگه دقیقاً چی ثابت شد.</span><strong lang="en">Deliverable</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of exactly what it proves.</span></div><details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
+<pre dir="ltr"><code>SELECT CONNECTION_ID(), @@SESSION.sql_mode,
        @@character_set_connection, @@collation_connection;</code></pre>
-      <p lang="fa">روی هر دو connection اجرا کن. اختلاف sessionها ممکن است از تنظیم client یا مقداردهی connection pool باشد؛ شناسهٔ متفاوت connection هم به‌تنهایی نشانهٔ دو Server نیست.</p>
-      <p lang="en">Run it in both connections. Session differences may come from client setup or a connection pool; different connection IDs alone do not mean there are two servers.</p>
-    </details>
-  </div>
-
-  <div class="ex" id="ex15">
-    <h3><span lang="fa">۱۵) خطای «قابلیت ناشناخته» را نسخه‌محور بررسی کن</span><span lang="en">15) Investigate an “unknown feature” error by version</span></h3>
-    <p lang="fa">فرض کن یک migration از قابلیت نسخه‌حساس استفاده می‌کند. یک query آماده کن که نسخه و محصول گزارش‌شده را کنار هم ثبت کند؛ migration را روی دیتابیس واقعی دوباره اجرا نکن.</p>
-    <p lang="en">Suppose a migration uses a version-sensitive feature. Prepare a query that records the reported version and product clue together; do not rerun the migration on production.</p>
-    <details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
-      <pre dir="ltr"><code>SELECT VERSION() AS server_version,
+<p lang="fa">روی هر دو connection اجرا کن. اختلاف sessionها ممکنه از تنظیم client یا مقداردهی connection pool باشه؛ شناسهٔ متفاوت connection هم به‌تنهایی نشانهٔ دو Server نیست.</p>
+<p lang="en">Run it in both connections. Session differences may come from client setup or a connection pool; different connection IDs alone do not mean there are two servers.</p>
+<p lang="fa">فقط سبزشدن command رو جواب حساب نکن. از خروجی یه نشونهٔ مشخص بیرون بکش و بنویس این نشونه دربارهٔ مسئلهٔ تمرین چی رو ثابت می‌کنه و چی رو هنوز ثابت نمی‌کنه.</p><p lang="en">Do not treat command success as the answer. Extract one concrete piece of evidence and state what it proves about the exercise—and what it still does not prove.</p></details>
+</div>
+<div class="ex" id="ex15">
+<h3><span lang="fa">۱۵) خطای «قابلیت ناشناخته» رو نسخه‌محور بررسی کن</span><span lang="en">15) Investigate an “unknown feature” error by version</span></h3>
+<p lang="fa">فرض کن یک migration از قابلیت نسخه‌حساس استفاده می‌کنه. یک query آماده کن که نسخه و محصول گزارش‌شده رو کنار هم ثبت کند؛ migration رو روی دیتابیس واقعی دوباره اجرا نکن.</p>
+<p lang="en">Suppose a migration uses a version-sensitive feature. Prepare a query that records the reported version and product clue together; do not rerun the migration on production.</p>
+<div class="note safe exercise-deliverable"><strong lang="fa">تحویل</strong><span lang="fa">یه SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یه توضیح کوتاه که بگه دقیقاً چی ثابت شد.</span><strong lang="en">Deliverable</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of exactly what it proves.</span></div><details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
+<pre dir="ltr"><code>SELECT VERSION() AS server_version,
        @@version_comment AS product_build,
        @@version_compile_os AS build_os;</code></pre>
-      <p lang="fa">این snapshot نقطهٔ شروع است، نه پاسخ نهایی. بعد باید مستندات همان نسخه و وضعیت migration را در محیط disposable بررسی کرد؛ برچسب «MySQL-compatible» به‌تنهایی مجوز اجرای دوباره نیست.</p>
-      <p lang="en">This snapshot is a starting point, not the final answer. Next, check documentation for that version and inspect migration state in a disposable environment; “MySQL-compatible” is not permission to rerun it.</p>
-    </details>
-  </div>
-
-  <div class="ex" id="ex16">
-    <h3><span lang="fa">۱۶) یک گزارش قابل‌بازتولید بساز</span><span lang="en">16) Build a reproducible environment report</span></h3>
-    <p lang="fa">گزارش کوتاهی با query بساز که نسخه، build، SQL mode، charset session و کاربر جاری را در یک نتیجه ثبت کند.</p>
-    <p lang="en">Write one query that captures version, build, session SQL mode, connection character set, and the current account in a compact report.</p>
-    <details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
-      <pre dir="ltr"><code>SELECT VERSION() AS server_version,
+<p lang="fa">این snapshot نقطهٔ شروع است، نه پاسخ نهایی. بعد باید مستندات همان نسخه و وضعیت migration رو در محیط disposable بررسی کرد؛ برچسب «MySQL-compatible» به‌تنهایی مجوز اجرای دوباره نیست.</p>
+<p lang="en">This snapshot is a starting point, not the final answer. Next, check documentation for that version and inspect migration state in a disposable environment; “MySQL-compatible” is not permission to rerun it.</p>
+<p lang="fa">فقط سبزشدن command رو جواب حساب نکن. از خروجی یه نشونهٔ مشخص بیرون بکش و بنویس این نشونه دربارهٔ مسئلهٔ تمرین چی رو ثابت می‌کنه و چی رو هنوز ثابت نمی‌کنه.</p><p lang="en">Do not treat command success as the answer. Extract one concrete piece of evidence and state what it proves about the exercise—and what it still does not prove.</p></details>
+</div>
+<div class="ex" id="ex16">
+<h3><span lang="fa">۱۶) یک گزارش قابل‌بازتولید بساز</span><span lang="en">16) Build a reproducible environment report</span></h3>
+<p lang="fa">گزارش کوتاهی با query بساز که نسخه، build، SQL mode، charset session و کاربر جاری رو در یک نتیجه ثبت کند.</p>
+<p lang="en">Write one query that captures version, build, session SQL mode, connection character set, and the current account in a compact report.</p>
+<div class="note safe exercise-deliverable"><strong lang="fa">تحویل</strong><span lang="fa">یه SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یه توضیح کوتاه که بگه دقیقاً چی ثابت شد.</span><strong lang="en">Deliverable</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of exactly what it proves.</span></div><details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
+<pre dir="ltr"><code>SELECT VERSION() AS server_version,
        @@version_comment AS product_build,
        @@SESSION.sql_mode AS session_sql_mode,
        @@character_set_connection AS connection_charset,
        CURRENT_USER() AS privilege_account;</code></pre>
-      <p lang="fa">یک ردیف قابل ضمیمه به issue می‌گیری. secret یا رشتهٔ اتصال را در گزارش عمومی نگذار؛ این query هم مقصد host را به‌طور کامل ثابت نمی‌کند.</p>
-      <p lang="en">You get one row suitable for an issue attachment. Do not include secrets or a connection string in a public report; this query also does not fully prove the destination host.</p>
-    </details>
-  </div>
-
-  <div class="ex" id="ex17">
-    <h3><span lang="fa">۱۷) قبل از ارتقا چه چیزهایی را baseline می‌کنی؟</span><span lang="en">17) What do you baseline before an upgrade?</span></h3>
-    <p lang="fa">یک query قابل اجرا بنویس که نسخهٔ Server و مهم‌ترین تنظیم‌های session را برای مقایسهٔ پیش/پس از ارتقا برگرداند. در این تمرین ارتقایی انجام نمی‌شود.</p>
-    <p lang="en">Write a runnable query returning the server version and key session settings for a before/after upgrade comparison. Do not perform an upgrade in this exercise.</p>
-    <details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
-      <pre dir="ltr"><code>SELECT VERSION() AS server_version,
+<p lang="fa">یک ردیف قابل ضمیمه به issue می‌گیری. secret یا رشتهٔ اتصال رو در گزارش عمومی نگذار؛ این query هم مقصد host رو به‌طور کامل ثابت نمی‌کنه.</p>
+<p lang="en">You get one row suitable for an issue attachment. Do not include secrets or a connection string in a public report; this query also does not fully prove the destination host.</p>
+<p lang="fa">فقط سبزشدن command رو جواب حساب نکن. از خروجی یه نشونهٔ مشخص بیرون بکش و بنویس این نشونه دربارهٔ مسئلهٔ تمرین چی رو ثابت می‌کنه و چی رو هنوز ثابت نمی‌کنه.</p><p lang="en">Do not treat command success as the answer. Extract one concrete piece of evidence and state what it proves about the exercise—and what it still does not prove.</p></details>
+</div>
+<div class="ex" id="ex17">
+<h3><span lang="fa">۱۷) قبل از ارتقا چه چیزهایی رو baseline می‌کنی؟</span><span lang="en">17) What do you baseline before an upgrade?</span></h3>
+<p lang="fa">یک query قابل اجرا بنویس که نسخهٔ Server و مهم‌ترین تنظیم‌های session رو برای مقایسهٔ پیش/پس از ارتقا برگردونه. در این تمرین ارتقایی انجام نمی‌شه.</p>
+<p lang="en">Write a runnable query returning the server version and key session settings for a before/after upgrade comparison. Do not perform an upgrade in this exercise.</p>
+<div class="note safe exercise-deliverable"><strong lang="fa">تحویل</strong><span lang="fa">یه SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یه توضیح کوتاه که بگه دقیقاً چی ثابت شد.</span><strong lang="en">Deliverable</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of exactly what it proves.</span></div><details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
+<pre dir="ltr"><code>SELECT VERSION() AS server_version,
        @@SESSION.sql_mode AS sql_mode,
        @@SESSION.autocommit AS autocommit,
        @@character_set_connection AS charset_connection,
        @@collation_connection AS collation_connection;</code></pre>
-      <p lang="fa">این baseline بخشی از رفتار session را ثبت می‌کند. پیش از upgrade واقعی باید backup قابل restore، آزمون برنامه، extensionها و compatibility را هم بررسی کرد؛ این چند مقدار کافی نیست.</p>
-      <p lang="en">This baseline records part of session behaviour. A real upgrade also requires a restorable backup, application tests, extension checks, and compatibility review; these values alone are insufficient.</p>
-    </details>
-  </div>
-
-  <div class="ex" id="ex18">
-    <h3><span lang="fa">۱۸) تشخیص زودهنگام را متوقف کن</span><span lang="en">18) Stop an early diagnosis</span></h3>
-    <p lang="fa">برنامه خطای syntax می‌دهد. terminal تو <code>mysql --version</code> برابر 9.7.2 نشان می‌دهد؛ اما query برنامه هنوز اجرا نشده. با یک دستور SQL از چه چیزی مطمئن می‌شوی و چه چیزی همچنان نامعلوم می‌ماند؟</p>
-    <p lang="en">The application reports a syntax error. Your terminal says <code>mysql --version</code> is 9.7.2, but no query has run through the application. What can one SQL statement establish, and what remains unknown?</p>
-    <details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
-      <pre dir="ltr"><code>SELECT VERSION(), @@version_comment, CONNECTION_ID();</code></pre>
-      <p lang="fa">این را از همان connection برنامه اجرا کن؛ نسخه و هویت build گزارش‌شده و یک شناسهٔ connection می‌گیری. با آن هنوز host/port مقصد یا compatibility قابلیت موردنظر ثابت نمی‌شود؛ تنظیمات اتصال و مستند همان نسخه را هم باید بررسی کنی.</p>
-      <p lang="en">Run it through the application’s connection; it returns the reported version/build and a connection ID. It still does not prove the destination host/port or feature compatibility; inspect connection settings and documentation for that version too.</p>
-    </details>
-  </div>
+<p lang="fa">این baseline بخشی از رفتار session رو ثبت می‌کنه. پیش از upgrade واقعی باید backup قابل restore، آزمون برنامه، extensionها و compatibility رو هم بررسی کرد؛ این چند مقدار کافی نیست.</p>
+<p lang="en">This baseline records part of session behaviour. A real upgrade also requires a restorable backup, application tests, extension checks, and compatibility review; these values alone are insufficient.</p>
+<p lang="fa">فقط سبزشدن command رو جواب حساب نکن. از خروجی یه نشونهٔ مشخص بیرون بکش و بنویس این نشونه دربارهٔ مسئلهٔ تمرین چی رو ثابت می‌کنه و چی رو هنوز ثابت نمی‌کنه.</p><p lang="en">Do not treat command success as the answer. Extract one concrete piece of evidence and state what it proves about the exercise—and what it still does not prove.</p></details>
+</div>
+<div class="ex" id="ex18">
+<h3><span lang="fa">۱۸) تشخیص زودهنگام رو متوقف کن</span><span lang="en">18) Stop an early diagnosis</span></h3>
+<p lang="fa">برنامه خطای syntax می‌ده. terminal تو <code>mysql --version</code> برابر 9.7.2 نشان می‌ده؛ اما query برنامه هنوز اجرا نشده. با یک دستور SQL از چه چیزی مطمئن می‌شوی و چه چیزی همچنان نامعلوم می‌مونه؟</p>
+<p lang="en">The application reports a syntax error. Your terminal says <code>mysql --version</code> is 9.7.2, but no query has run through the application. What can one SQL statement establish, and what remains unknown?</p>
+<div class="note safe exercise-deliverable"><strong lang="fa">تحویل</strong><span lang="fa">یه SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یه توضیح کوتاه که بگه دقیقاً چی ثابت شد.</span><strong lang="en">Deliverable</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of exactly what it proves.</span></div><details class="ex-sol"><summary><span lang="fa">راه‌حل و دلیل</span><span lang="en">Solution and reasoning</span></summary>
+<pre dir="ltr"><code>SELECT VERSION(), @@version_comment, CONNECTION_ID();</code></pre>
+<p lang="fa">این رو از همان connection برنامه اجرا کن؛ نسخه و هویت build گزارش‌شده و یک شناسهٔ connection می‌گیری. با آن هنوز host/port مقصد یا compatibility قابلیت موردنظر ثابت نمی‌شه؛ تنظیمات اتصال و مستند همان نسخه رو هم باید بررسی کنی.</p>
+<p lang="en">Run it through the application’s connection; it returns the reported version/build and a connection ID. It still does not prove the destination host/port or feature compatibility; inspect connection settings and documentation for that version too.</p>
+<p lang="fa">فقط سبزشدن command رو جواب حساب نکن. از خروجی یه نشونهٔ مشخص بیرون بکش و بنویس این نشونه دربارهٔ مسئلهٔ تمرین چی رو ثابت می‌کنه و چی رو هنوز ثابت نمی‌کنه.</p><p lang="en">Do not treat command success as the answer. Extract one concrete piece of evidence and state what it proves about the exercise—and what it still does not prove.</p></details>
+</div>
 </section>
-
 <section id="quick-reference">
-  <h2 lang="fa">برگهٔ کوچک این فصل</h2>
-  <h2 lang="en">Chapter quick reference</h2>
-  <div class="cheat">
-    <div class="cheat-h"><span lang="fa">هویت Server</span><span lang="en">Server identity</span></div>
-    <pre dir="ltr"><code>SELECT VERSION(), @@version_comment;
+<h2 lang="fa">برگهٔ کوچک این فصل</h2>
+<h2 lang="en">Chapter quick reference</h2>
+<div class="cheat">
+<div class="cheat-h"><span lang="fa">هویت Server</span><span lang="en">Server identity</span></div>
+<pre dir="ltr"><code>SELECT VERSION(), @@version_comment;
 SHOW VARIABLES LIKE 'version%';</code></pre>
-    <p lang="fa">از همان connection مسئله‌دار اجرا کن؛ این نتیجه را با نسخهٔ Client اشتباه نگیر.</p>
-    <p lang="en">Run through the connection where the issue occurs; do not confuse this result with the client version.</p>
-  </div>
-  <div class="cheat">
-    <div class="cheat-h"><span lang="fa">هویت session</span><span lang="en">Session context</span></div>
-    <pre dir="ltr"><code>SELECT USER(), CURRENT_USER(), CONNECTION_ID(),
+<p lang="fa">از همان connection مسئله‌دار اجرا کن؛ این نتیجه رو با نسخهٔ Client اشتباه نگیر.</p>
+<p lang="en">Run through the connection where the issue occurs; do not confuse this result with the client version.</p>
+</div>
+<div class="cheat">
+<div class="cheat-h"><span lang="fa">هویت session</span><span lang="en">Session context</span></div>
+<pre dir="ltr"><code>SELECT USER(), CURRENT_USER(), CONNECTION_ID(),
        @@SESSION.sql_mode, @@character_set_connection;</code></pre>
-    <p lang="fa">sessionها روی یک Server هم ممکن است رفتار متفاوتی داشته باشند.</p>
-    <p lang="en">Sessions on the same server can still behave differently.</p>
-  </div>
+<p lang="fa">sessionها روی یک Server هم ممکنه رفتار متفاوتی داشته باشند.</p>
+<p lang="en">Sessions on the same server can still behave differently.</p>
+</div>
 </section>
-
 <section id="sources">
-  <h2 lang="fa">منابع نسخه و رفتار</h2>
-  <h2 lang="en">Version and behaviour references</h2>
-  <ul>
-    <li><a href="https://dev.mysql.com/doc/refman/9.7/en/mysql-releases.html" target="_blank" rel="noopener noreferrer">MySQL 9.7 manual — Innovation and LTS releases</a></li>
-    <li><a href="https://dev.mysql.com/doc/refman/9.7/en/which-version.html" target="_blank" rel="noopener noreferrer">MySQL 9.7 manual — choosing a version and distribution</a></li>
-    <li><a href="https://dev.mysql.com/doc/refman/9.7/en/features.html" target="_blank" rel="noopener noreferrer">MySQL 9.7 manual — client/server connectivity overview</a></li>
-    <li><a href="https://hub.docker.com/_/mysql?tab=tags" target="_blank" rel="noopener noreferrer">Docker Hub — official MySQL image and supported tags</a></li>
-  </ul>
-  <p lang="fa">مبنای ثبت‌شده برای آزمایش این فصل: image رسمی <code>mysql:9.7.2</code>، بررسی‌شده در ۲ اکتبر ۲۰۲۶. قبل از استفادهٔ دوباره، tag و مستندات جاری را بازبینی کن.</p>
-  <p lang="en">Recorded lab baseline: the official <code>mysql:9.7.2</code> image, checked on 2 October 2026. Recheck the tag and current documentation before reusing it.</p>
+<h2 lang="fa">منابع نسخه و رفتار</h2>
+<h2 lang="en">Version and behaviour references</h2>
+<ul>
+<li><a href="https://dev.mysql.com/doc/refman/9.7/en/mysql-releases.html" rel="noopener noreferrer" target="_blank">MySQL 9.7 manual — Innovation and LTS releases</a></li>
+<li><a href="https://dev.mysql.com/doc/refman/9.7/en/which-version.html" rel="noopener noreferrer" target="_blank">MySQL 9.7 manual — choosing a version and distribution</a></li>
+<li><a href="https://dev.mysql.com/doc/refman/9.7/en/features.html" rel="noopener noreferrer" target="_blank">MySQL 9.7 manual — client/server connectivity overview</a></li>
+<li><a href="https://hub.docker.com/_/mysql?tab=tags" rel="noopener noreferrer" target="_blank">Docker Hub — official MySQL image and supported tags</a></li>
+</ul>
+<p lang="fa">مبنای ثبت‌شده برای آزمایش این فصل: image رسمی <code>mysql:9.7.2</code>، بررسی‌شده در ۲ اکتبر ۲۰۲۶. قبل از استفادهٔ دوباره، tag و مستندات جاری رو بازبینی کن.</p>
+<p lang="en">Recorded lab baseline: the official <code>mysql:9.7.2</code> image, checked on 2 October 2026. Recheck the tag and current documentation before reusing it.</p>
 </section>
-
 <section id="takeaway">
-  <h2 lang="fa">قبل از گفتن «MySQL مشکل دارد»</h2>
-  <h2 lang="en">Before saying “MySQL is broken”</h2>
-  <p lang="fa">
-    حالا اگر query روی یک محیط جواب بدهد و روی یکی دیگر نه، اولین حرکت‌مان حدس‌زدن نیست:
-    از همان connection نسخه و build را می‌خوانیم، session را ثبت می‌کنیم و بعد سراغ تفاوت
-    بعدی می‌رویم. Client، Server و image سه نشانهٔ متفاوت‌اند؛ هیچ‌کدام را جای دیگری جا
-    نمی‌زنیم. در فصل بعد خود محیط را بازتولید می‌کنیم تا اتصال هم از یک حدس به یک مسیر روشن
-    تبدیل شود.
+<h2 lang="fa">قبل از گفتن «MySQL مشکل دارد»</h2>
+<h2 lang="en">Before saying “MySQL is broken”</h2>
+<p lang="fa">
+    حالا اگه query روی یک محیط جواب بده و روی یکی دیگر نه، اولین حرکت‌مان حدس‌زدن نیست:
+    از همان connection نسخه و build رو می‌خونیم، session رو ثبت می‌کنیم و بعد سراغ تفاوت
+    بعدی می‌ریم. Client، Server و image سه نشانهٔ متفاوت‌اند؛ هیچ‌کدام رو جای دیگری جا
+    نمی‌زنیم. فصل بعد خود محیط رو بازتولید می‌کنیم تا اتصال هم از یک حدس به یک مسیر روشن
+    تبدیل بشه.
   </p>
-  <p lang="en">
+<p lang="en">
     When a query works in one environment but not another, our first move is not a guess: read
     the version and build through the same connection, record the session, and then investigate
     the next difference. Client, server, and image are three different signals; none substitutes

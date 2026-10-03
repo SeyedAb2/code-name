@@ -1,0 +1,242 @@
+<!--meta
+title: DNS، پورت و Firewall دیتابیس
+desc: Access denied و timeout هر دو برای کاربر «وصل نشد» هستند، ولی در دو نقطهٔ کاملاً متفاوت شکست خورده‌اند. این فصل مسیر connection رو لایه‌به‌لایه دنبال می‌کنه تا به‌جای تغییر random password بفهمیم failure کجاست.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">MariaDB · فصل 26</span><span lang="en">MariaDB · Chapter 26</span></span>
+<h1 lang="fa">روی خود سرور اتصال موفق هست، اما برنامهٔ remote خطای timeout می‌ده؛ آیا مشکل password هست؟</h1>
+<h1 lang="en">A local connection works, but the remote application times out. Is the password the problem?</h1>
+<p class="sub" lang="fa"><code>Access denied</code> و timeout هر دو برای کاربر «وصل نشد» هستن، ولی در دو نقطهٔ کاملاً متفاوت شکست خورده‌اند. این فصل مسیر connection رو لایه‌به‌لایه دنبال می‌کنه تا به‌جای تغییر random password بفهمیم failure کجاست.</p>
+<p class="sub" lang="en"><code>Access denied</code> and a network timeout both look like “connection failed” to a user, but they fail at very different boundaries. This chapter follows the connection layer by layer so diagnosis replaces random password changes.</p>
+<div class="facts"><span>MariaDB 11.8 · Database DNS, ports, and firewalls</span><span>حدود ۱۰۰ دقیقه · ۱۸ تمرین / About 100 minutes · 18 exercises</span></div>
+</div>
+<section id="mental-model"><h2><span lang="fa">قبل از کد، مسئله رو درست ببین</span><span lang="en">Frame the problem before the code</span></h2>
+<p lang="fa">این فصل رو با syntax شروع نمی‌کنیم. مسئله اینه: مسیر DNS تا authentication و تشخیص محل failure. اول یه پیش‌بینی می‌سازیم، بعد با query یا command کوچیک آزمایشش می‌کنیم. هر جا خروجی خلاف انتظار بود، همون‌جا درس اصلی شروع می‌شه.</p>
+<p lang="en">This chapter does not begin with syntax. The problem is the path from DNS to authentication and failure localization. We will form a prediction, test it with a small query or command, and treat unexpected output as the beginning of the investigation.</p>
+</section><section id="lesson-1"><h2><span lang="fa">مسیر رو از اسم تا login بشکن</span><span lang="en">Break the path into stages</span></h2><p lang="fa">ترتیب ساده‌ای داریم: DNS → route → firewall → listener/port → TLS → account host match → authentication → privilege. هر error فقط بعضی از این مراحل رو رد یا تأیید می‌کنه.</p><p lang="fa">با همین نقشه، <code>Connection refused</code> و <code>Access denied</code> دیگر دو پیام مبهم نیستن؛ هرکدام محل جست‌وجوی بعدی رو محدود می‌کنن.</p><p lang="en">Use a simple path: DNS → route → firewall → listener/port → TLS → account host match → authentication → privilege. Each error proves or rules out only part of that path.</p><p lang="en">With that model, <code>Connection refused</code> and <code>Access denied</code> stop being generic failures; each narrows the next useful check.</p><pre dir="ltr"><code>getent hosts db.example.test
+# or
+nslookup db.example.test</code></pre><p lang="fa">این command فقط یک مرز از مسیر رو تست می‌کنه. مقصد، زمان و نتیجهٔ دقیق رو نگه دار؛ موفقیت این مرحله هنوز لایه‌های بعدی مثل TLS یا authentication رو ثابت نمی‌کنه.</p><p lang="en">This command tests only one boundary. Record the exact target and result; success here does not prove later layers such as TLS or authentication.</p></section><section id="lesson-2"><h2><span lang="fa">localhost همیشه TCP نیست</span><span lang="en">`localhost` may not mean TCP</span></h2><p lang="fa">Client MariaDB ممکن هست برای <code>localhost</code> از Unix socket استفاده کند. پس اینکه <code>mariadb -h localhost</code> کار می‌کنه، لزوماً port 3306 رو ثابت نمی‌کنه.</p><p lang="fa">با <code>--protocol=tcp -h 127.0.0.1</code> مسیر TCP رو مجبور می‌کنیم و بعد listener و firewall رو جدا می‌سنجیم.</p><p lang="en">MariaDB clients can use a Unix socket for <code>localhost</code>. A successful local connection therefore does not necessarily prove TCP port 3306 works.</p><p lang="en">Force TCP with <code>--protocol=tcp -h 127.0.0.1</code>, then inspect the listener and firewall separately.</p><pre dir="ltr"><code>mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -u app -p</code></pre><p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ مسیر DNS تا authentication و تشخیص محل failure یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p><p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the path from DNS to authentication and failure localization.</p></section><section id="lesson-3"><h2><span lang="fa">از همان namespace برنامه تست کن</span><span lang="en">Test from the application's network namespace</span></h2><p lang="fa">روی host ممکن هست DNS و port سالم باشند ولی container برنامه route یا DNS دیگری داشته باشد. تست باید از جایی اجرا شود که request واقعی شروع می‌شه.</p><p lang="fa">در Docker نام service رو از داخل app container resolve می‌کنیم. <code>localhost</code> داخل container خودش هست، نه host و نه database container.</p><p lang="en">DNS and ports can work from the host while the application container has a different route or resolver. Run the test from the same place the real application connection originates.</p><p lang="en">In Docker, resolve the database service name from inside the application container. <code>localhost</code> inside that container refers to itself, not the host or database container.</p><pre dir="ltr"><code>sudo nft list ruleset
+# or inspect the cloud firewall/security group that protects TCP/3306</code></pre><p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ مسیر DNS تا authentication و تشخیص محل failure یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p><p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the path from DNS to authentication and failure localization.</p></section><section id="lesson-4"><h2><span lang="fa">Error رو با زمان و مقصد ثبت کن</span><span lang="en">Record the exact error, target, and elapsed time</span></h2><p lang="fa">Timeout بعد از چند ثانیه با refusal فوری یک معنی نداره. برای incident، hostname، IP resolved، port، source، timestamp و متن کامل error رو نگه دار.</p><p lang="fa">این اطلاعات باعث می‌شه تیم network، DBA و app دربارهٔ یک connection واحد حرف بزنند، نه سه حدس متفاوت.</p><p lang="en">A multi-second timeout means something different from an immediate refusal. For incidents, record hostname, resolved IP, port, source, timestamp, elapsed time, and exact error text.</p><p lang="en">That makes the network, database, and application teams reason about the same connection rather than three different guesses.</p><pre dir="ltr"><code>time nc -vz -w 3 db.example.test 3306</code></pre><p lang="fa">این command فقط یک مرز از مسیر رو تست می‌کنه. مقصد، زمان و نتیجهٔ دقیق رو نگه دار؛ موفقیت این مرحله هنوز لایه‌های بعدی مثل TLS یا authentication رو ثابت نمی‌کنه.</p><p lang="en">This command tests only one boundary. Record the exact target and result; success here does not prove later layers such as TLS or authentication.</p></section><section id="mini-lab"><h2><span lang="fa">مینی‌لب — از حدس تا مدرک</span><span lang="en">Mini-lab — from assumption to evidence</span></h2>
+<p lang="fa">حالا سه checkpoint رو پشت‌سرهم اجرا کن. ترتیب مهمه: اول baseline، بعد یک تغییر یا مشاهدهٔ دقیق، بعد verification. وسط کار چیزی رو «درست» فرض نکن؛ هر مرحله باید خروجی مرحلهٔ بعد رو قابل‌تفسیرتر کنه.</p>
+<p lang="en">Run three checkpoints as one small story. Order matters: establish a baseline, make one controlled observation/change, then verify. Do not assume success between steps; each checkpoint should make the next result easier to interpret.</p>
+<pre dir="ltr"><code>getent hosts db.example.test
+# or
+nslookup db.example.test
+
+mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -u app -p
+
+sudo nft list ruleset
+# or inspect the cloud firewall/security group that protects TCP/3306</code></pre>
+<div class="note safe"><strong lang="fa">چی رو نگه دار؟</strong><span lang="fa">commandها، خروجی مهم، نسخهٔ Server و یک جمله که می‌گه این آزمایش دربارهٔ مسیر DNS تا authentication و تشخیص محل failure دقیقاً چی رو ثابت کرد.</span><strong lang="en">What should you preserve?</strong><span lang="en">Commands, relevant output, server version, and one sentence stating exactly what this experiment proved about the path from DNS to authentication and failure localization.</span></div>
+</section><section id="exercises"><h2><span lang="fa">تمرین‌ها — دست به کیبورد</span><span lang="en">Exercises — hands on keyboard</span></h2><p lang="fa">اینجا جواب تشریحیِ خالی نداریم. هر تمرین باید به یه SQL/command، خروجی یا state قابل‌بررسی ختم بشه. از تمرین‌های اول که گرم‌کردن هستن تا سناریوهای آخر، هدف اینه که بتونی چیزی رو با مدرک ثابت کنی.</p><p lang="en">These are not prose-only questions. Every exercise should end in runnable SQL/commands and observable evidence. Difficulty rises from warm-up tasks to engineering scenarios.</p><div class="ex" id="ex-mdb-26-1">
+<h3><span lang="fa">1) hostname رو resolve کن</span><span lang="en">1) Test the network boundary</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ مسیر DNS تا authentication و تشخیص محل failure چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about the path from DNS to authentication and failure localization. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>getent hosts db.example.test
+# or
+nslookup db.example.test</code></pre>
+<p lang="fa">این command فقط یک مرز از مسیر رو تست می‌کنه. مقصد، زمان و نتیجهٔ دقیق رو نگه دار؛ موفقیت این مرحله هنوز لایه‌های بعدی مثل TLS یا authentication رو ثابت نمی‌کنه.</p>
+<p lang="en">This command tests only one boundary. Record the exact target and result; success here does not prove later layers such as TLS or authentication.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مسیر DNS تا authentication و تشخیص محل failure انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the path from DNS to authentication and failure localization.</p>
+</details></div><div class="ex" id="ex-mdb-26-2">
+<h3><span lang="fa">2) port رو از client تست کن</span><span lang="en">2) Test the network boundary</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای مسیر DNS تا authentication و تشخیص محل failure مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for the path from DNS to authentication and failure localization.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>nc -vz db.example.test 3306</code></pre>
+<p lang="fa">این command فقط یک مرز از مسیر رو تست می‌کنه. مقصد، زمان و نتیجهٔ دقیق رو نگه دار؛ موفقیت این مرحله هنوز لایه‌های بعدی مثل TLS یا authentication رو ثابت نمی‌کنه.</p>
+<p lang="en">This command tests only one boundary. Record the exact target and result; success here does not prove later layers such as TLS or authentication.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مسیر DNS تا authentication و تشخیص محل failure انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the path from DNS to authentication and failure localization.</p>
+</details></div><div class="ex" id="ex-mdb-26-3">
+<h3><span lang="fa">3) server listener رو query کن</span><span lang="en">3) Read server evidence</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW VARIABLES LIKE 'port';</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با resolved IP، port result، listener و متن دقیق error رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about the path from DNS to authentication and failure localization can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مسیر DNS تا authentication و تشخیص محل failure انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the path from DNS to authentication and failure localization.</p>
+</details></div><div class="ex" id="ex-mdb-26-4">
+<h3><span lang="fa">4) bind address رو بخوان</span><span lang="en">4) Read server evidence</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW VARIABLES LIKE 'bind_address';</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با resolved IP، port result، listener و متن دقیق error رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about the path from DNS to authentication and failure localization can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مسیر DNS تا authentication و تشخیص محل failure انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the path from DNS to authentication and failure localization.</p>
+</details></div><div class="ex" id="ex-mdb-26-5">
+<h3><span lang="fa">5) socket و TCP رو جدا تست کن</span><span lang="en">5) Run the experiment</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ مسیر DNS تا authentication و تشخیص محل failure چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about the path from DNS to authentication and failure localization. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>mariadb --protocol=tcp -h 127.0.0.1 -P 3306 -u app -p</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ مسیر DNS تا authentication و تشخیص محل failure یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the path from DNS to authentication and failure localization.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مسیر DNS تا authentication و تشخیص محل failure انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the path from DNS to authentication and failure localization.</p>
+</details></div><div class="ex" id="ex-mdb-26-6">
+<h3><span lang="fa">6) Connection refused رو تفسیر کن</span><span lang="en">6) Test the network boundary</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای مسیر DNS تا authentication و تشخیص محل failure مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for the path from DNS to authentication and failure localization.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>ss -lntp | grep 3306
+nc -vz db.example.test 3306</code></pre>
+<p lang="fa">این command فقط یک مرز از مسیر رو تست می‌کنه. مقصد، زمان و نتیجهٔ دقیق رو نگه دار؛ موفقیت این مرحله هنوز لایه‌های بعدی مثل TLS یا authentication رو ثابت نمی‌کنه.</p>
+<p lang="en">This command tests only one boundary. Record the exact target and result; success here does not prove later layers such as TLS or authentication.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مسیر DNS تا authentication و تشخیص محل failure انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the path from DNS to authentication and failure localization.</p>
+</details></div><div class="ex" id="ex-mdb-26-7">
+<h3><span lang="fa">7) Access denied رو تفسیر کن</span><span lang="en">7) Run the experiment</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>mariadb --protocol=tcp -h db.example.test -P 3306 -u app -p
+SELECT USER(),CURRENT_USER();</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ مسیر DNS تا authentication و تشخیص محل failure یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the path from DNS to authentication and failure localization.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مسیر DNS تا authentication و تشخیص محل failure انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the path from DNS to authentication and failure localization.</p>
+</details></div><div class="ex" id="ex-mdb-26-8">
+<h3><span lang="fa">8) user و current_user رو مقایسه کن</span><span lang="en">8) Query the evidence</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT USER(),CURRENT_USER();</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ مسیر DNS تا authentication و تشخیص محل failure یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the path from DNS to authentication and failure localization.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مسیر DNS تا authentication و تشخیص محل failure انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the path from DNS to authentication and failure localization.</p>
+</details></div><div class="ex" id="ex-mdb-26-9">
+<h3><span lang="fa">9) firewall rule رو حداقلی کن</span><span lang="en">9) Run the experiment</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ مسیر DNS تا authentication و تشخیص محل failure چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about the path from DNS to authentication and failure localization. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>sudo nft list ruleset
+# or inspect the cloud firewall/security group that protects TCP/3306</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ مسیر DNS تا authentication و تشخیص محل failure یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about the path from DNS to authentication and failure localization.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مسیر DNS تا authentication و تشخیص محل failure انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the path from DNS to authentication and failure localization.</p>
+</details></div><div class="ex" id="ex-mdb-26-10">
+<h3><span lang="fa">10) DB public port رو ببند</span><span lang="en">10) Run the experiment</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای مسیر DNS تا authentication و تشخیص محل failure مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for the path from DNS to authentication and failure localization.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>ss -lntp | grep 3306
+sudo nft list ruleset</code></pre>
+<p lang="fa">این command فقط یک مرز از مسیر رو تست می‌کنه. مقصد، زمان و نتیجهٔ دقیق رو نگه دار؛ موفقیت این مرحله هنوز لایه‌های بعدی مثل TLS یا authentication رو ثابت نمی‌کنه.</p>
+<p lang="en">This command tests only one boundary. Record the exact target and result; success here does not prove later layers such as TLS or authentication.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مسیر DNS تا authentication و تشخیص محل failure انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the path from DNS to authentication and failure localization.</p>
+</details></div><div class="ex" id="ex-mdb-26-11">
+<h3><span lang="fa">11) DNS stale entry رو بررسی کن</span><span lang="en">11) Test the network boundary</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>getent ahosts db.example.test</code></pre>
+<p lang="fa">این command فقط یک مرز از مسیر رو تست می‌کنه. مقصد، زمان و نتیجهٔ دقیق رو نگه دار؛ موفقیت این مرحله هنوز لایه‌های بعدی مثل TLS یا authentication رو ثابت نمی‌کنه.</p>
+<p lang="en">This command tests only one boundary. Record the exact target and result; success here does not prove later layers such as TLS or authentication.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مسیر DNS تا authentication و تشخیص محل failure انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the path from DNS to authentication and failure localization.</p>
+</details></div><div class="ex" id="ex-mdb-26-12">
+<h3><span lang="fa">12) Docker service DNS رو از container بیازمای</span><span lang="en">12) Test the network boundary</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>getent hosts mariadb_service
+nc -vz mariadb_service 3306</code></pre>
+<p lang="fa">این command فقط یک مرز از مسیر رو تست می‌کنه. مقصد، زمان و نتیجهٔ دقیق رو نگه دار؛ موفقیت این مرحله هنوز لایه‌های بعدی مثل TLS یا authentication رو ثابت نمی‌کنه.</p>
+<p lang="en">This command tests only one boundary. Record the exact target and result; success here does not prove later layers such as TLS or authentication.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مسیر DNS تا authentication و تشخیص محل failure انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the path from DNS to authentication and failure localization.</p>
+</details></div><div class="ex" id="ex-mdb-26-13">
+<h3><span lang="fa">13) timeout از connection refused چه فرقی داره</span><span lang="en">13) Test the network boundary</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ مسیر DNS تا authentication و تشخیص محل failure چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about the path from DNS to authentication and failure localization. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>time nc -vz -w 3 db.example.test 3306</code></pre>
+<p lang="fa">این command فقط یک مرز از مسیر رو تست می‌کنه. مقصد، زمان و نتیجهٔ دقیق رو نگه دار؛ موفقیت این مرحله هنوز لایه‌های بعدی مثل TLS یا authentication رو ثابت نمی‌کنه.</p>
+<p lang="en">This command tests only one boundary. Record the exact target and result; success here does not prove later layers such as TLS or authentication.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مسیر DNS تا authentication و تشخیص محل failure انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the path from DNS to authentication and failure localization.</p>
+</details></div><div class="ex" id="ex-mdb-26-14">
+<h3><span lang="fa">14) TLS session رو verify کن</span><span lang="en">14) Read server evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای مسیر DNS تا authentication و تشخیص محل failure مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for the path from DNS to authentication and failure localization.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW SESSION STATUS LIKE 'Ssl_cipher';</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با resolved IP، port result، listener و متن دقیق error رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about the path from DNS to authentication and failure localization can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مسیر DNS تا authentication و تشخیص محل failure انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the path from DNS to authentication and failure localization.</p>
+</details></div><div class="ex" id="ex-mdb-26-15">
+<h3><span lang="fa">15) از shell برنامه تست کن</span><span lang="en">15) Test the network boundary</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>getent hosts mariadb_service
+nc -vz mariadb_service 3306
+mariadb -h mariadb_service -P 3306 -u app -p -e 'SELECT VERSION();'</code></pre>
+<p lang="fa">این command فقط یک مرز از مسیر رو تست می‌کنه. مقصد، زمان و نتیجهٔ دقیق رو نگه دار؛ موفقیت این مرحله هنوز لایه‌های بعدی مثل TLS یا authentication رو ثابت نمی‌کنه.</p>
+<p lang="en">This command tests only one boundary. Record the exact target and result; success here does not prove later layers such as TLS or authentication.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مسیر DNS تا authentication و تشخیص محل failure انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the path from DNS to authentication and failure localization.</p>
+</details></div><div class="ex" id="ex-mdb-26-16">
+<h3><span lang="fa">16) بازیابی پس از DNS change رو تست کن</span><span lang="en">16) Test the network boundary</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>getent ahosts db.example.test
+# recycle test pooled connections, then resolve again
+getent ahosts db.example.test</code></pre>
+<p lang="fa">این command فقط یک مرز از مسیر رو تست می‌کنه. مقصد، زمان و نتیجهٔ دقیق رو نگه دار؛ موفقیت این مرحله هنوز لایه‌های بعدی مثل TLS یا authentication رو ثابت نمی‌کنه.</p>
+<p lang="en">This command tests only one boundary. Record the exact target and result; success here does not prove later layers such as TLS or authentication.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مسیر DNS تا authentication و تشخیص محل failure انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the path from DNS to authentication and failure localization.</p>
+</details></div><div class="ex" id="ex-mdb-26-17">
+<h3><span lang="fa">17) port forward ناخواسته رو audit کن</span><span lang="en">17) Run the experiment</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ مسیر DNS تا authentication و تشخیص محل failure چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about the path from DNS to authentication and failure localization. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>ss -lntp | grep 3306</code></pre>
+<p lang="fa">این command فقط یک مرز از مسیر رو تست می‌کنه. مقصد، زمان و نتیجهٔ دقیق رو نگه دار؛ موفقیت این مرحله هنوز لایه‌های بعدی مثل TLS یا authentication رو ثابت نمی‌کنه.</p>
+<p lang="en">This command tests only one boundary. Record the exact target and result; success here does not prove later layers such as TLS or authentication.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مسیر DNS تا authentication و تشخیص محل failure انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the path from DNS to authentication and failure localization.</p>
+</details></div><div class="ex" id="ex-mdb-26-18">
+<h3><span lang="fa">18) گزارش شبکه تحویل بده</span><span lang="en">18) Test the network boundary</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای مسیر DNS تا authentication و تشخیص محل failure مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for the path from DNS to authentication and failure localization.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>printf 'source=%s destination=%s port=%s time=%s\n'   "$(hostname)" "db.example.test" "3306" "$(date -Is)"
+getent hosts db.example.test
+nc -vz db.example.test 3306</code></pre>
+<p lang="fa">این command فقط یک مرز از مسیر رو تست می‌کنه. مقصد، زمان و نتیجهٔ دقیق رو نگه دار؛ موفقیت این مرحله هنوز لایه‌های بعدی مثل TLS یا authentication رو ثابت نمی‌کنه.</p>
+<p lang="en">This command tests only one boundary. Record the exact target and result; success here does not prove later layers such as TLS or authentication.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای مسیر DNS تا authentication و تشخیص محل failure انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for the path from DNS to authentication and failure localization.</p>
+</details></div></section><section id="next"><h2><span lang="fa">جمع‌بندی — چیزی که باید با خودت ببری</span><span lang="en">Summary — the mental model to keep</span></h2><p lang="fa">اگه از این فصل فقط یه عادت بمونه، این باشه: دربارهٔ مسیر DNS تا authentication و تشخیص محل failure از روی اسم feature یا حس تصمیم نگیر. baseline بگیر، یه چیز رو عوض کن، خروجی رو بخون و بعد نتیجه بگیر.</p><p lang="en">If one habit survives this chapter, let it be this: do not reason about the path from DNS to authentication and failure localization from feature names or intuition. Capture a baseline, change one thing, read the evidence, then conclude.</p><p class="refs"><a href="https://mariadb.com/docs/server/mariadb-quickstart-guides/mariadb-connection-troubleshooting-guide">Connection Troubleshooting</a> · <a href="https://mariadb.com/docs/server/server-management/variables-and-modes/server-system-variables">Remote Client Access</a> · <a href="https://mariadb.com/docs/server/security/securing-mariadb/encryption/data-in-transit-encryption">Secure Connections</a></p></section>

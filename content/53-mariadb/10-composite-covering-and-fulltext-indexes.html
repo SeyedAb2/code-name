@@ -1,0 +1,231 @@
+<!--meta
+title: Composite، covering و FULLTEXT index
+desc: دو index جدا همیشه جواب query چندستونی نیست. این فصل ترتیب ستون‌های composite index، covering شدن query و جست‌وجوی FULLTEXT رو با workload واقعی کنار هم می‌گذارد؛ نه اینکه سه feature رو جداگانه حفظ کنیم.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">MariaDB · فصل 10</span><span lang="en">MariaDB · Chapter 10</span></span>
+<h1 lang="fa">جست‌وجوی عنوان و وضعیت کند هست؛ دو index جدا ساخته‌اند، اما query همچنان sort می‌کنه.</h1>
+<h1 lang="en">Searching by title and status is slow. Two separate indexes exist, but the query still sorts.</h1>
+<p class="sub" lang="fa">دو index جدا همیشه جواب query چندستونی نیست. این فصل ترتیب ستون‌های composite index، covering شدن query و جست‌وجوی FULLTEXT رو با workload واقعی کنار هم می‌گذارد؛ نه اینکه سه feature رو جداگانه حفظ کنیم.</p>
+<p class="sub" lang="en">Two separate indexes are not automatically the right answer for a multi-column query. This chapter connects composite-key order, covering behavior, and FULLTEXT search to concrete workloads instead of teaching three disconnected features.</p>
+<div class="facts"><span>MariaDB 11.8 · Composite, covering, and FULLTEXT indexes</span><span>حدود ۹۵ دقیقه · ۱۸ تمرین / About 95 minutes · 18 exercises</span></div>
+</div>
+<section id="mental-model"><h2><span lang="fa">قبل از کد، مسئله رو درست ببین</span><span lang="en">Frame the problem before the code</span></h2>
+<p lang="fa">این فصل رو با syntax شروع نمی‌کنیم. مسئله اینه: طراحی composite/covering/FULLTEXT بر اساس workload. اول یه پیش‌بینی می‌سازیم، بعد با query یا command کوچیک آزمایشش می‌کنیم. هر جا خروجی خلاف انتظار بود، همون‌جا درس اصلی شروع می‌شه.</p>
+<p lang="en">This chapter does not begin with syntax. The problem is workload-driven composite, covering, and FULLTEXT design. We will form a prediction, test it with a small query or command, and treat unexpected output as the beginning of the investigation.</p>
+</section><section id="lesson-1"><h2><span lang="fa">ترتیب ستون‌ها از شکل query میاد</span><span lang="en">Column order comes from query shape</span></h2><p lang="fa">برای queryی که <code>customer_id</code> equality داره و بعد روی زمان sort/range می‌کنه، ترتیب index مهم هست. index رو از روی اسم ستون‌ها نمی‌چینیم؛ از روی predicate و order واقعی query می‌چینیم.</p><p lang="fa">بعد عمداً queryی می‌زنیم که فقط ستون دوم index رو داره تا ببینیم چرا composite index یک «کیسهٔ سه‌ستونی» نیست که هر ستونش مستقل کار کند.</p><p lang="en">For a query that uses equality on <code>customer_id</code> and then sorts or ranges by time, key order matters. Design the index from the real predicates and ordering, not from a list of columns.</p><p lang="en">Then deliberately query only the second key column to show why a composite index is not a bag of independently searchable columns.</p><pre dir="ltr"><code>CREATE INDEX ix_order_customer_status_created ON orders(customer_id,status,created_at);</code></pre><p lang="fa">ساختن index هنوز پایان تمرین نیست. همون query قبلی رو دوباره اجرا کن و از روی plan، ترتیب کلید، covering behavior و هزینهٔ write ثابت کن این index واقعاً چه چیزی رو عوض کرده.</p><p lang="en">Creating the index is not the result. Re-run the original query and show how the observed plan or runtime changed before claiming a benefit.</p></section><section id="lesson-2"><h2><span lang="fa">Covering یعنی table access کمتر؛ نه رایگان</span><span lang="en">Covering can reduce lookups, but it is not free</span></h2><p lang="fa">اگه query فقط ستون‌هایی رو بخواهد که در index هستن، engine ممکن هست بدون برگشتن به table جواب بدهد. این می‌تونه عالی باشد، مخصوصاً روی readهای پرتکرار.</p><p lang="fa">ولی هر ستون اضافه index رو پهن‌تر می‌کنه. پس covering رو فقط وقتی می‌خوایم که read benefit آن روی workload واقعی، storage و write cost رو توجیه کند.</p><p lang="en">If every required column is available from the index, the engine may answer without returning to the base table. That can be valuable for frequent reads.</p><p lang="en">But every extra indexed value widens the structure. Use covering indexes when measured read benefits justify their storage and write cost.</p><pre dir="ltr"><code>EXPLAIN SELECT customer_id,created_at FROM orders WHERE customer_id=7;</code></pre><p lang="fa">بعد از اجرا فقط دنبال اسم index نگرد. plan رو کنار query بخون و روی plan، ترتیب کلید، covering behavior و هزینهٔ write تمرکز کن. اگه plan با چیزی که پیش‌بینی کردی فرق داشت، همین اختلاف سؤال بعدی ماست.</p><p lang="en">Do not stop at the chosen index name. Read the plan in the context of the query and focus on the plan, key order, covering behavior, and write cost. Any mismatch with your prediction becomes the next investigation question.</p></section><section id="lesson-3"><h2><span lang="fa">FULLTEXT جای <code>%word%</code> نیست؛ مدل دیگری است</span><span lang="en">FULLTEXT is a different search model</span></h2><p lang="fa"><code>LIKE '%data%'</code> و FULLTEXT دو سؤال یکسان رو با دو implementation متفاوت نمی‌پرسند. FULLTEXT tokenization، stopword و modeهای خودش رو داره؛ پس نباید فقط به خاطر سرعت، معنی جست‌وجو رو عوض کنی.</p><p lang="fa">چند عبارت کوتاه و boolean mode رو روی fixture مشخص اجرا می‌کنیم تا بفهمیم چه چیز match می‌شه و چه چیز نه.</p><p lang="en"><code>LIKE '%data%'</code> and FULLTEXT do not necessarily express identical search semantics. FULLTEXT has tokenization, stop-word behavior, and search modes of its own, so performance is not a reason to silently change what “search” means.</p><p lang="en">Use a small controlled fixture and test short terms and boolean mode so matches and non-matches are observable.</p><pre dir="ltr"><code>EXPLAIN SELECT * FROM articles WHERE title LIKE 'data%';</code></pre><p lang="fa">بعد از اجرا فقط دنبال اسم index نگرد. plan رو کنار query بخون و روی plan، ترتیب کلید، covering behavior و هزینهٔ write تمرکز کن. اگه plan با چیزی که پیش‌بینی کردی فرق داشت، همین اختلاف سؤال بعدی ماست.</p><p lang="en">Do not stop at the chosen index name. Read the plan in the context of the query and focus on the plan, key order, covering behavior, and write cost. Any mismatch with your prediction becomes the next investigation question.</p></section><section id="lesson-4"><h2><span lang="fa">Index overlap رو به حال خودش رها نکن</span><span lang="en">Do not ignore overlapping indexes</span></h2><p lang="fa">بعد از چند ماه tuning ممکن هست <code>customer_id</code>، <code>(customer_id,status)</code> و <code>(customer_id,status,created_at)</code> کنار هم مانده باشند. بعضی‌شان شاید هنوز لازم باشند، بعضی شاید فقط write cost بدهند.</p><p lang="fa">قبل از حذف، usage و constraintها رو بررسی کن. حذف index هم یک تغییر production هست؛ نه housekeeping بی‌خطر.</p><p lang="en">Months of tuning can leave several overlapping indexes behind. Some may still be justified; others may only add write and storage cost.</p><p lang="en">Inspect usage and constraint dependencies before dropping anything. Removing an index is a production change, not harmless housekeeping.</p><pre dir="ltr"><code>SELECT sku,COUNT(*) FROM products GROUP BY sku HAVING COUNT(*)&gt;1;</code></pre><p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ طراحی composite/covering/FULLTEXT بر اساس workload یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p><p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about workload-driven composite, covering, and FULLTEXT design.</p></section><section id="mini-lab"><h2><span lang="fa">مینی‌لب — از حدس تا مدرک</span><span lang="en">Mini-lab — from assumption to evidence</span></h2>
+<p lang="fa">حالا سه checkpoint رو پشت‌سرهم اجرا کن. ترتیب مهمه: اول baseline، بعد یک تغییر یا مشاهدهٔ دقیق، بعد verification. وسط کار چیزی رو «درست» فرض نکن؛ هر مرحله باید خروجی مرحلهٔ بعد رو قابل‌تفسیرتر کنه.</p>
+<p lang="en">Run three checkpoints as one small story. Order matters: establish a baseline, make one controlled observation/change, then verify. Do not assume success between steps; each checkpoint should make the next result easier to interpret.</p>
+<pre dir="ltr"><code>CREATE INDEX ix_order_customer_status_created ON orders(customer_id,status,created_at);
+
+EXPLAIN SELECT customer_id,created_at FROM orders WHERE customer_id=7;
+
+EXPLAIN SELECT * FROM articles WHERE title LIKE 'data%';</code></pre>
+<div class="note safe"><strong lang="fa">چی رو نگه دار؟</strong><span lang="fa">commandها، خروجی مهم، نسخهٔ Server و یک جمله که می‌گه این آزمایش دربارهٔ طراحی composite/covering/FULLTEXT بر اساس workload دقیقاً چی رو ثابت کرد.</span><strong lang="en">What should you preserve?</strong><span lang="en">Commands, relevant output, server version, and one sentence stating exactly what this experiment proved about workload-driven composite, covering, and FULLTEXT design.</span></div>
+</section><section id="exercises"><h2><span lang="fa">تمرین‌ها — دست به کیبورد</span><span lang="en">Exercises — hands on keyboard</span></h2><p lang="fa">اینجا جواب تشریحیِ خالی نداریم. هر تمرین باید به یه SQL/command، خروجی یا state قابل‌بررسی ختم بشه. از تمرین‌های اول که گرم‌کردن هستن تا سناریوهای آخر، هدف اینه که بتونی چیزی رو با مدرک ثابت کنی.</p><p lang="en">These are not prose-only questions. Every exercise should end in runnable SQL/commands and observable evidence. Difficulty rises from warm-up tasks to engineering scenarios.</p><div class="ex" id="ex-mdb-10-1">
+<h3><span lang="fa">1) composite index رو بساز</span><span lang="en">1) Create the candidate index</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ طراحی composite/covering/FULLTEXT بر اساس workload چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about workload-driven composite, covering, and FULLTEXT design. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>CREATE INDEX ix_order_customer_status_created ON orders(customer_id,status,created_at);</code></pre>
+<p lang="fa">ساختن index هنوز پایان تمرین نیست. همون query قبلی رو دوباره اجرا کن و از روی plan، ترتیب کلید، covering behavior و هزینهٔ write ثابت کن این index واقعاً چه چیزی رو عوض کرده.</p>
+<p lang="en">Creating the index is not the result. Re-run the original query and show how the observed plan or runtime changed before claiming a benefit.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای طراحی composite/covering/FULLTEXT بر اساس workload انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven composite, covering, and FULLTEXT design.</p>
+</details></div><div class="ex" id="ex-mdb-10-2">
+<h3><span lang="fa">2) leftmost prefix رو test کن</span><span lang="en">2) Inspect the access plan</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای طراحی composite/covering/FULLTEXT بر اساس workload مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for workload-driven composite, covering, and FULLTEXT design.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>EXPLAIN SELECT * FROM orders WHERE customer_id=7;</code></pre>
+<p lang="fa">بعد از اجرا فقط دنبال اسم index نگرد. plan رو کنار query بخون و روی plan، ترتیب کلید، covering behavior و هزینهٔ write تمرکز کن. اگه plan با چیزی که پیش‌بینی کردی فرق داشت، همین اختلاف سؤال بعدی ماست.</p>
+<p lang="en">Do not stop at the chosen index name. Read the plan in the context of the query and focus on the plan, key order, covering behavior, and write cost. Any mismatch with your prediction becomes the next investigation question.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای طراحی composite/covering/FULLTEXT بر اساس workload انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven composite, covering, and FULLTEXT design.</p>
+</details></div><div class="ex" id="ex-mdb-10-3">
+<h3><span lang="fa">3) فقط ستون دوم رو فیلتر کن</span><span lang="en">3) Inspect the access plan</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>EXPLAIN SELECT * FROM orders WHERE status='open';</code></pre>
+<p lang="fa">بعد از اجرا فقط دنبال اسم index نگرد. plan رو کنار query بخون و روی plan، ترتیب کلید، covering behavior و هزینهٔ write تمرکز کن. اگه plan با چیزی که پیش‌بینی کردی فرق داشت، همین اختلاف سؤال بعدی ماست.</p>
+<p lang="en">Do not stop at the chosen index name. Read the plan in the context of the query and focus on the plan, key order, covering behavior, and write cost. Any mismatch with your prediction becomes the next investigation question.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای طراحی composite/covering/FULLTEXT بر اساس workload انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven composite, covering, and FULLTEXT design.</p>
+</details></div><div class="ex" id="ex-mdb-10-4">
+<h3><span lang="fa">4) equality سپس range رو compare کن</span><span lang="en">4) Inspect the access plan</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>EXPLAIN SELECT * FROM orders WHERE customer_id=7 AND created_at&gt;='2026-01-01';</code></pre>
+<p lang="fa">بعد از اجرا فقط دنبال اسم index نگرد. plan رو کنار query بخون و روی plan، ترتیب کلید، covering behavior و هزینهٔ write تمرکز کن. اگه plan با چیزی که پیش‌بینی کردی فرق داشت، همین اختلاف سؤال بعدی ماست.</p>
+<p lang="en">Do not stop at the chosen index name. Read the plan in the context of the query and focus on the plan, key order, covering behavior, and write cost. Any mismatch with your prediction becomes the next investigation question.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای طراحی composite/covering/FULLTEXT بر اساس workload انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven composite, covering, and FULLTEXT design.</p>
+</details></div><div class="ex" id="ex-mdb-10-5">
+<h3><span lang="fa">5) covering query رو explain کن</span><span lang="en">5) Inspect the access plan</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ طراحی composite/covering/FULLTEXT بر اساس workload چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about workload-driven composite, covering, and FULLTEXT design. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>EXPLAIN SELECT customer_id,created_at FROM orders WHERE customer_id=7;</code></pre>
+<p lang="fa">بعد از اجرا فقط دنبال اسم index نگرد. plan رو کنار query بخون و روی plan، ترتیب کلید، covering behavior و هزینهٔ write تمرکز کن. اگه plan با چیزی که پیش‌بینی کردی فرق داشت، همین اختلاف سؤال بعدی ماست.</p>
+<p lang="en">Do not stop at the chosen index name. Read the plan in the context of the query and focus on the plan, key order, covering behavior, and write cost. Any mismatch with your prediction becomes the next investigation question.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای طراحی composite/covering/FULLTEXT بر اساس workload انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven composite, covering, and FULLTEXT design.</p>
+</details></div><div class="ex" id="ex-mdb-10-6">
+<h3><span lang="fa">6) FULLTEXT index بساز</span><span lang="en">6) Create the candidate index</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای طراحی composite/covering/FULLTEXT بر اساس workload مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for workload-driven composite, covering, and FULLTEXT design.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>CREATE FULLTEXT INDEX ft_articles_title ON articles(title);</code></pre>
+<p lang="fa">ساختن index هنوز پایان تمرین نیست. همون query قبلی رو دوباره اجرا کن و از روی plan، ترتیب کلید، covering behavior و هزینهٔ write ثابت کن این index واقعاً چه چیزی رو عوض کرده.</p>
+<p lang="en">Creating the index is not the result. Re-run the original query and show how the observed plan or runtime changed before claiming a benefit.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای طراحی composite/covering/FULLTEXT بر اساس workload انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven composite, covering, and FULLTEXT design.</p>
+</details></div><div class="ex" id="ex-mdb-10-7">
+<h3><span lang="fa">7) FULLTEXT search اجرا کن</span><span lang="en">7) Query the evidence</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT id FROM articles WHERE MATCH(title) AGAINST('database');</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ طراحی composite/covering/FULLTEXT بر اساس workload یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about workload-driven composite, covering, and FULLTEXT design.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای طراحی composite/covering/FULLTEXT بر اساس workload انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven composite, covering, and FULLTEXT design.</p>
+</details></div><div class="ex" id="ex-mdb-10-8">
+<h3><span lang="fa">8) boolean mode رو بسنج</span><span lang="en">8) Query the evidence</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT id FROM articles WHERE MATCH(title) AGAINST('+data -old' IN BOOLEAN MODE);</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ طراحی composite/covering/FULLTEXT بر اساس workload یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about workload-driven composite, covering, and FULLTEXT design.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای طراحی composite/covering/FULLTEXT بر اساس workload انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven composite, covering, and FULLTEXT design.</p>
+</details></div><div class="ex" id="ex-mdb-10-9">
+<h3><span lang="fa">9) prefix LIKE رو explain کن</span><span lang="en">9) Inspect the access plan</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ طراحی composite/covering/FULLTEXT بر اساس workload چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about workload-driven composite, covering, and FULLTEXT design. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>EXPLAIN SELECT * FROM articles WHERE title LIKE 'data%';</code></pre>
+<p lang="fa">بعد از اجرا فقط دنبال اسم index نگرد. plan رو کنار query بخون و روی plan، ترتیب کلید، covering behavior و هزینهٔ write تمرکز کن. اگه plan با چیزی که پیش‌بینی کردی فرق داشت، همین اختلاف سؤال بعدی ماست.</p>
+<p lang="en">Do not stop at the chosen index name. Read the plan in the context of the query and focus on the plan, key order, covering behavior, and write cost. Any mismatch with your prediction becomes the next investigation question.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای طراحی composite/covering/FULLTEXT بر اساس workload انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven composite, covering, and FULLTEXT design.</p>
+</details></div><div class="ex" id="ex-mdb-10-10">
+<h3><span lang="fa">10) leading wildcard رو compare کن</span><span lang="en">10) Inspect the access plan</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای طراحی composite/covering/FULLTEXT بر اساس workload مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for workload-driven composite, covering, and FULLTEXT design.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>EXPLAIN SELECT * FROM articles WHERE title LIKE '%data%';</code></pre>
+<p lang="fa">بعد از اجرا فقط دنبال اسم index نگرد. plan رو کنار query بخون و روی plan، ترتیب کلید، covering behavior و هزینهٔ write تمرکز کن. اگه plan با چیزی که پیش‌بینی کردی فرق داشت، همین اختلاف سؤال بعدی ماست.</p>
+<p lang="en">Do not stop at the chosen index name. Read the plan in the context of the query and focus on the plan, key order, covering behavior, and write cost. Any mismatch with your prediction becomes the next investigation question.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای طراحی composite/covering/FULLTEXT بر اساس workload انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven composite, covering, and FULLTEXT design.</p>
+</details></div><div class="ex" id="ex-mdb-10-11">
+<h3><span lang="fa">11) index cardinality رو ببین</span><span lang="en">11) Read server evidence</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW INDEX FROM orders;</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با plan، ترتیب کلید، covering behavior و هزینهٔ write رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about workload-driven composite, covering, and FULLTEXT design can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای طراحی composite/covering/FULLTEXT بر اساس workload انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven composite, covering, and FULLTEXT design.</p>
+</details></div><div class="ex" id="ex-mdb-10-12">
+<h3><span lang="fa">12) unique index رو در fixture بساز</span><span lang="en">12) Create the candidate index</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>CREATE UNIQUE INDEX uq_products_sku ON products(sku);</code></pre>
+<p lang="fa">ساختن index هنوز پایان تمرین نیست. همون query قبلی رو دوباره اجرا کن و از روی plan، ترتیب کلید، covering behavior و هزینهٔ write ثابت کن این index واقعاً چه چیزی رو عوض کرده.</p>
+<p lang="en">Creating the index is not the result. Re-run the original query and show how the observed plan or runtime changed before claiming a benefit.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای طراحی composite/covering/FULLTEXT بر اساس workload انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven composite, covering, and FULLTEXT design.</p>
+</details></div><div class="ex" id="ex-mdb-10-13">
+<h3><span lang="fa">13) duplicateها رو پیش از unique پیدا کن</span><span lang="en">13) Query the evidence</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ طراحی composite/covering/FULLTEXT بر اساس workload چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about workload-driven composite, covering, and FULLTEXT design. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT sku,COUNT(*) FROM products GROUP BY sku HAVING COUNT(*)&gt;1;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ طراحی composite/covering/FULLTEXT بر اساس workload یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about workload-driven composite, covering, and FULLTEXT design.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای طراحی composite/covering/FULLTEXT بر اساس workload انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven composite, covering, and FULLTEXT design.</p>
+</details></div><div class="ex" id="ex-mdb-10-14">
+<h3><span lang="fa">14) write batch رو قبل/بعد compare کن</span><span lang="en">14) Create the lab object</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای طراحی composite/covering/FULLTEXT بر اساس workload مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for workload-driven composite, covering, and FULLTEXT design.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>CREATE TABLE orders_write_lab LIKE orders;
+INSERT INTO orders_write_lab SELECT * FROM orders LIMIT 10000;
+SET @started=NOW(6);
+INSERT INTO orders_write_lab SELECT * FROM orders LIMIT 1000;
+SELECT TIMESTAMPDIFF(MICROSECOND,@started,NOW(6)) AS elapsed_us;</code></pre>
+<p lang="fa">این object عمداً کوچک و آزمایشیه تا behavior رو بدون سر و صدای production ببینیم. بعد از ساخت، با metadata یا یک query مستقل ثابت کن چیزی که می‌خواستیم واقعاً ساخته شده.</p>
+<p lang="en">The object is intentionally small and disposable. After creating it, use independent metadata or a query to prove that the intended behavior really exists.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای طراحی composite/covering/FULLTEXT بر اساس workload انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven composite, covering, and FULLTEXT design.</p>
+</details></div><div class="ex" id="ex-mdb-10-15">
+<h3><span lang="fa">15) index overlap رو inspect کن</span><span lang="en">15) Read server evidence</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW INDEX FROM orders;</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با plan، ترتیب کلید، covering behavior و هزینهٔ write رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about workload-driven composite, covering, and FULLTEXT design can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای طراحی composite/covering/FULLTEXT بر اساس workload انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven composite, covering, and FULLTEXT design.</p>
+</details></div><div class="ex" id="ex-mdb-10-16">
+<h3><span lang="fa">16) ORDER BY plan رو بررسی کن</span><span lang="en">16) Inspect the access plan</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>EXPLAIN SELECT id FROM orders WHERE customer_id=7 ORDER BY created_at DESC LIMIT 20;</code></pre>
+<p lang="fa">بعد از اجرا فقط دنبال اسم index نگرد. plan رو کنار query بخون و روی plan، ترتیب کلید، covering behavior و هزینهٔ write تمرکز کن. اگه plan با چیزی که پیش‌بینی کردی فرق داشت، همین اختلاف سؤال بعدی ماست.</p>
+<p lang="en">Do not stop at the chosen index name. Read the plan in the context of the query and focus on the plan, key order, covering behavior, and write cost. Any mismatch with your prediction becomes the next investigation question.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای طراحی composite/covering/FULLTEXT بر اساس workload انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven composite, covering, and FULLTEXT design.</p>
+</details></div><div class="ex" id="ex-mdb-10-17">
+<h3><span lang="fa">17) tokenization رو با queryهای کوتاه تست کن</span><span lang="en">17) Query the evidence</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ طراحی composite/covering/FULLTEXT بر اساس workload چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about workload-driven composite, covering, and FULLTEXT design. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT MATCH(title) AGAINST('db') FROM articles;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ طراحی composite/covering/FULLTEXT بر اساس workload یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about workload-driven composite, covering, and FULLTEXT design.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای طراحی composite/covering/FULLTEXT بر اساس workload انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven composite, covering, and FULLTEXT design.</p>
+</details></div><div class="ex" id="ex-mdb-10-18">
+<h3><span lang="fa">18) index usage rationale بنویس</span><span lang="en">18) Read server evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای طراحی composite/covering/FULLTEXT بر اساس workload مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for workload-driven composite, covering, and FULLTEXT design.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW INDEX FROM orders;
+EXPLAIN SELECT id FROM orders
+WHERE customer_id=7
+ORDER BY created_at DESC
+LIMIT 20;</code></pre>
+<p lang="fa">بعد از اجرا فقط دنبال اسم index نگرد. plan رو کنار query بخون و روی plan، ترتیب کلید، covering behavior و هزینهٔ write تمرکز کن. اگه plan با چیزی که پیش‌بینی کردی فرق داشت، همین اختلاف سؤال بعدی ماست.</p>
+<p lang="en">Do not stop at the chosen index name. Read the plan in the context of the query and focus on the plan, key order, covering behavior, and write cost. Any mismatch with your prediction becomes the next investigation question.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای طراحی composite/covering/FULLTEXT بر اساس workload انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for workload-driven composite, covering, and FULLTEXT design.</p>
+</details></div></section><section id="next"><h2><span lang="fa">جمع‌بندی — چیزی که باید با خودت ببری</span><span lang="en">Summary — the mental model to keep</span></h2><p lang="fa">اگه از این فصل فقط یه عادت بمونه، این باشه: دربارهٔ طراحی composite/covering/FULLTEXT بر اساس workload از روی اسم feature یا حس تصمیم نگیر. baseline بگیر، یه چیز رو عوض کن، خروجی رو بخون و بعد نتیجه بگیر.</p><p lang="en">If one habit survives this chapter, let it be this: do not reason about workload-driven composite, covering, and FULLTEXT design from feature names or intuition. Capture a baseline, change one thing, read the evidence, then conclude.</p><p class="refs"><a href="https://mariadb.com/docs/server/mariadb-quickstart-guides/mariadb-indexes-guide">MariaDB Indexes Guide</a> · <a href="https://mariadb.com/docs/server/ha-and-performance/optimization-and-tuning/optimization-and-indexes/full-text-indexes">FULLTEXT Indexes</a></p></section>

@@ -1,0 +1,229 @@
+<!--meta
+title: Account، authentication و Role
+desc: اگه برنامه با root وصل می‌شه، تقریباً هر باگ برنامه تبدیل می‌شه به باگی با قدرت administrator. MariaDB account فقط اسم کاربر نیست؛ ترکیب user و host است. این فصل دسترسی رو از حالت «کار می‌کنه» به «دقیقاً همین‌قدر اجازه دارد» می‌برد.
+-->
+<div class="masthead">
+<span class="eyebrow"><span class="dot"></span><span lang="fa">MariaDB · فصل 22</span><span lang="en">MariaDB · Chapter 22</span></span>
+<h1 lang="fa">گزارش‌گیر به کل دیتابیس دسترسی داره چون برنامه با root وصل می‌شه؛ چطور دسترسی رو محدود کنیم؟</h1>
+<h1 lang="en">A reporting app can access the whole database because it connects as root. How do we restrict accounts and roles?</h1>
+<p class="sub" lang="fa">اگه برنامه با <code>root</code> وصل می‌شه، تقریباً هر باگ برنامه تبدیل می‌شه به باگی با قدرت administrator. MariaDB account فقط اسم کاربر نیست؛ ترکیب <code>user</code> و <code>host</code> هست. این فصل دسترسی رو از حالت «کار می‌کنه» به «دقیقاً همین‌قدر اجازه داره» می‌برد.</p>
+<p class="sub" lang="en">If an application connects as <code>root</code>, almost every application bug inherits administrator power. A MariaDB account is not just a username; it is the combination of <code>user</code> and <code>host</code>. This chapter moves access control from “it works” to “it has exactly the permissions it needs.”</p>
+<div class="facts"><span>MariaDB 11.8 · Accounts, authentication, and roles</span><span>حدود ۹۵ دقیقه · ۱۸ تمرین / About 95 minutes · 18 exercises</span></div>
+</div>
+<section id="mental-model"><h2><span lang="fa">قبل از کد، مسئله رو درست ببین</span><span lang="en">Frame the problem before the code</span></h2>
+<p lang="fa">این فصل رو با syntax شروع نمی‌کنیم. مسئله اینه: account واقعی، role و least privilege. اول یه پیش‌بینی می‌سازیم، بعد با query یا command کوچیک آزمایشش می‌کنیم. هر جا خروجی خلاف انتظار بود، همون‌جا درس اصلی شروع می‌شه.</p>
+<p lang="en">This chapter does not begin with syntax. The problem is real accounts, roles, and least privilege. We will form a prediction, test it with a small query or command, and treat unexpected output as the beginning of the investigation.</p>
+</section><section id="lesson-1"><h2><span lang="fa"><code>user</code>@<code>host</code> یک هویت کامل است</span><span lang="en">`user`@`host` is the account identity</span></h2><p lang="fa"><code>app</code>@<code>localhost</code> و <code>app</code>@<code>10.%</code> دو account جدا هستن، حتی اگه password یکسان داشته باشند. موقع خطای <code>Access denied</code> فقط username رو نگاه نکن؛ source connection و <code>CURRENT_USER()</code> هم مهم‌اند.</p><p lang="fa">یک account محدود می‌سازیم، با همان account وصل می‌شیم و فرق <code>USER()</code> و <code>CURRENT_USER()</code> رو در سناریوی host matching می‌بینیم.</p><p lang="en"><code>app</code>@<code>localhost</code> and <code>app</code>@<code>10.%</code> are different accounts even if they share a password. When investigating <code>Access denied</code>, do not inspect only the username; source host and <code>CURRENT_USER()</code> matter too.</p><p lang="en">Create a restricted account, log in with it, and use <code>USER()</code> versus <code>CURRENT_USER()</code> to make host matching visible.</p><pre dir="ltr"><code>CREATE USER 'app_read'@'localhost' IDENTIFIED BY 'replace-outside-lab';</code></pre><p lang="fa">این object عمداً کوچک و آزمایشیه تا behavior رو بدون سر و صدای production ببینیم. بعد از ساخت، با metadata یا یک query مستقل ثابت کن چیزی که می‌خواستیم واقعاً ساخته شده.</p><p lang="en">The object is intentionally small and disposable. After creating it, use independent metadata or a query to prove that the intended behavior really exists.</p></section><section id="lesson-2"><h2><span lang="fa">Role فقط وقتی مفید هست که grant واقعی رو ساده کند</span><span lang="en">Roles should simplify real privilege sets</span></h2><p lang="fa">به‌جای پخش‌کردن ده <code>GRANT</code> روی چند account، role رو برای یک مسئولیت واقعی مثل <code>read_orders</code> می‌سازیم. بعد role رو به user می‌دهیم و default role رو روشن می‌کنیم.</p><p lang="fa">ولی باز هم <code>SHOW GRANTS</code> پایان کار نیست. باید با همان user یک کار مجاز و یک کار غیرمجاز رو اجرا کنی.</p><p lang="en">Instead of duplicating many grants across accounts, define a role around a real responsibility such as <code>read_orders</code>. Assign it to the user and configure the default role as needed.</p><p lang="en">But <code>SHOW GRANTS</code> is not the end of the test. Log in as that user and perform one allowed action and one denied action.</p><pre dir="ltr"><code>SET DEFAULT ROLE read_orders FOR 'app_read'@'localhost';</code></pre><p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ account واقعی، role و least privilege یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p><p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about real accounts, roles, and least privilege.</p></section><section id="lesson-3"><h2><span lang="fa">کمترین دسترسی یعنی object و operation مشخص</span><span lang="en">Least privilege means specific objects and operations</span></h2><p lang="fa">گاهی برنامه فقط باید <code>status</code> سفارش رو update کند. دادن <code>UPDATE</code> روی کل schema راحت‌تر هست، ولی blast radius رو بی‌دلیل بزرگ می‌کنه.</p><p lang="fa">هرجا MariaDB اجازه می‌ده، privilege رو تا object یا حتی column لازم محدود کن و بعد سناریوی واقعی برنامه رو با همان account اجرا کن.</p><p lang="en">An application may only need to update an order's <code>status</code>. Granting <code>UPDATE</code> over an entire schema is simpler, but unnecessarily expands the blast radius.</p><p lang="en">Where practical, restrict privileges to the required object or column and then run the real application operation using that account.</p><pre dir="ltr"><code>SELECT CURRENT_USER(),USER();
+SHOW GRANTS;</code></pre><p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با <code>CURRENT_USER()</code>، <code>SHOW GRANTS</code> و allowed/denied operation رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p><p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about real accounts, roles, and least privilege can be tied to evidence.</p></section><section id="lesson-4"><h2><span lang="fa">Credential provisioning رو از SQL نمونه جدا نگه دار</span><span lang="en">Keep credential provisioning out of course literals</span></h2><p lang="fa">در lab می‌تونی password ساختگی داشته باشی، ولی course نباید عادت بدهد secret واقعی رو در migration، git یا shell history بچسبانی.</p><p lang="fa">برای production، روش provisioning و rotation باید جدا از source code طراحی شود. SQL فصل فقط contract account و privilege رو نشان می‌ده.</p><p lang="en">Disposable labs can use fake passwords, but the course must not teach developers to commit real credentials into migrations, Git, or shell history.</p><p lang="en">In production, provisioning and rotation belong to a separate secret-management boundary. The SQL here demonstrates account and privilege semantics.</p><pre dir="ltr"><code>SELECT User,Host,plugin FROM mysql.user WHERE User='app_read';</code></pre><p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ account واقعی، role و least privilege یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p><p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about real accounts, roles, and least privilege.</p></section><section id="mini-lab"><h2><span lang="fa">مینی‌لب — از حدس تا مدرک</span><span lang="en">Mini-lab — from assumption to evidence</span></h2>
+<p lang="fa">حالا سه checkpoint رو پشت‌سرهم اجرا کن. ترتیب مهمه: اول baseline، بعد یک تغییر یا مشاهدهٔ دقیق، بعد verification. وسط کار چیزی رو «درست» فرض نکن؛ هر مرحله باید خروجی مرحلهٔ بعد رو قابل‌تفسیرتر کنه.</p>
+<p lang="en">Run three checkpoints as one small story. Order matters: establish a baseline, make one controlled observation/change, then verify. Do not assume success between steps; each checkpoint should make the next result easier to interpret.</p>
+<pre dir="ltr"><code>CREATE USER 'app_read'@'localhost' IDENTIFIED BY 'replace-outside-lab';
+
+SET DEFAULT ROLE read_orders FOR 'app_read'@'localhost';
+
+SELECT CURRENT_USER(),USER();
+SHOW GRANTS;</code></pre>
+<div class="note safe"><strong lang="fa">چی رو نگه دار؟</strong><span lang="fa">commandها، خروجی مهم، نسخهٔ Server و یک جمله که می‌گه این آزمایش دربارهٔ account واقعی، role و least privilege دقیقاً چی رو ثابت کرد.</span><strong lang="en">What should you preserve?</strong><span lang="en">Commands, relevant output, server version, and one sentence stating exactly what this experiment proved about real accounts, roles, and least privilege.</span></div>
+</section><section id="exercises"><h2><span lang="fa">تمرین‌ها — دست به کیبورد</span><span lang="en">Exercises — hands on keyboard</span></h2><p lang="fa">اینجا جواب تشریحیِ خالی نداریم. هر تمرین باید به یه SQL/command، خروجی یا state قابل‌بررسی ختم بشه. از تمرین‌های اول که گرم‌کردن هستن تا سناریوهای آخر، هدف اینه که بتونی چیزی رو با مدرک ثابت کنی.</p><p lang="en">These are not prose-only questions. Every exercise should end in runnable SQL/commands and observable evidence. Difficulty rises from warm-up tasks to engineering scenarios.</p><div class="ex" id="ex-mdb-22-1">
+<h3><span lang="fa">1) کاربر محدود بساز</span><span lang="en">1) Create a restricted security principal</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ account واقعی، role و least privilege چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about real accounts, roles, and least privilege. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>CREATE USER 'app_read'@'localhost' IDENTIFIED BY 'replace-outside-lab';</code></pre>
+<p lang="fa">این object عمداً کوچک و آزمایشیه تا behavior رو بدون سر و صدای production ببینیم. بعد از ساخت، با metadata یا یک query مستقل ثابت کن چیزی که می‌خواستیم واقعاً ساخته شده.</p>
+<p lang="en">The object is intentionally small and disposable. After creating it, use independent metadata or a query to prove that the intended behavior really exists.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای account واقعی، role و least privilege انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for real accounts, roles, and least privilege.</p>
+</details></div><div class="ex" id="ex-mdb-22-2">
+<h3><span lang="fa">2) role بساز</span><span lang="en">2) Create a restricted security principal</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای account واقعی، role و least privilege مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for real accounts, roles, and least privilege.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>CREATE ROLE read_orders;</code></pre>
+<p lang="fa">این object عمداً کوچک و آزمایشیه تا behavior رو بدون سر و صدای production ببینیم. بعد از ساخت، با metadata یا یک query مستقل ثابت کن چیزی که می‌خواستیم واقعاً ساخته شده.</p>
+<p lang="en">The object is intentionally small and disposable. After creating it, use independent metadata or a query to prove that the intended behavior really exists.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای account واقعی، role و least privilege انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for real accounts, roles, and least privilege.</p>
+</details></div><div class="ex" id="ex-mdb-22-3">
+<h3><span lang="fa">3) روی view مجوز بده</span><span lang="en">3) Grant the minimum required access</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>GRANT SELECT ON shopdb.order_view TO read_orders;</code></pre>
+<p lang="fa">بعد از تغییر privilege با account هدف reconnect کن. یک operation مجاز و یک operation غیرمجاز اجرا کن؛ security وقتی ثابت می‌شه که failure موردانتظار رو هم ببینی.</p>
+<p lang="en">Reconnect as the target account and test both an allowed and a denied operation. Security is best proven by the expected success and the expected failure.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای account واقعی، role و least privilege انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for real accounts, roles, and least privilege.</p>
+</details></div><div class="ex" id="ex-mdb-22-4">
+<h3><span lang="fa">4) role رو به account بده</span><span lang="en">4) Grant the minimum required access</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>GRANT read_orders TO 'app_read'@'localhost';</code></pre>
+<p lang="fa">بعد از تغییر privilege با account هدف reconnect کن. یک operation مجاز و یک operation غیرمجاز اجرا کن؛ security وقتی ثابت می‌شه که failure موردانتظار رو هم ببینی.</p>
+<p lang="en">Reconnect as the target account and test both an allowed and a denied operation. Security is best proven by the expected success and the expected failure.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای account واقعی، role و least privilege انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for real accounts, roles, and least privilege.</p>
+</details></div><div class="ex" id="ex-mdb-22-5">
+<h3><span lang="fa">5) role پیش‌فرض رو مشخص کن</span><span lang="en">5) Run the experiment</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ account واقعی، role و least privilege چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about real accounts, roles, and least privilege. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · گرم‌کردن</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Warm-up</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SET DEFAULT ROLE read_orders FOR 'app_read'@'localhost';</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ account واقعی، role و least privilege یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about real accounts, roles, and least privilege.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای account واقعی، role و least privilege انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for real accounts, roles, and least privilege.</p>
+</details></div><div class="ex" id="ex-mdb-22-6">
+<h3><span lang="fa">6) grant مؤثر رو ببین</span><span lang="en">6) Read server evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای account واقعی، role و least privilege مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for real accounts, roles, and least privilege.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW GRANTS FOR 'app_read'@'localhost';</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با <code>CURRENT_USER()</code>، <code>SHOW GRANTS</code> و allowed/denied operation رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about real accounts, roles, and least privilege can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای account واقعی، role و least privilege انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for real accounts, roles, and least privilege.</p>
+</details></div><div class="ex" id="ex-mdb-22-7">
+<h3><span lang="fa">7) host pattern رو محدود کن</span><span lang="en">7) Create a restricted security principal</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>CREATE USER 'api'@'10.20.%' IDENTIFIED BY 'secret';</code></pre>
+<p lang="fa">این object عمداً کوچک و آزمایشیه تا behavior رو بدون سر و صدای production ببینیم. بعد از ساخت، با metadata یا یک query مستقل ثابت کن چیزی که می‌خواستیم واقعاً ساخته شده.</p>
+<p lang="en">The object is intentionally small and disposable. After creating it, use independent metadata or a query to prove that the intended behavior really exists.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای account واقعی، role و least privilege انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for real accounts, roles, and least privilege.</p>
+</details></div><div class="ex" id="ex-mdb-22-8">
+<h3><span lang="fa">8) localhost و % رو مقایسه کن</span><span lang="en">8) Query the evidence</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT CURRENT_USER(),USER();</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ account واقعی، role و least privilege یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about real accounts, roles, and least privilege.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای account واقعی، role و least privilege انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for real accounts, roles, and least privilege.</p>
+</details></div><div class="ex" id="ex-mdb-22-9">
+<h3><span lang="fa">9) دسترسی root رو حذف از app کن</span><span lang="en">9) Query the evidence</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ account واقعی، role و least privilege چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about real accounts, roles, and least privilege. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT CURRENT_USER(),USER();
+SHOW GRANTS;</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با <code>CURRENT_USER()</code>، <code>SHOW GRANTS</code> و allowed/denied operation رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about real accounts, roles, and least privilege can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای account واقعی، role و least privilege انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for real accounts, roles, and least privilege.</p>
+</details></div><div class="ex" id="ex-mdb-22-10">
+<h3><span lang="fa">10) دسترسی UPDATE لازم رو بده</span><span lang="en">10) Grant the minimum required access</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای account واقعی، role و least privilege مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for real accounts, roles, and least privilege.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>GRANT UPDATE(status) ON shopdb.orders TO 'order_writer'@'10.%';</code></pre>
+<p lang="fa">بعد از تغییر privilege با account هدف reconnect کن. یک operation مجاز و یک operation غیرمجاز اجرا کن؛ security وقتی ثابت می‌شه که failure موردانتظار رو هم ببینی.</p>
+<p lang="en">Reconnect as the target account and test both an allowed and a denied operation. Security is best proven by the expected success and the expected failure.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای account واقعی، role و least privilege انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for real accounts, roles, and least privilege.</p>
+</details></div><div class="ex" id="ex-mdb-22-11">
+<h3><span lang="fa">11) مجوز اضافه رو revoke کن</span><span lang="en">11) Remove unnecessary access</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · آزمایش اصلی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Core experiment</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>REVOKE SELECT ON shopdb.private_data FROM 'app_read'@'localhost';</code></pre>
+<p lang="fa">بعد از تغییر privilege با account هدف reconnect کن. یک operation مجاز و یک operation غیرمجاز اجرا کن؛ security وقتی ثابت می‌شه که failure موردانتظار رو هم ببینی.</p>
+<p lang="en">Reconnect as the target account and test both an allowed and a denied operation. Security is best proven by the expected success and the expected failure.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای account واقعی، role و least privilege انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for real accounts, roles, and least privilege.</p>
+</details></div><div class="ex" id="ex-mdb-22-12">
+<h3><span lang="fa">12) role رو revoke کن</span><span lang="en">12) Remove unnecessary access</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>REVOKE read_orders FROM 'app_read'@'localhost';</code></pre>
+<p lang="fa">بعد از تغییر privilege با account هدف reconnect کن. یک operation مجاز و یک operation غیرمجاز اجرا کن؛ security وقتی ثابت می‌شه که failure موردانتظار رو هم ببینی.</p>
+<p lang="en">Reconnect as the target account and test both an allowed and a denied operation. Security is best proven by the expected success and the expected failure.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای account واقعی، role و least privilege انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for real accounts, roles, and least privilege.</p>
+</details></div><div class="ex" id="ex-mdb-22-13">
+<h3><span lang="fa">13) authentication plugin رو بخوان</span><span lang="en">13) Query the evidence</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ account واقعی، role و least privilege چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about real accounts, roles, and least privilege. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT User,Host,plugin FROM mysql.user WHERE User='app_read';</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ account واقعی، role و least privilege یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about real accounts, roles, and least privilege.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای account واقعی، role و least privilege انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for real accounts, roles, and least privilege.</p>
+</details></div><div class="ex" id="ex-mdb-22-14">
+<h3><span lang="fa">14) secret رو در SQL history نگذار</span><span lang="en">14) Query the evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای account واقعی، role و least privilege مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for real accounts, roles, and least privilege.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT 'Do not store real credentials in migrations or source control' AS secret_boundary;</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ account واقعی، role و least privilege یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about real accounts, roles, and least privilege.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای account واقعی، role و least privilege انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for real accounts, roles, and least privilege.</p>
+</details></div><div class="ex" id="ex-mdb-22-15">
+<h3><span lang="fa">15) حساب رو آزمایش کن</span><span lang="en">15) Query the evidence</span></h3>
+<p lang="fa">اینجا هدف صرفاً اجرای command نیست. قبل و بعد رو مقایسه کن و یک جمله بنویس که دقیقاً از روی خروجی قابل دفاع باشه.</p>
+<p lang="en">The goal is not merely to execute a command. Compare the relevant state before and after and write one conclusion that the output actually supports.</p>
+<div class="note safe"><strong lang="fa">تحویل · عیب‌یابی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Debugging</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT CURRENT_USER(),USER();
+SHOW GRANTS;</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با <code>CURRENT_USER()</code>، <code>SHOW GRANTS</code> و allowed/denied operation رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about real accounts, roles, and least privilege can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای account واقعی، role و least privilege انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for real accounts, roles, and least privilege.</p>
+</details></div><div class="ex" id="ex-mdb-22-16">
+<h3><span lang="fa">16) password expiry policy رو بررسی کن</span><span lang="en">16) Inspect the real object definition</span></h3>
+<p lang="fa">این تمرین رو روی lab انجام بده. اگه نتیجه با چیزی که انتظار داشتی فرق داشت، همون اختلاف رو پاک نکن؛ تبدیلش کن به سؤال debugging.</p>
+<p lang="en">Run this only in the lab. If the result differs from your expectation, keep the discrepancy and turn it into the next debugging question.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW CREATE USER 'app_read'@'localhost';</code></pre>
+<p lang="fa">اینجا اسم feature رو از روی حافظه قبول نمی‌کنیم. <code>SHOW CREATE</code> تعریف واقعی object رو برمی‌گردونه؛ همون رو به‌عنوان مدرک برای account واقعی، role و least privilege نگه دار.</p>
+<p lang="en">Use the server's real object definition as evidence rather than relying on a remembered feature name. Keep this output with the lab notes.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای account واقعی، role و least privilege انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for real accounts, roles, and least privilege.</p>
+</details></div><div class="ex" id="ex-mdb-22-17">
+<h3><span lang="fa">17) account host mismatch رو تشخیص بده</span><span lang="en">17) Query the evidence</span></h3>
+<p lang="fa">قبل از اجرا، حدست رو بنویس: این مرحله دربارهٔ account واقعی، role و least privilege چه چیزی باید ثابت کنه؟ بعد command رو اجرا کن و فقط همون مدرک رو از خروجی بیرون بکش.</p>
+<p lang="en">Before running it, predict what this step should prove about real accounts, roles, and least privilege. Run the command, preserve the output, and extract only the evidence that supports that claim.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SELECT USER(),CURRENT_USER();
+SELECT Host,User,plugin FROM mysql.user WHERE User IN ('app_read','api');</code></pre>
+<p lang="fa">این کد رو روی lab اجرا کن و فقط به «بدون خطا تمام شد» اکتفا نکن. خروجی یا state بعدش باید دربارهٔ account واقعی، role و least privilege یک چیز مشخص بهت بگه؛ همون چیز رو در پاسخ ثبت کن.</p>
+<p lang="en">Run this in the lab and require an observable result. The output or resulting state should prove one specific point about real accounts, roles, and least privilege.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای account واقعی، role و least privilege انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for real accounts, roles, and least privilege.</p>
+</details></div><div class="ex" id="ex-mdb-22-18">
+<h3><span lang="fa">18) audit دسترسی رو تحویل بده</span><span lang="en">18) Read server evidence</span></h3>
+<p lang="fa">این یکی رو مثل یک ticket کوچک ببین. اول state فعلی رو حدس نزن؛ command رو اجرا کن، خروجی رو نگه دار و بگو کدوم بخشش برای account واقعی، role و least privilege مهمه.</p>
+<p lang="en">Treat this as a small engineering ticket. Do not guess the current state; run the command, keep the output, and identify the part that matters for real accounts, roles, and least privilege.</p>
+<div class="note safe"><strong lang="fa">تحویل · سناریوی مهندسی</strong><span lang="fa">یک SQL/command قابل‌اجرا + خروجی یا state قابل‌بررسی + یک توضیح کوتاه از چیزی که ثابت شد.</span><strong lang="en">Deliverable · Engineering scenario</strong><span lang="en">A runnable SQL/command artifact, observable output/state, and a short explanation of what was proven.</span></div>
+<details class="ex-sol"><summary><span lang="fa">راه‌حل و خواندن خروجی</span><span lang="en">Solution and how to read the result</span></summary>
+<pre dir="ltr"><code>SHOW GRANTS FOR 'app_read'@'localhost';
+SELECT CURRENT_USER();</code></pre>
+<p lang="fa">این query قرار نیست چیزی رو تعمیر کنه؛ فقط state رو قابل‌دیدن می‌کنه. مقدارهای مرتبط با <code>CURRENT_USER()</code>، <code>SHOW GRANTS</code> و allowed/denied operation رو ثبت کن و قبل از هر تغییر بعدی snapshot رو نگه دار.</p>
+<p lang="en">This query is observational. Capture the relevant state before changing anything so later conclusions about real accounts, roles, and least privilege can be tied to evidence.</p>
+<p lang="fa">اگه نتیجه با انتظار فرق داشت، به‌جای عوض‌کردن چند چیز با هم، برگرد به نزدیک‌ترین مرز قابل‌اندازه‌گیری و یک check بعدی برای account واقعی، role و least privilege انتخاب کن.</p>
+<p lang="en">If the result differs from the expectation, change one thing at a time and choose the next discriminating check for real accounts, roles, and least privilege.</p>
+</details></div></section><section id="next"><h2><span lang="fa">جمع‌بندی — چیزی که باید با خودت ببری</span><span lang="en">Summary — the mental model to keep</span></h2><p lang="fa">اگه از این فصل فقط یه عادت بمونه، این باشه: دربارهٔ account واقعی، role و least privilege از روی اسم feature یا حس تصمیم نگیر. baseline بگیر، یه چیز رو عوض کن، خروجی رو بخون و بعد نتیجه بگیر.</p><p lang="en">If one habit survives this chapter, let it be this: do not reason about real accounts, roles, and least privilege from feature names or intuition. Capture a baseline, change one thing, read the evidence, then conclude.</p><p class="refs"><a href="https://mariadb.com/docs/server/reference/sql-statements/account-management-sql-statements/create-user">CREATE USER</a> · <a href="https://mariadb.com/docs/server/security/user-account-management/roles">Roles</a> · <a href="https://mariadb.com/docs/server/reference/sql-statements/account-management-sql-statements/grant">GRANT</a></p></section>
