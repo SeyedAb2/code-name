@@ -4928,7 +4928,7 @@ export const TRACKS: Track[] = [
       {
         "n": "37",
         "file": "37-disposal-resource-lifetime.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 90,
         "fa": {
@@ -4945,7 +4945,7 @@ export const TRACKS: Track[] = [
       {
         "n": "38",
         "file": "38-files-and-streams.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -4962,7 +4962,7 @@ export const TRACKS: Track[] = [
       {
         "n": "39",
         "file": "39-compression-and-xml.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 90,
         "fa": {
@@ -5458,7 +5458,7 @@ export const TRACKS: Track[] = [
       "exercises": 938,
       "minutes": 6170,
       "capstones": 3,
-      "ready": 36
+      "ready": 39
     }
   },
   {

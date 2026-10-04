@@ -114,7 +114,6 @@
 }
 
 .statusFilter {
-  position: relative;
   min-height: 44px;
   display: inline-flex;
   align-items: center;
@@ -334,27 +333,14 @@
     select {
       width: fit-content;
       max-width: 62%;
-      padding: 6px 8px 6px 24px;
-      border-radius: 10px;
-      background: var(--surface-sunk);
       color: var(--ink);
       direction: rtl;
       text-align: left;
       text-align-last: left;
-      appearance: none;
-      -webkit-appearance: none;
-    }
-
-    &::after {
-      content: "⌄";
-      position: absolute;
-      left: 14px;
-      top: 50%;
-      transform: translateY(-58%);
-      color: var(--ink-faint);
-      font-size: .85rem;
-      line-height: 1;
-      pointer-events: none;
+      padding: 0;
+      background: transparent;
+      appearance: auto;
+      -webkit-appearance: auto;
     }
   }
   .viewSwitch { justify-self: end; }

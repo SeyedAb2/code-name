@@ -25,9 +25,13 @@ export default function MobileNav({ onSearch }: { onSearch: () => void }) {
         <span className={s.icon}><SearchIcon size={21} /></span>
         <span>{t("search", lang)}</span>
       </button>
-      <Link href="/" className={[s.item, s.home, home ? s.active : ""].filter(Boolean).join(" ")} aria-current={home ? "page" : undefined}>
+      <Link
+        href="/"
+        className={[s.item, s.home, home ? s.active : ""].filter(Boolean).join(" ")}
+        aria-label={lang === "fa" ? "خانه" : "Home"}
+        aria-current={home ? "page" : undefined}
+      >
         <span className={s.homeIcon}><HomeIcon size={23} /></span>
-        <span>{lang === "fa" ? "خانه" : "Home"}</span>
       </Link>
       <Link href="/roadmap" className={s.item} aria-current={path.startsWith("/roadmap") ? "page" : undefined}>
         <span className={s.icon}><MapIcon size={21} /></span>
