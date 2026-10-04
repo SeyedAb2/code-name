@@ -1,0 +1,166 @@
+<!--meta
+title: سازنده، property و مقداردهی
+desc: constructor، property، init، required و object initializer را با invariant واقعی می‌سنجیم.
+-->
+<div class="masthead">
+ <span class="eyebrow"><span class="dot"></span><span lang="fa">C# · فصل ۱۴</span><span lang="en">C# · Chapter 14</span></span>
+ <h1 lang="fa">سازنده، property و مقداردهی</h1><h1 lang="en">Constructors, properties and initialization</h1>
+ <p class="sub" lang="fa">در فصل قبل Order ساختیم، اما هر caller می‌توانست سفارش ناقص بسازد یا تعدادش را منفی کند. حالا قانون را دقیق می‌کنیم: شیء از چه لحظه‌ای معتبر است و چه کسی اجازه دارد بعداً تغییرش دهد؟</p><p class="sub" lang="en">Last chapter we created Order, but any caller could create an incomplete one or make its quantity negative. Now we make the rule precise: when is an object valid, and who may change it afterwards?</p>
+ <div class="facts"><div class="fact"><div class="fact-v"><b>۶</b><span lang="fa">بخش</span><span lang="en">sections</span></div></div><div class="fact"><div class="fact-v"><b>۱۶</b><span lang="fa">تمرین اجرایی</span><span lang="en">coding exercises</span></div></div><div class="fact"><div class="fact-v"><b>۸۵</b><span lang="fa">دقیقه</span><span lang="en">minutes</span></div></div><div class="fact"><div class="fact-v"><b>فصل ۱۳</b><span lang="fa">پیش‌نیاز</span><span lang="en">prerequisite</span></div></div></div>
+</div>
+<section id="broken-object">
+ <h2><span lang="fa">شیء ساخته شد، اما آیا قابل استفاده است؟</span><span lang="en">The object exists—but is it usable?</span></h2>
+ <p class="lede" lang="fa">گزارش می‌گوید سفارشی با شمارهٔ خالی و یک قلم صفر ثبت شده. کد از نظر نحوی مشکلی نداشته: object ساخته شده و بعداً فیلدهایش تنظیم شده‌اند. مسئله این است که هیچ نقطه‌ای تضمین نکرده سفارش پیش از استفاده کامل باشد.</p><p class="lede" lang="en">A report shows an order with an empty number and zero items. Nothing was syntactically wrong: the object was created and its fields were set later. No boundary guaranteed that the order was complete before use.</p>
+ <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">ساخت ناقص / Incomplete construction</span><button class="copy">کپی</button></div><pre dir="ltr">var order = new Order();
+order.Number = "";
+order.ItemCount = 0;
+SendToWarehouse(order);</pre></div>
+ <p lang="fa">constructor هنگام ساخته‌شدن نمونه اجرا می‌شود؛ پس جای مناسبی برای الزام داده‌های ضروری و برقرارکردن invariant اولیه است. property راه کنترل خواندن و نوشتن عضو است و object initializer فقط شکل نوشتن مقدارها را عوض می‌کند؛ خودش اعتبارسنجی یا اتمی‌بودن ایجاد نمی‌کند.</p><p lang="en">A constructor runs as an instance is created, making it a natural place to require essential data and establish initial invariants. A property controls access to a member; an object initializer changes syntax only—it does not validate or make initialization atomic.</p>
+</section>
+<section id="constructor">
+ <h2><span lang="fa">ساختن باید قرارداد را کامل کند</span><span lang="en">Construction should establish the contract</span></h2>
+ <p lang="fa">شماره و تعداد برای سفارش ضروری‌اند. آن‌ها را در constructor بررسی می‌کنیم و فقط بعد از معتبر بودن ورودی‌ها state را مقدار می‌دهیم. fieldهای private جزئیات داخلی‌اند؛ caller با API عمومی کار می‌کند.</p><p lang="en">An order requires a number and positive quantity. Validate them in the constructor and assign state only after inputs pass. Private fields remain implementation details; callers use the public API.</p>
+ <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">قرارداد ساخت / Constructor contract</span><button class="copy">کپی</button></div><pre dir="ltr">class Order
+{
+    private readonly string _number;
+    private int _itemCount;
+    public decimal UnitPrice { get; }
+
+    public Order(string number, int itemCount, decimal unitPrice)
+    {
+        if (string.IsNullOrWhiteSpace(number))
+            throw new ArgumentException("Order number is required.", nameof(number));
+        if (itemCount <= 0)
+            throw new ArgumentOutOfRangeException(nameof(itemCount));
+        if (unitPrice < 0)
+            throw new ArgumentOutOfRangeException(nameof(unitPrice));
+
+        _number = number;
+        _itemCount = itemCount;
+        UnitPrice = unitPrice;
+    }
+
+    public string Number => _number;
+    public int ItemCount => _itemCount;
+    public decimal Total => _itemCount * UnitPrice;
+}</pre></div>
+ <p lang="fa">new با ورودی نامعتبر شکست می‌خورد و caller نمی‌تواند field خصوصی را مستقیم تغییر دهد. readonly برای _number یعنی در کد عادی پس از مقداردهی مجاز، دوباره assignment نمی‌شود؛ این قاعدهٔ زبان است، نه مرز امنیتی در برابر reflection. شرط‌ها را از نیاز محصول بگیر، نه از حفظ‌کردن مثال.</p><p lang="en">Construction with invalid input fails, and callers cannot assign the private field directly. readonly means ordinary code cannot reassign _number after permitted initialization; it is a language rule, not a security boundary against reflection. Derive constraints from product requirements rather than memorising this example.</p>
+ <p lang="fa">اگر چند constructor داریم، زنجیره‌کردن‌شان با this کمک می‌کند اعتبارسنجی فقط یک‌جا بماند. overload کوتاه باید به constructor اصلی برسد، نه اینکه نسخهٔ ناقص دیگری از همان قانون را کپی کند.</p><p lang="en">When a type has multiple constructors, chaining with this keeps validation in one place. A shorter overload should delegate to the primary constructor rather than duplicate a weaker version of the same rules.</p>
+ <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">زنجیرهٔ سازنده / Constructor chaining</span><button class="copy">کپی</button></div><pre dir="ltr">public Order(string number) : this(number, itemCount: 1, unitPrice: 0m)
+{
+}</pre></div>
+ <p lang="fa">اینجا یک قلم و قیمت صفر فقط نمونه‌اند؛ اگر سفارش بدون قیمت مجاز نیست، این overload نباید ساخته شود. chaining ترتیب اجرای constructor مقصد را تضمین می‌کند، اما صحت انتخاب defaultها را نه.</p><p lang="en">One item and a zero price are illustrative defaults; if an order without a price is invalid, do not add this overload. Chaining invokes the target constructor, but it does not prove your defaults are correct.</p>
+ <div class="note warn"><div class="note-t"><span lang="fa">مرزهای معتبر را هم تست کن</span><span lang="en">Test valid boundaries too</span></div><p lang="fa">شاید سفارش رایگان یا پیش‌سفارش با تعداد نامعلوم مجاز باشد. برای مقدارهای مرزیِ مجاز هم تست بنویس تا validation بیش‌ازحد، رفتار محصول را خراب نکند.</p><p lang="en">Free orders or pre-orders with an unknown quantity may be valid. Test allowed boundary values too, so over-validation does not break product behaviour.</p></div>
+</section>
+<section id="properties">
+ <h2><span lang="fa">property بخشی از API است</span><span lang="en">A property is part of the API</span></h2>
+ <p lang="fa">property می‌تواند getter و setter داشته باشد یا فقط خواندنی باشد. setter آزاد برای state دارای invariant کافی نیست. متد تغییر، قاعده را اجرا می‌کند و property محاسباتی لازم نیست field دوم ذخیره کند.</p><p lang="en">A property may expose a getter and setter, or be read-only. An unrestricted setter is not enough for state with invariants. A mutation method enforces the rule, and a computed property need not store a second field.</p>
+ <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">تغییر کنترل‌شده / Controlled mutation</span><button class="copy">کپی</button></div><pre dir="ltr">class Order
+{
+    private int _itemCount;
+    public int ItemCount
+    {
+        get => _itemCount;
+        private set
+        {
+            if (value <= 0)
+                throw new ArgumentOutOfRangeException(nameof(value));
+            _itemCount = value;
+        }
+    }
+
+    public void AddItems(int count)
+    {
+        if (count <= 0)
+            throw new ArgumentOutOfRangeException(nameof(count));
+        ItemCount = checked(ItemCount + count);
+    }
+}</pre></div>
+ <p lang="fa">caller می‌تواند مقدار را بخواند اما فقط خود Order اجازهٔ set دارد. جمع checked است تا سرریز بی‌صدا state ظاهراً معتبری نسازد. سیاست تبدیل و rounding قیمت بیرونی هم باید در مرز دامنه روشن باشد.</p><p lang="en">Callers can read the value, but only Order can set it. The checked addition prevents silent overflow from creating plausible-looking state. Conversion and rounding policy for external prices must also be explicit at the domain boundary.</p>
+</section>
+<section id="init-required">
+ <h2><span lang="fa">init و required دقیقاً چه تضمینی می‌دهند؟</span><span lang="en">What do init and required actually guarantee?</span></h2>
+ <p lang="fa">برای شیء داده‌ای، initializer می‌تواند خوانا باشد. init اجازهٔ مقداردهی در constructor یا هنگام ساخت را می‌دهد و بعد از آن caller معمولی نمی‌تواند تغییرش دهد. required از compiler می‌خواهد عضو را هنگام ساخت مقداردهی کند؛ اما محتوای آن را اعتبارسنجی نمی‌کند.</p><p lang="en">For a data-oriented object, an initializer can be readable. init permits assignment in a constructor or during initialization, but ordinary callers cannot change it later. required asks the compiler to require an assignment at construction; it does not validate the content.</p>
+ <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">مقداردهی با required و init</span><button class="copy">کپی</button></div><pre dir="ltr">class Shipment
+{
+    public required string TrackingCode { get; init; }
+    public required DateOnly ShipDate { get; init; }
+    public string? Note { get; init; }
+}
+
+var shipment = new Shipment
+{
+    TrackingCode = "TR-204",
+    ShipDate = new DateOnly(2026, 10, 4),
+    Note = "Handle with care"
+};</pre></div>
+ <p lang="fa">رشتهٔ خالی هم برای compiler «مقداردهی شده» است؛ پس اگر خالی ممنوع است، runtime validation لازم است. نسخهٔ compiler و language version پروژه را هم بررسی کن؛ پروژهٔ قدیمی الزاماً این قابلیت‌ها را فعال ندارد.</p><p lang="en">An empty string still counts as “assigned” to the compiler; runtime validation is needed if it is invalid. Check the project’s compiler and language version: older projects may not support these features.</p>
+</section>
+<section id="initializer">
+ <h2><span lang="fa">initializer تراکنش نیست</span><span lang="en">An initializer is not a transaction</span></h2>
+ <p lang="fa">propertyها یکی‌یکی مقدار می‌گیرند. اگر setter اول side effect بگذارد و setter بعدی exception بیندازد، اثر قبلی خودکار rollback نمی‌شود. برای invariant چندعضوی، constructor یا factoryای که کل ورودی را بررسی و بعد نمونهٔ معتبر بسازد معمولاً روشن‌تر است.</p><p lang="en">Properties are assigned one at a time. If one setter has a side effect and a later setter throws, the earlier effect is not automatically rolled back. For multi-member invariants, a constructor or factory that validates all input before producing a valid instance is often clearer.</p>
+ <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">گزینه‌های گزارش / Report options</span><button class="copy">کپی</button></div><pre dir="ltr">class ReportOptions
+{
+    public required string OutputPath { get; init; }
+    public int PageSize { get; init; } = 50;
+    public bool IncludeArchived { get; init; }
+}
+
+var options = new ReportOptions
+{
+    OutputPath = "daily.csv",
+    PageSize = 100
+};</pre></div>
+ <p lang="fa">برای options ساده initializer خواناست؛ برای Order که قاعده و تغییر کنترل‌شده دارد، سازنده و متدهای دامنه معنای بیشتری می‌دهند. نقش نوع، انتخاب API را تعیین می‌کند.</p><p lang="en">An initializer is readable for simple options. For Order, with rules and controlled mutation, a constructor and domain methods express more meaning. The type’s role should drive API choice.</p>
+</section>
+<section id="indexer">
+ <h2><span lang="fa">indexer وقتی نوع، مجموعه‌ای از عضوهای قابل‌اندیس است</span><span lang="en">An indexer when a type behaves like an indexed collection</span></h2>
+ <p lang="fa">property معمولاً یک مقدار نام‌دار را نشان می‌دهد؛ indexer دسترسی شبیه براکت را برای نوعی فراهم می‌کند که واقعاً مجموعهٔ عضوهاست. این syntax جایگزین validation نیست و نباید فقط برای کوتاه‌شدن کد اضافه شود.</p><p lang="en">A property usually exposes one named value; an indexer provides bracket-style access for a type that genuinely represents a collection. The syntax does not replace validation and should not be added merely to shorten code.</p>
+ <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">indexer روی ردیف‌های سفارش / Order lines</span><button class="copy">کپی</button></div><pre dir="ltr">class OrderLines
+{
+    private readonly List&lt;string&gt; _items = [];
+
+    public int Count =&gt; _items.Count;
+
+    public string this[int index]
+    {
+        get =&gt; _items[index];
+        set
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                throw new ArgumentException("Item name is required.", nameof(value));
+            _items[index] = value;
+        }
+    }
+}</pre></div>
+ <p lang="fa">استفاده شبیه `lines[0]` است؛ همان قواعد محدودهٔ List اعمال می‌شود و index نامعتبر خطا می‌دهد. چون setter اینجا نام خالی را هم رد می‌کند، indexer بخشی از قرارداد نوع است. اگر مصرف‌کننده به کنترل کامل مجموعه نیاز ندارد، APIهایی مثل افزودن/خواندن ممکن است شفاف‌تر باشند.</p><p lang="en">Usage looks like `lines[0]`; List’s bounds behaviour still applies, so an invalid index throws. This setter also rejects empty names, making the indexer part of the type’s contract. If callers do not need full collection control, explicit add/read methods may be clearer.</p>
+</section>
+<section id="lab">
+ <h2><span lang="fa">آزمایشگاه: Order نامعتبر را غیرممکن کن</span><span lang="en">Lab: make an invalid Order impossible</span></h2>
+ <p lang="fa">کلاس فصل قبل را بردار و پس از هر تغییر، مسیر معتبر و نامعتبر را جدا اجرا کن. compile-time و runtime را یکی حساب نکن.</p><p lang="en">Take the previous chapter’s class and run valid and invalid paths after each change. Do not confuse compile-time and runtime checks.</p>
+ <ol><li lang="fa">برای شماره، تعداد و قیمت قرارداد بنویس.</li><li lang="en">Write contracts for number, quantity and price.</li><li lang="fa">constructor را اضافه کن و همهٔ ورودی‌ها را قبل از مقداردهی بررسی کن.</li><li lang="en">Add a constructor and validate all inputs before assignment.</li><li lang="fa">fieldها را private و propertyهای لازم را فقط‌خواندنی کن.</li><li lang="en">Make fields private and expose only required read-only properties.</li><li lang="fa">تغییر تعداد را از متد بگذران؛ صفر، منفی و سرریز را آزمایش کن.</li><li lang="en">Route quantity changes through a method; test zero, negative input and overflow.</li><li lang="fa">Shipment داده‌ای با required و init بساز و assignment پس از ساخت را امتحان کن.</li><li lang="en">Create a data-oriented Shipment with required and init; try post-construction assignment.</li><li lang="fa">ثبت کن کدام خطا را compiler گرفت و کدام را validation زمان اجرا.</li><li lang="en">Record which failure came from the compiler and which from runtime validation.</li></ol>
+ <div class="note safe"><div class="note-t"><span lang="fa">معیار پایان</span><span lang="en">Definition of done</span></div><p lang="fa">caller نتواند سفارش ناقص بسازد یا تعداد را مستقیم خراب کند؛ مقدار محاسباتی از state جاری بیاید؛ و تست‌ها مسیر موفق و مرز نامعتبر را پوشش دهند.</p><p lang="en">Callers cannot create an incomplete order or corrupt its quantity directly; computed values derive from current state; tests cover successful and invalid boundaries.</p></div>
+</section>
+<section id="exercises">
+ <h2><span lang="fa">تمرین‌ها: قرارداد ساخت را محکم کن</span><span lang="en">Exercises: strengthen the construction contract</span></h2>
+ <p lang="fa">با کد کوتاه یا استدلال مبتنی بر رفتار جواب بده. در پاسخ هرجا ادعای compiler یا runtime داری، شاهدش را مشخص کن.</p><p lang="en">Answer with short code or behaviour-based reasoning. Whenever you claim something about the compiler or runtime, identify the evidence.</p>
+ <div class="ex" id="cs14-ex1"><h3><span lang="fa">۱) زمان اجرای constructor</span><span lang="en">1) Constructor timing</span></h3><p lang="fa">با چاپ داخل سازنده ترتیب اجرای new را ثابت کن.</p><p lang="en">Prove construction order with a print inside the constructor.</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">هنگام ساخت نمونه و پیش از بازگشت new اجرا می‌شود.</p><p lang="en">It runs during instance construction, before new returns.</p></details></div>
+ <div class="ex" id="cs14-ex2"><h3><span lang="fa">۲) مرز validation</span><span lang="en">2) Validation boundary</span></h3><p lang="fa">شمارهٔ خالی سفارش را رد کن و یک تست برای رفتار بنویس.</p><p lang="en">Reject an empty order number and write a behavioural test.</p><details class="ex-sol"><summary><span lang="fa">نمونه</span><span lang="en">Example</span></summary><p lang="fa">constructor یا factory همهٔ مسیرهای ساخت را کنترل کند؛ تست exception مورد انتظار را بررسی کند.</p><p lang="en">Use a constructor or factory controlling all construction paths; assert the expected exception.</p></details></div>
+ <div class="ex" id="cs14-ex3"><h3><span lang="fa">۳) public set را نقد کن</span><span lang="en">3) Critique public set</span></h3><p lang="fa">چرا setter عمومی ItemCount invariant را تهدید می‌کند؟</p><p lang="en">Why does a public ItemCount setter threaten the invariant?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">هر caller می‌تواند validation رفتارهای دامنه را دور بزند.</p><p lang="en">Any caller can bypass validation in domain operations.</p></details></div>
+ <div class="ex" id="cs14-ex4"><h3><span lang="fa">۴) Total محاسباتی</span><span lang="en">4) Computed Total</span></h3><p lang="fa">بدون نگهداری field دوم Total را بنویس.</p><p lang="en">Implement Total without a second stored field.</p><details class="ex-sol"><summary><span lang="fa">نمونه</span><span lang="en">Example</span></summary><pre dir="ltr">public decimal Total => ItemCount * UnitPrice;</pre></details></div>
+ <div class="ex" id="cs14-ex5"><h3><span lang="fa">۵) init را بیازمای</span><span lang="en">5) Test init</span></h3><p lang="fa">property init را پس از ساخت تغییر بده؛ انتظار compiler چیست؟</p><p lang="en">Change an init property after construction. What does the compiler do?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">assignment معمول caller پس از initialization رد می‌شود.</p><p lang="en">Ordinary caller assignment after initialization is rejected.</p></details></div>
+ <div class="ex" id="cs14-ex6"><h3><span lang="fa">۶) required خالی را رد می‌کند؟</span><span lang="en">6) Does required reject empty text?</span></h3><p lang="fa">رشتهٔ خالی به required string بده؛ چه چیزی تشخیص داده می‌شود؟</p><p lang="en">Assign an empty string to a required string. What is detected?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">required فقط وجود assignment را می‌سنجد؛ validation محتوا runtime لازم دارد.</p><p lang="en">required checks assignment presence; content validation needs runtime logic.</p></details></div>
+ <div class="ex" id="cs14-ex7"><h3><span lang="fa">۷) گزینه‌های گزارش</span><span lang="en">7) Report options</span></h3><p lang="fa">سه تنظیم مستقل طراحی کن و بگو چرا initializer برایشان مناسب است.</p><p lang="en">Design three independent options and explain why an initializer fits.</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">مسیر خروجی، page size و include archived؛ مقدارها مستقل‌اند و باهم خوانده می‌شوند. اگر invariant چندعضوی دارند، سازنده بهتر است.</p><p lang="en">Output path, page size and include-archived; they are independent and visible together. A constructor is better for interdependent invariants.</p></details></div>
+ <div class="ex" id="cs14-ex8"><h3><span lang="fa">۸) ترتیب initializer</span><span lang="en">8) Initializer order</span></h3><p lang="fa">چرا دو setter وابسته می‌توانند state موقت نامعتبر ببینند؟</p><p lang="en">Why can dependent setters observe temporarily invalid state?</p><details class="ex-sol"><summary><span lang="fa">توضیح</span><span lang="en">Explanation</span></summary><p lang="fa">مقداردهی جداگانه است و setter اول پیش از دوم اجرا می‌شود؛ ورودی کامل را پیش از ساخت اعتبارسنجی کن.</p><p lang="en">Assignments are separate and the first setter runs before the second; validate complete input before construction.</p></details></div>
+ <div class="ex" id="cs14-ex9"><h3><span lang="fa">۹) overload سازنده</span><span lang="en">9) Constructor overload</span></h3><p lang="fa">یک سازندهٔ کوتاه را به مسیر اصلی اعتبارسنجی زنجیر کن.</p><p lang="en">Chain a short overload to the main validation path.</p><details class="ex-sol"><summary><span lang="fa">نمونه</span><span lang="en">Example</span></summary><pre dir="ltr">public Order(string number) : this(number, 1, 0m) { }</pre><p lang="fa">defaultها باید از دامنه بیایند.</p><p lang="en">Defaults must come from domain rules.</p></details></div>
+ <div class="ex" id="cs14-ex10"><h3><span lang="fa">۱۰) تغییر امن تعداد</span><span lang="en">10) Safe quantity mutation</span></h3><p lang="fa">متدی بنویس که ورودی نامعتبر و سرریز را رد کند.</p><p lang="en">Write a method rejecting invalid input and overflow.</p><details class="ex-sol"><summary><span lang="fa">راهنما</span><span lang="en">Hint</span></summary><pre dir="ltr">if (count &lt;= 0) throw new ArgumentOutOfRangeException(nameof(count));
+_itemCount = checked(_itemCount + count);</pre></details></div>
+ <div class="ex" id="cs14-ex11"><h3><span lang="fa">۱۱) get عمومی، set خصوصی</span><span lang="en">11) Public get, private set</span></h3><p lang="fa">این شکل API چه زمانی مفید است؟</p><p lang="en">When is this API shape useful?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">مصرف‌کننده می‌خواند اما تغییر باید از رفتار خود type عبور کند.</p><p lang="en">Consumers can read, while mutations must go through the type’s behaviour.</p></details></div>
+ <div class="ex" id="cs14-ex12"><h3><span lang="fa">۱۲) compile-time یا runtime؟</span><span lang="en">12) Compile-time or runtime?</span></h3><p lang="fa">required را جا بینداز و بار دیگر رشتهٔ خالی بده؛ تفاوت را توضیح بده.</p><p lang="en">Omit a required member, then pass empty text. Explain the difference.</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">مقداردهی جاافتاده معمولاً compiler error است؛ رشتهٔ خالی فقط با validation معنایی رد می‌شود.</p><p lang="en">A missing assignment is typically a compiler error; empty text needs semantic validation.</p></details></div>
+ <div class="ex" id="cs14-ex13"><h3><span lang="fa">۱۳) مرز قیمت</span><span lang="en">13) Price boundary</span></h3><p lang="fa">قیمت منفی را رد کن و تصمیم صفر مجاز/نامجاز را مستند کن.</p><p lang="en">Reject a negative price and document whether zero is allowed.</p><details class="ex-sol"><summary><span lang="fa">توضیح</span><span lang="en">Explanation</span></summary><p lang="fa">در مثال صفر مجاز است؛ تست قاعدهٔ محصول را ثبت می‌کند و دامنه‌ای دیگر می‌تواند تصمیم متفاوتی داشته باشد.</p><p lang="en">The example permits zero; tests capture the product rule, which another domain may define differently.</p></details></div>
+ <div class="ex" id="cs14-ex14"><h3><span lang="fa">۱۴) initializer تراکنش نیست</span><span lang="en">14) Initializers are not transactions</span></h3><p lang="fa">setter اول side effect دارد و دومی exception می‌دهد؛ چرا rollback خودکار نداریم؟</p><p lang="en">The first setter has a side effect and the second throws. Why is there no automatic rollback?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">setterها مستقل اجرا می‌شوند و زبان اثر قبلی را برنمی‌گرداند؛ validation یک‌جای ورودی پیش از اثرگذاری امن‌تر است.</p><p lang="en">Setters run independently and the language does not undo earlier effects; validating all input before side effects is safer.</p></details></div>
+ <div class="ex" id="cs14-ex15"><h3><span lang="fa">۱۵) property یا متد؟</span><span lang="en">15) Property or method?</span></h3><p lang="fa">برای Total و SubmitPayment انتخاب کن و تفاوت رفتاری را توضیح بده.</p><p lang="en">Choose for Total and SubmitPayment and explain the behavioural difference.</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">Total معمولاً پرس‌وجوی ارزان و بی‌اثر است؛ پرداخت عملیاتی اثرگذار و شکست‌پذیر است و متد مناسب‌تری دارد.</p><p lang="en">Total is usually a cheap, side-effect-free query; payment is an effectful, failure-prone action and fits a method.</p></details></div>
+ <div class="ex" id="cs14-ex16"><h3><span lang="fa">۱۶) incident شیء ناقص</span><span lang="en">16) The incomplete-object incident</span></h3><p lang="fa">شمارهٔ خالی و تعداد صفر به انبار رسیده. API و تست‌هایت چیست؟</p><p lang="en">An empty order number and zero quantity reached the warehouse. What API and tests do you add?</p><details class="ex-sol"><summary><span lang="fa">مسیر اصلاح</span><span lang="en">Repair path</span></summary><p lang="fa">field خصوصی، constructor اعتبارسنج، property فقط‌خواندنی و متد محدود برای تغییر. تست ورودی درست، خالی، صفر، منفی و حد را اجرا کن.</p><p lang="en">Use private fields, a validating constructor, read-only properties and constrained mutation. Test valid, empty, zero, negative and boundary inputs.</p></details></div>
+</section>
+<section id="takeaway"><h2><span lang="fa">شیء معتبر را زود بساز و مرزش را حفظ کن</span><span lang="en">Create valid objects early and preserve their boundary</span></h2><p lang="fa">constructor state اولیه را معتبر می‌کند؛ property بخشی از API خواندن و تغییر است؛ init و required کمک زبانی‌اند، نه جایگزین validation دامنه. initializer برای دادهٔ ساده خواناست اما invariant چندعضوی را خودکار تضمین نمی‌کند. فصل بعد سطح دسترسی، static و readonly را برای شکل‌دادن API در مقیاس بزرگ‌تر بررسی می‌کنیم.</p><p lang="en">A constructor establishes valid initial state; properties form the read/mutation API; init and required are language features, not domain validation. Initializers are readable for simple data but do not enforce multi-member invariants. Next we use access levels, static and readonly to shape larger APIs.</p></section>
+<section id="references"><h2><span lang="fa">منابع رسمی برای ادامه</span><span lang="en">Official references</span></h2><ul><li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/constructors" target="_blank" rel="noreferrer">Microsoft Learn — Constructors</a></li><li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/properties" target="_blank" rel="noreferrer">Microsoft Learn — Properties</a></li><li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/required" target="_blank" rel="noreferrer">C# reference — required modifier</a></li><li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/init" target="_blank" rel="noreferrer">C# reference — init accessor</a></li></ul></section>

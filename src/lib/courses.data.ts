@@ -4520,7 +4520,7 @@ export const TRACKS: Track[] = [
       {
         "n": "13",
         "file": "13-objects-classes-fields.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 85,
         "fa": {
@@ -4537,7 +4537,7 @@ export const TRACKS: Track[] = [
       {
         "n": "14",
         "file": "14-constructors-properties.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 85,
         "fa": {
@@ -4554,7 +4554,7 @@ export const TRACKS: Track[] = [
       {
         "n": "15",
         "file": "15-access-static-partial.html",
-        "ready": false,
+        "ready": true,
         "ex": 14,
         "mins": 75,
         "fa": {
@@ -4571,7 +4571,7 @@ export const TRACKS: Track[] = [
       {
         "n": "16",
         "file": "16-class-struct-record.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -4588,7 +4588,7 @@ export const TRACKS: Track[] = [
       {
         "n": "17",
         "file": "17-composition-and-interfaces.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 90,
         "fa": {
@@ -4605,7 +4605,7 @@ export const TRACKS: Track[] = [
       {
         "n": "18",
         "file": "18-inheritance-polymorphism.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 90,
         "fa": {
@@ -4622,7 +4622,7 @@ export const TRACKS: Track[] = [
       {
         "n": "19",
         "file": "19-equality-hashing-comparison.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 90,
         "fa": {
@@ -4639,7 +4639,7 @@ export const TRACKS: Track[] = [
       {
         "n": "20",
         "file": "20-operators-conversions.html",
-        "ready": false,
+        "ready": true,
         "ex": 14,
         "mins": 75,
         "fa": {
@@ -4656,7 +4656,7 @@ export const TRACKS: Track[] = [
       {
         "n": "21",
         "file": "21-extension-methods.html",
-        "ready": false,
+        "ready": true,
         "ex": 14,
         "mins": 75,
         "fa": {
@@ -4673,7 +4673,7 @@ export const TRACKS: Track[] = [
       {
         "n": "22",
         "file": "22-generics.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 90,
         "fa": {
@@ -4690,7 +4690,7 @@ export const TRACKS: Track[] = [
       {
         "n": "23",
         "file": "23-variance.html",
-        "ready": false,
+        "ready": true,
         "ex": 14,
         "mins": 80,
         "fa": {
@@ -4707,7 +4707,7 @@ export const TRACKS: Track[] = [
       {
         "n": "24",
         "file": "24-generic-math.html",
-        "ready": false,
+        "ready": true,
         "ex": 14,
         "mins": 80,
         "fa": {
@@ -4724,7 +4724,7 @@ export const TRACKS: Track[] = [
       {
         "n": "25",
         "file": "25-collection-contracts.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 85,
         "fa": {
@@ -4741,7 +4741,7 @@ export const TRACKS: Track[] = [
       {
         "n": "26",
         "file": "26-arrays-lists-queues.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 90,
         "fa": {
@@ -4758,7 +4758,7 @@ export const TRACKS: Track[] = [
       {
         "n": "27",
         "file": "27-hash-and-sorted-collections.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 90,
         "fa": {
@@ -4775,7 +4775,7 @@ export const TRACKS: Track[] = [
       {
         "n": "28",
         "file": "28-immutable-frozen-concurrent.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 90,
         "fa": {
@@ -4792,7 +4792,7 @@ export const TRACKS: Track[] = [
       {
         "n": "29",
         "file": "29-iterators-yield.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 85,
         "fa": {
@@ -4809,7 +4809,7 @@ export const TRACKS: Track[] = [
       {
         "n": "30",
         "file": "30-linq-filter-project.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 85,
         "fa": {
@@ -4826,7 +4826,7 @@ export const TRACKS: Track[] = [
       {
         "n": "31",
         "file": "31-linq-joins-groups.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -4843,7 +4843,7 @@ export const TRACKS: Track[] = [
       {
         "n": "32",
         "file": "32-linq-execution-performance.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 95,
         "fa": {
@@ -4860,7 +4860,7 @@ export const TRACKS: Track[] = [
       {
         "n": "33",
         "file": "33-delegates-lambdas.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 85,
         "fa": {
@@ -4877,7 +4877,7 @@ export const TRACKS: Track[] = [
       {
         "n": "34",
         "file": "34-closures-events.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 90,
         "fa": {
@@ -4894,7 +4894,7 @@ export const TRACKS: Track[] = [
       {
         "n": "35",
         "file": "35-pattern-matching.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 85,
         "fa": {
@@ -4911,7 +4911,7 @@ export const TRACKS: Track[] = [
       {
         "n": "36",
         "file": "36-exceptions.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 90,
         "fa": {
@@ -5458,7 +5458,7 @@ export const TRACKS: Track[] = [
       "exercises": 938,
       "minutes": 6170,
       "capstones": 3,
-      "ready": 12
+      "ready": 36
     }
   },
   {

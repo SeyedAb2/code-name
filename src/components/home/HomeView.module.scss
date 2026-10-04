@@ -114,6 +114,7 @@
 }
 
 .statusFilter {
+  position: relative;
   min-height: 44px;
   display: inline-flex;
   align-items: center;
@@ -127,6 +128,7 @@
   white-space: nowrap;
 
   select {
+    min-width: 0;
     max-width: 190px;
     border: 0;
     background: transparent;
@@ -325,8 +327,36 @@
   }
   .toolbar { display: grid; gap: 9px; margin-bottom: 15px; }
   .filter { min-width: 0; height: 48px; border-radius: 15px; }
-  .statusFilter { min-height: 44px; justify-content: space-between; }
-  .statusFilter select { max-width: 62%; }
+  .statusFilter {
+    min-height: 44px;
+    justify-content: space-between;
+
+    select {
+      width: fit-content;
+      max-width: 62%;
+      padding: 6px 8px 6px 24px;
+      border-radius: 10px;
+      background: var(--surface-sunk);
+      color: var(--ink);
+      direction: rtl;
+      text-align: left;
+      text-align-last: left;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    &::after {
+      content: "⌄";
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-58%);
+      color: var(--ink-faint);
+      font-size: .85rem;
+      line-height: 1;
+      pointer-events: none;
+    }
+  }
   .viewSwitch { justify-self: end; }
   .tiles {
     grid-template-columns: repeat(4, minmax(0, 1fr));
