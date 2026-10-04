@@ -1,0 +1,303 @@
+<!--meta
+title: آرایه، tuple و برش بازه
+desc: داده‌های چند سفارش را در آرایه نگه دار، آرایهٔ مستطیلی را با jagged مقایسه کن و با tuple، deconstruction و Index/Range نتیجه را بی‌حدس بخوان.
+-->
+<div class="masthead">
+  <span class="eyebrow"><span class="dot"></span><span lang="fa">C# · فصل ۱۰</span><span lang="en">C# · Chapter 10</span></span>
+  <h1 lang="fa">آرایه، tuple و برش بازه</h1><h1 lang="en">Arrays, tuples, and range slicing</h1>
+  <p class="sub" lang="fa">تیم فروشگاه فایل روزانه‌ای از مبلغ سفارش‌ها فرستاده، اما قبل از گزارش باید تعدادها را درست بخوانیم: چند سفارش در هر نوبت بوده؟ آخرین دو مبلغ کدام‌اند؟ اگر یک خانه را اشتباه برداریم، جمع کل عوض می‌شود. بیایید شکل داده را اول روشن کنیم، بعد برش بزنیم.</p>
+  <p class="sub" lang="en">The shop team sent daily batches of order totals, but before reporting we need to read the data correctly: how many orders were in each batch, and what were the last two totals? One off-by-one mistake changes the sum. Let’s understand the data shape before slicing it.</p>
+  <div class="facts"><div class="fact"><span class="fact-v"><b>۶</b><span lang="fa">بخش</span><span lang="en">sections</span></span></div><div class="fact"><span class="fact-v"><b>۱۶</b><span lang="fa">تمرین اجرایی</span><span lang="en">coding exercises</span></span></div><div class="fact"><span class="fact-v"><b>۸۵</b><span lang="fa">دقیقه</span><span lang="en">minutes</span></span></div><div class="fact"><span class="fact-v"><b>فصل ۹</b><span lang="fa">پیش‌نیاز</span><span lang="en">prerequisite</span></span></div></div>
+</div>
+
+<section id="story">
+  <h2><span lang="fa">گزارش سفارش‌ها یک ردیف جابه‌جا شده</span><span lang="en">The order report is off by one row</span></h2>
+  <p class="lede" lang="fa">رسید فصل قبل را ساختیم؛ داده تا وقتی نمایش لازم نشد عددی ماند. حالا یک ورودی تازه داریم: مبلغ‌های سفارش به شکل چند مقدار هم‌نوع رسیده‌اند. اگر هر مقدار را در متغیری جدا بگذاریم، با زیادشدن سفارش‌ها کد از دستمان در می‌رود. از طرف دیگر، اگر خانهٔ اشتباه را بخوانیم، خروجی ممکن است همچنان عدد معتبری باشد و خطا را پنهان کند.</p>
+  <p class="lede" lang="en">Last chapter we formatted a receipt while keeping its data numeric. Now order totals arrive as a sequence of same-typed values. Separate variables will not scale, but reading the wrong slot can still produce a plausible number and hide the bug.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">C# 12 · Program.cs</span><button class="copy">کپی</button></div><pre dir="ltr">decimal[] totals = [125_000m, 80_000m, 210_000m, 95_000m];
+Console.WriteLine(totals[0]);
+Console.WriteLine(totals.Length);</pre></div>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">خروجی</span><button class="copy">کپی</button></div><pre dir="ltr">125000
+4</pre></div>
+  <p lang="fa">آرایه یک تعداد ثابت از خانه‌های هم‌نوع دارد. `Length` تعداد خانه‌ها را می‌دهد، اما شمارهٔ خانه‌ها از صفر شروع می‌شود؛ پس چهار خانه شماره‌های ۰ تا ۳ دارند. `totals[0]` اولین مبلغ است، نه «مبلغ شمارهٔ یک» با شماره‌گذاری انسانی.</p>
+  <p lang="en">An array has a fixed number of same-typed slots. `Length` reports how many slots exist, but indexing starts at zero: four slots are numbered 0 through 3. `totals[0]` is the first total, not “total number one” in human numbering.</p>
+  <p lang="fa">این نمونه از collection expression یعنی `[...]` استفاده می‌کند که از C# 12 در دسترس است. اگر پروژهٔ قدیمی‌تری داری، همین مقدارها را با `new decimal[] { ... }` بنویس. نوع مقصد باید معلوم باشد؛ خود `[...]` به‌تنهایی یک نوع مستقل برای آرایه تعیین نمی‌کند.</p>
+  <p lang="en">This sample uses the `[...]` collection expression available from C# 12. In an older project, write the same values as `new decimal[] { ... }`. The target type must be known; `[...]` alone does not determine an array type.</p>
+</section>
+
+<section id="indexes">
+  <h2><span lang="fa">تعداد خانه‌ها را با آخرین index قاطی نکن</span><span lang="en">Do not confuse the length with the last index</span></h2>
+  <p lang="fa">از گزارش می‌خواهیم همهٔ مبلغ‌ها را چاپ کنیم. اگر حلقه را تا `i <= totals.Length` ادامه بدهیم، آخرین نوبت `totals[4]` را می‌خواند؛ چنین خانه‌ای نداریم. شرط درست با index صفرمبنا، `i < Length` است.</p>
+  <p lang="en">We want to print every total. If the loop continues while `i <= totals.Length`, its last iteration reads `totals[4]`, which does not exist. With zero-based indices, the correct condition is `i < Length`.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">حلقهٔ درست</span><button class="copy">کپی</button></div><pre dir="ltr">for (int i = 0; i &lt; totals.Length; i++)
+{
+    Console.WriteLine($"slot {i}: {totals[i]}");
+}</pre></div>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">خروجی نمونه</span><button class="copy">کپی</button></div><pre dir="ltr">slot 0: 125000
+slot 1: 80000
+slot 2: 210000
+slot 3: 95000</pre></div>
+  <p lang="fa">مرز بالایی معتبر `Length - 1` است؛ اما در حلقه لازم نیست آن را دستی حساب کنیم. با `i < Length` خانهٔ صفر تا آخرین خانه را می‌خوانیم و اگر آرایه خالی باشد، بدنه حتی یک‌بار هم اجرا نمی‌شود. نسخهٔ خرابِ `<=` روی آرایهٔ غیرخالی در runtime به `IndexOutOfRangeException` می‌رسد.</p>
+  <p lang="en">The largest valid index is `Length - 1`, but a loop need not calculate it manually. `i < Length` visits slot zero through the last slot and naturally skips the body for an empty array. The broken `<=` version throws `IndexOutOfRangeException` at runtime for a non-empty array.</p>
+  <div class="note safe"><div class="note-t"><span lang="fa">قانون سریع</span><span lang="en">A quick rule</span></div><p lang="fa">تعداد خانه‌ها: `Length`. آخرین index: `Length - 1` فقط وقتی خانه‌ای وجود دارد. اگر `Length` صفر باشد، `Length - 1` اصلاً index معتبر نمی‌سازد.</p><p lang="en">Number of slots: `Length`. Last index: `Length - 1`, only when an element exists. For an empty array, `Length - 1` is not a valid index.</p></div>
+</section>
+
+<section id="shapes">
+  <h2><span lang="fa">یک جدول منظم یا چند ردیف با طول متفاوت؟</span><span lang="en">A regular grid or rows of different lengths?</span></h2>
+  <p class="lede" lang="fa">برای داشبورد، می‌خواهیم تعداد فروش هر انبار را در هر روز نگه داریم. همهٔ انبارها برای هر روز یک خانه دارند؛ یک آرایهٔ دوبعدی مستطیلی طبیعی است. اما ردیف‌های سفارش طول یکسان ندارند؛ یک سفارش ممکن است یک قلم و دیگری پنج قلم داشته باشد. آنجا ساختار jagged مناسب‌تر است.</p>
+  <p class="lede" lang="en">For a dashboard, we want each warehouse’s sales for each day. Every warehouse has one slot per day, so a rectangular two-dimensional array fits. Order lines vary in count: one order may have one item and another five. A jagged array fits that shape better.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">دو شکل متفاوت</span><button class="copy">کپی</button></div><pre dir="ltr">// 2 warehouses × 3 days: every row has the same number of columns
+int[,] salesByWarehouseAndDay =
+{
+    { 12, 15, 9 },
+    { 8, 11, 14 }
+};
+Console.WriteLine(salesByWarehouseAndDay[1, 2]); // 14
+Console.WriteLine(salesByWarehouseAndDay.GetLength(0)); // 2 rows
+Console.WriteLine(salesByWarehouseAndDay.GetLength(1)); // 3 columns
+
+// Order lines: each order can contain a different number of items
+string[][] orderItems =
+{
+    new[] { "keyboard", "mouse" },
+    new[] { "monitor" },
+    new[] { "cable", "stand", "adapter" }
+};
+Console.WriteLine(orderItems[2][1]); // stand</pre></div>
+  <p lang="fa">در `int[,]` همهٔ ردیف‌ها و ستون‌ها یک شبکهٔ مستطیلی می‌سازند؛ دسترسی با دو index و یک جفت کاما است. `Length` تعداد کل خانه‌ها را می‌دهد؛ برای تعداد ردیف و ستون از `GetLength(0)` و `GetLength(1)` استفاده کن.</p>
+  <p lang="en">An `int[,]` is a rectangular grid; access uses two indices separated by a comma. `Length` returns the total number of cells. Use `GetLength(0)` and `GetLength(1)` for row and column counts.</p>
+  <p lang="fa">در `string[][]` آرایهٔ بیرونی خانه‌هایی دارد که هرکدام به یک آرایهٔ داخلی اشاره می‌کنند. طول هر ردیف می‌تواند فرق کند؛ اما خانهٔ داخلیِ ساخته‌نشده `null` است. قبل از `orderItems[i].Length` مطمئن شو آن ردیف مقداردهی شده، وگرنه به‌جای خطای index، `NullReferenceException` می‌گیری.</p>
+  <p lang="en">With `string[][]`, the outer array contains references to inner arrays. Each row can have a different length, but an uninitialized inner slot is `null`. Ensure `orderItems[i]` exists before reading its `Length`, or you get `NullReferenceException` rather than an index error.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th lang="fa">ساختار</th><th lang="en">Shape</th><th lang="fa">مناسب برای</th><th lang="en">Good fit</th><th lang="fa">خواندن خانه</th><th lang="en">Access</th></tr></thead><tbody>
+  <tr><td><code>int[]</code></td><td>one-dimensional</td><td lang="fa">یک توالی از مبلغ‌ها</td><td lang="en">A sequence of totals</td><td><code>a[i]</code></td><td><code>a[i]</code></td></tr>
+  <tr><td><code>int[,]</code></td><td>rectangular</td><td lang="fa">جدولی با تعداد ستون ثابت</td><td lang="en">A grid with a fixed column count</td><td><code>a[row, column]</code></td><td><code>a[row, column]</code></td></tr>
+  <tr><td><code>int[][]</code></td><td>jagged</td><td lang="fa">ردیف‌هایی با طول متغیر</td><td lang="en">Rows with variable lengths</td><td><code>a[row][column]</code></td><td><code>a[row][column]</code></td></tr>
+  </tbody></table></div>
+  <p lang="fa">`int[][]` و `int[,]` دو نگارش برای یک چیز نیستند. در jagged، `a[0]` خودش یک آرایه است و می‌توان طول هر ردیف را جدا دید؛ در مستطیلی، ابعاد بخشی از شکل آرایه‌اند و همهٔ خانه‌ها در همان شبکه تعریف می‌شوند.</p>
+  <p lang="en">`int[][]` and `int[,]` are not two spellings for the same thing. In a jagged array, `a[0]` is another array whose length can be inspected independently. In a rectangular array, the dimensions describe one grid shared by all cells.</p>
+</section>
+
+<section id="tuples">
+  <h2><span lang="fa">وقتی یک محاسبه دو نتیجه دارد</span><span lang="en">When one calculation has two results</span></h2>
+  <p lang="fa">برای گزارش روزانه فقط جمع مبلغ‌ها کافی نیست؛ تعداد سفارش‌ها را هم می‌خواهیم. دو متغیر بیرونی بسازیم یا نتیجه را یک‌جا برگردانیم؟ یک tuple سبک می‌تواند برای نتیجهٔ کوچک و محلی مناسب باشد.</p>
+  <p lang="en">The daily report needs both the sum and the number of orders. Should we fill two outer variables, or return one grouped result? A tuple can suit a small, local result like this.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">تابع جمع‌بندی</span><button class="copy">کپی</button></div><pre dir="ltr">static (decimal Total, int Count) Summarize(decimal[] values)
+{
+    decimal total = 0m;
+    foreach (decimal value in values)
+        total += value;
+
+    return (Total: total, Count: values.Length);
+}
+
+var summary = Summarize(totals);
+Console.WriteLine($"{summary.Count} orders · {summary.Total}");
+var (total, count) = Summarize(totals);
+Console.WriteLine($"deconstructed: {count} · {total}");</pre></div>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">خروجی</span><button class="copy">کپی</button></div><pre dir="ltr">4 orders · 510000
+deconstructed: 4 · 510000</pre></div>
+  <p lang="fa">امضای متد می‌گوید دو مقدار با نام‌های `Total` و `Count` برمی‌گردند. می‌توانیم عضوها را با همین نام‌ها بخوانیم یا tuple را با deconstruction به دو متغیر باز کنیم. هر دو مقدار به ترتیب جایگاه و نوعشان وصل‌اند.</p>
+  <p lang="en">The method signature returns two values named `Total` and `Count`. We can read those members by name or deconstruct the tuple into two variables. The elements correspond by position and type.</p>
+  <p lang="fa">نام عضوهای tuple برای خوانایی و زمان کامپایل است؛ هویت یک نوع تازه با نام‌های تجاری ایجاد نمی‌کند. دو tuple با ترتیب و نوع سازگار را می‌توان حتی با نام عضو متفاوت به هم نسبت داد. پس برای قراردادی بزرگ، پایدار یا عمومی، tuple چندعضوی معمولاً جای نوع دامنه‌ای نام‌دار را نمی‌گیرد؛ این فصل فقط نتیجهٔ کوچک محاسبه را جمع کرده.</p>
+  <p lang="en">Tuple element names improve readability at compile time; they do not create a new nominal type. Compatible tuples can be assigned by position and type even when their element names differ. A large, stable or public contract usually deserves a named domain type; here we are grouping a small calculation result.</p>
+  <div class="note warn"><div class="note-t"><span lang="fa">tuple با anonymous type یکی نیست</span><span lang="en">A tuple is not an anonymous type</span></div><p lang="fa">در `var preview = new { summary.Total, summary.Count };` یک anonymous type برای projection محلی می‌سازی؛ propertyهایش فقط‌خواندنی‌اند. tuple به شکل `(summary.Total, summary.Count)` عضوهای قابل‌تغییر دارد و امکان deconstruction/بازگشت مستقیم دارد. هیچ‌کدام جای type نام‌دار را برای قرارداد مهم و منتشرشده پر نمی‌کنند.</p><p lang="en">`var preview = new { summary.Total, summary.Count };` creates an anonymous type for a local projection with read-only properties. A tuple such as `(summary.Total, summary.Count)` has mutable fields and supports direct deconstruction/return. Neither replaces a named type for an important published contract.</p></div>
+</section>
+
+<section id="ranges">
+  <h2><span lang="fa">آخرین دو سفارش، بدون شمردن از آخر</span><span lang="en">The last two orders, without counting backward</span></h2>
+  <p class="lede" lang="fa">مدیر فروش فقط مبلغ‌های دو سفارش آخر را برای پیش‌نمایش می‌خواهد. اگر خودمان `Length - 2` و `Length - 1` را در چند جا حساب کنیم، مرزها را راحت اشتباه می‌زنیم. C# دو ابزار دارد: `^` برای index از انتها و `..` برای بازه.</p>
+  <p class="lede" lang="en">The sales lead wants a preview of the last two totals. Repeating `Length - 2` and `Length - 1` calculations invites boundary mistakes. C# provides `^` for an index from the end and `..` for a range.</p>
+  <figure><div class="diagram"><svg viewBox="0 0 760 208" role="img" aria-labelledby="cs10-range-title">
+    <title id="cs10-range-title">محدودهٔ شاملِ آغاز و نادیدهٔ پایان / Range includes its start and excludes its end</title>
+    <rect x="34" y="44" width="116" height="96" rx="12" class="dg-fill-b dg-stroke-b"/>
+    <rect x="178" y="44" width="116" height="96" rx="12" class="dg-fill-v dg-stroke-v"/>
+    <rect x="322" y="44" width="116" height="96" rx="12" class="dg-fill-v dg-stroke-v"/>
+    <rect x="466" y="44" width="116" height="96" rx="12" class="dg-fill-b dg-stroke-b"/>
+    <rect x="610" y="44" width="116" height="96" rx="12" class="dg-fill-b dg-stroke-b"/>
+    <text x="92" y="82" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">0</text><text x="92" y="112" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">first</text>
+    <text x="236" y="82" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">1</text><text x="236" y="112" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">start</text>
+    <text x="380" y="82" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">2</text><text x="380" y="112" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">included</text>
+    <text x="524" y="82" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">3</text><text x="524" y="112" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">end · excluded</text>
+    <text x="668" y="82" text-anchor="middle" class="dg-tm" style="direction:ltr;unicode-bidi:isolate">4</text><text x="668" y="112" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">last</text>
+    <path d="M178 158V148M466 158V148M178 158H466" class="dg-stroke-v" stroke-width="3"/>
+    <text x="322" y="181" text-anchor="middle" class="dg-ts" style="direction:ltr;unicode-bidi:isolate">totals[1..3] → indices 1 and 2</text>
+  </svg></div><figcaption><span lang="fa">در `start..end` آغاز داخل بازه است، پایان بیرون. فلش کوتاه زیر خانهٔ ۳ مرز پایان را نشان می‌دهد، نه خانه‌ای که باید برداریم.</span><span lang="en">In `start..end`, the start is included and the end is excluded. The short marker under slot 3 is the boundary—not an element to include.</span></figcaption></figure>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">Index و Range</span><button class="copy">کپی</button></div><pre dir="ltr">decimal last = totals[^1];
+decimal[] lastTwo = totals[^2..];
+decimal[] withoutFirstAndLast = totals[1..^1];
+decimal[] firstThree = totals[..3];
+
+Console.WriteLine(last);             // 95000
+Console.WriteLine(string.Join(", ", lastTwo)); // 210000, 95000
+Console.WriteLine(string.Join(", ", withoutFirstAndLast)); // 80000, 210000</pre></div>
+  <p lang="fa">`^1` یعنی آخرین خانه. `^0` مرز بعد از آخرین خانه است و برای انتهای بازه درست است، اما index یک عنصر نیست. در `totals[1..^1]` از index ۱ شروع می‌کنیم و تا یک خانه مانده به آخر می‌رویم. پایان range همیشه بیرون می‌ماند.</p>
+  <p lang="en">`^1` means the last element. `^0` is the boundary just after the last element: valid as a range endpoint, but not as an element index. `totals[1..^1]` starts at index 1 and stops before the last element. A range’s end is always excluded.</p>
+  <p lang="fa">چون `totals` یک آرایهٔ یک‌بعدی است، range روی آن مجاز است و یک آرایهٔ تازه می‌سازد. این کپی از خانه‌ها shallow است: برای آرایهٔ عددها مقدارها کپی می‌شوند؛ برای آرایهٔ referenceها خود referenceها کپی می‌شوند، نه شیءهای پشتشان. برش `int[,]` با این syntax پشتیبانی نمی‌شود؛ برای jagged باید اول یک ردیف را برداری و بعد همان ردیف یک‌بعدی را برش بزنی.</p>
+  <p lang="en">Because `totals` is a one-dimensional array, range indexing is supported and creates a new array. The element copy is shallow: numeric values are copied, while an array of references copies the references—not the referenced objects. This syntax does not slice an `int[,]`; with a jagged array, select a row first, then slice that one-dimensional row.</p>
+  <div class="note safe"><div class="note-t"><span lang="fa">مرز نسخهٔ زبان</span><span lang="en">Language-version boundary</span></div><p lang="fa">Index و Range از C# 8 در دسترس‌اند؛ collection expression از C# 12 است. این دوره با .NET 10 و SDK 10 جلو می‌رود، اما اگر `LangVersion` پروژه را پایین آورده‌ای، syntax را با نسخهٔ تنظیم‌شده مقایسه کن. `.NET` هدف و نسخهٔ زبان مفاهیم مرتبط‌اند اما یک گزینهٔ واحد نیستند.</p><p lang="en">Index and Range are available from C# 8; collection expressions are from C# 12. This course targets .NET 10 and SDK 10, but if the project lowers `LangVersion`, check syntax against that setting. The target framework and language version are related, but they are not the same setting.</p></div>
+</section>
+
+<section id="lab">
+  <h2><span lang="fa">آزمایشگاه: بستهٔ فروش روز را خلاصه کن</span><span lang="en">Lab: summarize the day’s sales batches</span></h2>
+  <p class="lede" lang="fa">فروشگاه سه نوبت ورود سفارش دارد. نوبت اول و دوم تعداد سفارش برابر دارند، نوبت آخر نه. یک گزارش کوچک می‌سازیم که هم شکل داده را درست انتخاب کند، هم جمع و تعداد را از هم جدا نگه دارد و هم دو مبلغ آخر را برای بازبینی نشان بدهد.</p>
+  <p class="lede" lang="en">The shop receives orders in three batches. The first two batches have equal lengths; the last does not. We’ll build a small report that chooses the right shapes, keeps total and count distinct, and previews the final two amounts.</p>
+  <ol>
+    <li lang="fa">داده را به صورت `decimal[][]` بساز: هر خانهٔ بیرونی یک نوبت و هر آرایهٔ داخلی مبلغ همان نوبت باشد. دست‌کم سه نوبت با طول‌های متفاوت داشته باش.</li><li lang="en">Represent batches as `decimal[][]`: each outer slot is a batch and each inner array contains its totals. Use at least three batches of different lengths.</li>
+    <li lang="fa">تابع `Summarize` را برای یک آرایه بنویس که `(Total, Count)` برگرداند؛ برای هر نوبت آن را اجرا کن و مجموع روز را هم حساب کن.</li><li lang="en">Write `Summarize` for one array, returning `(Total, Count)`. Call it for each batch and calculate the daily total.</li>
+    <li lang="fa">عمداً یک ردیف داخلی را مقداردهی نکن. خطا را ثبت کن، ردیف null را از روی شواهد پیدا کن و قبل از خواندن `Length` آن را اصلاح یا رد کن.</li><li lang="en">Deliberately leave one inner row uninitialized. Record the failure, identify the null row from evidence, and initialize or reject it before reading `Length`.</li>
+    <li lang="fa">از آخرین نوبت دو مبلغ آخر را با `^2..` بگیر. ثابت کن که خروجی slice آرایهٔ جداگانه‌ای است و تغییر خانهٔ خروجی به آرایهٔ اصلی برنمی‌گردد.</li><li lang="en">Take the last two totals from the final batch with `^2..`. Prove the slice is a separate array and changing its slot does not replace a slot in the source array.</li>
+    <li lang="fa">گزارش را با تعداد نوبت‌ها، جمع کل، تعداد سفارش‌ها و preview چاپ کن. خروجی را برای دادهٔ خالی و یک نوبت تک‌مقداری هم بررسی کن؛ در صورت کافی نبودن عناصر، قبل از `^2` تصمیم روشن بگیر.</li><li lang="en">Print batch count, daily total, order count and preview. Also test empty input and a one-item final batch; decide explicitly before using `^2` when too few elements exist.</li>
+  </ol>
+  <details class="ex-sol"><summary><span lang="fa">یک مسیر حل، بعد از آزمایش خودت بازش کن</span><span lang="en">One solution path—open after trying it</span></summary>
+    <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">C# · نمونهٔ جمع‌بندی</span><button class="copy">کپی</button></div><pre dir="ltr">decimal[][] batches =
+[
+    [125_000m, 80_000m],
+    [210_000m],
+    [95_000m, 42_000m, 63_000m]
+];
+
+static (decimal Total, int Count) Summarize(decimal[] values)
+{
+    decimal total = 0m;
+    foreach (var value in values) total += value;
+    return (total, values.Length);
+}
+
+decimal dayTotal = 0m;
+int orderCount = 0;
+foreach (decimal[] batch in batches)
+{
+    var (total, count) = Summarize(batch);
+    dayTotal += total;
+    orderCount += count;
+}
+
+decimal[] preview = [];
+if (batches.Length &gt; 0)
+{
+    decimal[] lastBatch = batches[^1];
+    preview = lastBatch.Length &gt;= 2
+        ? lastBatch[^2..]
+        : lastBatch[..];
+}
+
+Console.WriteLine($"batches={batches.Length}, orders={orderCount}, total={dayTotal}");
+Console.WriteLine(string.Join(", ", preview));</pre></div>
+    <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">خروجی نمونه</span><button class="copy">کپی</button></div><pre dir="ltr">batches=3, orders=6, total=615000
+42000, 63000</pre></div>
+    <p lang="fa">شرط `Length >= 2` جلوی range نامعتبر برای نوبت کوتاه را می‌گیرد. آرایهٔ داخلیِ null را باید جدا با `batches.Any(batch => batch is null)` یا حلقهٔ بررسی پیدا کرد؛ null-check را با empty-array یکی نگیر: آرایهٔ خالی وجود دارد اما عنصری ندارد.</p>
+    <p lang="fa">اول `Length` آرایهٔ بیرونی را بررسی می‌کنیم تا مجموعهٔ خالی را از انتها اندیس‌گذاری نکنیم؛ بعد پیش از استفاده از `^2`، کوتاه‌بودن نوبت آخر را می‌سنجیم. آرایهٔ داخلی `null` را هم باید پیش از خواندن `Length` جداگانه بررسی کرد؛ `null` با آرایهٔ خالی فرق دارد.</p>
+    <p lang="en">First check the outer `Length` so an empty collection is not indexed from the end; then guard the final batch before using `^2`. Detect a null inner array before reading its `Length`; null and an empty array are different—an empty array exists but contains no elements.</p>
+    <p lang="fa">در پایان source و خروجی آزمایش را نگه دار و فقط فایل‌های تولیدشدهٔ همین آزمایش را پاک کن. این نمونهٔ حسابداری واقعی نیست؛ rounding، ارز و اعتبارسنجی سفارش هنوز در scope ما نیستند.</p>
+    <p lang="en">Keep the source and output as evidence, then remove only files created for this lab. This is not a production accounting system; rounding, currency and order validation are outside this scope.</p>
+  </details>
+</section>
+
+<section id="exercises">
+  <h2><span lang="fa">تمرین‌ها: داده را درست شکل بده</span><span lang="en">Exercises: shape the data correctly</span></h2>
+  <p lang="fa">برای هر تمرین یک تغییر یا اجرای واقعی انجام بده و خروجی/خطا را نگه دار. سؤال «کدام syntax؟» را با کد و نتیجه جواب بده، نه فقط با اسم قابلیت.</p><p lang="en">Make a real code change or run for each exercise and keep the output/error. Answer “which syntax?” with code and a result, not only a feature name.</p>
+
+  <div class="ex" id="cs10-ex1"><h3><span lang="fa">۱) indexها را پیش‌بینی کن</span><span lang="en">1) Predict the indices</span></h3><p lang="fa">برای `decimal[] totals = [12m, 25m, 9m];` سه index معتبر و `Length` را بنویس؛ سپس برنامه‌ای اجرا کن که همه را با index چاپ کند.</p><p lang="en">For `decimal[] totals = [12m, 25m, 9m];`, write all valid indices and `Length`, then run a program that prints each with its index.</p><details class="ex-sol"><summary><span lang="fa">پاسخ و دلیل</span><span lang="en">Solution and reasoning</span></summary><div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">C#</span><button class="copy">کپی</button></div><pre dir="ltr">for (int i = 0; i &lt; totals.Length; i++)
+    Console.WriteLine($"{i}={totals[i]}");</pre></div><p lang="fa">خروجی indexهای ۰، ۱ و ۲ و Length برابر ۳ است. آخرین index `Length - 1` است، نه خود `Length`؛ حلقه با `<` این مرز را درست نگه می‌دارد.</p><p lang="en">The output uses indices 0, 1 and 2 with Length 3. The last index is `Length - 1`, not Length; `<` keeps the loop within that boundary.</p></details></div>
+
+  <div class="ex" id="cs10-ex2"><h3><span lang="fa">۲) خطای یک خانهٔ اضافه را تعمیر کن</span><span lang="en">2) Repair the extra-slot bug</span></h3><p lang="fa">این حلقه برای سه مبلغ آخرش exception می‌دهد: `for (int i = 0; i <= totals.Length; i++) Console.WriteLine(totals[i]);` نسخهٔ معیوب را اجرا کن، بعد کمترین اصلاح را اعمال کن.</p><p lang="en">This loop throws for a three-total array: `for (int i = 0; i <= totals.Length; i++) Console.WriteLine(totals[i]);` Run it, then make the smallest repair.</p><details class="ex-sol"><summary><span lang="fa">اصلاح کمینه</span><span lang="en">Minimal repair</span></summary><div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">C#</span><button class="copy">کپی</button></div><pre dir="ltr">for (int i = 0; i &lt; totals.Length; i++)
+    Console.WriteLine(totals[i]);</pre></div><p lang="fa">شرط `<=` یک دور اضافه اجرا می‌کرد و در `i == Length` به خانهٔ بیرون آرایه می‌رسید. شرط را اصلاح کن، نه اینکه exception را catch کنی؛ اینجا الگوریتم باید هیچ‌وقت آن index را نسازد.</p><p lang="en">`<=` ran one extra iteration and reached index Length. Fix the loop condition rather than catching the exception; the algorithm should never produce that index.</p></details></div>
+
+  <div class="ex" id="cs10-ex3"><h3><span lang="fa">۳) مقدار پیش‌فرض خانه‌های مقداردهی‌نشده را ببین</span><span lang="en">3) Inspect default values in uninitialized slots</span></h3><p lang="fa">`int[] quantities = new int[3];` را چاپ کن. سه خانه چه مقداری دارند؟ سپس همان را با `string[]` آزمایش کن و warning/مقدار را ثبت کن.</p><p lang="en">Print `int[] quantities = new int[3];`. What are the three values? Repeat with `string[]` and record the warning/value.</p><details class="ex-sol"><summary><span lang="fa">آنچه باید ببینی</span><span lang="en">What to observe</span></summary><div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">C#</span><button class="copy">کپی</button></div><pre dir="ltr">int[] quantities = new int[3];
+Console.WriteLine(string.Join(",", quantities)); // 0,0,0
+string?[] labels = new string?[2];
+Console.WriteLine(labels[0] is null); // True</pre></div><p lang="fa">خانه‌های value type مقدار پیش‌فرض نوع را می‌گیرند؛ referenceها ابتدا null هستند. صفر در quantities دادهٔ واقعی فروش نیست؛ اگر صفر و «هنوز خوانده نشده» معنی جدا دارند، مقداردهی اولیهٔ پیش‌فرض نباید جای مدل وضعیت را بگیرد.</p><p lang="en">Value-type slots receive their default; reference slots start as null. Zero is not necessarily a real sale amount. If zero and “not loaded” mean different things, the default must not stand in for state.</p></details></div>
+
+  <div class="ex" id="cs10-ex4"><h3><span lang="fa">۴) جدول را با بُعد درست بخوان</span><span lang="en">4) Read a grid using its dimensions</span></h3><p lang="fa">جدول `int[,] sales = { {2,4,6}, {1,3,5} };` را بنویس؛ ردیف دوم، ستون سوم را چاپ و تعداد ردیف/ستون را با `GetLength` گزارش کن.</p><p lang="en">Create `int[,] sales = { {2,4,6}, {1,3,5} };`, print row two/column three, and report row/column counts with `GetLength`.</p><details class="ex-sol"><summary><span lang="fa">کد و خروجی</span><span lang="en">Code and output</span></summary><div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">C#</span><button class="copy">کپی</button></div><pre dir="ltr">Console.WriteLine(sales[1, 2]);
+Console.WriteLine($"{sales.GetLength(0)}x{sales.GetLength(1)}");</pre></div><p lang="fa">خروجی `5` و `2x3` است؛ چون indexها صفرمبنا هستند، ردیف دوم index ۱ و ستون سوم index ۲ است. `sales.Length` عدد ۶ می‌دهد و تعداد یکی از محورها نیست.</p><p lang="en">Output is `5` and `2x3`: zero-based row two is index 1 and column three is index 2. `sales.Length` is 6, the total cell count—not either dimension.</p></details></div>
+
+  <div class="ex" id="cs10-ex5"><h3><span lang="fa">۵) ردیف نابرابر را مدل کن</span><span lang="en">5) Model rows of different lengths</span></h3><p lang="fa">سه سفارش را با تعداد قلم‌های ۲، ۱ و ۳ مدل کن. برای هر کدام طول و آخرین قلم را چاپ کن؛ برای سفارش بدون قلم چه تصمیمی لازم است؟</p><p lang="en">Model three orders with 2, 1 and 3 lines. Print each length and last item; what decision is needed for an order with no lines?</p><details class="ex-sol"><summary><span lang="fa">یک مدل ساده</span><span lang="en">One simple model</span></summary><div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">C#</span><button class="copy">کپی</button></div><pre dir="ltr">string[][] orders =
+[
+    ["keyboard", "mouse"],
+    ["monitor"],
+    ["cable", "stand", "adapter"],
+    []
+];
+foreach (string[] order in orders)
+{
+    string last = order.Length == 0 ? "(empty)" : order[^1];
+    Console.WriteLine($"{order.Length}: {last}");
+}</pre></div><p lang="fa">خروجی طول‌های ۲، ۱، ۳ و ۰ را نشان می‌دهد. برای ردیف خالی پیش از `^1` تصمیم گرفتیم؛ ردیف null داستان دیگری است و قبل از `order.Length` باید جدا تشخیص داده شود.</p><p lang="en">The lengths are 2, 1, 3 and 0. We branch before `^1` on an empty row; a null row is different and must be checked before `order.Length`.</p></details></div>
+
+  <div class="ex" id="cs10-ex6"><h3><span lang="fa">۶) فرض مستطیلی بودن jagged را بردار</span><span lang="en">6) Remove the rectangular-array assumption</span></h3><p lang="fa">کدی داری که `rows = items.Length` و `columns = items[0].Length` می‌گیرد و بعد همهٔ ردیف‌ها را با همین columns می‌خواند. برای `string[][]` با ردیف‌های ۲، ۱ و ۳ خانه‌ای، علت خطا و نسخهٔ درست را اجرا کن.</p><p lang="en">A routine uses `rows = items.Length` and `columns = items[0].Length` for every row. With a `string[][]` of lengths 2, 1 and 3, reproduce the error and fix the traversal.</p><details class="ex-sol"><summary><span lang="fa">راه‌حل</span><span lang="en">Repair</span></summary><div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">C#</span><button class="copy">کپی</button></div><pre dir="ltr">for (int row = 0; row &lt; items.Length; row++)
+{
+    for (int column = 0; column &lt; items[row].Length; column++)
+        Console.WriteLine(items[row][column]);
+}</pre></div><p lang="fa">طول jagged را برای هر ردیف جدا می‌خوانیم. استفاده از طول ردیف صفر برای همه، در ردیف کوتاه exception می‌دهد و در ردیف بلند دادهٔ انتهایی را جا می‌اندازد؛ هر دو با یک فرض غلط شروع شده‌اند.</p><p lang="en">Read each jagged row’s length independently. Reusing row zero’s length throws on shorter rows and skips values in longer rows; both failures share the same wrong assumption.</p></details></div>
+
+  <div class="ex" id="cs10-ex7"><h3><span lang="fa">۷) جمع و تعداد را یک‌جا برگردان</span><span lang="en">7) Return total and count together</span></h3><p lang="fa">تابع `Summarize(decimal[] values)` را بساز که جمع و تعداد را tuple نام‌دار برگرداند. برای `[10m, 15m, 5m]` هر دو عضو را چاپ کن.</p><p lang="en">Implement `Summarize(decimal[] values)` returning a named tuple with total and count. Print both for `[10m, 15m, 5m]`.</p><details class="ex-sol"><summary><span lang="fa">یک جواب کوتاه</span><span lang="en">One concise answer</span></summary><div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">C#</span><button class="copy">کپی</button></div><pre dir="ltr">static (decimal Total, int Count) Summarize(decimal[] values)
+{
+    decimal total = 0m;
+    foreach (var value in values) total += value;
+    return (total, values.Length);
+}</pre></div><p lang="fa">خروجی اعضا ۳۰ و ۳ است. موقع بازگرداندن، چون جایگاه‌ها با امضا هم‌خوان‌اند لازم نیست هر بار نام‌ها را دوباره بنویسی؛ در call site، `result.Total` و `result.Count` خواناترند.</p><p lang="en">The values are 30 and 3. The return positions match the signature, so names need not be repeated in the returned expression; `result.Total` and `result.Count` are clearer at the call site.</p></details></div>
+
+  <div class="ex" id="cs10-ex8"><h3><span lang="fa">۸) اسم عضوها نوع تازه نمی‌سازد</span><span lang="en">8) Element names do not create a new type</span></h3><p lang="fa">`(int Min, int Max) a = (2, 9); (int Start, int End) b = a;` را compile و اجرا کن. کدام نام‌ها را می‌توانی روی `b` بخوانی؟</p><p lang="en">Compile and run `(int Min, int Max) a = (2, 9); (int Start, int End) b = a;`. Which names can you read from `b`?</p><details class="ex-sol"><summary><span lang="fa">توضیح</span><span lang="en">Explanation</span></summary><p lang="fa">`b.Start` و `b.End` موجودند و مقادیر ۲ و ۹ را می‌دهند؛ `b.Min` عضو تعریف‌شدهٔ متغیر b نیست و compile نمی‌شود. tupleها به ترتیب و نوع عنصرها قابل‌انتساب‌اند؛ نام‌های metadata تابع تعریف همین سمت‌اند.</p><p lang="en">`b.Start` and `b.End` exist and hold 2 and 9; `b.Min` is not a member on `b` and does not compile. Tuple assignment matches element positions/types; names belong to the compile-time declaration at that side.</p></details></div>
+
+  <div class="ex" id="cs10-ex9"><h3><span lang="fa">۹) فقط عدد سفارش را deconstruct کن</span><span lang="en">9) Deconstruct only the order count</span></h3><p lang="fa">از `Summarize` مقدار count را لازم داری، اما total را نه. با discard و deconstruction بنویس؛ هیچ متغیر بی‌استفاده‌ای برای total نگه ندار.</p><p lang="en">You need only the count from `Summarize`, not the total. Use deconstruction and a discard; do not keep an unused total variable.</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">C#</span><button class="copy">کپی</button></div><pre dir="ltr">var (_, count) = Summarize(totals);
+Console.WriteLine(count);</pre></div><p lang="fa">ترتیب discard مهم است: tuple اول Total و دوم Count دارد. `_` یعنی نتیجهٔ جایگاه اول را نگه ندار؛ اگر جای آن‌ها را جابه‌جا کنی، نوع‌ها هم ممکن است اجازهٔ کامپایل ندهند یا معنای اشتباه بسازند.</p><p lang="en">The discard’s position matters: Total is first and Count second. `_` means do not keep the first value; swapping positions may fail compilation because of types or create a semantic mistake.</p></details></div>
+
+  <div class="ex" id="cs10-ex10"><h3><span lang="fa">۱۰) tuple یا anonymous type؟</span><span lang="en">10) Tuple or anonymous type?</span></h3><p lang="fa">برای یک preview محلی با `ProductId` و `Quantity`، یک tuple نام‌دار و یک anonymous object بساز و هر دو را چاپ کن. توضیح بده کدام برای return عمومی قرارداد بهتری نیست و چرا.</p><p lang="en">Create and print both a named tuple and an anonymous object for a local preview with `ProductId` and `Quantity`. Explain why neither is a strong public return contract.</p><details class="ex-sol"><summary><span lang="fa">دو projection محلی</span><span lang="en">Two local projections</span></summary><div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">C#</span><button class="copy">کپی</button></div><pre dir="ltr">var tuple = (ProductId: 42, Quantity: 3);
+var anonymous = new { ProductId = 42, Quantity = 3 };
+Console.WriteLine($"{tuple.ProductId}:{tuple.Quantity}");
+Console.WriteLine($"{anonymous.ProductId}:{anonymous.Quantity}");</pre></div><p lang="fa">برای استفادهٔ محلی هر دو concise هستند. anonymous type نوع نام‌گذاری‌شده‌ای برای امضای عمومی در اختیار call site نمی‌دهد؛ tuple هم قرارداد positional دارد و نام‌ها type تازه نمی‌سازند. اگر قرارداد باید پایدار بماند، آن را در فصل typeهای نام‌دار مدل می‌کنیم.</p><p lang="en">Both are concise for local use. An anonymous type gives callers no declared public name to use in a signature; a tuple is positional, and its names do not create a new nominal type. A stable contract should become a named type in the later type-design chapters.</p></details></div>
+
+  <div class="ex" id="cs10-ex11"><h3><span lang="fa">۱۱) آخرین خانه را با ^ بخوان</span><span lang="en">11) Read the final slot with ^</span></h3><p lang="fa">`totals[totals.Length - 1]` را به `totals[^1]` تبدیل کن و خروجی را مقایسه کن. بعد برای آرایهٔ خالی اجرا کن و نتیجه را توضیح بده.</p><p lang="en">Replace `totals[totals.Length - 1]` with `totals[^1]` and compare. Then run it on an empty array and explain the result.</p><details class="ex-sol"><summary><span lang="fa">پاسخ و مرز</span><span lang="en">Answer and boundary</span></summary><p lang="fa">روی آرایهٔ غیرخالی هر دو آخرین خانه را می‌خوانند. روی آرایهٔ خالی `^1` خانه‌ای پیدا نمی‌کند و runtime خطای محدوده می‌دهد؛ sugar نحوی جای بررسی خالی بودن را نمی‌گیرد.</p><p lang="en">For a non-empty array, both read the final element. On an empty array, `^1` has no element to select and the runtime reports an out-of-range failure; concise syntax does not replace an emptiness check.</p></details></div>
+
+  <div class="ex" id="cs10-ex12"><h3><span lang="fa">۱۲) انتهای بازه را داخل حساب نکن</span><span lang="en">12) Exclude the range endpoint</span></h3><p lang="fa">برای `int[] a = [10,20,30,40,50];` عبارت `a[1..4]` را اجرا کن. مقدارها و تعداد خانه‌ها را بنویس و توضیح بده چرا ۵۰ در نتیجه نیست.</p><p lang="en">Run `a[1..4]` for `int[] a = [10,20,30,40,50];`. Record values and length, then explain why 50 is absent.</p><details class="ex-sol"><summary><span lang="fa">نتیجه</span><span lang="en">Result</span></summary><p lang="fa">نتیجه `[20, 30, 40]` با طول ۳ است: index شروع ۱ وارد می‌شود و index پایان ۴ بیرون می‌ماند. شروع/پایان با label انسانی یکی نیست؛ indexها صفرمبنا هستند.</p><p lang="en">The result is `[20, 30, 40]`, length 3: start index 1 is included and end index 4 excluded. Human labels are not array indices; indexing starts at zero.</p></details></div>
+
+  <div class="ex" id="cs10-ex13"><h3><span lang="fa">۱۳) ثابت کن slice آرایهٔ تازه‌ای است</span><span lang="en">13) Prove an array slice is a new array</span></h3><p lang="fa">از `[1,2,3,4]` برش `1..3` بگیر؛ خانهٔ صفر slice را به 99 تغییر بده و هر دو آرایه را چاپ کن. از مشاهده چه چیزی نتیجه می‌گیری؟</p><p lang="en">Slice `1..3` from `[1,2,3,4]`; change slice slot zero to 99 and print both arrays. What does the observation prove?</p><details class="ex-sol"><summary><span lang="fa">آزمایش و نتیجه</span><span lang="en">Experiment and result</span></summary><div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">C#</span><button class="copy">کپی</button></div><pre dir="ltr">int[] original = [1, 2, 3, 4];
+int[] slice = original[1..3];
+slice[0] = 99;
+Console.WriteLine(string.Join(",", original)); // 1,2,3,4
+Console.WriteLine(string.Join(",", slice));    // 99,3</pre></div><p lang="fa">برش برای آرایه خروجی جدیدی می‌سازد و مقدارهای int را کپی می‌کند. این آزمایش ثابت نمی‌کند اشیای referenceشده هم clone می‌شوند؛ فقط خانه‌های آرایه جدا شده‌اند. برای همین از `Range` به عنوان «view بدون allocation» یاد نکن.</p><p lang="en">Array slicing creates a new result array and copies the integer values. This does not prove referenced objects are cloned; only the array slots are separate. Do not describe array `Range` as an allocation-free view.</p></details></div>
+
+  <div class="ex" id="cs10-ex14"><h3><span lang="fa">۱۴) ^0 را در جای درست استفاده کن</span><span lang="en">14) Use ^0 in the right position</span></h3><p lang="fa">`a[^0]` و `a[^2..^0]` را روی آرایهٔ چهارتایی آزمایش کن. کدام معتبر است و چرا؟ خروجی بازه را ثبت کن.</p><p lang="en">Test `a[^0]` and `a[^2..^0]` on a four-element array. Which is valid and why? Record the range output.</p><details class="ex-sol"><summary><span lang="fa">جواب</span><span lang="en">Answer</span></summary><p lang="fa">`^0` مرز یک‌خانه‌بعدازآخر است، نه index خانه؛ بنابراین `a[^0]` نامعتبر است. اما `^0` می‌تواند endpoint بازه باشد؛ `a[^2..^0]` دو خانهٔ آخر را برمی‌گرداند. نقش expression را از نوع مصرفش جدا بخوان.</p><p lang="en">`^0` is the boundary after the final element, not an element index, so `a[^0]` is invalid. As a range endpoint, `^0` is valid; `a[^2..^0]` returns the final two items. Interpret the expression according to how it is used.</p></details></div>
+
+  <div class="ex" id="cs10-ex15"><h3><span lang="fa">۱۵) Range روی آرایهٔ دوبعدی را تعمیر کن</span><span lang="en">15) Repair a range on a rectangular array</span></h3><p lang="fa">`int[,] matrix = { {1,2}, {3,4} }; var row = matrix[0..1];` را compile کن. خطا را نگه دار و برای خواندن یک ردیف، دسترسی معتبر را بنویس؛ اگر واقعاً slice لازم داری چه راهی پیشنهاد می‌دهی؟</p><p lang="en">Compile `int[,] matrix = { {1,2}, {3,4} }; var row = matrix[0..1];`. Keep the error and write a valid way to read one row; what would you do if you truly need a slice?</p><details class="ex-sol"><summary><span lang="fa">تشخیص</span><span lang="en">Diagnosis</span></summary><p lang="fa">Range indexer برای array یک‌بعدی است، نه `int[,]`. یک خانه را با `matrix[0, column]` بخوان. اگر row copy لازم است، با loop آرایهٔ یک‌بعدی تازه بساز یا داده را از ابتدا به ساختاری مناسب نگه دار؛ محدودیت type را با تغییر syntax رفع نمی‌کنی.</p><p lang="en">The array Range indexer applies to one-dimensional arrays, not `int[,]`. Read a cell with `matrix[0, column]`. For a row copy, build a one-dimensional array with a loop or choose a suitable representation; syntax cannot erase the type’s limitation.</p></details></div>
+
+  <div class="ex" id="cs10-ex16"><h3><span lang="fa">۱۶) تیکت گزارش روزانه را ببند</span><span lang="en">16) Close the daily-report ticket</span></h3><p lang="fa">تیکت می‌گوید: «فقط جمع مبلغ‌های دو سفارش آخر را چاپ کن؛ تعداد کل را هم کنار آن نشان بده؛ batchهای خالی هم ممکن‌اند.» یک تابع بنویس که `(LastTwoTotal, OrderCount)` برگرداند و برای ورودی خالی خروجی تعریف‌شده داشته باشد؛ دو ورودی را اجرا کن.</p><p lang="en">Ticket: “Print the sum of the last two order totals and show the overall count. Batches can be empty.” Write a function returning `(LastTwoTotal, OrderCount)` with defined behavior for empty input, then run two cases.</p><details class="ex-sol"><summary><span lang="fa">یک پیاده‌سازی با قرارداد روشن</span><span lang="en">One implementation with an explicit contract</span></summary><div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">C#</span><button class="copy">کپی</button></div><pre dir="ltr">static (decimal LastTwoTotal, int OrderCount) Report(decimal[] values)
+{
+    decimal lastTwo = values.Length switch
+    {
+        0 =&gt; 0m,
+        1 =&gt; values[0],
+        _ =&gt; values[^2] + values[^1]
+    };
+    return (lastTwo, values.Length);
+}
+
+Console.WriteLine(Report([10m, 20m, 30m])); // (50, 3)
+Console.WriteLine(Report([]));             // (0, 0)</pre></div><p lang="fa">تابع برای صفر عضو جمع صفر تعریف کرده و برای یک عضو همان را می‌دهد؛ این یک تصمیم قراردادی است، نه قانون آرایه. در نسخهٔ production اگر null هم ممکن است، باید آن قرارداد را جدا تعریف کنیم. تمرین نشان می‌دهد مرز خالی را قبل از `^2` حل کنیم.</p><p lang="en">The function defines zero items as a zero sum and one item as that item’s total; this is an API decision, not an array rule. If null is also possible in production, define that contract separately. The exercise guards the empty boundary before `^2`.</p></details></div>
+</section>
+
+<section id="quick-reference">
+  <h2><span lang="fa">مرجع سریع: اول شکل، بعد index</span><span lang="en">Quick reference: shape first, then index</span></h2>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th lang="fa">اگر داده‌ات…</th><th lang="en">If your data…</th><th lang="fa">از این استفاده کن</th><th lang="en">Use</th><th lang="fa">حواست به…</th><th lang="en">Watch for…</th></tr></thead><tbody>
+  <tr><td lang="fa">توالی هم‌نوع با طول مشخص است</td><td lang="en">is a fixed-length homogeneous sequence</td><td><code>T[]</code></td><td><code>T[]</code></td><td lang="fa">index از صفر و طول ثابت</td><td lang="en">zero-based indexing and fixed length</td></tr>
+  <tr><td lang="fa">شبکهٔ ردیف/ستون منظم است</td><td lang="en">is a regular row/column grid</td><td><code>T[,]</code></td><td><code>T[,]</code></td><td lang="fa"><code>GetLength(dimension)</code></td><td><code>GetLength(dimension)</code></td></tr>
+  <tr><td lang="fa">ردیف‌ها اندازهٔ متفاوت دارند</td><td lang="en">has rows of different lengths</td><td><code>T[][]</code></td><td><code>T[][]</code></td><td lang="fa">ردیف داخلی ممکن است null باشد</td><td lang="en">an inner row can be null</td></tr>
+  <tr><td lang="fa">چند نتیجهٔ کوچک از یک محاسبه می‌آید</td><td lang="en">needs a few values returned together</td><td lang="fa">tuple نام‌دار</td><td>named tuple</td><td lang="fa">نام‌ها type دامنه‌ای مستقل نمی‌سازند</td><td lang="en">names do not create a nominal type</td></tr>
+  <tr><td lang="fa">از انتهای توالی می‌خوانی</td><td lang="en">indexes from the end</td><td><code>^1</code></td><td><code>^1</code></td><td lang="fa"><code>^0</code> index عنصر نیست</td><td lang="en"><code>^0</code> is not an element index</td></tr>
+  <tr><td lang="fa">بخشی از آرایهٔ یک‌بعدی لازم داری</td><td lang="en">needs a portion of a 1-D array</td><td><code>start..end</code></td><td><code>start..end</code></td><td lang="fa">پایان حذف می‌شود؛ آرایهٔ تازه ساخته می‌شود</td><td lang="en">end excluded; a new array is created</td></tr>
+  </tbody></table></div>
+  <p lang="fa">وقتی نتیجه عجیب شد، اول این‌ها را ثبت کن: نوع دقیق آرایه، طول هر بعد/ردیف، index شروع و پایان، و exception. بعد سراغ تبدیل ساختار برو؛ `int[][]` و `int[,]` را از روی ظاهر مشابه یکی فرض نکن.</p><p lang="en">When a result surprises you, record the exact array type, each dimension/row length, the start and end indices, and the exception. Then decide whether the data shape should change; do not treat `int[][]` and `int[,]` as equivalent because they look similar.</p>
+</section>
+
+<section id="next">
+  <h2><span lang="fa">قدم بعد: وقتی یک متغیر را به متغیر دیگر می‌دهیم چه کپی می‌شود؟</span><span lang="en">Next: what gets copied when one variable is assigned to another?</span></h2>
+  <p lang="fa">حالا می‌توانیم دادهٔ هم‌نوع را در آرایه نگه داریم، شبکهٔ مستطیلی را از ردیف‌های متغیر تشخیص بدهیم و خروجی کوچک یک محاسبه را با tuple برگردانیم. اما یک سؤال را فقط لمس کردیم: خود آرایه یا tuple وقتی assign می‌شود چه رفتاری دارد؟ فصل بعد کپی مقدار و کپی reference را با تغییر واقعی داده روشن می‌کند.</p>
+  <p lang="en">We can now store same-typed values in arrays, distinguish rectangular grids from variable rows, and return a small result with a tuple. We only touched one question: what happens when an array or tuple is assigned? Next chapter makes value copying and reference copying visible through actual mutation.</p>
+</section>
+
+<section id="sources">
+  <h2><span lang="fa">منابع و نسخهٔ زبان</span><span lang="en">References and language version</span></h2>
+  <p lang="fa">این مثال‌ها با SDK .NET 10 و C# مدرن نوشته شده‌اند؛ collection expression به C# 12 نیاز دارد، درحالی‌که Index/Range از C# 8 آمده‌اند. مستند رسمی آرایه‌ها تفاوت rectangular/jagged را تعریف می‌کند و language reference مشخص می‌کند slice یک آرایهٔ یک‌بعدی کپی shallow تازه‌ای است. اگر target یا `LangVersion` پروژه فرق دارد، آن تنظیم واقعی را ملاک بگیر.</p>
+  <p lang="en">These examples target the .NET 10 SDK and modern C#. Collection expressions require C# 12, while Index/Range arrived in C# 8. The official array reference distinguishes rectangular and jagged arrays; the language reference specifies that slicing a one-dimensional array creates a new shallow-copy array. If your target or `LangVersion` differs, follow the project’s actual setting.</p>
+  <ul><li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/arrays">Microsoft Learn — Arrays</a></li><li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/value-tuples">Microsoft Learn — Tuple types</a></li><li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/member-access-operators">Microsoft Learn — Index and Range operators</a></li><li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/collection-expressions">Microsoft Learn — Collection expressions</a></li><li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/language-versioning">Microsoft Learn — C# language versioning</a></li></ul>
+</section>

@@ -1,0 +1,263 @@
+<!--meta
+title: کپی مقدار و کپی ارجاع
+desc: دو متغیر را کپی و تغییر می‌دهیم تا فرق value و reference را از رفتار بفهمیم؛ alias، کپی سطحی، پارامتر متد و boxing را بدون افسانهٔ stack/heap بررسی می‌کنیم.
+-->
+<div class="masthead">
+  <span class="eyebrow"><span class="dot"></span><span lang="fa">C# · فصل ۱۱</span><span lang="en">C# · Chapter 11</span></span>
+  <h1 lang="fa">کپی مقدار و کپی ارجاع</h1><h1 lang="en">Value copies and reference copies</h1>
+  <p class="sub" lang="fa">تنظیم تخفیف سفارش A-42 را برای یک پیش‌نمایش کپی می‌کنیم. بعد یک فیلد را در نسخهٔ پیش‌نمایش عوض می‌کنیم و می‌بینیم سفارش اصلی هم تغییر کرده است. اسم متغیرها جداست؛ پس چرا داده یکی است؟ بیا رفتار assignment را با آزمایش ببینیم، نه با جملهٔ «struct روی stack است».</p>
+  <p class="sub" lang="en">We copy the discount settings for order A-42 into a preview, then change one field and discover that the original order changed too. The variables have different names, so why did the data move together? Let’s observe assignment semantics instead of relying on “structs live on the stack.”</p>
+  <div class="facts"><div class="fact"><span class="fact-v"><b>۶</b><span lang="fa">بخش</span><span lang="en">sections</span></span></div><div class="fact"><span class="fact-v"><b>۱۶</b><span lang="fa">تمرین اجرایی</span><span lang="en">coding exercises</span></span></div><div class="fact"><div class="fact-v"><b>۸۵</b><span lang="fa">دقیقه</span><span lang="en">minutes</span></div></div><div class="fact"><div class="fact-v"><b>فصل ۱۰</b><span lang="fa">پیش‌نیاز</span><span lang="en">prerequisite</span></div></div></div>
+</div>
+
+<section id="story">
+  <h2><span lang="fa">پیش‌نمایش، سفارش اصلی را هم تغییر داد</span><span lang="en">The preview changed the original order</span></h2>
+  <p class="lede" lang="fa">تیم فروش می‌خواهد روی یک نسخهٔ آزمایشی، نرخ تخفیف را عوض کند؛ نباید سفارش ثبت‌شده دست بخورد. این کد را اجرا کن و قبلش حدس بزن دو خط آخر چه چاپ می‌کنند.</p>
+  <p class="lede" lang="en">Sales wants to experiment with a discount rate without changing the recorded order. Run this code, but first predict the last two lines.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">C# · Program.cs</span><button class="copy">کپی</button></div><pre dir="ltr">sealed class DiscountSettings
+{
+    public decimal Rate { get; set; }
+}
+
+var original = new DiscountSettings { Rate = 0.10m };
+var preview = original;
+preview.Rate = 0.20m;
+
+Console.WriteLine(original.Rate);
+Console.WriteLine(ReferenceEquals(original, preview));</pre></div>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">خروجی / output</span><button class="copy">کپی</button></div><pre dir="ltr">0.20
+True</pre></div>
+  <p lang="fa">در assignment به یک <code>class</code>، مقدار متغیر یعنی reference به شیء کپی می‌شود. شیء تازه‌ای نساختیم؛ هر دو متغیر به همان تنظیمات اشاره می‌کنند. `preview.Rate` و `original.Rate` دو راه رسیدن به یک property هستند.</p>
+  <p lang="en">Assigning a <code>class</code> value copies the reference to the object. No new object was created; both variables refer to the same settings. `preview.Rate` and `original.Rate` reach the same property.</p>
+  <div class="note warn"><b lang="fa">نام متفاوت، شیء متفاوت نمی‌سازد</b><b lang="en">A new variable name does not create a new object</b><p lang="fa">`var preview = original` متغیر تازه می‌سازد، نه نسخهٔ مستقل از شیء. قبل از تغییر آزمایشی باید تصمیم بگیری: آیا عمداً هر دو نام یک وضعیت مشترک را می‌بینند؟</p><p lang="en">`var preview = original` creates a new variable, not an independent object. Before a trial mutation, decide whether both names are meant to observe shared state.</p></div>
+</section>
+
+<section id="value-copy">
+  <h2><span lang="fa">با struct همان assignment، نتیجهٔ دیگری دارد</span><span lang="en">The same assignment behaves differently with a struct</span></h2>
+  <p lang="fa">حالا settings را یک `struct` کوچک می‌کنیم. خط‌ها تقریباً همان‌اند؛ این بار پیش از اجرا نتیجه را پیش‌بینی کن.</p>
+  <p lang="en">Now make the settings a small `struct`. The lines are almost identical; predict the result before running them.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">C# · value type</span><button class="copy">کپی</button></div><pre dir="ltr">struct DiscountSnapshot
+{
+    public decimal Rate;
+}
+
+var original = new DiscountSnapshot { Rate = 0.10m };
+var preview = original;       // copies the struct value
+preview.Rate = 0.20m;
+
+Console.WriteLine(original.Rate);
+Console.WriteLine(preview.Rate);</pre></div>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">خروجی / output</span><button class="copy">کپی</button></div><pre dir="ltr">0.10
+0.20</pre></div>
+  <p lang="fa">هر متغیر value type مقدار خودش را دارد؛ assignment مقدار struct را کپی کرد. تغییر فیلد در `preview`، مقدار `original` را عوض نکرد. این قرارداد زبانی دربارهٔ معناست، نه قولی دربارهٔ جای فیزیکی هر متغیر.</p>
+  <p lang="en">Each value-type variable has its own value; assignment copied the struct value. Mutating `preview` did not change `original`. This is a language-level semantic contract, not a promise about where each variable physically lives.</p>
+  <p lang="fa">برای `int` هم همین است: `int b = a` عدد را کپی می‌کند. برای class، `b = a` ارجاع به همان object را کپی می‌کند. پس «value type یعنی همیشه روی stack» و «reference type یعنی همیشه فقط یک جای heap» مدل قابل اتکایی برای تصمیم روزمره نیست؛ JIT و عمر متغیرها در جزئیات حافظه دخیل‌اند.</p>
+  <p lang="en">The same applies to `int`: `int b = a` copies the number. For a class, `b = a` copies a reference to the same object. “Value types always live on the stack” and “reference types always mean one heap location” are not reliable everyday models; the JIT and variable lifetimes affect implementation details.</p>
+</section>
+
+<section id="method-boundary">
+  <h2><span lang="fa">پارامتر متد هم طبق همان قاعده کپی می‌شود</span><span lang="en">Method parameters follow the same copy rule</span></h2>
+  <p lang="fa">یک helper نرخ تخفیف را تغییر می‌دهد. آیا caller تغییر را می‌بیند؟ جواب به «کلاس یا struct بودن خود متغیر» ربط ندارد؛ باید ببینیم مقدار کپی‌شده چیست و داخل متد چه کاری می‌کنیم.</p>
+  <p lang="en">A helper changes a discount rate. Does the caller observe it? The answer is not simply about whether the variable is a class or struct; ask what value was copied and what the method does with it.</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">C# · parameter is a copy</span><button class="copy">کپی</button></div><pre dir="ltr">static void Replace(DiscountSettings settings)
+{
+    settings = new DiscountSettings { Rate = 0.30m };
+}
+
+static void Mutate(DiscountSettings settings)
+{
+    settings.Rate = 0.25m;
+}
+
+var original = new DiscountSettings { Rate = 0.10m };
+Replace(original);
+Console.WriteLine(original.Rate); // 0.10
+Mutate(original);
+Console.WriteLine(original.Rate); // 0.25</pre></div>
+  <p lang="fa">در هر دو فراخوانی reference پارامتر کپی می‌شود. `Replace` فقط کپی محلی را به شیء تازه وصل می‌کند؛ متغیر caller همچنان شیء قبلی را می‌بیند. `Mutate` از reference کپی‌شده به همان شیء می‌رسد و property مشترک را عوض می‌کند. اگر واقعاً قرار است خود متغیر caller دوباره مقدار بگیرد، بحث `ref` فصل ۸ مطرح است؛ برای API بهتر است اول از خودت بپرسی mutation لازم است یا مقدار تازه برگرداندن روشن‌تر است.</p>
+  <p lang="en">Both calls copy the reference into the parameter. `Replace` redirects only its local copy; the caller still refers to the old object. `Mutate` follows the copied reference to the shared object and changes its property. If the caller’s variable itself must be reassigned, Chapter 8’s `ref` is relevant; for API design, first ask whether mutation or returning a new value is clearer.</p>
+  <div class="note safe"><b lang="fa">یک جملهٔ دقیق‌تر</b><b lang="en">A more precise sentence</b><p lang="fa">C# آرگومان را به متد می‌دهد و پارامتر به‌طور پیش‌فرض مقدار را می‌گیرد. در reference type، آن مقدار یک reference است؛ پس کپی reference می‌تواند به دادهٔ مشترک راه بدهد، اما assignment دوباره به پارامتر، caller را عوض نمی‌کند.</p><p lang="en">C# passes an argument value to a parameter by default. For a reference type, that value is a reference; copying it can expose shared data, but reassigning the parameter does not reassign the caller’s variable.</p></div>
+</section>
+
+<section id="shallow-copy">
+  <h2><span lang="fa">کپی شیء همیشه کپی عمیق نیست</span><span lang="en">Copying an object is not automatically a deep copy</span></h2>
+  <p lang="fa">برای جلوگیری از alias، یک نمونهٔ تازه می‌سازیم. اما object یک فهرست mutable هم دارد؛ اگر فقط خود object را کپی کنیم، فهرست چه می‌شود؟</p>
+  <p lang="en">To avoid the alias, we create a new instance. But the object also owns a mutable list. What happens if we copy only the outer object?</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">C# · shallow copy</span><button class="copy">کپی</button></div><pre dir="ltr">sealed class OrderDraft
+{
+    public string Id { get; init; } = "";
+    public List&lt;string&gt; Items { get; init; } = [];
+}
+
+var original = new OrderDraft { Id = "A-42", Items = ["book"] };
+var preview = new OrderDraft { Id = original.Id, Items = original.Items };
+preview.Items.Add("pen");
+
+Console.WriteLine(original.Items.Count);
+Console.WriteLine(ReferenceEquals(original.Items, preview.Items));</pre></div>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">خروجی / output</span><button class="copy">کپی</button></div><pre dir="ltr">2
+True</pre></div>
+  <p lang="fa">دو `OrderDraft` داریم، ولی هر دو property `Items` به یک `List` اشاره می‌کند. این کپی سطحی است: فیلدهای مقدار، مقدارشان را می‌گیرند و فیلدهای reference همان reference را. کپی عمیق باید دربارهٔ هر شیء تو در تو تصمیم بگیرد؛ یک دکمهٔ عمومی و بی‌هزینه نیست.</p>
+  <p lang="en">There are two `OrderDraft` objects, but both `Items` properties refer to one list. This is a shallow copy: value fields get their values, while reference fields get the same references. A deep copy must decide what to do with every nested object; it is not a universal, free button.</p>
+  <p lang="fa">اگر فهرست هم مستقل باشد، باید آن را هم بسازیم: `Items = [.. original.Items]`. اما این فقط یک سطح را کپی می‌کند؛ اگر خود آیتم‌ها mutable object باشند، آن‌ها هنوز مشترک‌اند. immutable کردن داده یا طراحی یک `Copy` صریح با قرارداد مشخص، معمولاً از کپی مبهم امن‌تر است.</p>
+  <p lang="en">If the list must also be independent, create it too: `Items = [.. original.Items]`. That copies only one level; mutable item objects may still be shared. Immutable data or an explicit `Copy` operation with a clear contract is often safer than an ambiguous copy.</p>
+</section>
+
+<section id="nested-values">
+  <h2><span lang="fa">struct هم می‌تواند reference مشترک درون خودش داشته باشد</span><span lang="en">A struct can still contain a shared reference</span></h2>
+  <p lang="fa">حالا `OrderStamp` یک struct است، ولی داخلش `List` دارد. کپی خود struct چه چیزی را جدا می‌کند و چه چیزی را نه؟</p>
+  <p lang="en">Now `OrderStamp` is a struct, but it contains a `List`. What does copying the struct separate, and what remains shared?</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">C# · value containing a reference</span><button class="copy">کپی</button></div><pre dir="ltr">struct OrderStamp
+{
+    public int Revision;
+    public List&lt;string&gt; Notes;
+}
+
+var first = new OrderStamp { Revision = 1, Notes = ["created"] };
+var second = first;
+second.Revision = 2;
+second.Notes.Add("reviewed");
+
+Console.WriteLine($"{first.Revision}/{second.Revision}");
+Console.WriteLine(string.Join(",", first.Notes));</pre></div>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">خروجی / output</span><button class="copy">کپی</button></div><pre dir="ltr">1/2
+created,reviewed</pre></div>
+  <p lang="fa">فیلد `Revision` در struct کپی جدا دارد؛ `Notes` یک reference است و کپی struct، فهرست تازه‌ای نساخت. پس سؤال مفید «این نوع value است یا reference؟» است، اما برای فهم استقلال واقعی باید یک لایه پایین‌تر هم ساختار فیلدها را ببینیم.</p>
+  <p lang="en">The `Revision` field has an independent copied value; `Notes` is a reference, and copying the struct did not create another list. “Is this a value or reference type?” is useful, but to understand independence we must inspect the fields one level deeper.</p>
+  <div class="table-wrap"><table class="doc-table"><thead><tr><th lang="fa">عمل</th><th lang="en">Operation</th><th lang="fa">چه چیزی کپی می‌شود؟</th><th lang="en">What is copied?</th><th lang="fa">نتیجهٔ مهم</th><th lang="en">Key consequence</th></tr></thead><tbody>
+  <tr><td>`int b = a`</td><td>assign a value</td><td lang="fa">عدد</td><td lang="en">the number</td><td lang="fa">تغییر مستقل</td><td lang="en">independent value</td></tr>
+  <tr><td>`var b = classA`</td><td>assign a class</td><td lang="fa">reference</td><td>reference</td><td lang="fa">احتمال alias</td><td lang="en">may alias</td></tr>
+  <tr><td>`var b = structA`</td><td>assign a struct</td><td lang="fa">کل مقدار struct</td><td lang="en">the struct value</td><td lang="fa">referenceهای داخلش هنوز مشترک‌اند</td><td lang="en">references inside may still be shared</td></tr>
+  <tr><td>`object boxed = number`</td><td>box a value</td><td lang="fa">کپی مقدار داخل object</td><td lang="en">a copy inside an object</td><td lang="fa">تغییر متغیر اصلی object را عوض نمی‌کند</td><td lang="en">mutating the original variable does not change the object</td></tr>
+  </tbody></table></div>
+</section>
+
+<section id="boxing">
+  <h2><span lang="fa">boxing مقدار را در object می‌پیچد؛ reference مشترک نمی‌سازد</span><span lang="en">Boxing wraps a value in an object; it does not alias the variable</span></h2>
+  <p lang="fa">یک API قدیمی `object` می‌گیرد. عدد را می‌فرستیم، بعد متغیر عددی را عوض می‌کنیم. object چه چیزی را نگه داشته؟</p>
+  <p lang="en">A legacy API accepts `object`. We pass it a number, then change the numeric variable. What did the object keep?</p>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">C# · boxing and unboxing</span><button class="copy">کپی</button></div><pre dir="ltr">int revision = 3;
+object boxed = revision;       // boxing: copies 3 into an object
+revision = 4;
+
+Console.WriteLine(revision);
+Console.WriteLine(boxed);
+int restored = (int)boxed;     // unboxing: type must match
+Console.WriteLine(restored);</pre></div>
+  <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">خروجی / output</span><button class="copy">کپی</button></div><pre dir="ltr">4
+3
+3</pre></div>
+  <p lang="fa">boxing مقدار value type را کپی می‌کند و به شکل object قابل‌ارجاع در اختیار می‌گذارد؛ متغیر `revision` و مقدار box‌شده دو مقدار جدا هستند. هنگام unboxing نوع دقیق باید درست باشد: `(short)boxed` تبدیل عددی عمومی نیست و با boxed `int` خطای زمان اجرا می‌دهد. genericهایی مثل `List&lt;int&gt;` معمولاً از boxing ناخواستهٔ هر عضو جلوگیری می‌کنند؛ اما قبل از بهینه‌سازی، مسیر واقعی را بسنج.</p>
+  <p lang="en">Boxing copies a value-type value into an object you can reference; `revision` and the boxed value are separate. Unboxing requires the exact boxed type: `(short)boxed` is not a general numeric conversion and fails at runtime for a boxed `int`. Generics such as `List&lt;int&gt;` generally avoid boxing each item; measure a real path before optimizing.</p>
+</section>
+
+<section id="lab">
+  <h2><span lang="fa">آزمایشگاه: پیش‌نویس را واقعاً مستقل کن</span><span lang="en">Lab: make the draft genuinely independent</span></h2>
+  <p class="lede" lang="fa">پیش‌نمایش سفارش باید نرخ و اقلام خودش را داشته باشد. اول با کد معیوب شروع کن؛ بعد استقلال هر لایه را با `ReferenceEquals` و خروجی تغییرها ثابت کن.</p>
+  <p class="lede" lang="en">An order preview needs its own rate and items. Start with a broken copy, then prove independence at each layer with `ReferenceEquals` and mutation output.</p>
+  <ol>
+    <li lang="fa">یک `OrderDraft` با `Id`، یک `DiscountSettings` و `List&lt;string&gt; Items` بساز. نسخهٔ preview را با assignment برابر original قرار بده و قبل از اجرا حدس بزن کدام تغییرها نشت می‌کنند.</li><li lang="en">Create an `OrderDraft` with an ID, `DiscountSettings`, and `List&lt;string&gt; Items`. Assign the preview from the original and predict which mutations will leak.</li>
+    <li lang="fa">نرخ تخفیف و یک قلم به preview اضافه کن. مقدارها و `ReferenceEquals` برای هر دو property را چاپ کن؛ فقط به برابری شناسه‌ها اکتفا نکن.</li><li lang="en">Change the preview discount and add an item. Print the values and `ReferenceEquals` for both properties; equal IDs do not prove independent state.</li>
+    <li lang="fa">یک کپی سطحی بساز: object تازه، ولی همان `DiscountSettings` و `Items`. دوباره آزمایش کن و دقیق بگو کدام لایه هنوز مشترک است.</li><li lang="en">Make a shallow copy: a new outer object but the same `DiscountSettings` and `Items`. Repeat the test and identify every shared layer.</li>
+    <li lang="fa">قرارداد را انتخاب کن: کپی مستقل، دادهٔ immutable، یا shared state عمدی. اگر مستقل می‌خواهی، helper `CopyForPreview` بنویس که فهرست را هم کپی کند و تنظیمات mutable را نیز مستقل بسازد.</li><li lang="en">Choose a contract: independent copy, immutable data, or intentional shared state. For independence, write `CopyForPreview` that also copies the list and creates independent mutable settings.</li>
+    <li lang="fa">در فهرست یک شیء mutable تو در تو قرار بده و نشان بده کپی فهرست هنوز آن شیء را share می‌کند. یا کپی عمیق همان مورد را پیاده کن یا مدل را immutable کن؛ ادعای «deep copy کامل» بدون تعریف عمق نکن.</li><li lang="en">Put a mutable nested object in the list and show that copying the list still shares that object. Copy that level too or make the model immutable; do not claim “deep copy” without defining its depth.</li>
+    <li lang="fa">آزمایش را با متد `Replace` و `Mutate` تکرار کن؛ مشخص کن کدام فقط پارامتر محلی را عوض می‌کند و کدام object مشترک را.</li><li lang="en">Repeat with `Replace` and `Mutate` methods; identify which changes only the local parameter and which changes a shared object.</li>
+  </ol>
+  <details class="ex-sol"><summary><span lang="fa">مسیر حل نمونه؛ بعد از آزمایش بازش کن</span><span lang="en">One solution path—open after experimenting</span></summary>
+    <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">C# · explicit copy contract</span><button class="copy">کپی</button></div><pre dir="ltr">sealed class DiscountSettings
+{
+    public decimal Rate { get; set; }
+}
+
+sealed class OrderDraft
+{
+    public required string Id { get; init; }
+    public required DiscountSettings Discount { get; init; }
+    public required List&lt;string&gt; Items { get; init; }
+
+    public OrderDraft CopyForPreview() => new()
+    {
+        Id = Id,
+        Discount = new DiscountSettings { Rate = Discount.Rate },
+        Items = [.. Items]
+    };
+}
+
+var original = new OrderDraft
+{
+    Id = "A-42",
+    Discount = new DiscountSettings { Rate = 0.10m },
+    Items = ["book"]
+};
+var preview = original.CopyForPreview();
+preview.Discount.Rate = 0.20m;
+preview.Items.Add("pen");
+
+Console.WriteLine($"original: {original.Discount.Rate}, {string.Join(",", original.Items)}");
+Console.WriteLine($"preview: {preview.Discount.Rate}, {string.Join(",", preview.Items)}");
+Console.WriteLine(ReferenceEquals(original.Discount, preview.Discount));
+Console.WriteLine(ReferenceEquals(original.Items, preview.Items));</pre></div>
+    <div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">خروجی مورد انتظار / expected output</span><button class="copy">کپی</button></div><pre dir="ltr">original: 0.10, book
+preview: 0.20, book,pen
+False
+False</pre></div>
+    <p lang="fa">متد نام‌دار، قرارداد کپی را کنار مدل نگه می‌دارد و هر دو reference mutable را تازه می‌سازد. این مثال چون string immutable است، کپی رشتهٔ `Id` نگرانی mutation ندارد. اگر `Items` شامل objectهای mutable باشد، کپی لیست فقط container را جدا می‌کند؛ باید همان قرارداد را برای عضوها هم تعریف کنیم.</p><p lang="en">The named method keeps the copy contract with the model and creates both mutable references anew. `Id` is a string, so copying its reference is safe for mutation because strings are immutable. If `Items` contains mutable objects, copying the list separates only the container; define a contract for its elements too.</p>
+  </details>
+</section>
+
+<section id="exercises">
+  <h2><span lang="fa">تمرین‌ها: پیش از کپی، قرارداد را روشن کن</span><span lang="en">Exercises: make the copy contract explicit</span></h2>
+  <p lang="fa">برای هر تمرین کد را اجرا یا اصلاح کن و خروجی/خطا را نگه دار. جواب «چون class است» کافی نیست؛ مشخص کن دقیقاً کدام مقدار یا object مشترک مانده.</p><p lang="en">Run or repair the code and keep the output/error. “Because it is a class” is not enough; identify exactly which value or object remains shared.</p>
+
+  <div class="ex" id="cs11-ex1"><h3><span lang="fa">۱) خروجی assignment را پیش‌بینی کن</span><span lang="en">1) Predict assignment output</span></h3><p lang="fa">`int a=4; int b=a; b++;` را اجرا کن. مقادیر آخر را بنویس و توضیح بده کپی چه بود.</p><p lang="en">Run `int a=4; int b=a; b++;`. Record final values and say what was copied.</p><details class="ex-sol"><summary><span lang="fa">پاسخ و دلیل</span><span lang="en">Answer and reasoning</span></summary><p lang="fa">`a` برابر ۴ و `b` برابر ۵ است. assignment مقدار عددی را کپی کرده؛ `b++` متغیر دوم را عوض می‌کند. این دربارهٔ محل فیزیکی متغیرها چیزی ثابت نمی‌کند.</p><p lang="en">`a` is 4 and `b` is 5. Assignment copied the numeric value, so `b++` changes only the second variable. This says nothing about physical storage locations.</p></details></div>
+
+  <div class="ex" id="cs11-ex2"><h3><span lang="fa">۲) alias را از روی شاهد تشخیص بده</span><span lang="en">2) Identify an alias from evidence</span></h3><p lang="fa">دو متغیر `class` را assign کن، property یکی را تغییر بده، هر دو را چاپ کن و `ReferenceEquals` بگیر. نتیجه را پیش‌بینی و بعد اجرا کن.</p><p lang="en">Assign two variables holding a class object, mutate one property, print both and call `ReferenceEquals`. Predict, then run it.</p><details class="ex-sol"><summary><span lang="fa">آزمایش</span><span lang="en">Experiment</span></summary><div class="term"><div class="term-bar"><span class="dots"><i></i><i></i><i></i></span><span class="term-label">C#</span><button class="copy">کپی</button></div><pre dir="ltr">var x = new DiscountSettings { Rate = 0.1m };
+var y = x;
+y.Rate = 0.2m;
+Console.WriteLine($"{x.Rate} {ReferenceEquals(x, y)}"); // 0.2 True</pre></div><p lang="fa">reference کپی شده و هر دو مسیر به یک object می‌رسند. `ReferenceEquals` شاهد identity است؛ شباهت value property به‌تنهایی این را ثابت نمی‌کرد.</p><p lang="en">The reference was copied, so both paths reach one object. `ReferenceEquals` proves identity; equal property values alone would not.</p></details></div>
+
+  <div class="ex" id="cs11-ex3"><h3><span lang="fa">۳) struct را تغییر بده، نتیجه را ثبت کن</span><span lang="en">3) Mutate a struct and record the result</span></h3><p lang="fa">struct با فیلد `Count` بساز، assign کن و کپی را تغییر بده. چه چیزی مستقل ماند؟</p><p lang="en">Create a struct with a `Count` field, assign it, and change the copy. What stayed independent?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">فیلدهای value در کپی تغییر نمی‌کنند؛ assignment خود مقدار struct را کپی می‌کند. اگر struct reference تو در تو داشته باشد، آن referenceها داستان جدا دارند.</p><p lang="en">Value fields in the copy do not change the original; assignment copies the struct value. Nested references need separate analysis.</p></details></div>
+
+  <div class="ex" id="cs11-ex4"><h3><span lang="fa">۴) رفتار پارامتر را از رفتار object جدا کن</span><span lang="en">4) Separate parameter reassignment from object mutation</span></h3><p lang="fa">دو متد `Replace(Settings x)` و `Mutate(Settings x)` بساز؛ اولی `x = new()` کند و دومی `x.Rate = ...`. caller را قبل و بعد چاپ کن.</p><p lang="en">Write `Replace(Settings x)` with `x = new()` and `Mutate(Settings x)` with `x.Rate = ...`. Print caller state before and after.</p><details class="ex-sol"><summary><span lang="fa">نتیجهٔ اجرا</span><span lang="en">Run result</span></summary><p lang="fa">`Replace` مرجع محلی پارامتر را عوض می‌کند؛ caller به object قبلی می‌ماند. `Mutate` از reference کپی‌شده به object مشترک می‌رسد. هر دو آرگومان به‌صورت مقدار پاس شده‌اند.</p><p lang="en">`Replace` changes its local parameter reference; the caller keeps the old object. `Mutate` reaches and changes the shared object. Both arguments were passed by value.</p></details></div>
+
+  <div class="ex" id="cs11-ex5"><h3><span lang="fa">۵) array را کپی کن، بعد alias را پیدا کن</span><span lang="en">5) Copy an array, then find the alias</span></h3><p lang="fa">`int[] first=[1,2]` و `second=first` را بساز. خانهٔ صفر را در second تغییر بده؛ سپس مقایسهٔ reference را چاپ کن.</p><p lang="en">Create `int[] first=[1,2]` and `second=first`. Change slot zero through second, then print reference identity.</p><details class="ex-sol"><summary><span lang="fa">تفسیر</span><span lang="en">Interpretation</span></summary><p lang="fa">خروجی اولی هم `[9,2]` می‌شود و `ReferenceEquals` برابر true است. آرایه reference type است؛ برای کپی خانه‌ها می‌توان `first.ToArray()` گرفت، اما اعضای reference همچنان سطحی کپی می‌شوند.</p><p lang="en">The first array also becomes `[9,2]` and `ReferenceEquals` is true. Arrays are reference types. `first.ToArray()` copies slots, but reference elements are still copied shallowly.</p></details></div>
+
+  <div class="ex" id="cs11-ex6"><h3><span lang="fa">۶) کپی سطحی را تعمیر کن</span><span lang="en">6) Repair a shallow copy</span></h3><p lang="fa">یک `OrderDraft` با `List&lt;string&gt;` بساز؛ object تازه ولی فهرست مشترک تولید کن. کمینه‌ترین تغییری که فهرست را جدا می‌کند چیست؟</p><p lang="en">Create a new `OrderDraft` but reuse its `List&lt;string&gt;`. What smallest change separates the list?</p><details class="ex-sol"><summary><span lang="fa">اصلاح</span><span lang="en">Repair</span></summary><p lang="fa">`Items = [.. original.Items]` یا `original.Items.ToList()` یک فهرست تازه با همان stringها می‌سازد. اگر اعضا mutable باشند، آن‌ها هنوز مشترک‌اند؛ مرز کپی باید با مدل هماهنگ باشد.</p><p lang="en">`Items = [.. original.Items]` or `original.Items.ToList()` creates a new list with the same strings. Mutable elements remain shared; the copy boundary must match the model.</p></details></div>
+
+  <div class="ex" id="cs11-ex7"><h3><span lang="fa">۷) struct دارای List را بررسی کن</span><span lang="en">7) Inspect a struct containing a List</span></h3><p lang="fa">struct را کپی کن؛ یک فیلد عددی و یک List را جداگانه تغییر بده. با دو خروجی نشان بده چرا عبارت «struct همیشه کپی مستقل است» ناقص است.</p><p lang="en">Copy a struct, then change a numeric field and its List separately. Use two outputs to show why “a struct is always an independent copy” is incomplete.</p><details class="ex-sol"><summary><span lang="fa">مدل پاسخ</span><span lang="en">Answer model</span></summary><p lang="fa">فیلد عددیِ کپی‌شده مستقل است؛ reference مربوط به List کپی شده و هر دو struct یک collection را می‌بینند. نوع بیرونی کافی نیست؛ ساختار داخلی هم مهم است.</p><p lang="en">The copied numeric field is independent; the List reference was copied, so both structs see one collection. The outer type alone is not enough; inspect its fields.</p></details></div>
+
+  <div class="ex" id="cs11-ex8"><h3><span lang="fa">۸) خطای unboxing را بازتولید کن</span><span lang="en">8) Reproduce an unboxing failure</span></h3><p lang="fa">عدد `int` را به object تبدیل کن و آن را مستقیم به `short` cast کن. exception را ثبت و cast درست را آزمایش کن.</p><p lang="en">Box an `int`, cast it directly to `short`, record the exception, then test the correct cast.</p><details class="ex-sol"><summary><span lang="fa">تشخیص</span><span lang="en">Diagnosis</span></summary><p lang="fa">`(short)boxed` با InvalidCastException شکست می‌خورد؛ داخل object یک `int` box شده، نه `short`. ابتدا `(int)boxed` unbox می‌کند، بعد تبدیل عددی جدا انجام بده: `short n = (short)(int)boxed;` و محدوده را هم بررسی کن.</p><p lang="en">`(short)boxed` throws InvalidCastException because the object contains a boxed `int`, not a boxed `short`. Unbox as `(int)boxed`, then convert separately: `short n = (short)(int)boxed;`, checking the range too.</p></details></div>
+
+  <div class="ex" id="cs11-ex9"><h3><span lang="fa">۹) boxing را در API قدیمی پیدا کن</span><span lang="en">9) Find boxing in a legacy API</span></h3><p lang="fa">یک `ArrayList` از intها و یک `List&lt;int&gt;` بساز. یک دلیل فنی برای انتخاب دومی بنویس و نتیجه را با کد اجرا کن؛ ادعای benchmark نکن.</p><p lang="en">Create an `ArrayList` and a `List&lt;int&gt;`. Use code to show one technical reason for preferring the generic list; do not claim a benchmark.</p><details class="ex-sol"><summary><span lang="fa">نمونه</span><span lang="en">Example</span></summary><p lang="fa">`ArrayList` مقدارهای value type را از مسیر `object` نگه می‌دارد و read نیازمند unboxing/cast است؛ `List&lt;int&gt;` نوع را حفظ می‌کند و cast را حذف می‌کند. اندازهٔ کارایی را بدون اندازه‌گیری واقعی اعلام نکن.</p><p lang="en">`ArrayList` stores value types through `object`, requiring an unbox/cast on read; `List&lt;int&gt;` preserves the type and removes that cast. Do not quantify performance without measurement.</p></details></div>
+
+  <div class="ex" id="cs11-ex10"><h3><span lang="fa">۱۰) مقدار tuple را کپی کن</span><span lang="en">10) Copy a tuple value</span></h3><p lang="fa">یک tuple شامل `int Count` و `decimal Total` بساز، assign کن و یکی از فیلدها را در کپی عوض کن. آیا tuple یک class است؟</p><p lang="en">Create a tuple with `int Count` and `decimal Total`, assign it, and mutate one field in the copy. Is a tuple a class?</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">ValueTuple یک value type است؛ assignment مقدار را کپی می‌کند. دو متغیر مستقل‌اند. نام‌های `Count` و `Total` خوانایی compile-time می‌دهند، نه شیء مرجع مستقل.</p><p lang="en">ValueTuple is a value type; assignment copies its value, so the variables are independent. `Count` and `Total` improve compile-time readability, not reference identity.</p></details></div>
+
+  <div class="ex" id="cs11-ex11"><h3><span lang="fa">۱۱) mutable element را در کپی لیست بیازما</span><span lang="en">11) Test a mutable element in a copied list</span></h3><p lang="fa">`List&lt;DiscountSettings&gt;` را با collection expression کپی کن. property اولین عضو را از کپی تغییر بده و مشخص کن آیا فقط list تازه شده یا object عضو هم.</p><p lang="en">Copy a `List&lt;DiscountSettings&gt;` with a collection expression. Mutate the first element through the copy and determine whether only the list or the element object was copied.</p><details class="ex-sol"><summary><span lang="fa">شاهد</span><span lang="en">Evidence</span></summary><p lang="fa">collection expression container جدید می‌سازد، اما اعضای class همان referenceهای قبلی‌اند؛ پس property شیء اصلی هم تغییر می‌کند. برای استقلال باید هر عضو را هم کپی یا immutable کرد.</p><p lang="en">The collection expression creates a new container, but class elements remain the same references; mutating one changes the original object too. Copy each element or make them immutable for independence.</p></details></div>
+
+  <div class="ex" id="cs11-ex12"><h3><span lang="fa">۱۲) قرارداد کپی را در نام متد روشن کن</span><span lang="en">12) Make the copy contract visible in a method name</span></h3><p lang="fa">برای `OrderDraft` متدی بساز که مشخص کند فقط snapshot سطحی می‌دهد یا preview مستقل. یک تست با mutation بنویس که قرارداد را ثابت کند.</p><p lang="en">Add a method to `OrderDraft` that states whether it returns a shallow snapshot or independent preview. Write a mutation test that proves the contract.</p><details class="ex-sol"><summary><span lang="fa">راه حل</span><span lang="en">Approach</span></summary><p lang="fa">اسم `CopyForPreview` را فقط وقتی به‌کار ببر که هر مسیر mutable موردنیاز را جدا کرده‌ای. تست: original و copy را بساز، copy را تغییر بده، مقدار اصلی و `ReferenceEquals`های مورد انتظار را assert کن. اسم `Clone` به‌تنهایی عمق کپی را تضمین نمی‌کند.</p><p lang="en">Use `CopyForPreview` only after separating every required mutable path. Test by mutating the copy, asserting original values and expected `ReferenceEquals` results. The name `Clone` alone does not promise copy depth.</p></details></div>
+
+  <div class="ex" id="cs11-ex13"><h3><span lang="fa">۱۳) آیا ref جواب استقلال است؟</span><span lang="en">13) Does ref solve independence?</span></h3><p lang="fa">یک helper با `ref Settings` بنویس که caller را به object جدید وصل کند. بعد بگو مشکل اشتراک state حل شد یا فقط متغیر caller دوباره assign شد.</p><p lang="en">Write a `ref Settings` helper that points the caller at a new object. Did this solve shared state, or only reassign the caller’s variable?</p><details class="ex-sol"><summary><span lang="fa">تفسیر</span><span lang="en">Interpretation</span></summary><p lang="fa">`ref` اجازه می‌دهد متد خود متغیر caller را دوباره assign کند؛ این می‌تواند alias آن متغیر را قطع کند، اما سایر aliasهای قبلی و referenceهای تو در تو را خودکار اصلاح نمی‌کند. قرارداد کپی همچنان لازم است.</p><p lang="en">`ref` lets the method reassign the caller’s variable. That can break that variable’s alias, but does not repair other aliases or nested references automatically. A copy contract is still required.</p></details></div>
+
+  <div class="ex" id="cs11-ex14"><h3><span lang="fa">۱۴) identity را با equality قاطی نکن</span><span lang="en">14) Do not confuse identity with equality</span></h3><p lang="fa">دو object جدا با propertyهای برابر بساز. `ReferenceEquals` و `Equals` را جدا اجرا کن و توضیح بده کدام سؤال را جواب می‌دهند.</p><p lang="en">Create two distinct objects with equal properties. Run `ReferenceEquals` and `Equals` separately; explain what each asks.</p><details class="ex-sol"><summary><span lang="fa">نکته</span><span lang="en">Key point</span></summary><p lang="fa">`ReferenceEquals` می‌پرسد آیا همان instance است. `Equals` قرارداد برابری نوع را صدا می‌زند و برای class عادی، اگر override نشده باشد، معمولاً identity است؛ نوع‌هایی مثل record می‌توانند value equality داشته باشند. این فصل equality را پیاده‌سازی نمی‌کند؛ فصل ۱۹ مرزش را باز می‌کند.</p><p lang="en">`ReferenceEquals` asks whether this is the same instance. `Equals` invokes the type’s equality contract; an ordinary class typically uses identity unless overridden, while records can provide value equality. Chapter 19 develops that contract.</p></details></div>
+
+  <div class="ex" id="cs11-ex15"><h3><span lang="fa">۱۵) افسانهٔ stack/heap را با ادعای قابل‌اثبات عوض کن</span><span lang="en">15) Replace stack/heap folklore with a provable claim</span></h3><p lang="fa">این گزاره را اصلاح کن: «همهٔ structها روی stack و همهٔ classها روی heap هستند.» دو جملهٔ درست دربارهٔ assignment بنویس و یک محدودیت ادعا را اضافه کن.</p><p lang="en">Correct: “All structs are on the stack and all classes are on the heap.” Write two true assignment statements and one limitation.</p><details class="ex-sol"><summary><span lang="fa">پاسخ</span><span lang="en">Answer</span></summary><p lang="fa">در assignment، value type مقدارش کپی می‌شود؛ reference type مقدار reference را کپی می‌کند. این semantics تضمینِ محل فیزیکی نیست. رفتار allocation و performance را باید با runtime و benchmark مناسب بررسی کرد.</p><p lang="en">Assignment copies a value-type value and copies a reference-type reference. These semantics do not guarantee physical storage locations. Inspect allocation and performance with appropriate runtime evidence and benchmarks.</p></details></div>
+
+  <div class="ex" id="cs11-ex16"><h3><span lang="fa">۱۶) گزارش کپی را برای یک سفارش طراحی کن</span><span lang="en">16) Design a copy report for an order</span></h3><p lang="fa">یک سفارش با discount، فهرست قلم‌ها و metadata بساز. دو سیاست «shared preview» و «independent preview» را پیاده کن؛ mutationها، identity و محدودیت عمق هرکدام را با خروجی مستند کن.</p><p lang="en">Build an order with a discount, item list and metadata. Implement shared and independent preview policies; document mutations, identity and copy-depth limits with output.</p><details class="ex-sol"><summary><span lang="fa">معیار پاسخ قوی</span><span lang="en">Strong-answer criteria</span></summary><p lang="fa">کد باید برای هر property مشخص کند immutable است، value است یا reference mutable. تست باید حداقل یک تغییر را در preview انجام دهد و ثابت کند کدام مقدار در اصل تغییر کرده یا نکرده است؛ مرز کپی عمیق هم صریح نوشته شود.</p><p lang="en">For each property, state whether it is immutable, a value, or a mutable reference. The test must mutate the preview and prove what did or did not change in the original; state the deep-copy boundary explicitly.</p></details></div>
+</section>
+
+<section id="takeaway">
+  <h2><span lang="fa">قبل از کپی بپرس: استقلال می‌خواهیم یا اشتراک؟</span><span lang="en">Before copying, ask: independence or sharing?</span></h2>
+  <p lang="fa">برای عدد یا struct ساده، assignment معمولاً یک value مستقل می‌دهد. برای class و آرایه، متغیر تازه می‌تواند همان object را share کند. پارامتر متد هم reference را کپی می‌کند، نه اینکه caller را خودکار بازنویسی کند. کپی سطحی فقط یک سطح را جدا می‌کند؛ referenceهای تو در تو را باید دنبال کرد. برای API، قرارداد را با immutability یا متد کپی نام‌دار روشن کن و با تست mutation ثابتش کن.</p>
+  <p lang="en">Assignment gives an independent value for a number or simple struct. A new variable holding a class or array may still share the same object. A method parameter copies the reference; it does not automatically reassign the caller. A shallow copy separates only one level, so trace nested references. Make API intent clear with immutability or a named copy operation, then prove it with mutation tests.</p>
+  <p lang="fa">در فصل بعد سراغ `null` می‌رویم: حالا که می‌دانیم چند نام می‌توانند به یک object برسند، باید ببینیم اگر یکی از این referenceها اصلاً به object نرسد، compiler و runtime چه هشداری می‌دهند.</p><p lang="en">Next we turn to `null`. Now that several names can reach one object, we need to understand what the compiler and runtime tell us when a reference reaches no object at all.</p>
+</section>
+
+<section id="references">
+  <h2><span lang="fa">منابع رسمی برای ادامه</span><span lang="en">Official references</span></h2>
+  <ul>
+    <li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/value-types" target="_blank" rel="noreferrer">Microsoft Learn — Value types</a></li>
+    <li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/reference-types" target="_blank" rel="noreferrer">Microsoft Learn — Reference types</a></li>
+    <li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/types/boxing-and-unboxing" target="_blank" rel="noreferrer">Microsoft Learn — Boxing and unboxing</a></li>
+    <li><a href="https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/assignment-operator" target="_blank" rel="noreferrer">Microsoft Learn — Assignment operators</a></li>
+  </ul>
+</section>

@@ -113,6 +113,33 @@
   }
 }
 
+.statusFilter {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink-faint);
+  font-size: .78rem;
+  white-space: nowrap;
+
+  select {
+    max-width: 190px;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    outline: none;
+  }
+
+  option { color: var(--ink); background: var(--surface); }
+}
+
 .viewSwitch {
   display: inline-flex;
   gap: 2px;
@@ -141,6 +168,7 @@
       color: var(--blue);
       box-shadow: var(--shadow-1);
     }
+    &:disabled { opacity: .5; cursor: not-allowed; }
   }
 }
 
@@ -297,6 +325,8 @@
   }
   .toolbar { display: grid; gap: 9px; margin-bottom: 15px; }
   .filter { min-width: 0; height: 48px; border-radius: 15px; }
+  .statusFilter { min-height: 44px; justify-content: space-between; }
+  .statusFilter select { max-width: 62%; }
   .viewSwitch { justify-self: end; }
   .tiles {
     grid-template-columns: repeat(4, minmax(0, 1fr));

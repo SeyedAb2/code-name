@@ -6,7 +6,6 @@ import Image from "next/image";
 import { usePrefs } from "@/context/PrefsContext";
 import { SITE } from "@/lib/site";
 import TopBar, { type Crumb } from "./TopBar";
-import Loader from "./Loader";
 import SearchDialog from "@/components/search/SearchDialog";
 import MobileMenu from "./MobileMenu";
 import MobileNav from "./MobileNav";
@@ -59,7 +58,6 @@ export default function AppShell({ children, crumbs, bare }: Props) {
 
   return (
     <>
-      <Loader />
       <TopBar
         crumbs={crumbs}
         onOpenSearch={() => setSearch(true)}

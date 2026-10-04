@@ -13,6 +13,7 @@ import { SearchIcon, CloseIcon, ListIcon, GridIcon } from "@/components/ui/Icons
 import s from "./HomeView.module.scss";
 
 type View = "list" | "tiles";
+type ContentStatus = "all" | "complete" | "in-progress" | "not-started";
 
 interface Props {
   tracks: TrackSummary[];
@@ -26,16 +27,22 @@ export default function HomeView({ tracks, categories }: Props) {
      فقط تا وقتی روی همین صفحه است می‌ماند و ذخیره نمی‌شود. */
   const [view, setView] = useState<View>("tiles");
   const [q, setQ] = useState("");
+  const [contentStatus, setContentStatus] = useState<ContentStatus>("all");
 
   const pick = (v: View) => setView(v);
 
   const term = q.trim().toLowerCase();
-  const matches = useMemo(() => {
-    if (!term) return tracks;
-    return tracks.filter((tr) =>
-      `${tr.fa.name} ${tr.en.name} ${tr.fa.desc} ${tr.en.desc}`.toLowerCase().includes(term),
-    );
-  }, [tracks, term]);
+  const matches = useMemo(() => tracks.filter((tr) => {
+    const searchText = [tr.fa.name, tr.en.name, tr.fa.desc, tr.en.desc].join(" ").toLowerCase();
+    const searchMatch = !term || searchText.includes(term);
+    const { chapters, ready } = tr.stats;
+    const statusMatch =
+      contentStatus === "all" ||
+      (contentStatus === "complete" && chapters > 0 && ready >= chapters) ||
+      (contentStatus === "in-progress" && ready > 0 && ready < chapters) ||
+      (contentStatus === "not-started" && ready === 0);
+    return searchMatch && statusMatch;
+  }), [tracks, term, contentStatus]);
 
   const totals = useMemo(() => ({
     tracks: tracks.length,
@@ -44,8 +51,9 @@ export default function HomeView({ tracks, categories }: Props) {
     ready: tracks.reduce((a, x) => a + x.stats.ready, 0),
   }), [tracks]);
 
-  /* وقتی کاربر چیزی تایپ کرده، گروه‌بندی دسته‌ها فقط شلوغی است */
+  /* با جست‌وجو یا فیلتر وضعیت، مسیرهای منطبق را مستقیم نشان می‌دهیم. */
   const searching = term.length > 0;
+  const filtering = searching || contentStatus !== "all";
 
   return (
     <AppShell bare>
@@ -74,7 +82,7 @@ export default function HomeView({ tracks, categories }: Props) {
             <input
               type="search"
               value={q}
-              onChange={(e) => setQ(e.target.value)}
+              onChange={(e) => { setQ(e.target.value); setView("list"); }}
               placeholder={fa ? "جستجو در نام و توضیح مسیرها…" : "Filter tracks by name or description…"}
               aria-label={fa ? "فیلتر مسیرها" : "Filter tracks"}
             />
@@ -85,18 +93,35 @@ export default function HomeView({ tracks, categories }: Props) {
             )}
           </div>
 
+          <label className={s.statusFilter}>
+            <span>{fa ? "وضعیت نگارش" : "Content status"}</span>
+            <select
+              value={contentStatus}
+              onChange={(e) => {
+                setContentStatus(e.target.value as ContentStatus);
+                setView("list");
+              }}
+              aria-label={fa ? "فیلتر وضعیت نگارش دوره‌ها" : "Filter courses by writing status"}
+            >
+              <option value="all">{fa ? "همهٔ دوره‌ها · " + num(tracks.length, lang) : "All courses · " + tracks.length}</option>
+              <option value="complete">{fa ? "کامل" : "Complete"}</option>
+              <option value="in-progress">{fa ? "در حال نگارش" : "In progress"}</option>
+              <option value="not-started">{fa ? "هنوز نوشته نشده" : "Not written yet"}</option>
+            </select>
+          </label>
+
           <div className={s.viewSwitch} role="group" aria-label={fa ? "نحوهٔ نمایش" : "View"}>
             <button type="button" aria-pressed={view === "list"} onClick={() => pick("list")}>
               <ListIcon size={15} /> {t("allTracks", lang)}
             </button>
-            <button type="button" aria-pressed={view === "tiles"} onClick={() => pick("tiles")}>
+            <button type="button" aria-pressed={view === "tiles"} onClick={() => pick("tiles")} disabled={filtering}>
               <GridIcon size={15} /> {t("categories", lang)}
             </button>
           </div>
         </div>
 
         {/* نمای کاشی — فقط عنوان دسته‌ها */}
-        {view === "tiles" && !searching && (
+        {view === "tiles" && !filtering && (
           <div className={s.tiles}>
             {categories.map((c) => {
               const list = tracks.filter((x) => x.cat === c.id);
@@ -116,8 +141,8 @@ export default function HomeView({ tracks, categories }: Props) {
         )}
 
         {/* نمای فهرست — مسیرها زیر سرفصل دستهٔ خودشان */}
-        {(view === "list" || searching) && (
-          searching ? (
+        {(view === "list" || filtering) && (
+          filtering ? (
             matches.length ? (
               <div className={s.grid}>
                 {matches.map((tr, i) => <TrackCard key={tr.id} track={tr} index={i} term={q} />)}

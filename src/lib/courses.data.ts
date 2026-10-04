@@ -3262,12 +3262,12 @@ export const TRACKS: Track[] = [
     "locked": false,
     "fa": {
       "name": "معماری نرم‌افزار",
-      "desc": "از ویژگی‌های کیفی و تصمیم‌های معماری تا SOLID، معماری‌های لایه‌ای، شش‌ضلعی و Clean، الگوها، تست و مستندسازی.",
+      "desc": "از محرک‌ها و کیفیت تا مرز ماژول، vertical slice، سبک‌های معماری، داده، تاب‌آوری، امنیت، استقرار، تست و معماری تکاملی.",
       "intro": "معماری یعنی تصمیم‌هایی که عوض‌کردنشان بعداً گران می‌شود. این دوره روی مرزها، جهت وابستگی و هزینهٔ انتخاب‌ها تمرکز می‌کند؛ تحلیل نیاز و مدل‌کردن مسئله مسیر جداگانهٔ خودش را دارد. مثال‌ها را با C#، پایتون، TypeScript و Go می‌بینیم."
     },
     "en": {
       "name": "Software Architecture",
-      "desc": "From quality attributes and architectural decisions to SOLID, layered, hexagonal and clean architectures, patterns, testing and documentation.",
+      "desc": "From architecture drivers and quality attributes to module boundaries, vertical slices, architecture styles, data, resilience, security, deployment, testing, and evolution.",
       "intro": "Architecture concerns decisions that become expensive to change later. This course focuses on boundaries, dependency direction, and the cost of choices; requirements analysis and problem modelling have their own track. Examples use C#, Python, TypeScript, and Go."
     },
     "chapters": [
@@ -3715,60 +3715,196 @@ export const TRACKS: Track[] = [
       },
       {
         "n": "27",
-        "file": "27-cap1.html",
+        "file": "27-modular-monolith.html",
         "ready": false,
-        "ex": 5,
+        "ex": 18,
         "mins": 90,
         "fa": {
-          "t": "پروژهٔ ۱ — بازطراحی یک ‎CRUD‎ به لایه‌ای",
-          "d": "از یک فایل هزارخطی به لایه‌هایی با مسئولیت روشن."
+          "t": "ماژولار کردن Monolith بدون شکستن استقرار",
+          "d": "ماژول‌های سفارش و پرداخت را با مرز کد، مالکیت داده و dependency rule جدا کن."
         },
         "en": {
-          "t": "Project 1 — refactor a CRUD into layers",
-          "d": "From one thousand-line file to layers with clear responsibilities."
+          "t": "Modularising a monolith without splitting deployment",
+          "d": "Separate order and payment modules through code boundaries, data ownership, and dependency rules."
         },
-        "kw": "capstone layered refactor",
-        "cap": 1
+        "kw": "modular monolith module boundary data ownership",
+        "cap": 0
       },
       {
         "n": "28",
-        "file": "28-cap2.html",
+        "file": "28-vertical-slice-architecture.html",
         "ready": false,
-        "ex": 7,
-        "mins": 150,
+        "ex": 18,
+        "mins": 90,
         "fa": {
-          "t": "پروژهٔ ۲ — همان سیستم، شش‌ضلعی",
-          "d": "دامنه را از پایگاه‌داده و وب جدا کن و تست کامل بنویس."
+          "t": "Vertical Slice Architecture از درخواست تا داده",
+          "d": "یک تغییر checkout را end-to-end بساز و با لایه‌بندی افقی مقایسه کن؛ slice را با کپی‌کاری اشتباه نگیر."
         },
         "en": {
-          "t": "Project 2 — the same system, hexagonal",
-          "d": "Separate the domain from the database and the web, then test it fully."
+          "t": "Vertical Slice Architecture from request to data",
+          "d": "Build a checkout change end to end and compare it with horizontal layering without confusing slices with duplication."
         },
-        "kw": "capstone hexagonal test",
-        "cap": 2
+        "kw": "vertical slice feature slice architecture",
+        "cap": 0
       },
       {
         "n": "29",
-        "file": "29-cap3.html",
+        "file": "29-data-architecture-and-ownership.html",
         "ready": false,
-        "ex": 9,
-        "mins": 220,
+        "ex": 18,
+        "mins": 90,
         "fa": {
-          "t": "پروژهٔ ۳ — ‎Clean‎ با ‎CQRS‎ و رویداد",
-          "d": "مرزهای صریح، مدل خواندن جدا، و سازگاری نهایی."
+          "t": "معماری داده و مالکیت اطلاعات",
+          "d": "منبع حقیقت، transaction boundary، read model و هزینهٔ اشتراک schema را در چند ماژول دنبال کن."
         },
         "en": {
-          "t": "Project 3 — Clean with CQRS and events",
-          "d": "Explicit boundaries, a separate read model, and eventual consistency."
+          "t": "Data architecture and information ownership",
+          "d": "Trace sources of truth, transaction boundaries, read models, and the cost of shared schemas across modules."
         },
-        "kw": "capstone clean cqrs event",
+        "kw": "data architecture ownership transaction boundary read model",
+        "cap": 0
+      },
+      {
+        "n": "30",
+        "file": "30-resilience-and-failure-boundaries.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "مرز خرابی و تاب‌آوری در معماری",
+          "d": "timeout، retry، idempotency و bulkhead را روی یک جریان واقعی بگذار و اثر retry storm را ببین."
+        },
+        "en": {
+          "t": "Failure boundaries and architectural resilience",
+          "d": "Apply timeouts, retries, idempotency, and bulkheads to a real flow and inspect retry-storm effects."
+        },
+        "kw": "resilience timeout retry idempotency bulkhead failure mode",
+        "cap": 0
+      },
+      {
+        "n": "31",
+        "file": "31-security-architecture-and-trust.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "امنیت معماری و مرز اعتماد",
+          "d": "مسیر دادهٔ حساس checkout را threat-model کن؛ هویت، مجوز، secret و مرز اعتماد را در design وارد کن."
+        },
+        "en": {
+          "t": "Security architecture and trust boundaries",
+          "d": "Threat-model sensitive checkout data and place identity, authorization, secrets, and trust boundaries in the design."
+        },
+        "kw": "security architecture threat modeling trust boundary authorization",
+        "cap": 0
+      },
+      {
+        "n": "32",
+        "file": "32-deployment-topology.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "توپولوژی استقرار و معماری زمان اجرا",
+          "d": "تصمیم کد را به process، network، data store و rollout وصل کن؛ deployment diagram را از component diagram جدا بخوان."
+        },
+        "en": {
+          "t": "Deployment topology and runtime architecture",
+          "d": "Connect code decisions to processes, networks, stores, and rollout; distinguish deployment from component diagrams."
+        },
+        "kw": "deployment architecture runtime topology process network",
+        "cap": 0
+      },
+      {
+        "n": "33",
+        "file": "33-architecture-fitness-functions.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "Fitness Function و نگهبانی از مرزها",
+          "d": "یک قانون dependency و مالکیت ماژول را خودکار تست کن تا معماری فقط در دیاگرام نماند."
+        },
+        "en": {
+          "t": "Fitness functions and protecting boundaries",
+          "d": "Automate a dependency and module-ownership rule so architecture does not live only in diagrams."
+        },
+        "kw": "architecture fitness function dependency test boundary",
+        "cap": 0
+      },
+      {
+        "n": "34",
+        "file": "34-architecture-evolution.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "تکامل معماری و نوسازی سیستم قدیمی",
+          "d": "از strangler، مهاجرت مرحله‌ای و سازگاری عقب‌رو استفاده کن؛ برنامهٔ big-bang را با risk و rollback بسنج."
+        },
+        "en": {
+          "t": "Architecture evolution and modernisation",
+          "d": "Use strangler, incremental migration, and backward compatibility; assess big-bang change against risk and rollback."
+        },
+        "kw": "architecture evolution modernization strangler migration",
+        "cap": 0
+      },
+      {
+        "n": "35",
+        "file": "35-cap1.html",
+        "ready": false,
+        "ex": 5,
+        "mins": 100,
+        "fa": {
+          "t": "پروژهٔ ۱ — بازطراحی یک CRUD به معماری لایه‌ای",
+          "d": "از یک فایل هزارخطی به feature slice با مرزهای لایه‌ای، تست و مدرک تغییرپذیری برس."
+        },
+        "en": {
+          "t": "Project 1 — refactor a CRUD into layers",
+          "d": "Turn a thousand-line file into a feature slice with layered boundaries, tests, and evidence of changeability."
+        },
+        "kw": "capstone layered vertical slice refactor",
+        "cap": 1
+      },
+      {
+        "n": "36",
+        "file": "36-cap2.html",
+        "ready": false,
+        "ex": 7,
+        "mins": 165,
+        "fa": {
+          "t": "پروژهٔ ۲ — همان سیستم، ماژولار و شش‌ضلعی",
+          "d": "یک قابلیت کامل را از ورودی تا persistence بساز؛ adapterها را جابه‌جا کن و مرزها را تست کن."
+        },
+        "en": {
+          "t": "Project 2 — the same system, modular and hexagonal",
+          "d": "Build one complete capability from input to persistence, swap adapters, and test the boundaries."
+        },
+        "kw": "capstone hexagonal vertical slice module test",
+        "cap": 2
+      },
+      {
+        "n": "37",
+        "file": "37-cap3.html",
+        "ready": false,
+        "ex": 9,
+        "mins": 240,
+        "fa": {
+          "t": "پروژهٔ ۳ — Clean، CQRS و معماری تکاملی",
+          "d": "مدل خواندن و رویداد را با تصمیم ثبت‌شده، پایش، مهاجرت و rollback در یک سیستم قابل‌اجرا تحویل بده."
+        },
+        "en": {
+          "t": "Project 3 — Clean, CQRS, and evolutionary architecture",
+          "d": "Deliver a runnable system with a read model and events, documented decisions, observability, migration, and rollback."
+        },
+        "kw": "capstone clean cqrs event architecture evolution",
         "cap": 3
       }
     ],
     "stats": {
-      "chapters": 29,
-      "exercises": 489,
-      "minutes": 2705,
+      "chapters": 37,
+      "exercises": 633,
+      "minutes": 3485,
       "capstones": 3,
       "ready": 0
     }
@@ -4299,7 +4435,7 @@ export const TRACKS: Track[] = [
       {
         "n": "08",
         "file": "08-methods-and-parameters.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 85,
         "fa": {
@@ -4316,7 +4452,7 @@ export const TRACKS: Track[] = [
       {
         "n": "09",
         "file": "09-strings-and-formatting.html",
-        "ready": false,
+        "ready": true,
         "ex": 15,
         "mins": 75,
         "fa": {
@@ -4333,7 +4469,7 @@ export const TRACKS: Track[] = [
       {
         "n": "10",
         "file": "10-arrays-tuples-ranges.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 85,
         "fa": {
@@ -4350,7 +4486,7 @@ export const TRACKS: Track[] = [
       {
         "n": "11",
         "file": "11-value-reference-copy.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 85,
         "fa": {
@@ -4367,7 +4503,7 @@ export const TRACKS: Track[] = [
       {
         "n": "12",
         "file": "12-nullability.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 85,
         "fa": {
@@ -5322,7 +5458,7 @@ export const TRACKS: Track[] = [
       "exercises": 938,
       "minutes": 6170,
       "capstones": 3,
-      "ready": 7
+      "ready": 12
     }
   },
   {
@@ -5347,7 +5483,7 @@ export const TRACKS: Track[] = [
       {
         "n": "01",
         "file": "01-http-request.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
@@ -5364,7 +5500,7 @@ export const TRACKS: Track[] = [
       {
         "n": "02",
         "file": "02-http-response.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
@@ -6710,7 +6846,7 @@ export const TRACKS: Track[] = [
       "exercises": 1407,
       "minutes": 7255,
       "capstones": 3,
-      "ready": 0
+      "ready": 2
     }
   },
   {
@@ -29403,12 +29539,12 @@ export const TRACKS: Track[] = [
     "locked": false,
     "fa": {
       "name": "تحلیل سیستم",
-      "desc": "از مسئله و ذی‌نفع تا نیاز، فرایند، مدل دامنه، معیار پذیرش و تحویل قابل‌ساخت.",
+      "desc": "از صورت‌بندی مسئله و کشف نیاز تا امکان‌سنجی، فرایند، قانون دامنه، vertical slice نیازمندی و پذیرش قابل‌آزمون.",
       "intro": "قبل از اینکه بپرسیم «چه معماری بسازیم؟» باید بفهمیم اصلاً چه مسئله‌ای را حل می‌کنیم. در این مسیر نقش تحلیل‌گر را تمرین می‌کنی: سؤال درست می‌پرسی، تناقض‌ها را پیدا می‌کنی و نیاز مبهم را به چیزی تبدیل می‌کنی که تیم بتواند بسازد و آزمایش کند."
     },
     "en": {
       "name": "System Analysis",
-      "desc": "From problem and stakeholders to requirements, processes, domain models, acceptance criteria, and buildable hand-offs.",
+      "desc": "From problem framing and elicitation to feasibility, processes, domain rules, vertical requirements slices, and testable acceptance.",
       "intro": "Before asking “What architecture should we build?”, we need to understand the problem we are solving. This track practises the analyst’s work: asking useful questions, exposing contradictions, and turning ambiguity into something a team can build and verify."
     },
     "chapters": [
@@ -29788,60 +29924,162 @@ export const TRACKS: Track[] = [
       },
       {
         "n": "23",
-        "file": "23-project-1-requirements-pack.html",
+        "file": "23-feasibility-and-business-value.html",
         "ready": false,
-        "ex": 5,
-        "mins": 120,
+        "ex": 18,
+        "mins": 85,
         "fa": {
-          "t": "پروژهٔ ۱ — بستهٔ نیازمندی یک فروشگاه",
-          "d": "برای سفارش آنلاین، context، stakeholder، نیاز، سناریو و معیار پذیرش قابل‌بررسی تحویل بده."
+          "t": "ارزش، امکان‌پذیری و معیار نتیجه",
+          "d": "درخواست را با اثر قابل‌اندازه‌گیری، هزینه، محدودیت و گزینهٔ «فعلاً نسازیم» مقایسه کن."
         },
         "en": {
-          "t": "Project 1 — a shop requirements pack",
-          "d": "Deliver reviewable context, stakeholder, requirements, scenarios, and acceptance criteria for online ordering."
+          "t": "Business value and feasibility",
+          "d": "Compare a request against measurable outcomes, cost, constraints, and the option to defer or not build."
         },
-        "kw": "system analysis project requirements",
-        "cap": 1
+        "kw": "business analysis feasibility value cost benefit",
+        "cap": 0
       },
       {
         "n": "24",
-        "file": "24-project-2-process-and-domain.html",
+        "file": "24-assumptions-risks-and-open-questions.html",
         "ready": false,
-        "ex": 7,
-        "mins": 150,
+        "ex": 18,
+        "mins": 85,
         "fa": {
-          "t": "پروژهٔ ۲ — فرایند و مدل دامنه",
-          "d": "فرایند سفارش را از وضعیت فعلی تا مدل هدف ببر و قانون‌های کسب‌وکار را به trace وصل کن."
+          "t": "فرض، ریسک و سؤال باز",
+          "d": "فرض پنهان را به سؤال قابل‌اعتبارسنجی تبدیل کن و مالک و پیامد هر ریسک را نگه دار."
         },
         "en": {
-          "t": "Project 2 — process and domain model",
-          "d": "Move an order process from current state to target model and trace business rules to evidence."
+          "t": "Assumptions, risks, and open questions",
+          "d": "Turn hidden assumptions into verifiable questions and record an owner and impact for each risk."
         },
-        "kw": "system analysis project process domain",
-        "cap": 2
+        "kw": "assumptions risk register open questions analysis",
+        "cap": 0
       },
       {
         "n": "25",
-        "file": "25-project-3-change-and-acceptance.html",
+        "file": "25-business-rules-and-decision-tables.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "قانون کسب‌وکار و جدول تصمیم",
+          "d": "قانون تخفیف سفارش را از متن پراکنده به decision table و مثال مرزی تبدیل کن."
+        },
+        "en": {
+          "t": "Business rules and decision tables",
+          "d": "Turn scattered discount rules into a decision table with boundary examples."
+        },
+        "kw": "business rule decision table edge cases requirements",
+        "cap": 0
+      },
+      {
+        "n": "26",
+        "file": "26-event-storming-and-domain-discovery.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "کشف دامنه با Event Storming",
+          "d": "رویداد، فرمان، actor و قانون را با ذی‌نفع کنار هم بچین؛ اختلاف واژه‌ها را به سؤال تبدیل کن."
+        },
+        "en": {
+          "t": "Domain discovery with Event Storming",
+          "d": "Map events, commands, actors, and rules with stakeholders; turn vocabulary conflicts into questions."
+        },
+        "kw": "event storming domain discovery domain event",
+        "cap": 0
+      },
+      {
+        "n": "27",
+        "file": "27-vertical-requirement-slice.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 95,
+        "fa": {
+          "t": "Vertical Slice نیازمندی؛ از مسئله تا آزمون پذیرش",
+          "d": "یک قابلیت سفارش را از نتیجهٔ کاربر تا فرایند، قانون، داده و acceptance test ردیابی کن؛ هنوز معماری کد طراحی نکن."
+        },
+        "en": {
+          "t": "A vertical requirements slice from problem to acceptance test",
+          "d": "Trace an order capability from user outcome through process, rule, data, and acceptance test—without designing code architecture yet."
+        },
+        "kw": "vertical slice requirements traceability acceptance test",
+        "cap": 0
+      },
+      {
+        "n": "28",
+        "file": "28-privacy-accessibility-and-compliance-requirements.html",
+        "ready": false,
+        "ex": 18,
+        "mins": 90,
+        "fa": {
+          "t": "حریم خصوصی، دسترس‌پذیری و الزام‌های انطباق",
+          "d": "تعهدهای بیرونی را به نیاز قابل‌آزمون و شاهد پذیرش تبدیل کن، نه برچسب کلی «امن و استاندارد»."
+        },
+        "en": {
+          "t": "Privacy, accessibility, and compliance requirements",
+          "d": "Turn external obligations into testable requirements and acceptance evidence, not vague “secure and compliant” labels."
+        },
+        "kw": "privacy accessibility compliance requirements acceptance",
+        "cap": 0
+      },
+      {
+        "n": "29",
+        "file": "29-project-1-requirements-pack.html",
+        "ready": false,
+        "ex": 5,
+        "mins": 130,
+        "fa": {
+          "t": "پروژهٔ ۱ — بستهٔ نیازمندی یک فروشگاه",
+          "d": "برای checkout، مسئله، ارزش، ذی‌نفع، نیاز، سناریو و معیار پذیرش قابل‌بررسی تحویل بده."
+        },
+        "en": {
+          "t": "Project 1 — a shop requirements pack",
+          "d": "Deliver reviewable problem framing, value, stakeholders, requirements, scenarios, and acceptance criteria for checkout."
+        },
+        "kw": "system analysis project requirements vertical slice",
+        "cap": 1
+      },
+      {
+        "n": "30",
+        "file": "30-project-2-process-and-domain.html",
+        "ready": false,
+        "ex": 7,
+        "mins": 165,
+        "fa": {
+          "t": "پروژهٔ ۲ — فرایند و مدل دامنه",
+          "d": "فرایند سفارش را از وضع موجود تا مدل هدف ببر؛ event storm، قانون و trace را به شاهد وصل کن."
+        },
+        "en": {
+          "t": "Project 2 — process and domain model",
+          "d": "Move order processing from current to target state and connect event storming, rules, and traceability to evidence."
+        },
+        "kw": "system analysis project process domain event storming",
+        "cap": 2
+      },
+      {
+        "n": "31",
+        "file": "31-project-3-change-and-acceptance.html",
         "ready": false,
         "ex": 9,
-        "mins": 180,
+        "mins": 200,
         "fa": {
           "t": "پروژهٔ ۳ — تغییر نیاز تا پذیرش",
-          "d": "درخواست تغییر را تحلیل کن، اثرها را بسنج و جلسهٔ UAT را با شواهد تحویل بده."
+          "d": "درخواست تغییر را تحلیل کن، اثرها و ریسک را بسنج و UAT را با سناریو و مدرک نتیجه تحویل بده."
         },
         "en": {
           "t": "Project 3 — from change request to acceptance",
-          "d": "Analyse a change request, assess impacts, and hand off a UAT session with evidence."
+          "d": "Analyse a change, assess impacts and risks, then hand off UAT scenarios and evidence."
         },
-        "kw": "system analysis capstone change uat",
+        "kw": "system analysis capstone change uat vertical slice",
         "cap": 3
       }
     ],
     "stats": {
-      "chapters": 25,
-      "exercises": 417,
-      "minutes": 2365,
+      "chapters": 31,
+      "exercises": 525,
+      "minutes": 2950,
       "capstones": 3,
       "ready": 0
     }
@@ -30202,7 +30440,7 @@ export const TRACKS: Track[] = [
       {
         "n": "01",
         "file": "01-amqp-and-rabbitmq-model.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -30511,7 +30749,7 @@ export const TRACKS: Track[] = [
       "exercises": 291,
       "minutes": 2000,
       "capstones": 3,
-      "ready": 0
+      "ready": 1
     }
   },
   {
@@ -30536,7 +30774,7 @@ export const TRACKS: Track[] = [
       {
         "n": "01",
         "file": "01-dotnet-platform-map.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 75,
         "fa": {
@@ -30553,7 +30791,7 @@ export const TRACKS: Track[] = [
       {
         "n": "02",
         "file": "02-dotnet-cli-workflow.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -30570,7 +30808,7 @@ export const TRACKS: Track[] = [
       {
         "n": "03",
         "file": "03-project-files-and-msbuild.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -30845,7 +31083,7 @@ export const TRACKS: Track[] = [
       "exercises": 291,
       "minutes": 1930,
       "capstones": 3,
-      "ready": 0
+      "ready": 3
     }
   }
 ];
