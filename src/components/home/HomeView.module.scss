@@ -130,12 +130,15 @@
     min-width: 0;
     max-width: 190px;
     border: 0;
-    background: transparent;
+    border-radius: 0;
+    background: transparent !important;
+    background-color: transparent !important;
     color: var(--ink);
     font: inherit;
     font-weight: 700;
     cursor: pointer;
     outline: none;
+    box-shadow: none !important;
   }
 
   option { color: var(--ink); background: var(--surface); }
@@ -327,20 +330,38 @@
   .toolbar { display: grid; gap: 9px; margin-bottom: 15px; }
   .filter { min-width: 0; height: 48px; border-radius: 15px; }
   .statusFilter {
+    position: relative;
     min-height: 44px;
     justify-content: space-between;
+
+    &::after {
+      content: "";
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      width: 6px;
+      height: 6px;
+      border-right: 1.5px solid var(--ink-faint);
+      border-bottom: 1.5px solid var(--ink-faint);
+      transform: translateY(-70%) rotate(45deg);
+      pointer-events: none;
+    }
 
     select {
       width: fit-content;
       max-width: 62%;
       color: var(--ink);
       direction: rtl;
-      text-align: left;
-      text-align-last: left;
-      padding: 0;
-      background: transparent;
-      appearance: auto;
-      -webkit-appearance: auto;
+      text-align: right;
+      text-align-last: right;
+      padding: 0 0 0 18px;
+      background: transparent !important;
+      background-color: transparent !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      appearance: none;
+      -webkit-appearance: none;
     }
   }
   .viewSwitch { justify-self: end; }

@@ -4979,7 +4979,7 @@ export const TRACKS: Track[] = [
       {
         "n": "40",
         "file": "40-json.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 90,
         "fa": {
@@ -4996,7 +4996,7 @@ export const TRACKS: Track[] = [
       {
         "n": "41",
         "file": "41-datetime-timezones.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 90,
         "fa": {
@@ -5013,7 +5013,7 @@ export const TRACKS: Track[] = [
       {
         "n": "42",
         "file": "42-regex.html",
-        "ready": false,
+        "ready": true,
         "ex": 14,
         "mins": 80,
         "fa": {
@@ -5030,7 +5030,7 @@ export const TRACKS: Track[] = [
       {
         "n": "43",
         "file": "43-httpclient-networking.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 90,
         "fa": {
@@ -5047,7 +5047,7 @@ export const TRACKS: Track[] = [
       {
         "n": "44",
         "file": "44-tcp-sockets.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 95,
         "fa": {
@@ -5064,7 +5064,7 @@ export const TRACKS: Track[] = [
       {
         "n": "45",
         "file": "45-diagnostics-process.html",
-        "ready": false,
+        "ready": true,
         "ex": 14,
         "mins": 80,
         "fa": {
@@ -5081,7 +5081,7 @@ export const TRACKS: Track[] = [
       {
         "n": "46",
         "file": "46-async-await-model.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 95,
         "fa": {
@@ -5098,7 +5098,7 @@ export const TRACKS: Track[] = [
       {
         "n": "47",
         "file": "47-tasks-cancellation.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -5115,7 +5115,7 @@ export const TRACKS: Track[] = [
       {
         "n": "48",
         "file": "48-async-failure-modes.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 90,
         "fa": {
@@ -5132,7 +5132,7 @@ export const TRACKS: Track[] = [
       {
         "n": "49",
         "file": "49-valuetask-async-streams.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 90,
         "fa": {
@@ -5149,7 +5149,7 @@ export const TRACKS: Track[] = [
       {
         "n": "50",
         "file": "50-threading-concurrency.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 90,
         "fa": {
@@ -5166,7 +5166,7 @@ export const TRACKS: Track[] = [
       {
         "n": "51",
         "file": "51-synchronization.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -5183,7 +5183,7 @@ export const TRACKS: Track[] = [
       {
         "n": "52",
         "file": "52-parallelism-tpl.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 95,
         "fa": {
@@ -5200,7 +5200,7 @@ export const TRACKS: Track[] = [
       {
         "n": "53",
         "file": "53-channels-backpressure.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 95,
         "fa": {
@@ -5217,7 +5217,7 @@ export const TRACKS: Track[] = [
       {
         "n": "54",
         "file": "54-span-memory.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 100,
         "fa": {
@@ -5234,7 +5234,7 @@ export const TRACKS: Track[] = [
       {
         "n": "55",
         "file": "55-pooling-and-sequences.html",
-        "ready": false,
+        "ready": true,
         "ex": 14,
         "mins": 90,
         "fa": {
@@ -5251,7 +5251,7 @@ export const TRACKS: Track[] = [
       {
         "n": "56",
         "file": "56-gc-allocation.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 95,
         "fa": {
@@ -5268,7 +5268,7 @@ export const TRACKS: Track[] = [
       {
         "n": "57",
         "file": "57-testing-xunit.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -5285,7 +5285,7 @@ export const TRACKS: Track[] = [
       {
         "n": "58",
         "file": "58-benchmarkdotnet.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 95,
         "fa": {
@@ -5302,7 +5302,7 @@ export const TRACKS: Track[] = [
       {
         "n": "59",
         "file": "59-solution-nuget-publish.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 90,
         "fa": {
@@ -5319,7 +5319,7 @@ export const TRACKS: Track[] = [
       {
         "n": "60",
         "file": "60-assemblies-loading.html",
-        "ready": false,
+        "ready": true,
         "ex": 14,
         "mins": 90,
         "fa": {
@@ -5336,7 +5336,7 @@ export const TRACKS: Track[] = [
       {
         "n": "61",
         "file": "61-reflection-dynamic.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 90,
         "fa": {
@@ -5353,7 +5353,7 @@ export const TRACKS: Track[] = [
       {
         "n": "62",
         "file": "62-source-generators-analyzers.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 100,
         "fa": {
@@ -5370,7 +5370,7 @@ export const TRACKS: Track[] = [
       {
         "n": "63",
         "file": "63-cryptography.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 95,
         "fa": {
@@ -5387,7 +5387,7 @@ export const TRACKS: Track[] = [
       {
         "n": "64",
         "file": "64-interop-unsafe.html",
-        "ready": false,
+        "ready": true,
         "ex": 16,
         "mins": 100,
         "fa": {
@@ -5404,7 +5404,7 @@ export const TRACKS: Track[] = [
       {
         "n": "65",
         "file": "65-cap1.html",
-        "ready": false,
+        "ready": true,
         "ex": 0,
         "mins": 180,
         "fa": {
@@ -5421,7 +5421,7 @@ export const TRACKS: Track[] = [
       {
         "n": "66",
         "file": "66-cap2.html",
-        "ready": false,
+        "ready": true,
         "ex": 0,
         "mins": 210,
         "fa": {
@@ -5438,7 +5438,7 @@ export const TRACKS: Track[] = [
       {
         "n": "67",
         "file": "67-cap3.html",
-        "ready": false,
+        "ready": true,
         "ex": 0,
         "mins": 240,
         "fa": {
@@ -5458,7 +5458,7 @@ export const TRACKS: Track[] = [
       "exercises": 938,
       "minutes": 6170,
       "capstones": 3,
-      "ready": 39
+      "ready": 67
     }
   },
   {
@@ -5619,7 +5619,7 @@ export const TRACKS: Track[] = [
       {
         "n": "09",
         "file": "09-mental-model.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
@@ -5670,7 +5670,7 @@ export const TRACKS: Track[] = [
       {
         "n": "12",
         "file": "12-minimal-vs-mvc.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -5687,7 +5687,7 @@ export const TRACKS: Track[] = [
       {
         "n": "13",
         "file": "13-routing.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -5721,7 +5721,7 @@ export const TRACKS: Track[] = [
       {
         "n": "15",
         "file": "15-middleware.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 85,
         "fa": {
@@ -5755,7 +5755,7 @@ export const TRACKS: Track[] = [
       {
         "n": "17",
         "file": "17-filters.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -5772,7 +5772,7 @@ export const TRACKS: Track[] = [
       {
         "n": "18",
         "file": "18-di.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -5806,7 +5806,7 @@ export const TRACKS: Track[] = [
       {
         "n": "20",
         "file": "20-options.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -5823,7 +5823,7 @@ export const TRACKS: Track[] = [
       {
         "n": "21",
         "file": "21-config.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -6846,7 +6846,7 @@ export const TRACKS: Track[] = [
       "exercises": 1407,
       "minutes": 7255,
       "capstones": 3,
-      "ready": 2
+      "ready": 10
     }
   },
   {
@@ -30825,7 +30825,7 @@ export const TRACKS: Track[] = [
       {
         "n": "04",
         "file": "04-nuget-restore-and-locking.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -30842,7 +30842,7 @@ export const TRACKS: Track[] = [
       {
         "n": "05",
         "file": "05-build-compiler-and-artifacts.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -30859,7 +30859,7 @@ export const TRACKS: Track[] = [
       {
         "n": "06",
         "file": "06-target-framework-and-rid.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -30876,7 +30876,7 @@ export const TRACKS: Track[] = [
       {
         "n": "07",
         "file": "07-application-startup-and-hosting.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -30893,7 +30893,7 @@ export const TRACKS: Track[] = [
       {
         "n": "08",
         "file": "08-assemblies-and-dependency-resolution.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -30910,7 +30910,7 @@ export const TRACKS: Track[] = [
       {
         "n": "09",
         "file": "09-generic-host-lifecycle.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -30927,7 +30927,7 @@ export const TRACKS: Track[] = [
       {
         "n": "10",
         "file": "10-configuration-di-and-logging.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -30944,7 +30944,7 @@ export const TRACKS: Track[] = [
       {
         "n": "11",
         "file": "11-dotnet-diagnostics.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 105,
         "fa": {
@@ -30961,7 +30961,7 @@ export const TRACKS: Track[] = [
       {
         "n": "12",
         "file": "12-managed-memory-and-gc.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 105,
         "fa": {
@@ -30978,7 +30978,7 @@ export const TRACKS: Track[] = [
       {
         "n": "13",
         "file": "13-publish-models-and-self-contained.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 95,
         "fa": {
@@ -30995,7 +30995,7 @@ export const TRACKS: Track[] = [
       {
         "n": "14",
         "file": "14-single-file-trimming-and-aot.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 105,
         "fa": {
@@ -31012,7 +31012,7 @@ export const TRACKS: Track[] = [
       {
         "n": "15",
         "file": "15-upgrades-security-and-support.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 100,
         "fa": {
@@ -31029,7 +31029,7 @@ export const TRACKS: Track[] = [
       {
         "n": "16",
         "file": "16-project-1-portable-cli.html",
-        "ready": false,
+        "ready": true,
         "ex": 5,
         "mins": 130,
         "fa": {
@@ -31083,7 +31083,7 @@ export const TRACKS: Track[] = [
       "exercises": 291,
       "minutes": 1930,
       "capstones": 3,
-      "ready": 3
+      "ready": 16
     }
   }
 ];

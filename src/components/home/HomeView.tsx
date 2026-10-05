@@ -103,7 +103,7 @@ export default function HomeView({ tracks, categories }: Props) {
               }}
               aria-label={fa ? "فیلتر وضعیت نگارش دوره‌ها" : "Filter courses by writing status"}
             >
-              <option value="all">{fa ? "همهٔ دوره‌ها · " + num(tracks.length, lang) : "All courses · " + tracks.length}</option>
+              <option value="all">{fa ? "همهٔ دوره‌ها" : "All courses"}</option>
               <option value="complete">{fa ? "کامل" : "Complete"}</option>
               <option value="in-progress">{fa ? "در حال نگارش" : "In progress"}</option>
               <option value="not-started">{fa ? "هنوز نوشته نشده" : "Not written yet"}</option>
