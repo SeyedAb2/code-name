@@ -5840,7 +5840,7 @@ export const TRACKS: Track[] = [
       {
         "n": "22",
         "file": "22-binding.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -5874,9 +5874,9 @@ export const TRACKS: Track[] = [
       {
         "n": "24",
         "file": "24-validation.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
-        "mins": 80,
+        "mins": 85,
         "fa": {
           "t": "اعتبارسنجی با DataAnnotations",
           "d": "اعتبارسنجی داخلی و محدودیت‌هایش."
@@ -5891,7 +5891,7 @@ export const TRACKS: Track[] = [
       {
         "n": "25",
         "file": "25-fluentvalidation.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 90,
         "fa": {
@@ -5925,7 +5925,7 @@ export const TRACKS: Track[] = [
       {
         "n": "27",
         "file": "27-mapping.html",
-        "ready": false,
+        "ready": true,
         "ex": 18,
         "mins": 80,
         "fa": {
@@ -6844,9 +6844,9 @@ export const TRACKS: Track[] = [
     "stats": {
       "chapters": 80,
       "exercises": 1407,
-      "minutes": 7255,
+      "minutes": 7260,
       "capstones": 3,
-      "ready": 10
+      "ready": 14
     }
   },
   {
@@ -31046,7 +31046,7 @@ export const TRACKS: Track[] = [
       {
         "n": "17",
         "file": "17-project-2-hosted-worker.html",
-        "ready": false,
+        "ready": true,
         "ex": 7,
         "mins": 170,
         "fa": {
@@ -31063,8 +31063,8 @@ export const TRACKS: Track[] = [
       {
         "n": "18",
         "file": "18-project-3-release-and-runtime.html",
-        "ready": false,
-        "ex": 9,
+        "ready": true,
+        "ex": 3,
         "mins": 220,
         "fa": {
           "t": "پروژهٔ ۳ — انتشار و تحویل برنامهٔ .NET",
@@ -31080,10 +31080,10 @@ export const TRACKS: Track[] = [
     ],
     "stats": {
       "chapters": 18,
-      "exercises": 291,
+      "exercises": 285,
       "minutes": 1930,
       "capstones": 3,
-      "ready": 16
+      "ready": 18
     }
   }
 ];
